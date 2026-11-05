@@ -85,6 +85,8 @@ def _wikilink(node: dict[str, object], context: Context) -> str:
     attrs = node["attrs"]
     label = escape(attrs["label"])
     chapter = _resolve_chapter(attrs["target"], context)
+    if chapter is not None and attrs["label"] == attrs["target"]:
+        label = escape(context.chapters[chapter])  # An unaliased link shows its note's title.
     if chapter is None:
         return f'<span class="unresolved" title="{escape(attrs["target"], quote=True)}">{label}</span>'
     anchor = context.headings.get(f"{chapter}#{_identifier(attrs['heading'])}") if attrs["heading"] else None
@@ -338,6 +340,10 @@ def _node(node: dict[str, object], context: Context) -> str:
         return _code(node)
     if kind == "paragraph":
         return _paragraph(node, context)
+    if kind == "list" and _tight(node):
+        tag = "ol" if node["attrs"].get("ordered") else "ul"
+        items = "".join(f"<li>{_tight_item(item, context)}</li>\n" for item in node["children"])
+        return f"<{tag}>\n{items}</{tag}>\n"
     inner = _nodes(node["children"], context)
     if kind == "section":
         level = min(max(int(node["attrs"].get("level", 1)), 1), 6)
@@ -370,6 +376,26 @@ def _code(node: dict[str, object]) -> str:
         position = separator.end()
     pieces.append(escape(text[position:]))
     return f"<code>{'<wbr>'.join(pieces)}</code>"
+
+
+def _tight(node: dict[str, object]) -> bool:
+    """A list whose items each hold one paragraph (plus nested lists) renders tight, as
+    Markdown's usual tight lists do; the Document does not say whether a list was loose."""
+    return all(
+        sum(child["type"] == "paragraph" for child in item["children"]) == 1
+        and all(child["type"] in {"paragraph", "list"} for child in item["children"])
+        for item in node["children"]
+    )
+
+
+def _tight_item(item: dict[str, object], context: Context) -> str:
+    parts = []
+    for child in item["children"]:
+        if child["type"] == "paragraph" and not any(c["type"] == "marks" for c in child["children"]):
+            parts.append(_nodes(child["children"], context))
+        else:
+            parts.append(("\n" if parts else "") + _node(child, context))
+    return "".join(parts)
 
 
 def _paragraph(node: dict[str, object], context: Context) -> str:

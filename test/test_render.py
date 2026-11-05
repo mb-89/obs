@@ -76,7 +76,7 @@ def test_headings_carry_anchors_and_untitled_chapters_stay_as_authored(document)
 def test_structural_nodes_render_escaped(document) -> None:
     html = "".join(note["html"] for note in _model(document)["notes"])
     assert "<code>x &lt; y</code>" in html
-    assert "<ol>\n<li><p>one</p>\n</li>\n<li><p>two</p>\n</li>\n</ol>" in html
+    assert "<ol>\n<li>one</li>\n<li>two</li>\n</ol>" in html
     assert '<a href="https://example.org/?a=1&amp;b=2">the site</a>' in html
     assert '<img src="images/logo.png" alt="a logo">' in html
 
@@ -202,3 +202,15 @@ def test_fenced_code_renders_as_a_block_and_inline_code_breaks_between_words(doc
     assert '<pre><code class="language-text">CODE &lt;here&gt;\n</code></pre>\n' in html
     assert "<pre><code>plain\n</code></pre>\n" in html
     assert "<code>src/<wbr>obs_<wbr>html/<wbr>cfg.<wbr>json --timings</code>" in html
+
+
+def test_lists_of_single_paragraph_items_render_tight(document) -> None:
+    html = _notes(document)["intro"]["html"]
+    assert "<ol>\n<li>one</li>\n<li>two</li>\n</ol>" in html
+
+
+def test_unaliased_wikilinks_show_the_chapter_title(document) -> None:
+    document["chapters"][1]["content"].append({"type": "paragraph", "attrs": {}, "children": [
+        {"type": "wikilinks", "attrs": {"target": "intro", "heading": "", "label": "intro"}, "children": []}]})
+    html = _notes(document)["appendix"]["html"]
+    assert '<a class="internal-link" href="#intro">Intro</a>' in html
