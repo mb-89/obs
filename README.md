@@ -8,6 +8,14 @@ else, to portable HTML or PDF.
 `se.toml` pins the Document contract. Use the module command to synchronize that pin, or configure
 a local `[paths]` override while developing against a core checkout.
 
+On a fresh checkout, with [se](https://github.com/mb-89/SE) checked out next to this repository,
+synchronize the module before running the tests:
+
+```powershell
+uv run python ../se/scripts/se_modules.py sync
+uv run pytest
+```
+
 ## Adapter
 
 `adapters.json` registers the `html` adapter and `adapter.json` declares the contract version,

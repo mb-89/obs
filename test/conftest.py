@@ -10,14 +10,27 @@ from referencing import Registry, Resource
 ROOT = Path(__file__).parents[1]
 FIXTURE = ROOT / "test" / "fixtures" / "document.json"
 CORE_ROOT = Path(os.environ.get("OBS_CORE_PATH", ROOT / ".se" / "modules" / "obs"))
+README = ROOT / "README.md"
+SYNC_SECTION = "Core module"
+
+
+def require_core(core_root: Path) -> Path:
+    """Return the core checkout, or fail naming where it looked and how to fix it."""
+    schema = core_root / "src" / "obs" / "document.schema.json"
+    if not schema.is_file():
+        pytest.fail(
+            f"test/conftest.py: obs core module not found, no {schema}. "
+            f'Remedy: synchronize the module as {README.name}, section "{SYNC_SECTION}" says, '
+            "or set OBS_CORE_PATH to an obs checkout.",
+            pytrace=False,
+        )
+    return core_root
 
 
 @pytest.fixture(scope="session")
 def core_root() -> Path:
     """The pinned core checkout; tests read its JSON contracts, never its Python code."""
-    if not (CORE_ROOT / "src" / "obs" / "document.schema.json").is_file():
-        pytest.fail("Synchronize the obs module or set OBS_CORE_PATH to its checkout.")
-    return CORE_ROOT
+    return require_core(CORE_ROOT)
 
 
 @pytest.fixture(scope="session")
