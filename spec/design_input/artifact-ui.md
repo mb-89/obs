@@ -1150,7 +1150,8 @@ separate from artifact presentation.
   second click or Escape closes. The icons sit in the [[#Reading shell|top band]].
 
   Changed HTML and the applied filter are information, each limited capability is a
-  warning, and errors are reserved for real failures. Notices are transient UI, not printed
+  warning, as is each Document node type the artifact shows only as plain text
+  ([[architecture]]), and errors are reserved for real failures. Notices are transient UI, not printed
   content or a dirty warning embedded into a newly reopened saved HTML. The entries, icons
   and layout are owned by obs-html's `notices.js`, not repeated here.
 
