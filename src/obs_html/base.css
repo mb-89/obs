@@ -791,6 +791,18 @@ input[data-property-single-line]:focus {
     text-align: center;
 }
 
+/* Everything on the title page is centered horizontally: product, band, type line, title,
+   subtitle with its badges, and the cover facts. */
+.document-heading:not(.document-heading--compact) {
+    text-align: center;
+}
+
+.document-heading:not(.document-heading--compact) .cover-facts dt,
+.document-heading:not(.document-heading--compact) .cover-facts dd {
+    margin-inline: 0;
+    text-align: center;
+}
+
 .math.block {
     margin-block: 1rem;
     overflow-x: auto;
