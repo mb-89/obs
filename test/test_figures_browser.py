@@ -875,3 +875,137 @@ def test_native_deferred_figure_binds_counts_on_first_entry_and_reentry(tmp_path
         assert errors == []
     finally:
         page.close()
+
+
+@pytest.fixture
+def case_sankey_report(tmp_path):
+    """Records whose values and property names differ only in case (capabilities/bases#Comparisons)."""
+    (tmp_path / "manifest.md").write_text(
+        "---\nobsHtml: {query: {scope: records, where: [{field: kind, equals: flow-record}]}}\n---\n"
+        "- [[flow]]\n" + "".join(f"- [[record-{name}]]\n" for name in "abcde"),
+        encoding="utf-8",
+    )
+    graph = {
+        "version": 1,
+        "nodes": [
+            {"id": "approved", "label": "Approved", "stage": 1,
+             "records": {"where": [{"field": "target", "equals": "approved"}]}, "unique": "target"},
+            {"id": "rejected", "label": "Rejected", "stage": 1},
+            {"id": "request", "label": "Request", "stage": 0},
+        ],
+        "links": [
+            {"source": "request", "target": "approved", "value": 3, "label": "Approved",
+             "where": [{"field": "target", "equals": "approved"}]},
+            {"source": "request", "target": "rejected", "value": 1, "label": "Rejected",
+             "where": [{"field": "target", "equals": "Rejected", "matchCase": True}]},
+        ],
+        "data": {"where": [{"field": "kind", "equals": "flow-record"}]},
+    }
+    (tmp_path / "flow.json").write_text(json.dumps(graph), encoding="utf-8")
+    (tmp_path / "flow.md").write_text(
+        "# Flow\n\n```figure\nversion: 1\nkind: sankey\nsource: flow.json\ncaption: Case flow\n```\n",
+        encoding="utf-8",
+    )
+    for name, kind, key, target in (
+        ("a", "flow-record", "target", "approved"), ("b", "flow-record", "target", "Approved"),
+        ("c", "Flow-Record", "Target", "APPROVED"), ("d", "flow-record", "target", "rejected"),
+        ("e", "flow-record", "target", "Rejected"),
+    ):
+        (tmp_path / f"record-{name}.md").write_text(
+            f"---\nkind: {kind}\n{key}: {target}\n---\n# record-{name}\n", encoding="utf-8",
+        )
+    manifest = tmp_path / "manifest.md"
+    report = tmp_path / "case-sankey.html"
+    report.write_text(render_report(manifest, parse_manifest(manifest)), encoding="utf-8")
+    return report
+
+
+RETAINED = ("obsReport.records.filter(record => /^record-/.test(record.slug) && obsReport.matchesFilter(record))"
+            ".map(record => record.slug.slice(7)).join('')")
+
+
+def _case_sankey_page(playwright, report):
+    executable = os.environ.get("OBS_HTML_TEST_NATIVE_BROWSER")
+    if not executable:
+        pytest.skip("Set OBS_HTML_TEST_NATIVE_BROWSER for native figure checks.")
+    browser = playwright.chromium.launch(executable_path=executable)
+    page = browser.new_page(viewport={"width": 1440, "height": 1000})
+    errors = []
+    page.on("pageerror", lambda error: errors.append(str(error)))
+    page.goto(report.as_uri() + "#flow")
+    page.evaluate("obsPages.setPaged(false); obsReport.activateChapter('flow')")
+    return browser, page, errors
+
+
+def test_sankey_drill_down_shows_exactly_the_rows_its_count_counted(case_sankey_report):
+    from playwright.sync_api import sync_playwright
+    with sync_playwright() as playwright:
+        browser, page, errors = _case_sankey_page(playwright, case_sankey_report)
+        svg = page.locator("[data-active-chapter] .figure-sankey svg")
+        links = svg.locator(".sankey-link")
+        assert [links.nth(index).get_attribute("data-flow-value") for index in range(2)] == ["3", "1"]
+        assert "3 records" in svg.locator('[data-node-id="approved"]').text_content()
+        svg.locator('[data-node-id="approved"]').click()
+        page.wait_for_function(f"({RETAINED}) === 'abc'")
+        page.evaluate("obsFilter.setExpression('')")
+        page.wait_for_function(f"({RETAINED}) === 'abcde'")
+        svg.locator('[data-node-id="rejected"]').click()
+        page.wait_for_function(f"({RETAINED}) === 'e'")
+        assert errors == []
+        browser.close()
+
+
+@pytest.mark.parametrize("expression, where, expected", [
+    ("target: approved", [{"field": "target", "equals": "approved"}], "abc"),
+    ("TARGET: /^approved$/", [{"field": "target", "equals": "approved"}], "abc"),
+    ("target: /^Rejected$/c", [{"field": "target", "equals": "Rejected", "matchCase": True}], "e"),
+])
+def test_reader_filter_and_where_equals_select_the_same_rows(case_sankey_report, expression, where, expected):
+    from playwright.sync_api import sync_playwright
+    with sync_playwright() as playwright:
+        browser, page, errors = _case_sankey_page(playwright, case_sankey_report)
+        counted = page.evaluate(
+            "where => obsReport.records.filter(record => /^record-/.test(record.slug) && "
+            "obsQuery.compileConditions(where).match(record)).map(record => record.slug.slice(7)).join('')",
+            where,
+        )
+        page.evaluate(f"obsFilter.setExpression({json.dumps(expression)})")
+        page.wait_for_function(f"({RETAINED}) === {json.dumps(expected)}")
+        assert counted == expected
+        assert errors == []
+        browser.close()
+
+
+def test_facet_pill_retains_exactly_the_rows_it_counts(tmp_path):
+    """A pill counts one spelling; values differing only in case are other pills."""
+    statuses = ["open", "open", "open", "Open", "Open", "closed"]
+    (tmp_path / "manifest.md").write_text(
+        "---\nobsHtml: {query: {scope: records, where: [{field: kind, equals: item}]}}\n---\n"
+        + "".join(f"- [[item-{index}]]\n" for index in range(len(statuses))),
+        encoding="utf-8",
+    )
+    for index, status in enumerate(statuses):
+        (tmp_path / f"item-{index}.md").write_text(
+            f"---\nkind: item\nstatus: {status}\n---\n# item-{index}\n", encoding="utf-8",
+        )
+    manifest = tmp_path / "manifest.md"
+    report = tmp_path / "facets.html"
+    report.write_text(render_report(manifest, parse_manifest(manifest)), encoding="utf-8")
+    executable = os.environ.get("OBS_HTML_TEST_NATIVE_BROWSER")
+    if not executable:
+        pytest.skip("Set OBS_HTML_TEST_NATIVE_BROWSER for native filter checks.")
+    from playwright.sync_api import expect, sync_playwright
+    with sync_playwright() as playwright:
+        browser = playwright.chromium.launch(executable_path=executable)
+        page = browser.new_page(viewport={"width": 1440, "height": 1000})
+        page.goto(report.as_uri())
+        page.evaluate("obsPages.setPaged(false); obsReport.openBar('filter')")
+        page.locator(".filter-field-button", has_text="status").click()
+        pill = page.locator('[role="menuitemcheckbox"][data-filter-value="open"]')
+        expect(pill.locator("small")).to_have_text("3")
+        pill.click()
+        page.wait_for_function(
+            "obsReport.records.filter(record => /^item-/.test(record.slug) && obsReport.matchesFilter(record))"
+            ".map(record => record.slug.slice(5)).join('') === '012'"
+        )
+        browser.close()
