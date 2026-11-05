@@ -21,7 +21,7 @@ from obs_html.config import Config, load_config
 from obs_html.content import ContentError, read_manifest
 from obs_html.commands import run_command
 from obs_html.renderer import render_report
-from obs_html.report_data import same_document_content
+from obs_html.report_data import chapter_html, html_text, same_document_content
 from obs_html.reproduction import (
     embed_archive, embed_payload_runtime, embedded_archive, source_archive,
 )
@@ -155,6 +155,14 @@ Rendered check:
   execution.renderedCheckTimeoutSeconds of --config. It writes nothing and
   cannot be combined with generation, PDF or extraction options.
 
+Printing a chapter:
+  --print-chapter HTML ID prints the chapter whose id is ID from an existing built
+  report to stdout, as the generator stored it, without starting a browser. Chapter
+  ids are the note slugs of the report's table of contents. --chapter-format text
+  prints plain text, one line per block, instead of HTML. An unknown ID fails (exit 2)
+  and lists the available ids. It writes nothing and cannot be combined with
+  generation, PDF, rendered-check or extraction options.
+
 Comment extraction:
   --extract-comments HTML reads the review JSON island without executing scripts
   or changing Markdown, and writes deterministic comment candidates to stdout.
@@ -167,6 +175,7 @@ Examples:
   obs-html --source vault --output document.html --embed-source
   obs-html --export-pdf document.html --output document.pdf
   obs-html --check-rendered document.html
+  obs-html --print-chapter document.html intro --chapter-format text
   obs-html --attach-source-to-pdf document.pdf --source-report document.html --output with-source.pdf
   obs-html --extract-comments reviewed.html
 
@@ -206,6 +215,14 @@ Exit status:
     parser.add_argument(
         "--check-rendered", type=Path, metavar="HTML",
         help="Open existing HTML headless; report console errors and printed pages.",
+    )
+    parser.add_argument(
+        "--print-chapter", nargs=2, metavar=("HTML", "ID"),
+        help="Print one chapter of an existing report by id.",
+    )
+    parser.add_argument(
+        "--chapter-format", choices=("html", "text"),
+        help="Print the --print-chapter chapter as html (default) or plain text.",
     )
     parser.add_argument(
         "--source",
@@ -259,6 +276,23 @@ def main(argv: Sequence[str] | None = None) -> int:
     supplied = {argument.split("=", 1)[0] for argument in args if argument.startswith("--")}
 
     try:
+        if options.chapter_format and not options.print_chapter:
+            parser.error("--chapter-format requires --print-chapter HTML ID.")
+        if options.print_chapter:
+            if (options.check_rendered or options.export_pdf or options.attach_source_to_pdf
+                    or options.source_report or options.check or options.execute_commands
+                    or options.embed_source or options.embed_attachments or options.extract_comments
+                    or options.trusted_runtime_bundle or options.source or options.output
+                    or options.timings):
+                parser.error("--print-chapter cannot be combined with generation, PDF, "
+                             "rendered-check or extraction options.")
+            report_path, chapter_id = Path(options.print_chapter[0]), options.print_chapter[1]
+            try:
+                html = chapter_html(report_path.read_text(encoding="utf-8"), chapter_id)
+            except (ContentError, OSError) as error:
+                raise ContentError(f"--print-chapter {report_path}: {error}") from error
+            print(html_text(html) if options.chapter_format == "text" else html, end="")
+            return 0
         if options.check_rendered:
             if (options.export_pdf or options.attach_source_to_pdf or options.source_report
                     or options.check or options.execute_commands or options.embed_source
