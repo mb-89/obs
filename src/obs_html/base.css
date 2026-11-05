@@ -1848,6 +1848,12 @@ math {
     margin-inline-end: 0.3rem;
 }
 
+.capability-message {
+    color: var(--color-warning);
+    font: 0.8rem var(--font-interface);
+    margin-inline-start: 0.4rem;
+}
+
 .data-table-shell[data-filter-active="true"] {
     outline: var(--border-width) solid var(--color-warning);
     position: relative;

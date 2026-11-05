@@ -166,7 +166,9 @@
                     owned = null;
                 }
             }
-            showInline("A separate window could not be opened here, so the card is shown in this page.");
+            showInline("A separate window could not be opened here, so the card is shown in this page." +
+                (globalThis.obsCapabilities?.limit("popups")
+                    ? ` ${globalThis.obsCapabilities.explain("popups")}` : ""));
             focusFirst(slot);
         };
         // Must run synchronously inside the reader's activation: both PiP and popups require it.

@@ -745,6 +745,15 @@
         status.hidden = false;
         console.error(status.textContent);
     };
+    const showExportError = (error) => {
+        const status = document.querySelector("[data-export-status]");
+        status.textContent = `PDF export failed: ${error.message}`;
+        status.hidden = false;
+        console.error(status.textContent);
+        // Ctrl+P has no visible control; a limited host's notice carries the reason instead.
+        const notice = document.querySelector("[data-capability-notice] details");
+        if (notice && globalThis.obsCapabilities?.limit("printing")) notice.open = true;
+    };
     const restoreLive = () => {
         const tables = new Map([...screen.querySelectorAll(
             "[data-data-table]:not([data-page-continuation])",
@@ -1021,6 +1030,10 @@
     const exportPDF = () => {
         if (exportPending) return exportPending;
         exportPending = (async () => {
+            // Canary: a host that refuses the print dialog never prints, so do not prepare.
+            const limited = globalThis.obsCapabilities?.limit("printing");
+            const blocked = () => new Error(globalThis.obsCapabilities.explain("printing"));
+            if (limited?.refused) throw blocked();
             await globalThis.obsHtmlReady;
             await report.whenChapterReady?.();
             document.dispatchEvent(new CustomEvent("obs-print-start"));
@@ -1035,8 +1048,17 @@
                 await new Promise((resolve, reject) => {
                     requestAnimationFrame(() => {
                         try {
+                            // Where the canary could not tell, a print dialog that never opened
+                            // (no beforeprint) means the host ignored the call: undo the preparation.
+                            let opened = false;
+                            const open = () => { opened = true; };
+                            window.addEventListener("beforeprint", open, {once: true});
                             window.print();
-                            resolve();
+                            window.removeEventListener("beforeprint", open);
+                            if (limited && !opened) {
+                                finishPrint();
+                                reject(blocked());
+                            } else resolve();
                         } catch (error) {
                             finishPrint();
                             reject(error);
@@ -1090,7 +1112,7 @@
     document.addEventListener("keydown", event => {
         if (!(event.ctrlKey || event.metaKey) || event.altKey || event.key.toLowerCase() !== "p") return;
         event.preventDefault();
-        exportPDF().catch(showError);
+        exportPDF().catch(showExportError);
     });
     window.addEventListener("beforeprint", () => {
         if (!printing) {
