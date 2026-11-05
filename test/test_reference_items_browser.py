@@ -344,6 +344,20 @@ def spec_artifact(tmp_path_factory) -> Path:
     return output
 
 
+def url_notes(spec):
+    """The spec notes the References register selects: those whose frontmatter has a url."""
+    notes = []
+    for path in sorted(spec.rglob("*.md")):
+        if "design_output" in path.relative_to(spec).parts:
+            continue  # generated and ignored
+        text = path.read_text(encoding="utf-8")
+        if text.startswith("---\n"):
+            frontmatter = yaml.safe_load(text[4:text.index("\n---", 4)]) or {}
+            if frontmatter.get("url") is not None:
+                notes.append(path)
+    return notes
+
+
 def test_spec_build_hovers_use_the_one_card_without_console_errors(browser, spec_artifact):
     """Every hover trigger in the spec build resolves through the one hover-card owner."""
     from playwright.sync_api import expect
@@ -390,7 +404,8 @@ def test_spec_build_hovers_use_the_one_card_without_console_errors(browser, spec
         page.evaluate("obsArtifact.activateChapter('appendix-references')")
         page.evaluate("obsArtifact.whenChapterReady()")
         rows = page.locator("[data-chapter-body] tbody tr[data-row-key]")
-        expect(rows).to_have_count(7)
+        # The register is the query over every spec note with a url; those notes own the count.
+        expect(rows).to_have_count(len(url_notes(Path(__file__).resolve().parents[1] / "spec")))
         assert page.locator(".hover-card").count() == 1
         assert errors == []
     finally:

@@ -4,6 +4,21 @@ The system favors local reasoning and local changes. A feature owner should be a
 change one cohesive module while generic infrastructure discovers and integrates the
 result.
 
+## Glossary
+
+This glossary owns the project's vocabulary; other notes link here instead of redefining a
+term (user, 5 Nov 2026).
+
+- **Document**: the core's versioned JSON intermediate representation of one manifest. Its
+  shape is owned by [[architecture#Document-adapter contract|the Document-adapter contract]].
+- **artifact**: what an adapter puts out from a Document, such as obs-html's HTML file and
+  the PDF printed from it.
+- **note**: one Markdown file in a vault, with optional frontmatter, addressed by wikilinks.
+- **file**: any file on disk, whatever its role: a note, an attachment, a configuration or
+  schema file, or generated output.
+- **vault**: the folder of notes and attachments that a build reads. Links and assets
+  resolve within it, and nothing is written back into it.
+
 ## Knowledge ownership
 
 SPOT, single point of truth, everywhere: code, configuration, design, process and agent
@@ -57,6 +72,8 @@ definitions alike. Keeping the same fact in two places is an anti-pattern (user,
   tests of failure, cancellation, timeout, and retry behavior.
 - Assert observable results and explicit expected outcomes, not source-code substrings or
   agreement between two implementations that might share the same bug.
+- An expected value that a fixture, note or configuration owns (a register's row count, a
+  palette colour) is read from that owner, not copied into the test as a literal.
 - DOM tests use a controlled browser adapter for deterministic interactions. Native browser
   printing and layout remain separate integration checks; a mocked print call does not verify
   a PDF's visual output.

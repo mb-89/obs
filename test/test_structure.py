@@ -149,3 +149,41 @@ def test_artifact_ui_alone_owns_what_counts_as_a_change() -> None:
     assert "[[artifact-ui#What counts as a change" in input_model
     for restatement in ("Persisted reader-state changes do", "changed-HTML state", "as changed.", "or an artifact change"):
         assert restatement not in input_model
+
+
+GLOSSARY_TERMS = ("Document", "artifact", "note", "file", "vault")
+GLOSSARY_ENTRY = re.compile(r"^- \*\*(\w+)\*\*:", re.MULTILINE)
+# A definition starts like a glossary entry; a list of names (the Document profile) does not.
+DEFINITION = re.compile(r"^- \*\*(\w+)\*\*: (?:the|a|an|any|one|what) ", re.MULTILINE | re.IGNORECASE)
+
+
+def test_quality_glossary_alone_defines_the_vocabulary() -> None:
+    quality = (ROOT / "spec" / "design_input" / "quality.md").read_text(encoding="utf-8")
+    glossary = quality.split("\n## Glossary\n", 1)[1].split("\n## ", 1)[0]
+    assert tuple(GLOSSARY_ENTRY.findall(glossary)) == GLOSSARY_TERMS
+    assert tuple(DEFINITION.findall(glossary)) == GLOSSARY_TERMS
+
+    terms = {term.lower() for term in GLOSSARY_TERMS}
+    for path in [ROOT / "README.md", ROOT / "AGENTS.md", *sorted((ROOT / "spec").rglob("*.md"))]:
+        if path.name == "quality.md" or "design_output" in path.parts:
+            continue
+        redefined = [term for term in DEFINITION.findall(path.read_text(encoding="utf-8"))
+                     if term.lower() in terms]
+        assert redefined == [], f"{path}: link [[quality#Glossary]] instead of defining {redefined}"
+
+
+def test_architecture_links_the_document_to_the_glossary() -> None:
+    architecture = (ROOT / "spec" / "design_input" / "architecture.md").read_text(encoding="utf-8")
+    assert "[[quality#Glossary|" in architecture
+
+
+def test_width_rule_has_one_owner() -> None:
+    design = ROOT / "spec" / "design_input"
+    input_model = (design / "input-model.md").read_text(encoding="utf-8")
+
+    assert "column or width changes" not in input_model
+
+    generic_tables = (design / "generic-tables.md").read_text(encoding="utf-8")
+    assert "never mark the" not in generic_tables
+    assert "never show the change notice" not in generic_tables
+    assert "[[artifact-ui#What counts as a change" in generic_tables
