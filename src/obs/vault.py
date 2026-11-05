@@ -49,6 +49,8 @@ _WIKILINK = re.compile(
     r"(?<!!)\[\[(?P<target>[^\]|#]+)(?:#(?P<heading>[^\]|]+))?(?:\|(?P<label>[^\]]+))?\]\]"
 )
 _EMBED = re.compile(r"!\[\[(?P<target>[^\]|#]+)(?:#[^\]|]+)?(?:\|[^\]]+)?\]\]")
+_FENCE = re.compile(r"[ \t]*(?P<marker>`{3,}|~{3,})")
+_COMMENT = "%%"
 _MARK = re.compile(r"#mark/(?P<category>[a-z_]+)/(?P<id>[a-z0-9_]+)")
 _SEMANTIC = re.compile(
     r"(?P<embed>!)?\[\[(?P<target>[^\]|#]+)(?:#(?P<heading>[^\]|]+))?"
@@ -452,7 +454,75 @@ def _read_note(path: Path) -> tuple[dict[str, object], str]:
         source = path.read_text(encoding="utf-8-sig")
     except OSError as error:
         raise VaultError(f"Cannot read note {path}: {error}") from error
-    return _split_frontmatter(source, path)
+    metadata, body = _split_frontmatter(source, path)
+    return metadata, _without_comments(body, path, source[:len(source) - len(body)].count("\n"))
+
+
+def _without_comments(body: str, path: Path, first_line: int) -> str:
+    """The body without its Obsidian comments; see input-model "Chapter content".
+
+    A ``%%`` outside code opens a comment and the next ``%%`` closes it, on the same line or a
+    later one. A line that held only comment text goes, so a manifest list runs on past it.
+    """
+    if _COMMENT not in body:
+        return body
+    kept: list[str] = []
+    fence = ""
+    opened = 0
+    for number, line in enumerate(body.splitlines(keepends=True), first_line + 1):
+        if not opened:
+            if fence:
+                kept.append(line)
+                if re.fullmatch(rf"[ \t]*{re.escape(fence[0])}{{{len(fence)},}}[ \t]*\r?\n?", line):
+                    fence = ""
+                continue
+            match = _FENCE.match(line)
+            if match:
+                fence = match["marker"]
+                kept.append(line)
+                continue
+        if not opened and _COMMENT not in line:
+            kept.append(line)
+            continue
+        text, opened, touched = _line_without_comments(line, opened, number)
+        if text.strip() or not touched:
+            kept.append(text)
+    if opened:
+        raise VaultError(
+            f"{path}: line {opened}: the Obsidian comment opened here is not closed. Add the "
+            f"closing {_COMMENT}, or write the percent signs in code; see input-model "
+            '"Chapter content".'
+        )
+    return "".join(kept)
+
+
+def _line_without_comments(line: str, opened: int, number: int) -> tuple[str, int, bool]:
+    """One line's shown text, the line its open comment began on (0 for none), and whether a
+    comment touched it; a code span keeps its ``%%``."""
+    shown: list[str] = []
+    touched = bool(opened)
+    position = 0
+    while position < len(line):
+        if line.startswith(_COMMENT, position):
+            opened = 0 if opened else number
+            touched = True
+            position += len(_COMMENT)
+            continue
+        if line[position] in "\r\n":
+            shown.append(line[position])
+        elif opened:
+            pass
+        elif line[position] == "`":
+            run = re.match(r"`+", line[position:])[0]
+            closing = re.compile(rf"(?<!`){run}(?!`)").search(line, position + len(run))
+            end = closing.end() if closing else position + len(run)
+            shown.append(line[position:end])
+            position = end
+            continue
+        else:
+            shown.append(line[position])
+        position += 1
+    return "".join(shown), opened, touched
 
 
 def _split_frontmatter(source: str, path: Path) -> tuple[dict[str, object], str]:
