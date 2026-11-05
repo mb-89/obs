@@ -17,6 +17,14 @@ _ABSOLUTE = re.compile(
     rf"(?:{_SEGMENT}+[/\\])*{_SEGMENT}+"
 )
 
+MINIMAL_ENVIRONMENT = (
+    "PATH", "PATHEXT", "SYSTEMROOT", "WINDIR", "COMSPEC",  # find and start programs
+    "HOME", "USERPROFILE", "APPDATA", "LOCALAPPDATA",  # per-user tool settings and caches
+    "TMPDIR", "TEMP", "TMP",  # temporary folders
+    "LANG", "LC_ALL",  # text encoding
+)
+"""The only environment variables a command inherits; README.md, section "Command fences", owns the list."""
+
 
 class CommandError(ValueError):
     """Raised when derived command content cannot be produced."""
@@ -30,6 +38,8 @@ def run_command(command: str, cwd: Path, timeout_seconds: int) -> str:
         completed = subprocess.run(
             command,
             cwd=cwd,
+            env={name: value for name, value in os.environ.items()
+                 if name.upper() in MINIMAL_ENVIRONMENT},
             shell=True,
             check=False,
             stdout=subprocess.PIPE,
