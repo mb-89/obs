@@ -289,16 +289,17 @@ def layout_name(layout: list[str] | None) -> str:
     return f"the {layout[0]} bar docked {layout[1]}" if layout else "no bar open"
 
 
-def covered_controls(tmp_path: Path, browser, report: str, frame_kind: str, name: str) -> dict[str, list[str]]:
+def covered_controls(tmp_path: Path, browser, report: str, frame_kind: str,
+                     name: str) -> dict[tuple[str, str], dict[str, list[str]]]:
     """Every covered control at every width, view and bar layout, in one preview frame.
 
-    Each fault ("<control> is covered by <element> at <width>px in the <view> view with <layout>")
-    maps to the chapters it occurs in; a page error is a fault too.
+    Maps each fault, (control, "at <width>px in the <view> view with <layout>"), to what covers
+    it and the chapters where it does; a page error is a fault too.
     """
     errors: list[str] = []
     folder = tmp_path / name
     folder.mkdir()
-    faults: dict[str, list[str]] = {}
+    faults: dict[tuple[str, str], dict[str, list[str]]] = {}
     with http_origin(folder) as origin:
         page, frame = open_preview(folder, browser, errors, report, frame_kind,
                                    origin if frame_kind == "same-origin" else None)
@@ -320,13 +321,13 @@ def covered_controls(tmp_path: Path, browser, report: str, frame_kind: str, name
                                         {"views": list(VIEWS), "layouts": layouts, "firstChapterLayouts": first})
                 for result in results:
                     for fault in result["faults"]:
-                        key = (f"{fault['control']} is covered by {fault['covering']} at {width}px in the "
-                               f"{result['view']} view with {layout_name(result['layout'])}")
-                        faults.setdefault(key, []).append(result["chapter"])
+                        where = f"at {width}px in the {result['view']} view with {layout_name(result['layout'])}"
+                        faults.setdefault((fault["control"], where), {}).setdefault(
+                            fault["covering"], []).append(result["chapter"])
         finally:
             page.close()
     for error in errors:
-        faults.setdefault(f"page error: {error}", [])
+        faults.setdefault(("page error", error), {})
     return faults
 
 
@@ -342,9 +343,10 @@ def test_no_control_is_covered_in_preview_frames(
     ours = covered_controls(tmp_path, coverage_browser, parity_reports["adapter"], frame_kind, "adapter")
     theirs = covered_controls(tmp_path, coverage_browser, parity_reports["reference"], frame_kind, "reference")
     problems = [
-        f"{fault} (in {', '.join(chapters)})"
-        + ("; the interim reference has the same fault" if fault in theirs else "")
-        for fault, chapters in ours.items()
+        (f"page error: {where}" if control == "page error" else f"{control} is covered {where} by "
+         + "; ".join(f"{covering} (in {', '.join(chapters)})" for covering, chapters in coverings.items()))
+        + ("; the interim reference has the same fault" if (control, where) in theirs else "")
+        for (control, where), coverings in ours.items()
     ]
     assert not problems, (
         f"test/test_parity_browser.py: controls covered by another element's pointer area, {frame_kind} "
