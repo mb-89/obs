@@ -8,13 +8,14 @@ runtime (report.js and its companions) reads to build the reader, the bars and t
 from __future__ import annotations
 
 import json
+import mimetypes
 import re
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from html import escape, unescape
 from importlib.metadata import version
 from importlib.resources import files
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 from typing import Callable
 
 from markdown_it import MarkdownIt
@@ -96,11 +97,67 @@ def _wikilink(node: dict[str, object], context: Context) -> str:
 
 
 def _embed(node: dict[str, object], context: Context) -> str:
-    """An embedded note renders as a link to its chapter, titled like an unaliased wikilink."""
+    """An embedded note links to its chapter, titled like an unaliased wikilink; an embedded
+    file (a target with a non-note suffix, which no chapter resolves) renders like an attachment."""
     target, chapter = node["attrs"]["target"], node["attrs"]["chapter"]
+    if chapter is None and PurePosixPath(target).suffix.lower() not in {"", ".md"}:
+        media_type = mimetypes.guess_type(target)[0] or "application/octet-stream"
+        return _file(target, "", media_type, f"embed {target!r}", context)
     if chapter is None:
         return f'<span class="unresolved embed" title="{escape(target, quote=True)}">{escape(target)}</span>'
     return f'<a class="internal-link embed" href="#{chapter}">{escape(_chapter_title(chapter, context))}</a>'
+
+
+def _attachment(node: dict[str, object], context: Context) -> str:
+    """An attachment names a Document asset: an image is document content, any other file is
+    provenance text (its label and path), as the interim adapter rendered it without
+    --embed-attachments; the adapter has only the Document, not the file's bytes."""
+    identifier, label = node["attrs"]["asset"], node["attrs"]["label"]
+    asset = context.files.get(identifier)
+    if asset is None:
+        raise RenderError(f"Chapter {context.chapter or HOME}: attachment names asset {identifier!r}, which "
+                          "the Document's assets do not contain; regenerate the Document with the obs core.")
+    return _file(asset["href"], label, asset["mediaType"], f"attachment {identifier!r}", context)
+
+
+def _file(href: str, label: str, media_type: str, what: str, context: Context) -> str:
+    if re.match(r"(?:file:|/|\\\\|[A-Za-z]:[\\/])", href):
+        raise RenderError(f"Chapter {context.chapter or HOME}: {what} has the absolute path {href!r}, which "
+                          "would expose the build machine; link the file by its vault-relative path.")
+    if media_type.startswith("image/"):
+        return f'<img src="{escape(href, quote=True)}" alt="{escape(label, quote=True)}">'
+    if re.match(r"[A-Za-z][A-Za-z0-9+.-]*:", href):
+        return f'<a href="{escape(href, quote=True)}">{escape(label or href)}</a>'
+    name = label or PurePosixPath(href).name
+    return (f'<span class="source-reference" data-source-path="{escape(href, quote=True)}">{escape(name)}</span>'
+            f' ({_code({"attrs": {}, "text": href})})')
+
+
+# Canonical callout kind: its tone, the shared semantic card colour (obs report-ui.md).
+CALLOUT_TONES = {
+    "note": "accent", "abstract": "accent", "info": "accent", "todo": "accent", "tip": "accent",
+    "success": "success", "question": "warning", "warning": "warning", "failure": "failure",
+    "danger": "failure", "bug": "failure", "example": "accent", "quote": "neutral",
+    "important": "accent",
+}
+
+
+def _callout(node: dict[str, object], context: Context) -> str:
+    """A callout is a card titled by its authored title or, untitled, by its kind; ``important``
+    is the untitled emphasis box."""
+    kind, title = node["attrs"]["kind"], node["attrs"]["title"]
+    if kind not in CALLOUT_TONES:
+        raise RenderError(f"Chapter {context.chapter or HOME}: callout kind {kind!r} is not one of "
+                          f"{', '.join(sorted(CALLOUT_TONES))}; regenerate the Document with the obs core.")
+    name = kind.capitalize()
+    if kind == "important":
+        opening = f'<aside class="content-card content-emphasis" aria-label="{name}">\n'
+    else:
+        opening = (f'<aside class="content-card content-callout content-callout--{CALLOUT_TONES[kind]}" '
+                   f'data-callout="{kind}" aria-label="{name}">\n')
+        title = title or name
+    header = f'<header class="content-card-title">{_inline(title, context)}</header>\n' if title else ""
+    return f"{opening}{header}{_nodes(node['children'], context)}</aside>\n"
 
 
 def _chapter_title(chapter: str, context: Context) -> str:
@@ -185,7 +242,9 @@ def _figure(node: dict[str, object], context: Context) -> str:
 
 
 CAPABILITIES: dict[str, Renderer] = {
+    "attachments": _attachment,
     "bases": _base,
+    "callouts": _callout,
     "chapter-inclusion": _nothing,
     "command-fences": _command,
     "document-presentation": _nothing,

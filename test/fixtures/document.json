@@ -591,6 +591,41 @@
             }
           },
           "children": []
+        },
+        {
+          "type": "callouts",
+          "attrs": {
+            "kind": "warning",
+            "title": "Check the limits"
+          },
+          "children": [
+            {
+              "type": "paragraph",
+              "attrs": {},
+              "children": [
+                {
+                  "type": "text",
+                  "attrs": {},
+                  "children": [],
+                  "text": "The badge "
+                },
+                {
+                  "type": "attachments",
+                  "attrs": {
+                    "asset": "logo",
+                    "label": "Logo"
+                  },
+                  "children": []
+                },
+                {
+                  "type": "text",
+                  "attrs": {},
+                  "children": [],
+                  "text": " marks it."
+                }
+              ]
+            }
+          ]
         }
       ],
       "children": []
@@ -669,7 +704,9 @@
     }
   ],
   "capabilities": [
+    "attachments",
     "bases",
+    "callouts",
     "chapter-inclusion",
     "command-fences",
     "document-presentation",
