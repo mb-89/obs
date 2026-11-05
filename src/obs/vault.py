@@ -234,7 +234,7 @@ def _nodes(
                 elif language == "cards":
                     parse_card_spec(token.content)
                 elif language == "property-editor":
-                    parse_property_editor(token.content)
+                    parse_property_editor(token.content, source_path)
                 elif language == "cmd":
                     validate_command(token.content)
             except (InputError, yaml.YAMLError) as error:

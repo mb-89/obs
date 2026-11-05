@@ -127,11 +127,19 @@ def test_core_and_adapter_contract_errors_match_for_shared_inputs(tmp_path) -> N
     from obs_html.cards import validate_count_query as validate_adapter_count_query
     from obs_html.commands import run_command
     from obs_html.content import _validate_note_profile, validate_base_definition as validate_adapter_base
+    from obs_html.properties import property_editors
+    from markdown_it import MarkdownIt
 
     card = '{"version": 1, "cards": []}'
     query = {"where": "invalid"}
     base = {}
     profile = {"layout": "invalid"}
+    property_editor = "version: 1\nfield: title\n"
+    token = next(token for token in MarkdownIt().parse(f"```property-editor\n{property_editor}```\n")
+                 if token.type == "fence")
+
+    class Chapter:
+        source_path = tmp_path
 
     assert _error_message(lambda: parse_card_spec(card)) == _error_message(
         lambda: parse_adapter_cards(card)
@@ -144,6 +152,9 @@ def test_core_and_adapter_contract_errors_match_for_shared_inputs(tmp_path) -> N
     )
     assert _error_message(lambda: validate_note_profile(profile, tmp_path)) == _error_message(
         lambda: _validate_note_profile(profile, tmp_path)
+    )
+    assert _error_message(lambda: parse_property_editor(property_editor, tmp_path)) == _error_message(
+        lambda: property_editors([token], Chapter(), {})
     )
     assert _error_message(lambda: validate_command("")) == _error_message(
         lambda: run_command("", tmp_path, 5)
