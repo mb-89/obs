@@ -13,6 +13,11 @@ Where the reference itself is wrong by obs's design notes, the step is checked a
 for this adapter alone: Home by pointer (the reference's arrow area covers Home) and the filter
 (the reference marks the HTML changed).
 
+A second check sweeps both reports in the same frames for covered controls
+(test/browser/control-coverage.js) at four widths, in both views and with the bars open and
+closed. It holds this adapter to the design notes alone: a covered control fails, and the failure
+says where the reference has the same fault, which is not a parity difference.
+
 Run it alone with `uv run pytest test/test_parity_browser.py`; it needs both modules synchronized
 (README, "Core module") and builds the reports once per session.
 """
