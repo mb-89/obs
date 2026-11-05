@@ -23,7 +23,8 @@ The system is a Python package managed and executed by `uv`.
 3. The core parses the selected manifest into a schema-valid JSON [[quality#Glossary|Document]] with document metadata, an ordered chapter tree, semantic Markdown nodes, links, and assets.
 4. The core resolves every manifest link within the containing vault and validates frontmatter and supported input syntax.
 5. Adapters project the Document into their output formats, each an [[quality#Glossary|artifact]]; HTML rendering is the integrated adapter in `adapters/html` ([Repository layout](#repository-layout)).
-6. Resolve authorized derived-content providers, including command fences.
+6. Resolve authorized derived-content providers, including command fences; in a core build the
+   core runs them while it builds the Document ([Command output](#command-output)).
 7. Resolve content links and assets within the vault boundary.
 8. Render one self-contained HTML file with an embedded chapter navigator.
 
@@ -119,12 +120,27 @@ remote image carries the `data` the build fetched, so the Document stays self-co
 and any other URL, carries no `data`. Whether an artifact embeds a marked attachment
 stays the adapter's per-build decision ([[input-model]], `--embed-attachments`).
 
+### Command output
+
+The core runs command fences; an adapter never does. `obs-document --source <manifest>
+--execute-commands` is a build's one authorization: producers run before conversion and each
+other fence's captured output goes into its node ([[capabilities/command-fences]]), so the
+Document stays the adapter's only input and the call passes no authorization or command root.
+
+Running in the core was chosen over passing the authorization and a command root to the adapter.
+The core already runs the producers from the vault root. Each adapter would otherwise repeat the
+execution boundary, its timeout and the path replacement in captured output, and would need the
+source machine's vault, which embedding assets avoids ([Asset bytes](#asset-bytes)).
+
+The HTML adapter therefore has no command options: it renders the node's `output`, and a node
+without one fails naming the remedy.
+
 ## Input contracts
 
 The core owns data-only input contracts for command fences, callouts, cards, editable
 properties, and queries. Their JSON Schema definitions and parsing validation describe
-source semantics only; execution and every presentation projection remain adapter
-concerns.
+source semantics only; every presentation projection remains an adapter concern.
+Command-fence execution is the core's ([Command output](#command-output)).
 
 Core configuration is restricted to source resolution and authorized command limits.
 Artifact, browser, and style settings remain adapter configuration.

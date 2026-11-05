@@ -29,11 +29,15 @@ class DocumentError(ValueError):
 
 def build_document(
     manifest_path: Path, reference: dict[str, object], configuration_path: Path | None = None,
+    execute_commands: bool = False,
 ) -> dict[str, object]:
-    """Parse a vault into a schema-valid neutral Document."""
+    """Parse a vault into a schema-valid neutral Document.
+
+    ``execute_commands`` authorizes running the vault's cmd fences; see capabilities/command-fences.
+    """
     try:
         known = {item["id"] for item in reference["capabilities"]}
-        document = _build_document(manifest_path, known, configuration_path)
+        document = _build_document(manifest_path, known, configuration_path, execute_commands)
         validate_document(document, reference)
     except VaultError as error:
         raise DocumentError(str(error)) from error
@@ -155,6 +159,11 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--document", type=Path, required=True, help="JSON Document to read or write.")
     parser.add_argument("--source", type=Path, help="Manifest note to parse into --document.")
     parser.add_argument("--config", type=Path, help="Core configuration JSON for --source.")
+    parser.add_argument("--execute-commands", action="store_true",
+                        help="Authorize running the cmd fences of --source from its vault root: "
+                             "producers (cmd silent) before conversion, then each other fence, "
+                             "whose captured output the Document carries. Review the commands "
+                             "first; without this a cmd fence fails the build.")
     parser.add_argument("--adapter", help="Configured adapter name.")
     parser.add_argument("--adapter-config", type=Path, help="Adapter configuration JSON.")
     parser.add_argument("--capability-reference", type=Path, required=True,
@@ -168,11 +177,14 @@ def main(argv: Sequence[str] | None = None) -> int:
     try:
         reference = read_capability_reference(options.capability_reference)
         if options.source:
-            document = build_document(options.source, reference, options.config)
+            document = build_document(options.source, reference, options.config,
+                                      options.execute_commands)
             for diagnostic in document["diagnostics"]:
                 if diagnostic["level"] == "warning":
                     print(f"obs-document: warning: {diagnostic['message']}", file=sys.stderr)
             write_document(document, options.document, reference)
+        elif options.execute_commands:
+            raise DocumentError("--execute-commands is only used with --source.")
         if not options.adapter:
             if options.source:
                 return 0
