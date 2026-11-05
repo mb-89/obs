@@ -12,6 +12,7 @@ from markdown_it.token import Token
 import yaml
 
 from obs.config import CoreConfig, CoreConfigError, load_core_config
+from obs.figure import FigureDescriptorError, validate_figure_descriptor
 from obs.input import (
     InputError,
     parse_callout,
@@ -85,24 +86,46 @@ def build_document(
         path = chapter.pop("_path")
         chapter_metadata, chapter_body = _read_note(path)
         chapter["metadata"] = _json_value(chapter_metadata)
-        chapter["content"] = _nodes(
+        content = _frontmatter_nodes(
+            chapter_metadata, capability_ids or set(), capabilities,
+        )
+        if "chapter-inclusion" in (capability_ids or set()):
+            content.append({
+                "type": "chapter-inclusion", "attrs": {"id": chapter["id"]}, "children": [],
+            })
+            capabilities.add("chapter-inclusion")
+        parsed = _nodes(
             chapter_body, path, vault_root, links, assets, link_ids, asset_ids,
             capability_ids or set(), capabilities,
         )
+        if parsed and "markdown" in (capability_ids or set()):
+            content.append({"type": "markdown", "attrs": {}, "children": []})
+            capabilities.add("markdown")
+        content.extend(parsed)
+        chapter["content"] = content
         for child in chapter["children"]:
             parse_chapter(child)
 
     for chapter in chapters:
         parse_chapter(chapter)
+    abstract_nodes = _nodes(
+        body[abstract:], manifest_path, vault_root, links, assets, link_ids, asset_ids,
+        capability_ids or set(), capabilities,
+    )
+    manifest_nodes = _frontmatter_nodes(metadata, capability_ids or set(), capabilities)
+    if "manifest" in (capability_ids or set()):
+        manifest_nodes.append({"type": "manifest", "attrs": {}, "children": []})
+        capabilities.add("manifest")
+    if abstract_nodes and "markdown" in (capability_ids or set()):
+        manifest_nodes.append({"type": "markdown", "attrs": {}, "children": []})
+        capabilities.add("markdown")
+    manifest_nodes.extend(abstract_nodes)
     return {
         "schemaVersion": 1,
         "manifest": {
             "title": title,
             "metadata": _json_value(metadata),
-            "abstract": _nodes(
-                body[abstract:], manifest_path, vault_root, links, assets, link_ids, asset_ids,
-                capability_ids or set(), capabilities,
-            ),
+            "abstract": manifest_nodes,
         },
         "chapters": chapters,
         "links": links,
@@ -210,6 +233,33 @@ def _parse_manifest(
     return chapters, abstract_start
 
 
+def _frontmatter_nodes(
+    metadata: dict[str, object], capability_ids: set[str], capabilities: set[str],
+) -> list[dict[str, object]]:
+    nodes: list[dict[str, object]] = []
+
+    def add(identifier: str, attrs: dict[str, object]) -> None:
+        if identifier in capability_ids:
+            nodes.append({"type": identifier, "attrs": attrs, "children": []})
+            capabilities.add(identifier)
+
+    if metadata:
+        add("markdown-frontmatter", {"metadata": _json_value(metadata)})
+    if "obsHtml" in metadata:
+        add("profiles", {"profile": _json_value(metadata["obsHtml"])})
+    if metadata.get("kind") == "quantity":
+        add("quantities", {"metadata": _json_value(metadata)})
+    if "bottom line" in metadata or metadata.get("kind") == "glossary":
+        add("bottom-lines", {"metadata": _json_value(metadata)})
+    if "query" in metadata:
+        query = _json_value(metadata["query"])
+        add("queries", {"query": query})
+        add("count-query", {"query": query})
+    if metadata.get("kind") in {"glossary", "reference"} or "reference" in metadata:
+        add("references", {"metadata": _json_value(metadata)})
+    return nodes
+
+
 def _nodes(
     source: str, source_path: Path, vault_root: Path, links: list[dict[str, str]],
     assets: list[dict[str, str]], link_ids: set[str], asset_ids: set[str],
@@ -239,34 +289,49 @@ def _nodes(
             result.append(node)
         elif token.type == "fence":
             language = token.info.strip().split(maxsplit=1)[0]
+            figure_descriptor: dict[str, object] | None = None
             try:
                 if language == "base":
                     specification = yaml.safe_load(token.content)
                     validate_base_definition(specification, source_path)
                 elif language == "cards":
-                    parse_card_spec(token.content)
+                    specification = parse_card_spec(token.content)
                 elif language == "property-editor":
                     parse_property_editor(token.content, source_path)
                 elif language == "cmd":
                     validate_command(token.content)
-            except (InputError, yaml.YAMLError) as error:
+                elif language == "figure":
+                    try:
+                        figure_descriptor = json.loads(token.content)
+                    except json.JSONDecodeError:
+                        figure_descriptor = None
+                    if figure_descriptor is not None:
+                        if not isinstance(figure_descriptor, dict):
+                            raise FigureDescriptorError("Figure descriptor must be an object.")
+                        validate_figure_descriptor(figure_descriptor)
+            except (InputError, FigureDescriptorError, yaml.YAMLError) as error:
                 raise VaultError(str(error)) from error
             fence_type = {
                 "base": "bases",
-                "figure": "figures",
                 "cmd": "command-fences",
-                "cards": "cards",
+                "cards": "cards-metrics",
                 "property-editor": "property-editors",
             }.get(language)
+            if language == "figure":
+                fence_type = "figure-descriptor" if figure_descriptor is not None else "figures"
             if fence_type in capability_ids:
                 attrs: dict[str, object] = {"source": token.content}
-                if language in {"base", "figure"}:
+                if language == "figure" and figure_descriptor is not None:
+                    attrs = {"descriptor": figure_descriptor}
+                elif language in {"base", "figure"}:
                     try:
                         spec = yaml.safe_load(token.content)
                     except yaml.YAMLError as error:
                         raise VaultError(f"Invalid {language} fence in {source_path}: {error}") from error
                     if spec is not None:
                         attrs["spec"] = _json_value(spec)
+                elif language == "cards":
+                    attrs["spec"] = _json_value(specification)
                 result.append({"type": fence_type, "attrs": attrs, "children": []})
                 capabilities.add(fence_type)
             else:
@@ -285,6 +350,11 @@ def _nodes(
             )
             if callout and "callouts" in capability_ids:
                 body = "\n".join(lines[1:]).strip()
+                if "extensions" in capability_ids:
+                    result.append({
+                        "type": "extensions", "attrs": {"syntax": "callout"}, "children": [],
+                    })
+                    capabilities.add("extensions")
                 result.append({
                     "type": "callouts",
                     "attrs": {"kind": callout["type"], "title": callout["title"]},
@@ -352,7 +422,14 @@ def _inline_nodes(
         elif child.type == "image":
             src = child.attrGet("src") or ""
             asset = _asset(assets, asset_ids, child.content or src, src)
-            result.append({"type": "text", "attrs": {"asset": asset["id"]}, "children": [], "text": child.content})
+            if "attachments" in capability_ids:
+                result.append({
+                    "type": "attachments", "attrs": {"asset": asset["id"], "label": child.content},
+                    "children": [],
+                })
+                capabilities.add("attachments")
+            else:
+                result.append({"type": "text", "attrs": {"asset": asset["id"]}, "children": [], "text": child.content})
         elif child.type == "code_inline":
             result.append({"type": "code", "attrs": {}, "children": [], "text": child.content})
         elif child.type in {"text", "softbreak", "hardbreak"}:
@@ -377,7 +454,15 @@ def _semantic_text_nodes(
         if match.start() > position:
             nodes.append({"type": "text", "attrs": {}, "children": [], "text": text[position:match.start()]})
         value = match.group(0)
-        if match["embed"] and "embeds" in capability_ids:
+        if match["embed"] and Path(match["target"].strip()).suffix == ".base" and "registers" in capability_ids:
+            target = match["target"].strip()
+            nodes.append({
+                "type": "registers",
+                "attrs": {"target": target, "heading": match["heading"] or ""},
+                "children": [],
+            })
+            capabilities.add("registers")
+        elif match["embed"] and "embeds" in capability_ids:
             target = match["target"].strip()
             _resolve_note(target, source_path, vault_root)
             nodes.append({"type": "embeds", "attrs": {"target": target}, "children": []})
@@ -477,28 +562,3 @@ def _json_value(value: object) -> object:
     if value is None or isinstance(value, (str, int, float, bool)):
         return value
     raise VaultError(f"Frontmatter value is not JSON-compatible: {value!r}")
-
-
-_CAPABILITY_PATTERNS = {
-    "wikilinks": re.compile(r"(?<!!)\[\[[^\]]+\]\]"),
-    "embeds": re.compile(r"!\[\[[^\]]+\]\]"),
-    "callouts": re.compile(r"(?m)^>\s*\[![^\]]+\]"),
-    "marks": re.compile(r"#mark/[a-z_]+/[a-z0-9_]+"),
-    "bases": re.compile(r"(?m)^```base(?:\s|$)"),
-    "figures": re.compile(r"(?m)^```figure(?:\s|$)"),
-    "quantities": re.compile(r"(?m)^```quantity(?:\s|$)"),
-    "command-fences": re.compile(r"(?m)^```cmd(?:\s|$)"),
-}
-
-
-def _capability_nodes(
-    source: str, capability_ids: set[str], capabilities: set[str],
-) -> list[dict[str, object]]:
-    nodes = []
-    for identifier, pattern in _CAPABILITY_PATTERNS.items():
-        if identifier in capability_ids and (match := pattern.search(source)):
-            capabilities.add(identifier)
-            nodes.append({
-                "type": identifier, "attrs": {"source": match.group(0)}, "children": [],
-            })
-    return nodes
