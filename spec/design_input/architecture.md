@@ -39,6 +39,21 @@ Measure separate acquisition, parsing/validation, link
 resolution, semantic projection, rendering, serialization/compression and packaging
 costs rather than treating all conversion as one opaque phase.
 
+## Capability contract
+
+The core-to-adapter vocabulary is the versioned JSON capability document and its JSON
+Schema. It names only capability identifiers, their dependency identifiers, and
+language-neutral authoring semantics; it has no Python types, package entry points,
+application names, or output-format terms.
+
+An adapter is any executable that declares the capability identifiers it supports in a
+JSON manifest. The declaration is data, not a runtime registration mechanism. The
+[[capability-reference|capability reference]] owns the supported identifiers and their semantics; adapters use
+that reference rather than duplicating capability definitions.
+
+The capability-reference generator reads those notes, rejects missing input-model
+coverage and dependency identifiers, and writes the schema-validated JSON document.
+
 Domain adapters own their evidence parsing, calculations, and report content;
 obs-html owns reusable rendering and interaction behavior. In evidence-driven
 pipelines, the generated Obsidian vault is a disposable intermediate
