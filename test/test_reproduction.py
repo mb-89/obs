@@ -13,6 +13,7 @@ import pytest
 from pypdf import PdfReader, PdfWriter
 
 from pickers import choose_files
+from producer_commands import python_command
 from obs_html.cli import DEFAULT_CONFIG, PROJECT_ROOT, main
 from obs_html.config import load_config
 from obs_html.content import ContentError, read_manifest
@@ -370,7 +371,10 @@ def test_archive_opt_in_includes_sources_and_roundtrips_pdf(tmp_path: Path) -> N
 def test_source_archive_records_authorized_silent_producers(tmp_path: Path) -> None:
     vault = vault_at(tmp_path)
     (vault / "one.md").write_text(
-        "# One\n\n```cmd silent\necho produced > produced.txt\n```\n", encoding="utf-8",
+        "# One\n\n```cmd silent\n"
+        + python_command("open('produced.txt', 'wb').write(b'produced\\n')")
+        + "\n```\n",
+        encoding="utf-8",
     )
     output = tmp_path / "report.html"
 
@@ -382,7 +386,7 @@ def test_source_archive_records_authorized_silent_producers(tmp_path: Path) -> N
     assert archive is not None
     with ZipFile(BytesIO(archive)) as contents:
         assert contents.read("vault/one.md") == (vault / "one.md").read_bytes()
-        assert contents.read("vault/produced.txt") == b"produced \r\n"
+        assert contents.read("vault/produced.txt") == b"produced\n"
         assert "Original generation authorized command fences: True." in (
             contents.read("REPRODUCE.txt").decode()
         )
