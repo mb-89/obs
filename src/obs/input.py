@@ -65,14 +65,15 @@ def validate_count_query(query: object) -> None:
         raise InputError(f"Quantity query: {errors[0].message[:200]}")
 
 
-def parse_property_editor(text: str) -> dict[str, object]:
+def parse_property_editor(text: str, source_path: object | None = None) -> dict[str, object]:
     try:
         specification = yaml.safe_load(text)
     except yaml.YAMLError as error:
         raise InputError(f"Property editor: invalid YAML: {error}") from error
     errors = list(_validator("propertyEditor").iter_errors(specification))
     if errors:
-        raise InputError(f"Property editor: {errors[0].message[:180]}")
+        location = f" in {source_path}" if source_path is not None else ""
+        raise InputError(f"Property editor{location}: {errors[0].message[:180]}")
     return specification
 
 
