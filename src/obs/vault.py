@@ -172,7 +172,7 @@ def build_document(
         "assets": assets,
         "records": [
             {"id": vault.identities[path], "type": "note", "path": vault.relative(path),
-             "fields": _json_value(note_metadata)}
+             "fields": _json_value(note_metadata), **({IGNORED: True} if note_metadata.get(IGNORED) else {})}
             for path, (note_metadata, _) in vault.notes.items()
         ],
         "semanticResources": [],
