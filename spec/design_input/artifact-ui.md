@@ -882,6 +882,11 @@ separate from artifact presentation.
 
   Keep the shell responsive between substantial initialization steps; scheduling
   all expensive work before the browser can paint is not progressive loading.
+  Startup runs in slices: a step yields to the browser once its slice has run as long
+  as a browser long task (50 ms), and only then waits until the browser has painted a
+  frame; steps within a slice do not wait for frames. The first chapter is painted within 1 s of opening the
+  spec artifact on the test machine; `test_startup_browser.py` holds that budget and
+  names the slowest startup steps when it is missed.
   Initialize nonvisible/unused views when needed and reuse existing caches rather
   than moving an unchanged whole-artifact calculation onto the first interaction.
 
