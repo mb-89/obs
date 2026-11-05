@@ -1,5 +1,6 @@
 """Exclusive per-stage wall-clock durations for ``--timings``.
 
+``STAGES`` is the one list of build stages; help, output and baselines read it.
 Owners mark their work with ``stage(name)``; it costs nothing unless a ``recording()``
 is active. A nested stage pauses its enclosing stage, so durations never overlap.
 """
@@ -9,6 +10,20 @@ from contextlib import contextmanager
 from contextvars import ContextVar
 from time import perf_counter
 from typing import Iterator
+
+STAGES: dict[str, str] = {
+    "parse": "configuration, manifest, notes",
+    "producers": "silent cmd fences, before conversion",
+    "provenance": "git",
+    "render": "HTML projection",
+    "figures": "figure fences",
+    "commands": "cmd fences",
+    "source-archive": "--embed-source",
+    "write": "output file",
+    "open": "--check-rendered loading",
+    "print": "PDF printing",
+    "attach": "PDF source attachment",
+}
 
 
 class Timings:
@@ -50,6 +65,8 @@ def recording() -> Iterator[Timings]:
 
 @contextmanager
 def stage(name: str) -> Iterator[None]:
+    if name not in STAGES:
+        raise ValueError(f"Unregistered build stage: {name}")
     timings = _active.get()
     if timings is None:
         yield

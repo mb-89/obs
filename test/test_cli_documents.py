@@ -1,4 +1,5 @@
 import re
+import subprocess
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -144,3 +145,29 @@ def test_stages_outside_a_recording_are_free(monkeypatch) -> None:
     monkeypatch.setattr(timings, "perf_counter", lambda: pytest.fail("clock read without recording"))
     with timings.stage("render"):
         pass
+
+
+def test_unregistered_stage_names_are_rejected() -> None:
+    with pytest.raises(ValueError, match="Unregistered build stage: bogus"):
+        with timings.stage("bogus"):
+            pass
+
+
+def test_help_names_every_registered_stage(capsys) -> None:
+    with pytest.raises(SystemExit):
+        main(["--help"])
+    help_text = " ".join(capsys.readouterr().out.split())
+    for name, description in timings.STAGES.items():
+        assert f"{name} ({description})" in help_text
+
+
+def test_producers_are_their_own_stage_before_conversion(tmp_path, monkeypatch, capsys) -> None:
+    vault = _vault(tmp_path, "alpha", "```cmd silent\nproduce\n```")
+    monkeypatch.setattr(
+        "obs.producers.subprocess.run",
+        lambda command, **_: subprocess.CompletedProcess(command, 0, ""),
+    )
+    output = tmp_path / "a.html"
+    assert main(["--timings", "--execute-commands", "--source", str(vault), "--output", str(output)]) == 0
+    stages = re.findall(r"^Timing: (\S+) \d+\.\d{3} s \(", capsys.readouterr().out, re.MULTILINE)
+    assert stages.index("producers") < stages.index("render")
