@@ -185,3 +185,26 @@ def test_quantities_count_through_their_selection_chain_and_refresh(tmp_path, re
         note.frontmatter.kind === 'quantity' && note.frontmatter.query)
         .every(note => !Object.hasOwn(note.frontmatter, 'value'))""")
     assert errors == []
+
+
+def test_ignored_notes_are_never_counted(tmp_path, reader_browser) -> None:
+    total = {"kind": "quantity", "aliases": ["serviceCount"], "source": "[[chapter]]",
+             "query": {"where": [{"field": "kind", "equals": "service"}], "distinct": "identity"}}
+    ignored = _record("four", {"kind": "service", "identity": "c", "active": "yes", "healthy": "yes",
+                               "region": "east"}, ignored=True)
+    source = build(
+        "Ignored",
+        chapter("chapter", "Chapter", heading(1, "Operations"),
+                paragraph("Services ", _link("serviceCount", "counts-total"), ".")),
+        _quantity("counts-total", "Total", total),
+        abstract=(GLOBAL_CARDS,),
+        records=(_record("chapter", {}), _record("counts-total", total, "counts/total.md"), *_services(), ignored))
+    page, errors = _open(tmp_path, reader_browser, source)
+    from playwright.sync_api import expect
+    page.evaluate("obsPages.setPaged(false); obsReport.activateChapter('home')")
+    card = page.locator("[data-active-chapter] [data-record-card]").first
+    expect(card.locator("strong").first).to_have_text("66.7%")
+    expect(card.locator("[data-record-metric='1'] strong")).to_have_text("2")
+    page.evaluate("obsReport.activateChapter('chapter')")
+    expect(page.locator("[data-active-chapter] [data-quantity-reference]")).to_have_text("2")
+    assert errors == []
