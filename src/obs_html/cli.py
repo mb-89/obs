@@ -142,6 +142,7 @@ PDF operations:
   --embed-source or --extract-comments. --source-report is attachment-only.
   Encrypted/signed PDFs and duplicate source-attachment names are rejected when
   attaching. Viewer support for ZIP attachments varies; PDF/A is not promised.
+  Generation refuses an --output ending in .pdf; export the generated HTML instead.
   Browser printing alone cannot attach sources. In the HTML, Settings + exports
   offers Download source ZIP and Attach source ZIP to PDF: select the PDF you saved
   to attach locally and download a new copy. Keep companion HTML for omitted-note links.
@@ -394,6 +395,13 @@ def _documents(parser: argparse.ArgumentParser, options: argparse.Namespace) -> 
     )
     if len(outputs) != len(sources):
         parser.error("Give one --output per --source.")
+    for output in outputs:
+        if output.suffix.lower() == ".pdf":
+            parser.error(
+                f"--output {output}: generation writes HTML, not PDF. Generate HTML first "
+                f"(--output {output.with_suffix('.html')}), then run "
+                f"--export-pdf {output.with_suffix('.html')} --output {output}."
+            )
     if not options.check and len({output.resolve() for output in outputs}) != len(outputs):
         parser.error("Each document needs its own --output.")
     bundles = options.trusted_runtime_bundle or [None] * len(sources)
