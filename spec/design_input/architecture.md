@@ -92,8 +92,10 @@ adapter to the source machine's vault, while the artifact must open on another
 machine without it ([[product#Goals]]). The Document therefore stays one
 self-contained file.
 
-An asset whose `href` has a URL scheme is not a vault file and
-carries neither `path` nor `data`. Whether an artifact embeds a marked attachment
+An asset whose `href` has a URL scheme is not a vault file and carries no `path`. A
+remote image carries the `data` the build fetched, so the Document stays self-contained
+([[input-model#Document home and abstract|remote images]]); one the build could not fetch,
+and any other URL, carries no `data`. Whether an artifact embeds a marked attachment
 stays the adapter's per-build decision ([[input-model]], `--embed-attachments`).
 
 ## Input contracts

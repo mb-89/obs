@@ -190,6 +190,15 @@ files use octet-stream, never an executable HTML/script media type. This keeps s
 evidence out of authored data URLs. Images are document content, not linked sources, and
 are always embedded.
 
+A remote image, one whose Markdown image target is an `http` or `https` URL in chapter text
+or in a manifest field such as `subtitle`, is embedded too: the core fetches it once per
+build and it becomes a Document asset with its bytes and media type, referenced by its node
+like a local image, so the artifact shows it without the network (decided 5 Nov 2026).
+
+A remote image the build cannot fetch is a warning that names the note, the field, the URL
+and the remedy (save the image into the vault and embed it locally); its node keeps the
+alt text and the URL, so an adapter shows a labelled placeholder.
+
 Sankey links may represent individual canonical records rather than aggregated pairs.
 
 An optional `series` identity associates adjacent segments, and `originColor` preserves a

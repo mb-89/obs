@@ -215,7 +215,7 @@
       "properties": {"id": {"$ref": "#/$defs/id"}, "href": {"type": "string", "minLength": 1}, "label": {"type": "string", "minLength": 1}}
     },
     "asset": {
-      "description": "A file the Document references as an image or a marked attachment (architecture.md, Asset bytes). A vault file carries its bytes, so an adapter never reads the vault; an href with a URL scheme carries neither path nor data.",
+      "description": "A file the Document references as an image or a marked attachment (architecture.md, Asset bytes). A vault file carries its path and bytes, so an adapter never reads the vault; a remote (http or https) image carries the bytes fetched at build time and no path, or neither when the fetch failed.",
       "type": "object", "additionalProperties": false, "required": ["id", "href", "mediaType"],
       "properties": {
         "id": {"$ref": "#/$defs/id"},
@@ -224,7 +224,9 @@
         "path": {"description": "The vault-relative POSIX path of the referenced file.", "type": "string", "pattern": "^(?!/)(?!.*(^|/)\\.\\.?(/|$)).+$"},
         "data": {"description": "The file's bytes, base64-encoded (RFC 4648, padded).", "type": "string", "contentEncoding": "base64", "pattern": "^[A-Za-z0-9+/]*={0,2}$"}
       },
-      "dependentRequired": {"path": ["data"], "data": ["path"]}
+      "dependentRequired": {"path": ["data"]},
+      "if": {"required": ["data"], "not": {"required": ["path"]}},
+      "then": {"properties": {"href": {"pattern": "^[Hh][Tt][Tt][Pp][Ss]?://"}}}
     },
     "record": {
       "description": "A selectable row for Bases and queries. A note record (type note) is one vault note: its vault-relative POSIX path and its frontmatter as fields.",
