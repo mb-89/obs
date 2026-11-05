@@ -27,6 +27,8 @@ from markdown_it.token import Token
 from mdit_py_plugins.dollarmath import dollarmath_plugin
 from latex2mathml import exceptions as math_errors
 from latex2mathml.converter import convert as mathml
+from obs import selection
+from obs.input import InputError
 from obs_html.callouts import decorate_callouts, marker as callout_marker
 from obs_html.markdown import authoring_markdown, shared_authoring_markdown
 
@@ -596,51 +598,14 @@ def _base_property(field: str) -> None:
         raise ContentError(f"Unsupported Bases property: {field}")
 
 
-BaseFilter = Callable[[Callable[[str], object]], bool]
-_MISSING = object()
-_LIST_INDEX = re.compile(r"0|[1-9][0-9]*")
-
-
 def _base_record_value(record: dict[str, object], field: str):
-    if field in record:
-        return record[field]
-
-    def traverse(value: object, parts: list[str]):
-        if not parts:
-            return value
-        if isinstance(value, list) and not _LIST_INDEX.fullmatch(parts[0]):
-            matches = []
-            for item in value:
-                match = traverse(item, parts)
-                if isinstance(match, list):
-                    matches.extend(match)
-                elif match is not _MISSING:
-                    matches.append(match)
-            return matches
-        if isinstance(value, list):
-            index = int(parts[0])
-            return traverse(value[index], parts[1:]) if index < len(value) else _MISSING
-        if not isinstance(value, dict) or parts[0] not in value:
-            return _MISSING
-        return traverse(value[parts[0]], parts[1:])
-
-    value = traverse(record, field.split("."))
-    return None if value is _MISSING else value
+    """Resolve a frontmatter property by the core's rules (capabilities/bases#Comparisons)."""
+    return selection.note_value(record, "", field)
 
 
 def base_note_value(frontmatter: dict[str, object], path: str, field: str):
-    """Resolve a Bases property of a note at a vault-relative POSIX path (see generic-tables)."""
-    field = field.removeprefix("note.")
-    location = PurePosixPath(path)
-    if field == "file.name":
-        return location.stem
-    if field == "file.path":
-        return path
-    if field == "file.folder":
-        return location.parent.as_posix().removesuffix(".")
-    if field == "file.ext":
-        return location.suffix.removeprefix(".")
-    return _base_record_value(frontmatter, field)
+    """Resolve a Bases property of a note; the core's evaluator owns it (obs.selection)."""
+    return selection.note_value(frontmatter, path, field)
 
 
 @cache
@@ -648,62 +613,21 @@ def _base_schema() -> dict[str, object]:
     return json.loads(files("obs_html").joinpath("base.schema.json").read_text(encoding="utf-8"))
 
 
-@cache
-def _base_comparison() -> re.Pattern[str]:
-    return re.compile(_base_schema()["$defs"]["comparison"]["pattern"])
+def compile_base_filter(filters: object) -> selection.BaseFilter:
+    """Compile a Bases filter with the core's evaluator (obs.selection), raising ContentError.
 
-
-def _unsupported_base_filter(filters: object, reason: str = "") -> ContentError:
-    text = filters if isinstance(filters, str) else json.dumps(filters, ensure_ascii=False, default=str)
-    return ContentError(f"Unsupported Bases filter: {text}{reason}")
-
-
-def compile_base_filter(filters: object) -> BaseFilter:
-    """Compile the Bases filter grammar owned by generic-tables.md; ``None`` matches everything.
-
-    The predicate receives a resolver from property name to typed value.
+    Only the recordType remedy is the adapter's own: it names this adapter's projections.
     """
-    if filters is None:
-        return lambda value_for: True
-    if isinstance(filters, str):
-        match = _base_comparison().fullmatch(filters)
-        if not match:
-            raise _unsupported_base_filter(filters)
-        simple, spaced, operator, literal = match.groups()
-        if simple == "recordType":
-            kinds = " | ".join(_base_schema()["properties"]["obsHtml"]["properties"]["records"]["enum"])
-            raise _unsupported_base_filter(
-                filters, f" (recordType filters were removed; select projected rows with obsHtml: {{records: {kinds}}})",
-            )
-        try:
-            _base_property(simple or f'note["{spaced}"]')
-        except ContentError as error:
-            raise _unsupported_base_filter(filters, f" ({error})") from error
-        field = spaced or simple.removeprefix("note.")
-        expected = literal[1:-1] if literal[0] in "\"'" else json.loads(literal)
-
-        def compare(value_for: Callable[[str], object]) -> bool:
-            value = value_for(field)
-            equal = value == expected and (
-                type(value) is type(expected) or
-                type(value) in (int, float) and type(expected) in (int, float)
-            )
-            return equal if operator == "==" else not equal
-        return compare
-    if isinstance(filters, dict) and len(filters) == 1:
-        operator, operand = next(iter(filters.items()))
-        operands = operand if isinstance(operand, list) else [operand]
-        if operator in {"and", "or", "not"} and operands and None not in operands:
-            children = [compile_base_filter(item) for item in operands]
-            if operator == "or":
-                return lambda value_for: any(child(value_for) for child in children)
-            if operator == "not":
-                return lambda value_for: not any(child(value_for) for child in children)
-            return lambda value_for: all(child(value_for) for child in children)
-    raise _unsupported_base_filter(filters)
+    try:
+        return selection.compile_base_filter(filters)
+    except InputError as error:
+        kinds = " | ".join(_base_schema()["properties"]["obsHtml"]["properties"]["records"]["enum"])
+        raise ContentError(str(error).replace(
+            "select rows with obsHtml.records", f"select projected rows with obsHtml: {{records: {kinds}}}",
+        )) from error
 
 
-def _compile_base_filter_at(filters: object, location: str) -> BaseFilter:
+def _compile_base_filter_at(filters: object, location: str) -> selection.BaseFilter:
     try:
         return compile_base_filter(filters)
     except ContentError as error:

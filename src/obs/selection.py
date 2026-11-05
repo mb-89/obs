@@ -29,6 +29,21 @@ def selectable(fields: dict[str, object]) -> bool:
     return fields.get(IGNORED) is not True
 
 
+def _key(mapping: dict[object, object], name: str) -> object:
+    """The key a property name matches, ignoring case; see capabilities/bases#Comparisons."""
+    if name in mapping:
+        return name
+    folded = name.lower()
+    return next((key for key in mapping if isinstance(key, str) and key.lower() == folded), None)
+
+
+def same_text(actual: str, expected: str, match_case: bool = False) -> bool:
+    """Whether two texts are equal, ignoring case unless asked; see capabilities/bases#Comparisons."""
+    if match_case:
+        return actual == expected
+    return re.fullmatch(re.escape(expected), actual, re.IGNORECASE) is not None
+
+
 def note_value(fields: dict[str, object], path: str, field: str) -> object:
     """Resolve a Bases property of a note record at a vault-relative POSIX path."""
     field = field.removeprefix("note.")
@@ -41,8 +56,9 @@ def note_value(fields: dict[str, object], path: str, field: str) -> object:
         return location.parent.as_posix().removesuffix(".")
     if field == "file.ext":
         return location.suffix.removeprefix(".")
-    if field in fields:
-        return fields[field]
+    whole = _key(fields, field)
+    if whole is not None:
+        return fields[whole]
 
     def traverse(value: object, parts: list[str]) -> object:
         if not parts:
@@ -59,9 +75,10 @@ def note_value(fields: dict[str, object], path: str, field: str) -> object:
         if isinstance(value, list):
             index = int(parts[0])
             return traverse(value[index], parts[1:]) if index < len(value) else _MISSING
-        if not isinstance(value, dict) or parts[0] not in value:
+        key = _key(value, parts[0]) if isinstance(value, dict) else None
+        if key is None:
             return _MISSING
-        return traverse(value[parts[0]], parts[1:])
+        return traverse(value[key], parts[1:])
 
     value = traverse(fields, field.split("."))
     return None if value is _MISSING else value
@@ -95,16 +112,19 @@ def compile_base_filter(filters: object) -> BaseFilter:
         name = simple or f'note["{spaced}"]'
         if (re.match(r'^note(?:\.file\.|\["file\.)', name) or name.startswith(("formula.", "this."))
                 or name.startswith("file.") and name not in _FILE_PROPERTIES):
-            raise _unsupported(filters, f" (unsupported Bases property: {name})")
+            raise _unsupported(filters, f" (Unsupported Bases property: {name})")
         field = spaced or simple.removeprefix("note.")
         expected = literal[1:-1] if literal[0] in "\"'" else json.loads(literal)
 
         def compare(value_for: Callable[[str], object]) -> bool:
             value = value_for(field)
-            equal = value == expected and (
-                type(value) is type(expected)
-                or type(value) in (int, float) and type(expected) in (int, float)
-            )
+            if isinstance(value, str) and isinstance(expected, str):
+                equal = same_text(value, expected)
+            else:
+                equal = value == expected and (
+                    type(value) is type(expected)
+                    or type(value) in (int, float) and type(expected) in (int, float)
+                )
             return equal if operator == "==" else not equal
         return compare
     if isinstance(filters, dict) and len(filters) == 1:
@@ -158,7 +178,9 @@ def conditions_select(conditions: list[dict[str, object]], fields: dict[str, obj
         return False
     for condition in conditions:
         texts = _texts(note_value(fields, path, str(condition["field"])))
-        if "equals" in condition and condition["equals"] not in texts:
+        if "equals" in condition and not any(
+            same_text(text, str(condition["equals"]), condition.get("matchCase") is True) for text in texts
+        ):
             return False
         if "exists" in condition and not any(text.strip() for text in texts):
             return False

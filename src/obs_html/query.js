@@ -274,12 +274,22 @@
         const value = record.frontmatter ? globalThis.obsBases.recordValue(record, field) : undefined;
         return value === undefined ? record.fields?.[field.toLocaleLowerCase()] : value;
     };
-    const conditionsMatch = (record, conditions = []) => conditions.every((condition) => {
-        const texts = conditionTexts(conditionValue(record, condition.field));
-        return "equals" in condition ? texts.includes(condition.equals)
-            : texts.some((text) => text.trim() !== "");
-    });
-    const compileConditions = (conditions) => ({match: (record) => conditionsMatch(record, conditions || [])});
+    const compileConditions = (conditions) => {
+        const tests = (conditions || []).map((condition) => {
+            const same = "equals" in condition
+                ? globalThis.obsBases.textMatcher(String(condition.equals), condition.matchCase === true) : null;
+            return (record) => {
+                const texts = conditionTexts(conditionValue(record, condition.field));
+                return same ? texts.some(same) : texts.some((text) => text.trim() !== "");
+            };
+        });
+        return {match: (record) => tests.every((test) => test(record))};
+    };
+    const compiledConditions = new WeakMap();
+    const conditionsMatch = (record, conditions = []) => {
+        if (!compiledConditions.has(conditions)) compiledConditions.set(conditions, compileConditions(conditions));
+        return compiledConditions.get(conditions).match(record);
+    };
 
     globalThis.obsQuery = {compile, exactClause, conditionsExpression, conditionsMatch, compileConditions,
         incomplete: INCOMPLETE};
