@@ -168,3 +168,28 @@ def native_artifact_readiness(monkeypatch):
 
     monkeypatch.setattr(Page, "goto", ready(Page.goto))
     monkeypatch.setattr(Page, "reload", ready(Page.reload))
+
+
+class UnreachableNetwork(OSError):
+    """The default fake's refusal: no test reaches the network."""
+
+
+@pytest.fixture(autouse=True)
+def remote_images(monkeypatch):
+    """Replace the core's one network read; a test maps a URL to (bytes, media type) to fetch it.
+
+    An unmapped URL fails as an unreachable host does, so no test reaches the network.
+    """
+    from obs import vault
+
+    served: dict[str, tuple[bytes, str | None]] = {}
+    fetched: list[str] = []
+
+    def fetch(url: str) -> tuple[bytes, str | None]:
+        fetched.append(url)
+        if url not in served:
+            raise UnreachableNetwork(f"no network in tests for {url}")
+        return served[url]
+
+    monkeypatch.setattr(vault, "fetch_remote", fetch)
+    return served, fetched
