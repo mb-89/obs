@@ -1,0 +1,19 @@
+name: test
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  suite:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm --prefix test/browser ci
+      - run: npm --prefix adapters/html/test/browser ci
+      - run: uv run playwright install --with-deps chromium
+      - run: uv run python test/suite.py

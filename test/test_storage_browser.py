@@ -7,8 +7,8 @@ from pathlib import Path
 
 import pytest
 
-from obs_html.content import parse_manifest
-from obs_html.renderer import render_artifact
+from obs_html_interim.content import parse_manifest
+from obs_html_interim.renderer import render_artifact
 
 
 @pytest.mark.skipif(
@@ -165,7 +165,7 @@ def test_archived_images_never_request_internal_asset_uris(tmp_path: Path) -> No
     sit in src, or Chrome logs net::ERR_UNKNOWN_URL_SCHEME for every inserted image."""
     from playwright.sync_api import expect, sync_playwright
 
-    from obs_html.cli import main
+    from obs_html_interim.cli import main
 
     source = tmp_path / "source"
     (source / "assets").mkdir(parents=True)

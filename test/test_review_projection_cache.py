@@ -1,8 +1,8 @@
 import pytest
 
-from obs_html.content import parse_manifest
-from obs_html.renderer import render_artifact
-from obs_html.reproduction import embed_payload_runtime
+from obs_html_interim.content import parse_manifest
+from obs_html_interim.renderer import render_artifact
+from obs_html_interim.reproduction import embed_payload_runtime
 from test_reader_controls import reader_browser
 
 

@@ -26,22 +26,22 @@ def test_installed_tool_generates_from_outside_the_checkout(tmp_path, editable) 
         vault.mkdir()
         (vault / "manifest.md").write_text("- [[chapter]]\n", encoding="utf-8")
         (vault / "chapter.md").write_text("# Installed\n\nBody.\n", encoding="utf-8")
-        executable = tmp_path / "bin" / ("obs-html.exe" if os.name == "nt" else "obs-html")
+        executable = tmp_path / "bin" / ("obs-html-interim.exe" if os.name == "nt" else "obs-html-interim")
 
-        def obs_html(*arguments: str) -> subprocess.CompletedProcess[str]:
+        def obs_html_interim(*arguments: str) -> subprocess.CompletedProcess[str]:
             return subprocess.run([str(executable), *arguments], cwd=tmp_path, env=environment,
                                   capture_output=True, text=True)
 
-        built = obs_html("--source", "vault", "--output", "out/document.html")
+        built = obs_html_interim("--source", "vault", "--output", "out/document.html")
         assert built.returncode == 0, built.stderr
         assert (tmp_path / "out" / "document.html").read_text(encoding="utf-8").startswith("<!doctype html>")
 
-        archived = obs_html("--source", "vault", "--output", "out/evidence.html", "--embed-source")
+        archived = obs_html_interim("--source", "vault", "--output", "out/evidence.html", "--embed-source")
         if editable:
             assert archived.returncode == 0, archived.stderr
         else:
             assert archived.returncode == 2
             assert "--embed-source requires the generator checkout" in archived.stderr
     finally:
-        subprocess.run([uv, "tool", "uninstall", "obs-html"], cwd=tmp_path, env=environment,
+        subprocess.run([uv, "tool", "uninstall", "obs"], cwd=tmp_path, env=environment,
                        capture_output=True, text=True)

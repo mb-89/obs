@@ -5,8 +5,8 @@ from urllib.parse import quote
 
 import pytest
 
-from obs_html.content import parse_manifest
-from obs_html.renderer import render_artifact
+from obs_html_interim.content import parse_manifest
+from obs_html_interim.renderer import render_artifact
 
 
 def test_native_generic_cards_follow_global_not_local_filters(tmp_path):

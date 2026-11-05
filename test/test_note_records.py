@@ -5,7 +5,7 @@ import yaml
 
 from obs.capabilities import build_capability_reference
 from obs.document import build_document
-from obs_html.content import (
+from obs_html_interim.content import (
     Chapter, base_note_value, collect_notes, compile_base_filter, read_chapter_content, read_manifest,
 )
 

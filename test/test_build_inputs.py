@@ -5,9 +5,9 @@ from pathlib import Path
 from markdown_it import MarkdownIt
 import pytest
 
-import obs_html.content as content
-from obs_html.cli import main
-from obs_html.artifact_data import decode_artifact_data
+import obs_html_interim.content as content
+from obs_html_interim.cli import main
+from obs_html_interim.artifact_data import decode_artifact_data
 
 
 def test_cli_reads_and_decodes_each_note_once_per_build(tmp_path, monkeypatch):

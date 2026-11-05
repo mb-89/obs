@@ -3,7 +3,7 @@
 ## Working order
 
 1. Read `spec/design_input` and update the relevant design note before behavior changes.
-2. Keep cross-cutting values in `src/obs_html/cfg.json` with matching schema constraints.
+2. Keep cross-cutting values in `src/obs_html_interim/cfg.json` with matching schema constraints.
 3. Implement the smallest behavior consistent with the approved design.
 4. Add a regression test first, run the affected tests, and exercise the affected CLI path.
 5. Follow the knowledge-ownership and change-locality rules in
@@ -24,13 +24,28 @@ Do not copy the shared process guidance into this repository.
 - One owner owns each fact; other locations link to it.
 - Follow se's [authored-prose preservation rule](../se/.github/skills/work-model/SKILL.md#rules-for-all-roles).
 - Do not add compatibility aliases, shims, or fallbacks unless explicitly requested.
+- A test matches an input error by its field path and owner reference, not by its wording; this
+  holds for the core and every adapter alike.
+- Commits carry the project identity from `se.toml`; se sets it as its
+  [Project settings](../se/README.md#project-settings) say. Do not set it by hand.
+
+## Repository
+
+One repository holds the core (`src/obs`) and its integrated adapters, each a folder under
+`adapters/`; the [Repository layout](spec/design_input/architecture.md#repository-layout) owns
+the structure. Work inside an adapter folder also follows that folder's `AGENTS.md`, for example
+[adapters/html](adapters/html/AGENTS.md).
 
 ## Commands
 
 ```powershell
+uv run obs-html-interim --help
 uv run obs-html --help
 uv run pytest
 ```
+
+`uv run pytest` runs the core's suite; the complete suite of the core and every adapter is
+`uv run python test/suite.py` (its docstring is its reference).
 
 To check what a built artifact shows without a browser script, print a chapter with
 `--print-chapter`; see [Printing a chapter](spec/design_input/cli.md#printing-a-chapter).

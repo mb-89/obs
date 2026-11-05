@@ -3,8 +3,8 @@ import os
 
 import pytest
 
-from obs_html.content import parse_manifest
-from obs_html.renderer import render_artifact
+from obs_html_interim.content import parse_manifest
+from obs_html_interim.renderer import render_artifact
 
 
 def test_native_quantity_selection_chain_cache_edit_print_and_reopen(tmp_path):

@@ -1,0 +1,64 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "obs-html bounded semantic asset index",
+  "type": "object", "required": ["schemaVersion", "assets"], "additionalProperties": false,
+  "properties": {"schemaVersion": {"const": 1}, "assets": {"$ref": "#/$defs/nodes"}},
+  "$defs": {
+    "segment": {
+      "$ref": "#/$defs/stateName",
+      "not": {"enum": ["schemaVersion", "assets", "type", "value", "ref", "children", "states", "defaultState"]}
+    },
+    "stateName": {"type": "string", "pattern": "^[A-Za-z][A-Za-z0-9_-]{0,63}(?![\\s\\S])"},
+    "name": {"type": "string", "maxLength": 255, "pattern": "^[A-Za-z][A-Za-z0-9_-]{0,63}(\\.[A-Za-z][A-Za-z0-9_-]{0,63})*(?![\\s\\S])"},
+    "reference": {
+      "type": "object", "required": ["ref"], "additionalProperties": false,
+      "properties": {"ref": {"$ref": "#/$defs/name"}}
+    },
+    "hex": {"type": "string", "pattern": "^#[0-9a-fA-F]{6}([0-9a-fA-F]{2})?$"},
+    "fields": {
+      "type": "object", "additionalProperties": false,
+      "properties": {"icon": {"$ref": "#/$defs/reference"}, "color": {"$ref": "#/$defs/reference"}}
+    },
+    "nodes": {
+      "type": "object", "propertyNames": {"$ref": "#/$defs/segment"},
+      "additionalProperties": {"$ref": "#/$defs/node"}
+    },
+    "node": {
+      "type": "object", "additionalProperties": false,
+      "properties": {
+        "type": {"enum": ["icon", "color", "appearance"]},
+        "ref": {"$ref": "#/$defs/name"},
+        "icon": {"$ref": "#/$defs/reference"},
+        "color": {"$ref": "#/$defs/reference"},
+        "defaultState": {"$ref": "#/$defs/stateName"},
+        "states": {
+          "type": "object", "minProperties": 1,
+          "propertyNames": {"$ref": "#/$defs/stateName"},
+          "additionalProperties": {"$ref": "#/$defs/fields"}
+        },
+        "children": {"$ref": "#/$defs/nodes"},
+        "value": {
+          "oneOf": [
+            {"$ref": "#/$defs/hex"},
+            {"$ref": "#/$defs/reference"},
+            {
+              "type": "object", "required": ["light", "dark"], "additionalProperties": false,
+              "properties": {"light": {"$ref": "#/$defs/hex"}, "dark": {"$ref": "#/$defs/hex"}}
+            },
+            {
+              "type": "object", "required": ["glyph"], "additionalProperties": false,
+              "properties": {"glyph": {"type": "string", "pattern": "\\S"}}
+            },
+            {
+              "type": "object", "required": ["asset"], "additionalProperties": false,
+              "properties": {
+                "asset": {"type": "string", "pattern": "^(?![/\\\\])(?!.*[:\\\\])\\S.*$"},
+                "monochrome": {"type": "boolean"}
+              }
+            }
+          ]
+        }
+      }
+    }
+  }
+}

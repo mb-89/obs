@@ -3,7 +3,7 @@ from xml.etree import ElementTree
 
 import pytest
 
-from obs_html.content import ContentError, parse_manifest, render_chapter
+from obs_html_interim.content import ContentError, parse_manifest, render_chapter
 
 
 def quantity(tmp_path, metadata):

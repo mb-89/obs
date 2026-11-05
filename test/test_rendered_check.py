@@ -3,8 +3,8 @@ from pathlib import Path
 
 import pytest
 
-from obs_html.cli import main
-from obs_html.pdf import RenderedCheck
+from obs_html_interim.cli import main
+from obs_html_interim.pdf import RenderedCheck
 
 
 def _document(tmp_path: Path) -> Path:
@@ -24,7 +24,7 @@ def test_rendered_check_reports_status_errors_and_pages(tmp_path, monkeypatch, c
         calls.append((html, timeout_seconds))
         return RenderedCheck("ready", (), 3)
 
-    monkeypatch.setattr("obs_html.pdf.check_rendered", check)
+    monkeypatch.setattr("obs_html_interim.pdf.check_rendered", check)
     assert main(["--check-rendered", str(tmp_path / "document.html")]) == 0
     out = capsys.readouterr().out
     assert f"Rendered {tmp_path / 'document.html'}: status ready, 0 console errors, 3 pages." in out
@@ -39,7 +39,7 @@ def test_rendered_check_reports_status_errors_and_pages(tmp_path, monkeypatch, c
 def test_rendered_check_fails_on_console_errors_or_unready_status(
     tmp_path, monkeypatch, capsys, result, reason,
 ) -> None:
-    monkeypatch.setattr("obs_html.pdf.check_rendered", lambda _html, _timeout: result)
+    monkeypatch.setattr("obs_html_interim.pdf.check_rendered", lambda _html, _timeout: result)
     with pytest.raises(SystemExit, match="2"):
         main(["--check-rendered", str(tmp_path / "document.html")])
     captured = capsys.readouterr()

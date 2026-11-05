@@ -3,10 +3,10 @@ import os
 
 import pytest
 
-from obs_html.content import parse_manifest
-from obs_html.renderer import render_artifact
+from obs_html_interim.content import parse_manifest
+from obs_html_interim.renderer import render_artifact
 
-CODES = ["content.py:1444", "src/obs_html/artifact.js", "alpha-beta-gamma-delta", "one_two_three_four"]
+CODES = ["content.py:1444", "src/obs_html_interim/artifact.js", "alpha-beta-gamma-delta", "one_two_three_four"]
 SEPARATORS = "/\\._:- "
 
 # Character offsets at which a code span continues on a new line.

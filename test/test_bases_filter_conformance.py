@@ -7,9 +7,9 @@ from pathlib import Path
 
 import pytest
 
-from obs_html.content import ContentError, base_note_value, compile_base_filter, parse_manifest
-from obs_html.renderer import render_artifact
-from obs_html.artifact_data import decode_artifact_data
+from obs_html_interim.content import ContentError, base_note_value, compile_base_filter, parse_manifest
+from obs_html_interim.renderer import render_artifact
+from obs_html_interim.artifact_data import decode_artifact_data
 
 FIXTURE = json.loads(
     (Path(__file__).parent / "fixtures" / "bases-filter-conformance.json").read_text(encoding="utf-8")
@@ -111,7 +111,7 @@ def test_core_and_interim_schemas_share_the_comparison_pattern():
         schema = Path(__file__).parents[1] / "src" / package / "base.schema.json"
         return json.loads(schema.read_text(encoding="utf-8"))["$defs"]["comparison"]["pattern"]
 
-    assert pattern("obs") == pattern("obs_html")
+    assert pattern("obs") == pattern("obs_html_interim")
 
 
 @pytest.mark.parametrize("package", ["core", "adapter"])
@@ -119,8 +119,8 @@ def test_match_case_flag_belongs_to_an_equals_condition(package):
     if package == "core":
         from obs.input import InputError as Error, validate_count_query
     else:
-        from obs_html.cards import validate_count_query
-        from obs_html.content import ContentError as Error
+        from obs_html_interim.cards import validate_count_query
+        from obs_html_interim.content import ContentError as Error
 
     validate_count_query({"where": [{"field": "status", "equals": "Open", "matchCase": True}]}, "note.md")
     with pytest.raises(Error) as error:

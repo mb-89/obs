@@ -7,9 +7,9 @@ from pathlib import Path
 import pytest
 import yaml
 
-from obs_html.content import parse_manifest
-from obs_html.renderer import render_artifact
-from obs_html.artifact_data import decode_artifact_data
+from obs_html_interim.content import parse_manifest
+from obs_html_interim.renderer import render_artifact
+from obs_html_interim.artifact_data import decode_artifact_data
 from test_reader_controls import _declare_query, _write_reader_fixture, reader_browser  # noqa: F401
 
 
@@ -171,7 +171,7 @@ def test_removed_reading_startup_settings_are_rejected(tmp_path: Path, removed) 
     (tmp_path / "one.md").write_text("# One\n\nContent.\n", encoding="utf-8")
     manifest = tmp_path / "manifest.md"
     manifest.write_text("- [[one]]\n", encoding="utf-8")
-    reading = json.loads(files("obs_html").joinpath("cfg.json").read_text(encoding="utf-8"))[
+    reading = json.loads(files("obs_html_interim").joinpath("cfg.json").read_text(encoding="utf-8"))[
         "artifact"
     ]["reading"] | removed
 

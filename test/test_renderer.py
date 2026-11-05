@@ -6,9 +6,9 @@ from pathlib import Path
 
 import pytest
 
-from obs_html.content import ContentError, parse_manifest
-from obs_html.renderer import render_artifact
-from obs_html.artifact_data import decode_artifact_data
+from obs_html_interim.content import ContentError, parse_manifest
+from obs_html_interim.renderer import render_artifact
+from obs_html_interim.artifact_data import decode_artifact_data
 
 
 HEX_COLOR = re.compile(r"#[0-9a-fA-F]{3,8}\b")
@@ -94,7 +94,7 @@ def test_artifact_serializes_semantics_and_chapter_owned_tables(tmp_path: Path) 
 
     assert data["facetDistinctRatio"] == 0.4
     assert data["tablePageSize"] == json.loads(
-        files("obs_html").joinpath("cfg.json").read_text(encoding="utf-8")
+        files("obs_html_interim").joinpath("cfg.json").read_text(encoding="utf-8")
     )["artifact"]["tablePageSize"]
     assert "generatedViews" not in data
     assert "glossaryEntries" not in data
@@ -318,7 +318,7 @@ def test_empty_abstract_has_no_implicit_tables_and_keeps_title_fallback(tmp_path
     assert data["notes"][0]["tables"] == []
     assert all(chapter["generated"] != "abstract" for chapter in data["notes"])
     assert "<title>My document</title>" in artifact
-    stylesheet = files("obs_html").joinpath("base.css").read_text(encoding="utf-8")
+    stylesheet = files("obs_html_interim").joinpath("base.css").read_text(encoding="utf-8")
     assert re.search(r"\.document-title\s*\{\s*text-align: center;", stylesheet)
 
 
@@ -587,7 +587,7 @@ def test_inline_runtimes_are_embedded_from_package_scripts(tmp_path: Path) -> No
 
     artifact = render_artifact(manifest, parse_manifest(manifest))
 
-    package = files("obs_html")
+    package = files("obs_html_interim")
     assert package.joinpath("storage.js").read_text(encoding="utf-8") in artifact
     startup = re.search(r'<script id="reader-startup-script"[^>]*>(.*?)</script>', artifact, re.DOTALL)[1]
     reading = decode_artifact_data(artifact)["reading"]
@@ -631,30 +631,30 @@ def test_table_of_contents_has_branch_and_all_controls(tmp_path: Path) -> None:
 
 
 def test_stylesheet_keeps_color_literals_in_semantic_tokens() -> None:
-    stylesheet = files("obs_html").joinpath("base.css").read_text(encoding="utf-8")
+    stylesheet = files("obs_html_interim").joinpath("base.css").read_text(encoding="utf-8")
     lines_with_colors = [line for line in stylesheet.splitlines() if HEX_COLOR.search(line)]
 
     assert not lines_with_colors
-    index = json.loads(files("obs_html").joinpath("assets.json").read_text(encoding="utf-8"))
+    index = json.loads(files("obs_html_interim").joinpath("assets.json").read_text(encoding="utf-8"))
     assert index["assets"]["color"]["children"]["text"]["value"]["light"] == "#000000"
 
 
 def test_appearance_overrides_use_the_shared_token_palette() -> None:
-    stylesheet = files("obs_html").joinpath("base.css").read_text(encoding="utf-8")
+    stylesheet = files("obs_html_interim").joinpath("base.css").read_text(encoding="utf-8")
 
     assert "color-scheme: light dark" in stylesheet
     assert ':root[data-theme="light"]' in stylesheet
     assert ':root[data-theme="dark"]' in stylesheet
     assert "color-scheme: light;" in stylesheet
     assert "color-scheme: dark;" in stylesheet
-    from obs_html.semantic_assets import SemanticAssets
+    from obs_html_interim.semantic_assets import SemanticAssets
     declarations = re.findall(r"--color-[\w-]+:([^;]+);", SemanticAssets(Path.cwd()).css())
     assert declarations
     assert all(re.fullmatch(r"var\(--asset-[0-9a-f]+\)", value) for value in declarations)
 
 
 def test_filter_value_menus_display_only_while_popover_is_open() -> None:
-    stylesheet = files("obs_html").joinpath("base.css").read_text(encoding="utf-8")
+    stylesheet = files("obs_html_interim").joinpath("base.css").read_text(encoding="utf-8")
     open_rule = re.search(r"\.filter-values:popover-open\s*\{(?P<body>[^}]*)}", stylesheet)
     base_rule = re.search(r"\.filter-values\s*\{(?P<body>[^}]*)}", stylesheet)
 
@@ -663,7 +663,7 @@ def test_filter_value_menus_display_only_while_popover_is_open() -> None:
 
 
 def test_query_help_buttons_share_the_input_height_and_are_square() -> None:
-    stylesheet = files("obs_html").joinpath("base.css").read_text(encoding="utf-8")
+    stylesheet = files("obs_html_interim").joinpath("base.css").read_text(encoding="utf-8")
 
     assert "--query-control-size: 2.35rem" in stylesheet
     assert "height: var(--query-control-size)" in stylesheet
@@ -671,7 +671,7 @@ def test_query_help_buttons_share_the_input_height_and_are_square() -> None:
 
 
 def test_comment_highlights_have_distinct_hover_feedback() -> None:
-    stylesheet = files("obs_html").joinpath("base.css").read_text(encoding="utf-8")
+    stylesheet = files("obs_html_interim").joinpath("base.css").read_text(encoding="utf-8")
 
     assert "::highlight(obs-comments-hover)" in stylesheet
     assert ".chapter-body.comment-highlight-hover" in stylesheet
@@ -679,7 +679,7 @@ def test_comment_highlights_have_distinct_hover_feedback() -> None:
 
 
 def test_review_states_use_shared_semantic_color_tokens() -> None:
-    stylesheet = files("obs_html").joinpath("base.css").read_text(encoding="utf-8")
+    stylesheet = files("obs_html_interim").joinpath("base.css").read_text(encoding="utf-8")
 
     for token in ("--color-success", "--color-failure", "--color-waiting", "--color-annotation"):
         assert token in stylesheet
@@ -689,14 +689,14 @@ def test_review_states_use_shared_semantic_color_tokens() -> None:
 
 
 def test_next_chapter_control_leaves_scrollbar_gutter_clickable() -> None:
-    stylesheet = files("obs_html").joinpath("base.css").read_text(encoding="utf-8")
+    stylesheet = files("obs_html_interim").joinpath("base.css").read_text(encoding="utf-8")
 
     assert ".chapter-nav-zone--next" in stylesheet
     assert "right: 1rem" in stylesheet
 
 
 def test_semantic_paragraphs_are_understated_and_responsive() -> None:
-    stylesheet = files("obs_html").joinpath("base.css").read_text(encoding="utf-8")
+    stylesheet = files("obs_html_interim").joinpath("base.css").read_text(encoding="utf-8")
 
     assert ".content-card" in stylesheet
     assert ".semantic-mark" in stylesheet
@@ -718,7 +718,7 @@ def test_semantic_paragraphs_are_understated_and_responsive() -> None:
 
 
 def test_generic_table_runtime_owns_local_tree_and_view_operations() -> None:
-    script = files("obs_html").joinpath("table.js").read_text(encoding="utf-8")
+    script = files("obs_html_interim").joinpath("table.js").read_text(encoding="utf-8")
 
     assert "retainMatchesAndAncestors" in script
     assert "baseExpression" in script
@@ -747,7 +747,7 @@ def test_generic_table_runtime_owns_local_tree_and_view_operations() -> None:
 
 
 def test_table_resize_handles_do_not_create_horizontal_overflow() -> None:
-    stylesheet = files("obs_html").joinpath("base.css").read_text(encoding="utf-8")
+    stylesheet = files("obs_html_interim").joinpath("base.css").read_text(encoding="utf-8")
     handle = re.search(r"\.data-table-column-resize\s*\{([^}]*)}", stylesheet)
     table = re.search(r"\.data-table-scroll table\s*\{([^}]*)}", stylesheet)
     scroller = re.search(r"\.data-table-scroll\s*\{([^}]*)}", stylesheet)
@@ -779,7 +779,7 @@ def test_table_reference_contract_covers_headers_groups_and_footer(tmp_path: Pat
 
 
 def test_table_popover_resets_native_insets_to_stay_next_to_its_button() -> None:
-    stylesheet = files("obs_html").joinpath("base.css").read_text(encoding="utf-8")
+    stylesheet = files("obs_html_interim").joinpath("base.css").read_text(encoding="utf-8")
     rule = re.search(r"\.data-table-options\s*\{([^}]*)}", stylesheet)
     assert rule
     declarations = dict(re.findall(r"([\w-]+)\s*:\s*([^;]+);", rule[1]))
@@ -790,9 +790,9 @@ def test_table_popover_resets_native_insets_to_stay_next_to_its_button() -> None
 
 
 def test_filter_badges_follow_applied_queries_and_share_funnel_styling() -> None:
-    stylesheet = files("obs_html").joinpath("base.css").read_text(encoding="utf-8")
-    script = files("obs_html").joinpath("artifact.js").read_text(encoding="utf-8")
-    table = files("obs_html").joinpath("table.js").read_text(encoding="utf-8")
+    stylesheet = files("obs_html_interim").joinpath("base.css").read_text(encoding="utf-8")
+    script = files("obs_html_interim").joinpath("artifact.js").read_text(encoding="utf-8")
+    table = files("obs_html_interim").joinpath("table.js").read_text(encoding="utf-8")
 
     assert "menuButton.dataset.filterActive" not in script
     assert 'optionsToggle.dataset.filterActive = String(!query.empty)' in table
@@ -808,10 +808,10 @@ def test_filter_badges_follow_applied_queries_and_share_funnel_styling() -> None
 
 
 def test_disclosures_share_bare_icon_styling_across_surfaces() -> None:
-    stylesheet = files("obs_html").joinpath("base.css").read_text(encoding="utf-8")
-    script = files("obs_html").joinpath("artifact.js").read_text(encoding="utf-8")
-    table = files("obs_html").joinpath("table.js").read_text(encoding="utf-8")
-    from obs_html.bars.toc import BAR
+    stylesheet = files("obs_html_interim").joinpath("base.css").read_text(encoding="utf-8")
+    script = files("obs_html_interim").joinpath("artifact.js").read_text(encoding="utf-8")
+    table = files("obs_html_interim").joinpath("table.js").read_text(encoding="utf-8")
+    from obs_html_interim.bars.toc import BAR
 
     for component in ("toc-toggle", "heading-toggle", "chapter-breadcrumb-toggle"):
         assert f'"disclosure-toggle {component}"' in script
@@ -833,7 +833,7 @@ def test_disclosures_share_bare_icon_styling_across_surfaces() -> None:
 
 
 def test_artifact_runtime_derives_breadcrumb_navigation_from_chapters() -> None:
-    script = files("obs_html").joinpath("artifact.js").read_text(encoding="utf-8")
+    script = files("obs_html_interim").joinpath("artifact.js").read_text(encoding="utf-8")
 
     assert "chapterParentIndex" in script
     assert "chapterChildren" in script
@@ -846,7 +846,7 @@ def test_artifact_runtime_derives_breadcrumb_navigation_from_chapters() -> None:
 
 
 def test_breadcrumbs_share_top_band_with_out_of_flow_menu() -> None:
-    stylesheet = files("obs_html").joinpath("base.css").read_text(encoding="utf-8")
+    stylesheet = files("obs_html_interim").joinpath("base.css").read_text(encoding="utf-8")
     rules = re.findall(r"(?<![\w.-])\.chapter-body\s*\{([^}]*)}", stylesheet)
     assert len(rules) == 2
     assert all(re.search(r"padding:\s*1rem\s", rule) for rule in rules)
@@ -863,15 +863,15 @@ def test_breadcrumbs_share_top_band_with_out_of_flow_menu() -> None:
 
 
 def test_media_strip_centers_logos_and_separators_on_both_axes() -> None:
-    stylesheet = files("obs_html").joinpath("base.css").read_text(encoding="utf-8")
+    stylesheet = files("obs_html_interim").joinpath("base.css").read_text(encoding="utf-8")
     rule = re.search(r"\.chapter-body \.media-strip\s*\{([^}]*)}", stylesheet)[1]
     assert "display: flex;" in rule
     assert "justify-content: center;" in rule
     assert "align-items: center;" in rule
 def test_explicit_image_caption_has_one_owner_and_preserves_links(tmp_path):
     import yaml
-    from obs_html.content import parse_manifest
-    from obs_html.renderer import render_artifact
+    from obs_html_interim.content import parse_manifest
+    from obs_html_interim.renderer import render_artifact
     (tmp_path / "manifest.md").write_text("- [[one]]\n", encoding="utf-8")
     (tmp_path / "reference.md").write_text("# Reference\n\nCanonical source.\n", encoding="utf-8")
     (tmp_path / "image.svg").write_text(

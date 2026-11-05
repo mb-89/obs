@@ -22,7 +22,7 @@ The system is a Python package managed and executed by `uv`.
 2. Resolve a source folder to its conventional manifest note, or accept an explicit note.
 3. The core parses the selected manifest into a schema-valid JSON [[quality#Glossary|Document]] with document metadata, an ordered chapter tree, semantic Markdown nodes, links, and assets.
 4. The core resolves every manifest link within the containing vault and validates frontmatter and supported input syntax.
-5. Adapters project the Document into their output formats, each an [[quality#Glossary|artifact]]; HTML rendering remains in obs-html.
+5. Adapters project the Document into their output formats, each an [[quality#Glossary|artifact]]; HTML rendering is the integrated adapter in `adapters/html` ([Repository layout](#repository-layout)).
 6. Resolve authorized derived-content providers, including command fences.
 7. Resolve content links and assets within the vault boundary.
 8. Render one self-contained HTML file with an embedded chapter navigator.
@@ -41,14 +41,14 @@ costs rather than treating all conversion as one opaque phase.
 
 ### Build stage timings
 
-The named build stages are registered once, in `src/obs_html/timings.py`; the
+The named build stages are registered once, in `src/obs_html_interim/timings.py`; the
 `--timings` help, the timing output and the baseline file read that registry, and an
 unregistered stage name is an error. Stages are non-overlapping: a nested stage
 pauses its enclosing one, so a build's stage durations sum to at most its total.
 Producers (silent `cmd` fences) are their own stage, timed before conversion.
 
 Per-stage baselines live in one committed data file,
-`src/obs_html/timing-baselines.json`, validated by its adjacent
+`src/obs_html_interim/timing-baselines.json`, validated by its adjacent
 `timing-baselines.schema.json`: an object of stage name to baseline seconds for a
 build of this repository's own spec. A stage without a baseline is not compared.
 
@@ -56,6 +56,23 @@ With `--timings`, an artifact stage that exceeds its baseline by both the relati
 the absolute threshold of the [[configuration]] `timings` section prints a warning to
 stderr; it never fails the build. Either threshold alone stays silent, so small stages
 and small absolute changes do not cause noise.
+
+## Repository layout
+
+The core and its adapters are one repository. The core is `src/obs`; an integrated adapter is
+a folder under `adapters/`, the first being HTML in `adapters/html`. Whether a later adapter
+lives here or in its own repository is decided when it comes.
+
+An adapter folder is a member of the root uv workspace. It keeps its own `pyproject.toml`,
+package, tests, browser tests, `spec/` and `adapter.json`, and depends on the core through a
+workspace path dependency, so a core change and its adapter change land in one commit and
+there is no pin between them. The root `adapters.json` registers each adapter by the path of
+its `adapter.json`. Each part tests only itself; `uv run python test/suite.py` runs every
+part's suite in its own pytest process.
+
+Until the cutover, the interim adapter stays in `src/obs_html_interim` with the command
+`obs-html-interim`; `obs-html` names the integrated adapter. The integrated adapter's parity
+gate compares its artifact against the interim one built in the same tree.
 
 ## Core attachment metadata
 
@@ -111,7 +128,7 @@ The core schema set includes base definitions, note profiles, project configurat
 and the input/execution subset of cross-cutting configuration. Document construction
 validates every recognized fence and applicable frontmatter field with these contracts.
 
-During the transition, `obs-html` retains its existing parsing and rendering code and
+During the transition, the interim adapter (`obs-html-interim`) retains its existing parsing and rendering code and
 does not import the core package. The duplicated adapter validation remains the
 compatibility owner until a later Document-rendering cutover removes it.
 
@@ -121,6 +138,8 @@ and optional `text`.
 Its fixed structural types are the Markdown blocks and inline marks every adapter renders,
 listed by `document.schema.json` (`structuralType`) and described in
 [[capabilities/markdown#Document nodes]]. Every other type is a capability identifier.
+An adapter never drops a node whose type it does not know: it shows the node's text and
+warns once per type, naming itself and the remedy, so a newer core's types degrade to text.
 For each recognized input capability, the core emits an in-place, schema-validated
 capability node containing only its authored data; it neither executes commands nor
 creates presentation output.
@@ -201,7 +220,7 @@ Figures resolve declared canonical graph owners from live records, not a second 
 graph. Cover, authored source links and Settings use one current-archive
 download action; activation resolves bytes from the existing payload owner.
 
-Dockable bars are extension modules discovered from the `obs_html.bars` package. Each
+Dockable bars are extension modules discovered from the `obs_html_interim.bars` package. Each
 module exports one definition containing its key, label, icon, help text, and content
 factory. The renderer derives both menu entries and parked bar markup from those
 definitions; it never keeps a second list. See [[quality]].
