@@ -44,6 +44,18 @@ The report verification harness, `test/browser/report-harness.cjs`, opens a rend
 DOM and drives it step by step (data, chapter, table, page mode, print and presentation geometry);
 its header comment is its reference.
 
+## Command fences
+
+Reader: whoever builds a report with `--execute-commands` or reads captured command output in one.
+
+A generated report never contains the build machine's absolute paths. Before captured command
+output (stdout and stderr) is embedded, obs-html replaces:
+
+- paths inside `--command-root` with paths relative to it (the root itself becomes `.`);
+- the home folder with `~`;
+- every other absolute path, such as temporary and virtual-environment folders, with the
+  placeholder `<local-path>`.
+
 ## License
 
 [MIT](LICENSE).

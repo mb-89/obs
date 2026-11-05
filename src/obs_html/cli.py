@@ -27,6 +27,7 @@ EPILOG = """Rendering:
   The core calls this command as an adapter with exactly DOCUMENT and DESTINATION.
   Command fences require --execute-commands and --command-root; review the commands first.
   They run with --command-root as working directory, normally the source vault root.
+  Their output never carries the build machine's absolute paths (README, "Command fences").
   --check renders without writing output or executing commands.
   Document diagnostics are printed to stderr, never into the HTML.
   --style FOLDER selects an external style module: a folder with style.css, laid over the
