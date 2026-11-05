@@ -87,10 +87,12 @@ def build_document(
     link_ids: set[str] = set()
     asset_ids: set[str] = set()
     capabilities: set[str] = set()
+    metadata_by_path: dict[Path, dict[str, object]] = {manifest_path: metadata}
 
     def parse_chapter(chapter: dict[str, object]) -> None:
         path = chapter.pop("_path")
         chapter_metadata, chapter_body = _read_note(path)
+        metadata_by_path[path] = chapter_metadata
         chapter["metadata"] = _json_value(chapter_metadata)
         content = _frontmatter_nodes(
             chapter_metadata, capability_ids or set(), capabilities,
@@ -136,11 +138,38 @@ def build_document(
         "chapters": chapters,
         "links": links,
         "assets": assets,
-        "records": [],
+        "records": _note_records(vault_root, metadata_by_path),
         "semanticResources": [],
         "diagnostics": [],
         "capabilities": sorted(capabilities),
     }
+
+
+def _note_records(
+    vault_root: Path, metadata_by_path: dict[Path, dict[str, object]],
+) -> list[dict[str, object]]:
+    """One ``note`` record per vault note outside hidden folders; see the bases capability."""
+    records: list[dict[str, object]] = []
+    identifiers: set[str] = set()
+    for path in sorted(vault_root.rglob("*.md"), key=lambda item: item.as_posix().casefold()):
+        relative = path.relative_to(vault_root)
+        if any(part.startswith(".") for part in relative.parts):
+            continue
+        source_path = path.resolve()
+        if not source_path.is_relative_to(vault_root):
+            raise VaultError(
+                f"Note path escapes the vault: {relative} (vault {vault_root}); "
+                "replace the link to outside the vault with the note itself."
+            )
+        if source_path not in metadata_by_path:
+            metadata_by_path[source_path] = _read_note(source_path)[0]
+        records.append({
+            "id": _unique_identifier(relative.with_suffix("").as_posix(), identifiers),
+            "type": "note",
+            "path": relative.as_posix(),
+            "fields": _json_value(metadata_by_path[source_path]),
+        })
+    return records
 
 
 def _read_note(path: Path) -> tuple[dict[str, object], str]:
