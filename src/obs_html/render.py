@@ -698,7 +698,7 @@ def _attach_records(records: list[dict[str, object]], notes: list[dict[str, obje
             note["sourcePath"] = source_path
             continue
         if note is not None:
-            raise RenderError(f"Record id {record['id']!r} is reserved for the document's home page.")
+            raise RenderError(f"Record id {record['id']!r} is reserved for the artifact's home page.")
         fields["obsHtml"] = {**(fields.get("obsHtml") or {}), "document": False}
         notes.append({
             "depth": 0, "title": str(fields.get("title") or record["id"]), "slug": record["id"],

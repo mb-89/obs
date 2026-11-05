@@ -39,7 +39,7 @@ def test_command_output_carries_no_absolute_path_of_the_build_machine(tmp_path, 
               f"print('cache', os.path.join(os.path.expanduser('~'), '.cache')); "
               f"print('temp', {str(temporary)!r}); "
               "print('prefix', sys.prefix)")
-    destination = tmp_path / "document.html"
+    destination = tmp_path / "artifact.html"
     cli.main([str(_with_command(tmp_path, f'"{sys.executable}" -c "{script}"')), str(destination),
               "--execute-commands", "--command-root", str(root)])
     output = _command_output(destination)

@@ -20,10 +20,10 @@ from 1. Coordinates are PDF points (1/72 inch) from the top-left corner of the p
 right and y down; at --scale S one point is S raster pixels.
 
 Examples:
-  obs-html-inspect render document.pdf --page 1 --output page-1.png
-  obs-html-inspect crop document.pdf --page 1 --box 72,72,300,200 --output title.png
-  obs-html-inspect text document.pdf --page 2
-  obs-html-inspect paths document.pdf --page 2 --output page-2-paths.json
+  obs-html-inspect render artifact.pdf --page 1 --output page-1.png
+  obs-html-inspect crop artifact.pdf --page 1 --box 72,72,300,200 --output title.png
+  obs-html-inspect text artifact.pdf --page 2
+  obs-html-inspect paths artifact.pdf --page 2 --output page-2-paths.json
   obs-html-inspect annotate page-1.png --box 72,72,300,200=title --scale 2 --output marked.png
 
 paths prints JSON: the page size and, per path, its bounds, fill and stroke colour (RGBA

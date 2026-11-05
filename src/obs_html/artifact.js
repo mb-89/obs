@@ -502,7 +502,7 @@
                 continue;
             }
             if (chapter.depth < depth) break;
-            if (chapter.depth > depth) throw new Error("Document data skips a TOC nesting level.");
+            if (chapter.depth > depth) throw new Error("Artifact data skips a TOC nesting level.");
 
             const hasChildren = index + 1 < chapters.length && chapters[index + 1].depth > depth;
             const chapterIndex = index;
@@ -521,7 +521,7 @@
 
     const buildToc = () => {
         const tree = createTocLevel(0, 0);
-        if (tree.index !== chapters.length) throw new Error("Document data could not build a TOC.");
+        if (tree.index !== chapters.length) throw new Error("Artifact data could not build a TOC.");
         tocTree.replaceChildren(tree.list);
         tocLinks = [...tocTree.querySelectorAll("[data-toc-link]")];
     };
@@ -1615,7 +1615,7 @@
                         JSON.stringify(presentation) === JSON.stringify(defaults) ? undefined : presentation;
                     document.dispatchEvent(new CustomEvent("obs-reader-state-change"));
                 },
-                // Resized widths are session-only view state: not reader state, not a document change.
+                // Resized widths are session-only view state: not reader state, not an artifact change.
                 initialColumnWidths: state.widths,
                 onColumnWidthsChange: staticView ? undefined : widths => {state.widths = widths;},
                 initialDetailState: definition.columnDetails ? state.details : undefined,

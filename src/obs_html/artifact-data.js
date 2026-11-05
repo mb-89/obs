@@ -17,7 +17,7 @@
     };
     const escapeJson = (text) => text.replace(/</g, "\\u003c");
     const encode = async (serialized, compression) => {
-        if (!["gzip", "none"].includes(compression)) throw new Error("Unsupported document data compression.");
+        if (!["gzip", "none"].includes(compression)) throw new Error("Unsupported artifact data compression.");
         const text = escapeJson(JSON.stringify(JSON.parse(serialized)));
         if (compression === "none") return {text, type: "application/json"};
         if (typeof CompressionStream === "undefined") throw new Error("Gzip HTML saving is not supported by this browser.");

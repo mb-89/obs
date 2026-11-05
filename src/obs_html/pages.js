@@ -22,7 +22,7 @@
     let measuredCounts = new Map();
     let measuredTableAllocations = new Map();
     let measuredTotal = 0;
-    // Current-chapter page slots measured synchronously while whole-document numbering is pending,
+    // Current-chapter page slots measured synchronously while whole-artifact numbering is pending,
     // so the live screen gets its final layout at once and numbering later updates in place.
     let provisionalCounts = new Map();
     let provisionalAllocations = new Map();
@@ -639,7 +639,7 @@
                 element.id = `${forPrint ? "pdf" : "page"}-${element.id}`;
             }
         });
-        const companion = decodeURIComponent(window.location.pathname || "").split("/").pop() || "document.html";
+        const companion = decodeURIComponent(window.location.pathname || "").split("/").pop() || "artifact.html";
         // A distinct document URL keeps Chromium from dropping unprinted same-file destinations.
         const companionLink = (fragment) => `${encodeURIComponent(companion)}?#${fragment}`;
         destination.querySelectorAll("a[href]").forEach((link) => {

@@ -68,13 +68,13 @@ Timings:
   --timings prints "Timing: STAGE SECONDS s" for render, commands, figures, print and write.
 
 Examples:
-  obs-html document.json document.html
-  obs-html document.json document.pdf
-  obs-html document.json document.html --execute-commands --command-root vault
+  obs-html document.json artifact.html
+  obs-html document.json artifact.pdf
+  obs-html document.json artifact.html --execute-commands --command-root vault
   obs-html document.json --check
-  obs-html document.json document.html --style styles/corporate
-  obs-html --export-pdf document.html --output document.pdf
-  obs-html --check-rendered document.html
+  obs-html document.json artifact.html --style styles/corporate
+  obs-html --export-pdf artifact.html --output artifact.pdf
+  obs-html --check-rendered artifact.html
   obs-html --extract-comments reviewed.html
   obs-html document.json --export-figures figures
 

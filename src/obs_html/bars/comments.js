@@ -66,23 +66,23 @@
             archive: archiveSnapshot,
         };
     };
-    const isDocumentDirty = () => {
-        if (savedDocumentSnapshot === null) return false;
-        const snapshot = currentDocumentSnapshot();
-        return Object.keys(snapshot).some(key => snapshot[key] !== savedDocumentSnapshot[key]);
+    const isArtifactDirty = () => {
+        if (savedArtifactSnapshot === null) return false;
+        const snapshot = currentArtifactSnapshot();
+        return Object.keys(snapshot).some(key => snapshot[key] !== savedArtifactSnapshot[key]);
     };
 
     // Changed HTML is an information entry of the notice center; its details download the changed HTML.
-    const documentDownload = document.createElement("button");
-    documentDownload.type = "button";
-    documentDownload.dataset.documentDownload = "";
-    documentDownload.textContent = "Download changed HTML";
+    const artifactDownload = document.createElement("button");
+    artifactDownload.type = "button";
+    artifactDownload.dataset.artifactDownload = "";
+    artifactDownload.textContent = "Download changed HTML";
     const changedHtmlNotice = {
         id: "changed-html", severity: "information", title: "This HTML has changed",
         details: [
             "Comments, edits or reader settings changed since this HTML was last saved. " +
                 "Download the changed HTML to keep them; leaving the page asks first.",
-            documentDownload,
+            artifactDownload,
         ],
     };
 
@@ -92,18 +92,18 @@
         saveGuidance.textContent = dirty
             ? "Unsaved review changes. Download HTML to keep review comments, decisions, and property edits before leaving."
             : "No unsaved review changes. Download HTML to keep review comments, decisions, and property edits.";
-        const documentDirty = isDocumentDirty();
-        saveGuidance.dataset.documentDirty = String(documentDirty);
-        if (documentDirty) {
+        const artifactDirty = isArtifactDirty();
+        saveGuidance.dataset.artifactDirty = String(artifactDirty);
+        if (artifactDirty) {
             if (!globalThis.obsNotices.has(changedHtmlNotice.id)) globalThis.obsNotices.post(changedHtmlNotice);
         } else globalThis.obsNotices.remove(changedHtmlNotice.id);
-        document.dispatchEvent(new CustomEvent("obs-document-state-change", {
-            detail: {dirty: documentDirty},
+        document.dispatchEvent(new CustomEvent("obs-artifact-state-change", {
+            detail: {dirty: artifactDirty},
         }));
     };
 
     window.addEventListener("beforeunload", (event) => {
-        if (!isDocumentDirty()) return;
+        if (!isArtifactDirty()) return;
         event.preventDefault();
         event.returnValue = "";
     });
@@ -1364,7 +1364,7 @@
     };
 
     saveButton.addEventListener("click", saveReviewedCopy);
-    documentDownload.addEventListener("click", saveReviewedCopy);
+    artifactDownload.addEventListener("click", saveReviewedCopy);
     loadButton.addEventListener("click", () => fileInput.click());
     copyButton.addEventListener("click", copyComments);
     fileInput.addEventListener("change", async () => {

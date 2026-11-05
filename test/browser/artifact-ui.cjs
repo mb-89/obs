@@ -142,7 +142,7 @@ if (process.argv[7] === "--comments-only") {
     await verifyCommentExportOnly();
     return;
 }
-if (process.argv[7] === "--document-change-only") {
+if (process.argv[7] === "--artifact-change-only") {
     context.structuredClone = structuredClone;
     context.Node = window.Node;
     context.CSS = {escape: value => value};

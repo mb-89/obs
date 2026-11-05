@@ -3,7 +3,7 @@
 Reader: whoever changes a vault below or regenerates ``test/fixtures/documents``.
 
 The tests read only the committed Documents (``documents/<name>.json``), never the core. The
-vaults are the interim adapter's test vaults in obs (test_browser.py, test_document_changes.py,
+vaults are the interim adapter's test vaults in obs (test_browser.py, test_artifact_changes.py,
 test_record_projections.py, test_table_help_browser.py), changed where a docstring says so.
 Regenerate after changing a vault, with an obs checkout whose core accepts ``obsHtml`` keys in
 Bases (the pinned core in se.toml still refuses them; the Documents validate against its schema,
@@ -121,8 +121,8 @@ def complete(root: Path) -> None:
     )
 
 
-def document_change(root: Path) -> None:
-    """test_document_changes.py's document_html: two notes with a property editor and a Base."""
+def artifact_change(root: Path) -> None:
+    """test_artifact_changes.py's artifact_html: two notes with a property editor and a Base."""
     (root / "manifest.md").write_text("---\ntitle: Design notes\n---\n- [[one]]\n- [[two]]\n", encoding="utf-8")
     (root / "sample.svg").write_text(
         '<svg xmlns="http://www.w3.org/2000/svg" width="240" height="100" viewBox="0 0 240 100">'
@@ -222,7 +222,7 @@ def table_help(root: Path) -> None:
         encoding="utf-8")
 
 
-VAULTS = {"complete": complete, "document-change": document_change, "projections": projections,
+VAULTS = {"complete": complete, "artifact-change": artifact_change, "projections": projections,
           "table-help": table_help}
 
 
