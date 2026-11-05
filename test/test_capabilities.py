@@ -1,5 +1,10 @@
+import json
+import re
 from pathlib import Path
 
+from jsonschema import validate
+
+from obs_html.capabilities import build_capability_reference
 from obs_html.content import Chapter, _split_frontmatter, collect_notes, read_chapter_content, read_manifest
 
 
@@ -61,3 +66,21 @@ def test_specification_registers_capabilities_as_an_authored_base() -> None:
     } == {
         path.stem for path in CAPABILITIES.glob("*.md")
     }
+
+
+def test_capability_reference_is_schema_valid_and_covers_the_input_model() -> None:
+    reference = build_capability_reference(CAPABILITIES, ROOT / "spec" / "design_input" / "input-model.md")
+    schema = json.loads((ROOT / "src" / "obs_html" / "capabilities.schema.json").read_text(encoding="utf-8"))
+
+    validate(reference, schema)
+
+    headings = set(re.findall(
+        r"^#{2,3} (.+)$",
+        (ROOT / "spec" / "design_input" / "input-model.md").read_text(encoding="utf-8"),
+        flags=re.MULTILINE,
+    ))
+    referenced_sections = {
+        capability["inputModel"].removesuffix("]]").split("#", 1)[1]
+        for capability in reference["capabilities"]
+    }
+    assert headings <= referenced_sections
