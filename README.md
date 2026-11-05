@@ -29,6 +29,10 @@ uv run pytest test/test_adapter_manifest.py
 The report runtime's DOM tests run in Node over a test-only DOM adapter; install it once with
 `npm --prefix test/browser ci`, then `uv run pytest -m dom` runs that tier alone.
 
+The report verification harness, `test/browser/report-harness.cjs`, opens a rendered report in that
+DOM and drives it step by step (data, chapter, table, page mode, print and presentation geometry);
+its header comment is its reference.
+
 ## License
 
 [MIT](LICENSE).
