@@ -113,7 +113,7 @@ def test_capability_reference_is_schema_valid_and_covers_the_input_model() -> No
 
 def test_figure_descriptor_capability_example_is_schema_valid() -> None:
     note = (CAPABILITIES / "figure-descriptor.md").read_text(encoding="utf-8")
-    example = re.search(r"```json\n(.*?)\n```", note, flags=re.DOTALL)
+    example = re.search(r"```figure\n(.*?)\n```", note, flags=re.DOTALL)
 
     assert example is not None
     validate_figure_descriptor(json.loads(example.group(1)))

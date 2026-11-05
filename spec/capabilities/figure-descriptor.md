@@ -15,7 +15,7 @@ Describes neutral figure data, panel geometry, axes, and reproducible provenance
 ## Authoring example
 
 ````markdown
-```json
+```figure
 {
   "schemaVersion": 1,
   "id": "comparison",
