@@ -218,9 +218,12 @@ def source_archive(vault: Path, manifest: Path, generator: Path, config: Config,
         "input": {"manifestFilename": config.manifest_filename,
                   "projectConfigFilename": config.project_config_filename,
                   "figureReferences": config.figure_references,
-                  "cssSnippetFolder": config.css_snippet_folder},
+                  "cssSnippetFolder": config.css_snippet_folder,
+                  "styleFolder": config.style_folder},
         "execution": {"commandTimeoutSeconds": config.command_timeout_seconds,
                       "renderedCheckTimeoutSeconds": config.rendered_check_timeout_seconds},
+        "timings": {"relativeThreshold": config.timing_relative_threshold,
+                    "absoluteThresholdSeconds": config.timing_absolute_threshold_seconds},
         "report": {
             "facetDistinctRatio": config.facet_distinct_ratio,
             "filterPresets": [{"label": item.label, "expression": item.expression}

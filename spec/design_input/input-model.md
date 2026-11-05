@@ -499,6 +499,9 @@ Dot folders such as `.obsidian` stay excluded, except the CSS snippets the manif
 they are declared inputs of the document.
 Extracted source archives carry a source inventory so rebuilding without `.git` preserves
 the same selection.
+Their build configuration is a complete, schema-valid configuration of the original
+build's settings, including `input.styleFolder`, so a rebuild from the extracted archive
+validates.
 
 Symlinks are rejected, never followed outside that boundary.
 
