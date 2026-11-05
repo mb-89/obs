@@ -1,0 +1,19 @@
+{
+  "$schema": "./cfg.schema.json",
+  "schemaVersion": 1,
+  "execution": {
+    "commandTimeoutSeconds": 15,
+    "renderedCheckTimeoutSeconds": 120
+  },
+  "report": {
+    "print": {
+      "default": {"paper": "A4", "margin": "20mm"},
+      "paperSizes": {
+        "A3": {"widthMillimeters": 297, "heightMillimeters": 420},
+        "A4": {"widthMillimeters": 210, "heightMillimeters": 297},
+        "Letter": {"widthMillimeters": 215.9, "heightMillimeters": 279.4},
+        "Legal": {"widthMillimeters": 215.9, "heightMillimeters": 355.6}
+      }
+    }
+  }
+}

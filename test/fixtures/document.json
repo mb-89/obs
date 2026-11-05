@@ -2,15 +2,508 @@
   "schemaVersion": 1,
   "manifest": {
     "title": "Fixture document",
-    "metadata": {}
+    "metadata": {
+      "title": "Fixture document",
+      "document type": "Specification",
+      "organization": "Example org",
+      "product": {
+        "name": "Widget",
+        "version": "2"
+      },
+      "authors": [
+        "Ada",
+        "Lin"
+      ],
+      "obsHtml": {
+        "layout": "paged",
+        "print": {
+          "paper": "Letter",
+          "margin": "15mm"
+        },
+        "pages": [
+          {
+            "page": "cover"
+          },
+          {
+            "page": "contents",
+            "title": "Contents"
+          },
+          {
+            "page": "abstract",
+            "title": "Abstract"
+          }
+        ]
+      }
+    },
+    "abstract": [
+      {
+        "type": "markdown-frontmatter",
+        "attrs": {
+          "metadata": {
+            "title": "Fixture document",
+            "document type": "Specification",
+            "organization": "Example org",
+            "product": {
+              "name": "Widget",
+              "version": "2"
+            },
+            "authors": [
+              "Ada",
+              "Lin"
+            ],
+            "obsHtml": {
+              "layout": "paged",
+              "print": {
+                "paper": "Letter",
+                "margin": "15mm"
+              },
+              "pages": [
+                {
+                  "page": "cover"
+                },
+                {
+                  "page": "contents",
+                  "title": "Contents"
+                },
+                {
+                  "page": "abstract",
+                  "title": "Abstract"
+                }
+              ]
+            }
+          }
+        },
+        "children": []
+      },
+      {
+        "type": "profiles",
+        "attrs": {
+          "profile": {
+            "layout": "paged",
+            "print": {
+              "paper": "Letter",
+              "margin": "15mm"
+            },
+            "pages": [
+              {
+                "page": "cover"
+              },
+              {
+                "page": "contents",
+                "title": "Contents"
+              },
+              {
+                "page": "abstract",
+                "title": "Abstract"
+              }
+            ]
+          }
+        },
+        "children": []
+      },
+      {
+        "type": "manifest",
+        "attrs": {},
+        "children": []
+      },
+      {
+        "type": "markdown",
+        "attrs": {},
+        "children": []
+      },
+      {
+        "type": "paragraph",
+        "attrs": {},
+        "children": [
+          {
+            "type": "text",
+            "attrs": {},
+            "children": [],
+            "text": "A short <abstract>."
+          }
+        ]
+      }
+    ]
   },
-  "chapters": [],
-  "links": [],
-  "assets": [],
-  "records": [],
+  "chapters": [
+    {
+      "id": "intro",
+      "title": "Intro",
+      "metadata": {
+        "owner": "Ada"
+      },
+      "content": [
+        {
+          "type": "markdown-frontmatter",
+          "attrs": {
+            "metadata": {
+              "owner": "Ada",
+              "tags": [
+                "a",
+                "b"
+              ]
+            }
+          },
+          "children": []
+        },
+        {
+          "type": "chapter-inclusion",
+          "attrs": {
+            "id": "intro"
+          },
+          "children": []
+        },
+        {
+          "type": "markdown",
+          "attrs": {},
+          "children": []
+        },
+        {
+          "type": "section",
+          "attrs": {
+            "level": 1
+          },
+          "children": [
+            {
+              "type": "text",
+              "attrs": {},
+              "children": [],
+              "text": "Intro"
+            }
+          ]
+        },
+        {
+          "type": "paragraph",
+          "attrs": {},
+          "children": [
+            {
+              "type": "text",
+              "attrs": {},
+              "children": [],
+              "text": "See "
+            },
+            {
+              "type": "wikilinks",
+              "attrs": {
+                "target": "guide/usage",
+                "heading": "Details",
+                "label": "the details"
+              },
+              "children": []
+            },
+            {
+              "type": "text",
+              "attrs": {},
+              "children": [],
+              "text": ", "
+            },
+            {
+              "type": "text",
+              "attrs": {
+                "link": "site"
+              },
+              "children": [],
+              "text": "the site"
+            },
+            {
+              "type": "text",
+              "attrs": {},
+              "children": [],
+              "text": " and "
+            },
+            {
+              "type": "text",
+              "attrs": {
+                "asset": "logo"
+              },
+              "children": [],
+              "text": "a logo"
+            },
+            {
+              "type": "text",
+              "attrs": {},
+              "children": [],
+              "text": ". "
+            },
+            {
+              "type": "wikilinks",
+              "attrs": {
+                "target": "missing",
+                "heading": "",
+                "label": "gone"
+              },
+              "children": []
+            },
+            {
+              "type": "code",
+              "attrs": {},
+              "children": [],
+              "text": "x < y"
+            },
+            {
+              "type": "marks",
+              "attrs": {
+                "category": "risk",
+                "id": "limit"
+              },
+              "children": []
+            }
+          ]
+        },
+        {
+          "type": "list",
+          "attrs": {
+            "ordered": true
+          },
+          "children": [
+            {
+              "type": "list-item",
+              "attrs": {},
+              "children": [
+                {
+                  "type": "paragraph",
+                  "attrs": {},
+                  "children": [
+                    {
+                      "type": "text",
+                      "attrs": {},
+                      "children": [],
+                      "text": "one"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "list-item",
+              "attrs": {},
+              "children": [
+                {
+                  "type": "paragraph",
+                  "attrs": {},
+                  "children": [
+                    {
+                      "type": "text",
+                      "attrs": {},
+                      "children": [],
+                      "text": "two"
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "queries",
+          "attrs": {
+            "query": {
+              "filters": "kind == \"item\""
+            }
+          },
+          "children": []
+        },
+        {
+          "type": "bases",
+          "attrs": {
+            "source": "filters: ...\n",
+            "spec": {
+              "filters": {
+                "and": [
+                  "kind == \"item\"",
+                  "rank != null"
+                ]
+              },
+              "properties": {
+                "item.name": {
+                  "displayName": "Name"
+                }
+              },
+              "views": [
+                {
+                  "type": "table",
+                  "name": "Items",
+                  "order": [
+                    "file.name",
+                    "item.name",
+                    "rank"
+                  ],
+                  "sort": [
+                    {
+                      "property": "rank",
+                      "direction": "DESC"
+                    }
+                  ]
+                }
+              ]
+            }
+          },
+          "children": []
+        },
+        {
+          "type": "command-fences",
+          "attrs": {
+            "source": "echo derived\n"
+          },
+          "children": []
+        },
+        {
+          "type": "command-fences",
+          "attrs": {
+            "source": "echo produced > produced.txt\n",
+            "silent": true
+          },
+          "children": []
+        }
+      ],
+      "children": [
+        {
+          "id": "guide-usage",
+          "title": "Usage",
+          "content": [
+            {
+              "type": "section",
+              "attrs": {
+                "level": 2
+              },
+              "children": [
+                {
+                  "type": "text",
+                  "attrs": {},
+                  "children": [],
+                  "text": "Usage"
+                }
+              ]
+            },
+            {
+              "type": "section",
+              "attrs": {
+                "level": 3
+              },
+              "children": [
+                {
+                  "type": "text",
+                  "attrs": {},
+                  "children": [],
+                  "text": "Details"
+                }
+              ]
+            },
+            {
+              "type": "paragraph",
+              "attrs": {},
+              "children": [
+                {
+                  "type": "text",
+                  "attrs": {},
+                  "children": [],
+                  "text": "Body."
+                }
+              ]
+            }
+          ],
+          "children": []
+        }
+      ]
+    },
+    {
+      "id": "appendix",
+      "title": "Appendix",
+      "content": [
+        {
+          "type": "paragraph",
+          "attrs": {},
+          "children": [
+            {
+              "type": "text",
+              "attrs": {},
+              "children": [],
+              "text": "No heading here."
+            }
+          ]
+        }
+      ],
+      "children": []
+    }
+  ],
+  "links": [
+    {
+      "id": "site",
+      "href": "https://example.org/?a=1&b=2",
+      "label": "the site"
+    },
+    {
+      "id": "usage",
+      "href": "guide/usage",
+      "label": "the details"
+    }
+  ],
+  "assets": [
+    {
+      "id": "logo",
+      "href": "images/logo.png",
+      "mediaType": "image/png"
+    }
+  ],
+  "records": [
+    {
+      "id": "alpha",
+      "type": "note",
+      "fields": {
+        "kind": "item",
+        "rank": 1,
+        "item": {
+          "name": "Alpha"
+        }
+      }
+    },
+    {
+      "id": "beta",
+      "type": "note",
+      "fields": {
+        "kind": "item",
+        "rank": 2,
+        "item": {
+          "name": "Beta"
+        }
+      }
+    },
+    {
+      "id": "gamma",
+      "type": "note",
+      "fields": {
+        "kind": "item",
+        "item": {
+          "name": "Unranked"
+        }
+      }
+    },
+    {
+      "id": "other",
+      "type": "note",
+      "fields": {
+        "kind": "other",
+        "rank": 3
+      }
+    }
+  ],
   "semanticResources": [],
-  "diagnostics": [],
+  "diagnostics": [
+    {
+      "level": "warning",
+      "message": "Fixture diagnostic."
+    }
+  ],
   "capabilities": [
-    "manifest"
+    "bases",
+    "chapter-inclusion",
+    "command-fences",
+    "manifest",
+    "markdown",
+    "markdown-frontmatter",
+    "marks",
+    "profiles",
+    "queries",
+    "wikilinks"
   ]
 }
