@@ -1,6 +1,8 @@
 import re
 from pathlib import Path
 
+from structure.naming import says_document_presentation
+
 ROOT = Path(__file__).parents[2]
 
 
@@ -121,3 +123,7 @@ def test_only_used_features_ship_and_canaries_decide_or_stay_silent() -> None:
         "is not repeated here.",
     ):
         assert rule in notice_center, f"artifact-ui.md, Dock menu: state '{rule}' in the notice center"
+
+
+def test_no_heading_or_link_says_document_presentation() -> None:
+    assert says_document_presentation("spec/design_input/artifact-ui.md") == []
