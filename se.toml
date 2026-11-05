@@ -4,3 +4,10 @@ authored_content = ["README.md", "AGENTS.md"]
 [modules.obs]
 url = "https://github.com/mb-89/obs.git"
 ref = "e4d379d69c2529421369bfc4755e6deaa10fcb48"
+
+# The interim adapter that the browser tier's parity gate (test/test_parity_browser.py) compares
+# this adapter against, until obs removes it. Pinned apart from obs: the obs pin follows the
+# Document contract, this one follows the newest interim report.
+[modules.obs-reference]
+url = "https://github.com/mb-89/obs.git"
+ref = "44763be4df101d3999391adedb8a4b86dcc327d3"
