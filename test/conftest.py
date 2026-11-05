@@ -19,6 +19,15 @@ def pytest_addoption(parser):
 @pytest.hookimpl(tryfirst=True)
 def pytest_collection_modifyitems(config, items):
     tiers.modify_items(config, items)
+    group_by_module(items)
+
+
+def group_by_module(items) -> None:
+    """Keep a module's tests on one xdist worker (`--dist loadgroup`), so its module fixtures are
+    built once per run; a test with its own ``xdist_group`` mark runs where that group runs."""
+    for item in items:
+        if not item.get_closest_marker("xdist_group"):
+            item.add_marker(pytest.mark.xdist_group(item.nodeid.split("::")[0]))
 
 
 @pytest.hookimpl(wrapper=True)
@@ -34,6 +43,12 @@ def pytest_terminal_summary(terminalreporter, exitstatus, config):
 
 def pytest_sessionfinish(session, exitstatus):
     _close_browser_pool()
+    tiers.worker_finish(session.config)
+
+
+@pytest.hookimpl(optionalhook=True)
+def pytest_testnodedown(node, error):
+    tiers.node_down(node.config, node)
 
 
 @pytest.fixture(autouse=True, scope="session")
@@ -193,3 +208,4 @@ def remote_images(monkeypatch):
 
     monkeypatch.setattr(vault, "fetch_remote", fetch)
     return served, fetched
+

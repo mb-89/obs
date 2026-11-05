@@ -21,8 +21,10 @@ obs-document = "obs.document:main"
 
 [dependency-groups]
 dev = [
+    "filelock>=4.2.9",
     "obs-html",
     "pytest>=8.0",
+    "pytest-xdist>=3.8.0",
 ]
 
 [tool.uv.workspace]

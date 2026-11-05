@@ -160,6 +160,27 @@ def make_report(item, report) -> None:
         )
 
 
+def worker_finish(config) -> None:
+    """In an xdist worker, hand its tiers and skips to the controller, which writes the summary."""
+    output = getattr(config, "workeroutput", None)
+    if output is not None:
+        output["obs_tiers"] = {
+            "tiers": config.stash.get(_TIER_KEY, {}),
+            "deselected": dict(config.stash.get(_DESELECTED_KEY, Counter())),
+            "skips": config.stash.get(_SKIPS_KEY, []),
+        }
+
+
+def node_down(config, node) -> None:
+    """On the xdist controller, take a finished worker's tiers (every worker collects the same
+    items) and add its skips."""
+    data = getattr(node, "workeroutput", {}).get("obs_tiers")
+    if data:
+        config.stash[_TIER_KEY] = data["tiers"]
+        config.stash[_DESELECTED_KEY] = Counter(data["deselected"])
+        config.stash.setdefault(_SKIPS_KEY, []).extend(tuple(skip) for skip in data["skips"])
+
+
 def terminal_summary(terminalreporter, config) -> None:
     write = terminalreporter.write_line
     terminalreporter.section("tiers and skips")
