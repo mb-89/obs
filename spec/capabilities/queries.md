@@ -43,6 +43,12 @@ text:
   ([[artifact-ui]]) selects nothing in a condition. A `distinct` count and a Sankey node's
   `unique` read their property the same way.
 
+Empty conditions (`where: []`) have nothing to fail, so a query without them
+selects every selectable note: every note not ignored, narrowed only by its `from` owner. Since a
+selected note is included and every included note is validated
+([[input-model#Chapter content]]), such a query decides what a build validates: the whole
+vault's selectable notes.
+
 The core evaluates conditions to decide inclusion, the browser for counts, query populations,
 figures and drill-downs; both run the `conditions` cases of the shared conformance fixture
 `test/fixtures/bases-filter-conformance.json`.

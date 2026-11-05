@@ -122,7 +122,10 @@ def test_match_case_flag_belongs_to_an_equals_condition(package):
         from obs_html.cards import validate_count_query
         from obs_html.content import ContentError as Error
 
-    validate_count_query({"where": [{"field": "status", "equals": "Open", "matchCase": True}]})
+    validate_count_query({"where": [{"field": "status", "equals": "Open", "matchCase": True}]}, "note.md")
     with pytest.raises(Error) as error:
-        validate_count_query({"where": [{"field": "status", "exists": True, "matchCase": True}]})
-    assert str(error.value).startswith("Quantity query:") and "'equals' is a dependency of 'matchCase'" in str(error.value)
+        validate_count_query({"where": [{"field": "status", "exists": True, "matchCase": True}]}, "note.md")
+    assert str(error.value) == (
+        "note.md: query.where[0].equals: is missing; matchCase needs it. "
+        "Add equals or remove matchCase; see capabilities/queries."
+    )

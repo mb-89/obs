@@ -9,11 +9,119 @@ import re
 from typing import Any
 
 from jsonschema import Draft202012Validator
+from jsonschema.exceptions import ValidationError, best_match
 import yaml
 
 
 class InputError(ValueError):
     """Raised when an authored input violates the core input contract."""
+
+
+def input_error(source: object, field: str, problem: str, remedy: str) -> InputError:
+    """The one contract-failure message form; see input-model "Chapter content"."""
+    return InputError(f"{source}: {field or 'top level'}: {problem}. {remedy}.")
+
+
+def schema_error(
+    errors: list[ValidationError], source: object, reference: str, field: str = "", place: str = "",
+) -> InputError | None:
+    """Turn a schema validation failure into the one message form, or None without errors.
+
+    ``field`` prefixes a frontmatter field (``query``), ``place`` a fence (``cards fence 1``);
+    ``reference`` names the note that owns the contract.
+    """
+    if not errors:
+        return None
+    error = best_match(errors)
+    parts, problem, remedy = _describe(error)
+    path = field
+    for part in [*error.absolute_path, *parts]:
+        path += f"[{part}]" if isinstance(part, int) else f".{part}" if path else str(part)
+    path = ", ".join(item for item in (place, path) if item)
+    return input_error(source, path, problem, f"{remedy}; see {reference}")
+
+
+_TYPES = {
+    "array": "a list", "object": "a mapping", "string": "text", "boolean": "true or false",
+    "integer": "a whole number", "number": "a number", "null": "empty",
+}
+
+
+def _shown(value: object) -> str:
+    text = json.dumps(value, default=str, ensure_ascii=False)
+    return text if len(text) <= 60 else text[:57] + "..."
+
+
+def _describe(error: ValidationError) -> tuple[list[object], str, str]:
+    """The extra path parts, the problem and the remedy of one schema failure."""
+    keyword, expected, instance = error.validator, error.validator_value, error.instance
+    if keyword == "type":
+        kinds = expected if isinstance(expected, list) else [expected]
+        wanted = " or ".join(_TYPES.get(kind, kind) for kind in kinds)
+        return [], f"must be {wanted}, not {_shown(instance)}", f"Write {wanted}"
+    if keyword in {"enum", "const"}:
+        choices = expected if keyword == "enum" else [expected]
+        allowed = ", ".join(_shown(choice) for choice in choices)
+        return [], f"must be {'one of ' if len(choices) > 1 else ''}{allowed}, not {_shown(instance)}", \
+            f"Write {'one of them' if len(choices) > 1 else allowed}"
+    if keyword == "required":
+        missing = next(name for name in expected if name not in instance)
+        return [missing], "is missing", f"Add {missing}"
+    if keyword == "additionalProperties":
+        known = set(error.schema.get("properties", {}))
+        patterns = list(error.schema.get("patternProperties", {}))
+        extra = next(name for name in instance if name not in known
+                     and not any(re.search(pattern, name) for pattern in patterns))
+        return [extra], "is not a known field", "Remove it or correct its spelling"
+    if keyword == "dependentRequired":
+        name = next(name for name, needed in expected.items() if name in instance
+                    and any(item not in instance for item in needed))
+        needed = next(item for item in expected[name] if item not in instance)
+        return [needed], f"is missing; {name} needs it", f"Add {needed} or remove {name}"
+    if keyword in {"minItems", "maxItems"}:
+        bound = "at least" if keyword == "minItems" else "at most"
+        return [], f"must hold {bound} {expected} items, not {len(instance)}", \
+            f"{'Add' if keyword == 'minItems' else 'Remove'} items"
+    if keyword in {"minLength", "maxLength"}:
+        if keyword == "minLength" and expected == 1:
+            return [], "must not be empty", "Write a value"
+        bound = "at least" if keyword == "minLength" else "at most"
+        return [], f"must be {bound} {expected} characters long, not {len(instance)}", \
+            f"{'Lengthen' if keyword == 'minLength' else 'Shorten'} it"
+    if keyword == "pattern":
+        if expected == "\\S":
+            return [], "must not be blank", "Write a value"
+        return [], f"{_shown(instance)} does not have the form {expected}", \
+            "Write a value of that form"
+    if keyword in {"minProperties", "maxProperties"}:
+        bound = "at least" if keyword == "minProperties" else "at most"
+        return [], f"must hold {bound} {expected} fields, not {len(instance)}", \
+            f"{'Add' if keyword == 'minProperties' else 'Remove'} fields"
+    if keyword in {"minimum", "maximum", "exclusiveMinimum", "exclusiveMaximum"}:
+        bound = {"minimum": "at least", "maximum": "at most",
+                 "exclusiveMinimum": "more than", "exclusiveMaximum": "less than"}[keyword]
+        return [], f"must be {bound} {expected}, not {_shown(instance)}", f"Write a number {bound} {expected}"
+    if keyword == "uniqueItems":
+        return [], "repeats an item", "Remove the repeated item"
+    if keyword == "not":
+        if isinstance(expected, dict) and "enum" in expected:
+            return [], f"{_shown(instance)} is reserved", "Choose another name"
+        if isinstance(expected, dict) and list(expected) == ["required"]:
+            names = " and ".join(expected["required"])
+            return [], f"cannot hold both {names}", "Keep only one of them"
+        return [], "is not allowed here", "Remove it"
+    if keyword in {"oneOf", "anyOf"} and isinstance(instance, dict) and all(
+        isinstance(branch, dict) and len(branch.get("required", [])) == 1 for branch in expected
+    ):
+        names = ", ".join(branch["required"][0] for branch in expected)
+        held = [name for name in (branch["required"][0] for branch in expected) if name in instance]
+        amount = "exactly one" if keyword == "oneOf" else "at least one"
+        return [], f"must hold {amount} of {names}, not {', '.join(held) or 'none'}", \
+            "Keep one of them" if held else "Add one of them"
+    if keyword in {"oneOf", "anyOf"}:
+        return [], f"{_shown(instance)} matches none of the allowed forms", \
+            "Write one of the forms the contract describes"
+    return [], f"{_shown(instance)} is invalid", "Correct it as the contract describes"
 
 
 CALLOUT_TYPES: dict[str, tuple[str, tuple[str, ...]]] = {
@@ -49,32 +157,38 @@ def _validator(name: str) -> Draft202012Validator:
     return Draft202012Validator({"$ref": f"#/$defs/{name}", "$defs": schema["$defs"]})
 
 
-def parse_card_spec(text: str) -> dict[str, object]:
+def parse_card_spec(text: str, source_path: object, place: str = "cards fence") -> dict[str, object]:
     try:
         specification = yaml.safe_load(text)
     except yaml.YAMLError as error:
-        raise InputError(f"Cards: invalid YAML: {error}") from error
-    errors = list(_validator("cards").iter_errors(specification))
-    if errors:
-        raise InputError(f"Cards: {errors[0].message[:200]}")
+        raise input_error(source_path, place, f"is not valid YAML: {error}",
+                          "Write JSON or YAML; see capabilities/cards-metrics") from error
+    error = schema_error(list(_validator("cards").iter_errors(specification)), source_path,
+                         "capabilities/cards-metrics", place=place)
+    if error:
+        raise error
     return specification
 
 
-def validate_count_query(query: object) -> None:
-    errors = list(_validator("countQuery").iter_errors(query))
-    if errors:
-        raise InputError(f"Quantity query: {errors[0].message[:200]}")
+def validate_count_query(query: object, source_path: object, field: str = "query") -> None:
+    error = schema_error(list(_validator("countQuery").iter_errors(query)), source_path,
+                         "capabilities/queries", field=field)
+    if error:
+        raise error
 
 
-def parse_property_editor(text: str, source_path: object | None = None) -> dict[str, object]:
+def parse_property_editor(
+    text: str, source_path: object, place: str = "property-editor fence",
+) -> dict[str, object]:
     try:
         specification = yaml.safe_load(text)
     except yaml.YAMLError as error:
-        raise InputError(f"Property editor: invalid YAML: {error}") from error
-    errors = list(_validator("propertyEditor").iter_errors(specification))
-    if errors:
-        location = f" in {source_path}" if source_path is not None else ""
-        raise InputError(f"Property editor{location}: {errors[0].message[:180]}")
+        raise input_error(source_path, place, f"is not valid YAML: {error}",
+                          "Write YAML; see capabilities/property-editors") from error
+    error = schema_error(list(_validator("propertyEditor").iter_errors(specification)), source_path,
+                         "capabilities/property-editors", place=place)
+    if error:
+        raise error
     return specification
 
 
@@ -112,7 +226,8 @@ def validate_quantity(metadata: dict[str, object], source_path: object) -> None:
     """Validate a quantity note's frontmatter; see capabilities/quantities."""
 
     def fail(field: str, problem: str, remedy: str) -> None:
-        raise InputError(f"Quantity note {source_path}: {field} {problem}; {remedy}.")
+        raise input_error(source_path, field, problem, f"{remedy[0].upper()}{remedy[1:]}; "
+                          "see capabilities/quantities")
 
     if ("value" in metadata) == ("query" in metadata):
         if "value" in metadata:
@@ -128,10 +243,7 @@ def validate_quantity(metadata: dict[str, object], source_path: object) -> None:
         fail("value", f"must be a finite number, not {value!r}",
              "write the bare number and put the unit in unit")
     if "query" in metadata:
-        errors = list(_validator("countQuery").iter_errors(metadata["query"]))
-        if errors:
-            fail("query", f"is invalid: {errors[0].message[:200]}",
-                 "write query: {where: [...], from?, distinct?} as capabilities/queries describes")
+        validate_count_query(metadata["query"], source_path)
     unit = metadata.get("unit")
     if "unit" in metadata and (not isinstance(unit, str) or not unit.strip()):
         fail("unit", f"must be a non-empty string, not {unit!r}",
@@ -152,34 +264,29 @@ def validate_quantity(metadata: dict[str, object], source_path: object) -> None:
              "link the supporting note, such as source: \"[[drawing]]\"")
 
 
-def validate_query(query: object) -> None:
-    validate_count_query(query)
+def validate_query(query: object, source_path: object, field: str = "query") -> None:
+    validate_count_query(query, source_path, field)
 
 
-def _validate_schema(name: str, value: object, label: str, source_path: object) -> None:
+def _validate_schema(name: str, value: object, source_path: object, reference: str,
+                     field: str = "", place: str = "") -> None:
     schema = json.loads(files("obs").joinpath(name).read_text(encoding="utf-8"))
-    errors = list(Draft202012Validator(schema).iter_errors(value))
-    if errors:
-        raise InputError(f"{label} in {source_path}: {errors[0].message}")
+    error = schema_error(list(Draft202012Validator(schema).iter_errors(value)), source_path,
+                         reference, field=field, place=place)
+    if error:
+        raise error
 
 
-def validate_base_definition(definition: object, source_path: object) -> None:
-    schema = json.loads(files("obs").joinpath("base.schema.json").read_text(encoding="utf-8"))
-    errors = list(Draft202012Validator(schema).iter_errors(definition))
-    if errors:
-        error = errors[0]
-        path = ".".join(str(part) for part in error.absolute_path)
-        raise InputError(f"Invalid base definition at {path or 'root'} in {source_path}: {error.message}")
+def validate_base_definition(definition: object, source_path: object, place: str = "") -> None:
+    _validate_schema("base.schema.json", definition, source_path, "capabilities/bases", place=place)
 
 
 def validate_note_profile(profile: object, source_path: object) -> None:
-    schema = json.loads(files("obs").joinpath("note-profile.schema.json").read_text(encoding="utf-8"))
-    errors = list(Draft202012Validator(schema).iter_errors(profile))
-    if errors:
-        raise InputError(f"Invalid obsHtml note profile in {source_path}: {errors[0].message}")
+    _validate_schema("note-profile.schema.json", profile, source_path, "capabilities/profiles",
+                     field="obsHtml")
     if isinstance(profile, dict) and isinstance(profile.get("query"), dict):
-        validate_query(profile["query"])
+        validate_query(profile["query"], source_path, "obsHtml.query")
 
 
 def validate_project_config(configuration: object, source_path: object) -> None:
-    _validate_schema("project.schema.json", configuration, "Invalid project configuration", source_path)
+    _validate_schema("project.schema.json", configuration, source_path, "configuration")

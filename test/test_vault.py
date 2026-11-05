@@ -423,8 +423,8 @@ def test_an_invalid_register_base_names_the_embedding_note_and_the_remedy(tmp_pa
     (vault / "x.base").write_text("views:\n  - type: table\n", encoding="utf-8")
 
     with pytest.raises(DocumentError, match=(
-        r"Invalid base definition at views\.0 in .*x\.base: 'order' is a required property "
-        r"\(embedded x\.base in chapter\.md\); correct the \.base file"
+        r"^.*x\.base: views\[0\]\.order: is missing\. Add order; see capabilities/bases\. "
+        r"chapter\.md embeds it as x\.base\.$"
     )):
         build_document(vault / "manifest.md", capability_reference())
 

@@ -35,7 +35,7 @@ def test_leading_lines_schema_matches_browser():
         definition["properties"]["status"]["obsHtml"] = options
         invalid.append(definition)
     for definition in invalid:
-        with pytest.raises(ContentError, match="Invalid base definition"):
+        with pytest.raises(ContentError, match=r"Invalid base definition|; see capabilities/bases\."):
             validate_base_definition(definition, Path("example.md"))
     run_browser_script("""
         context.obsBases.validate(payload.valid);

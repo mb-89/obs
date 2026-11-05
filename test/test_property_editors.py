@@ -67,7 +67,7 @@ def test_property_editor_projection_rejects_protected_fields(tmp_path, field, br
         encoding="utf-8",
     )
     manifest = tmp_path / "manifest.md"
-    with pytest.raises(ContentError, match="Property editor"):
+    with pytest.raises(ContentError, match=r"Property editor|; see capabilities/property-editors\."):
         render_artifact(manifest, parse_manifest(manifest))
 
 
@@ -96,7 +96,7 @@ def test_property_editor_rejects_missing_nontext_or_semantic_fields(tmp_path, fi
         f"```property-editor\nversion: 1\nfield: {field}\nlabel: Review\n```\n", encoding="utf-8",
     )
     manifest = tmp_path / "manifest.md"
-    with pytest.raises(ContentError, match="Property editor"):
+    with pytest.raises(ContentError, match=r"Property editor|; see capabilities/property-editors\."):
         render_artifact(manifest, parse_manifest(manifest))
 
 
@@ -123,5 +123,5 @@ def test_property_editor_rejects_unsafe_or_type_mismatched_projection(tmp_path, 
         encoding="utf-8",
     )
     manifest = tmp_path / "manifest.md"
-    with pytest.raises(ContentError, match="Property editor"):
+    with pytest.raises(ContentError, match=r"Property editor|; see capabilities/property-editors\."):
         render_artifact(manifest, parse_manifest(manifest))

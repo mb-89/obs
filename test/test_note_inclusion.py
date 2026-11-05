@@ -219,8 +219,8 @@ def test_an_invalid_quantity_note_an_included_note_links_fails_with_its_message(
         build_document(manifest, capability_reference())
 
     assert str(error.value) == (
-        f"Quantity note {tmp_path / 'stray.md'}: value must be a finite number, not '12 kN'; "
-        "write the bare number and put the unit in unit."
+        f"{tmp_path / 'stray.md'}: value: must be a finite number, not '12 kN'. "
+        "Write the bare number and put the unit in unit; see capabilities/quantities."
     )
 
 
@@ -270,3 +270,20 @@ def test_a_card_source_note_that_does_not_resolve_names_card_field_and_remedy(tm
         "Card metricsFrom.sourceNote does not resolve in dashboard.md: missing; "
         "name a vault note by its path without .md."
     )
+
+
+def test_empty_conditions_select_every_selectable_note_so_the_build_validates_it(tmp_path) -> None:
+    manifest = _vault(tmp_path, {
+        "manifest.md": "- [[chapter]]\n",
+        "chapter.md": "---\nquery: {where: []}\n---\nChapter.\n",
+        "stray.md": INVALID_NOTES["profile"],
+        "hidden.md": "---\nignored: true\nobsHtml: {layout: sideways}\n---\n",
+    })
+
+    with pytest.raises(ValueError) as error:
+        build_document(manifest, capability_reference())
+
+    assert str(error.value).startswith(f"{tmp_path / 'stray.md'}: obsHtml.layout: ")
+    (tmp_path / "stray.md").write_text("Stray.\n", encoding="utf-8")
+    chapters = [chapter["id"] for chapter in build_document(manifest, capability_reference())["chapters"]]
+    assert "stray" in chapters and "hidden" not in chapters
