@@ -981,7 +981,7 @@ def test_base_max_rows_rejects_invalid_viewport_options(
     (tmp_path / "manifest.md").write_text("- [[chapter]]\n", encoding="utf-8")
     chapter = parse_manifest(tmp_path / "manifest.md")[0]
 
-    with pytest.raises(ContentError, match="Invalid base definition"):
+    with pytest.raises(ContentError, match=r"Invalid base definition|; see capabilities/bases\."):
         read_chapter_content(chapter)
 
 
@@ -1002,7 +1002,7 @@ def test_base_view_rejects_malformed_group_and_sort(tmp_path: Path, directive: s
     (tmp_path / "manifest.md").write_text("- [[chapter]]\n", encoding="utf-8")
     chapter = parse_manifest(tmp_path / "manifest.md")[0]
 
-    with pytest.raises(ContentError, match="Invalid base definition"):
+    with pytest.raises(ContentError, match=r"Invalid base definition|; see capabilities/bases\."):
         read_chapter_content(chapter)
 
 

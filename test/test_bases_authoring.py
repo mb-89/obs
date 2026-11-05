@@ -238,7 +238,7 @@ def test_one_base_file_embedded_in_two_notes_renders_twice(artifact, page):
     ({}, "![[missing.base]]", "does not resolve"),
     ({"a/x.base": VIEWS, "b/x.base": VIEWS}, "![[x.base]]", "is ambiguous"),
     ({"x.base": VIEWS}, "![[x.base#Unknown]]", "x.base has no view 'Unknown'"),
-    ({"x.base": "views: []\n"}, "![[x.base]]", r"x\.base, base file.*embedded in .*one\.md"),
+    ({"x.base": "views: []\n"}, "![[x.base]]", r"x\.base: views: .*; see capabilities/bases\. .*one\.md embeds it\."),
 ])
 def test_embedded_base_errors_name_the_file_and_note(tmp_path, files, embed, message):
     from obs_html.content import ContentError

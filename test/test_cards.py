@@ -95,7 +95,7 @@ def test_cards_reject_executable_or_invalid_contract(tmp_path, extra):
         "version": 1, "cards": [{"title": "Bounded", "body": "", **extra}],
     }) + "\n```\n", encoding="utf-8")
     manifest = tmp_path / "manifest.md"
-    with pytest.raises(ContentError, match="Card"):
+    with pytest.raises(ContentError, match=r"Card|; see capabilities/cards-metrics\."):
         render_artifact(manifest, parse_manifest(manifest))
 
 
@@ -111,7 +111,7 @@ def test_cards_reject_non_internal_metric_links(tmp_path, link):
         }],
     }) + "\n```\n", encoding="utf-8")
     manifest = tmp_path / "manifest.md"
-    with pytest.raises(ContentError, match="Card"):
+    with pytest.raises(ContentError, match=r"Card|; see capabilities/cards-metrics\."):
         render_artifact(manifest, parse_manifest(manifest))
 
 
@@ -125,7 +125,7 @@ def test_card_compound_quantity_and_bounded_tone_declarations():
                   {"value": "primary", "when": "positive", "tone": "warning"}]}
     spec = {"version": 1, "cards": [{"title": "Coverage", "body": "",
                                    "metricStyle": "lines", "metrics": [metric]}]}
-    assert parse_card_spec(json.dumps(spec))["cards"][0]["metrics"] == [metric]
+    assert parse_card_spec(json.dumps(spec), "note.md")["cards"][0]["metrics"] == [metric]
     spec["cards"][0]["metrics"][0]["toneRules"][0]["when"] = "run-script"
     with pytest.raises(ValueError):
-        parse_card_spec(json.dumps(spec))
+        parse_card_spec(json.dumps(spec), "note.md")

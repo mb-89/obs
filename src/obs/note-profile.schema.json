@@ -4,6 +4,7 @@
   "type": "object",
   "additionalProperties": true,
   "properties": {
+    "document": {"type": "boolean", "$comment": "input-model#Chapter content: false keeps a record-only note."},
     "layout": {"enum": ["paged", "scrolling"]},
     "heading": {"enum": ["cover", "compact"]},
     "query": {

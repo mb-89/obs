@@ -24,35 +24,45 @@ def _count_query_validator():
     return Draft202012Validator({"$ref": "#/$defs/countQuery", "$defs": _schema()["$defs"]})
 
 
-def parse_card_spec(text):
+def parse_card_spec(text, source_path, place="cards fence"):
+    from obs.input import input_error, schema_error
     from obs_html.content import ContentError
 
     try:
         spec = yaml.safe_load(text)
     except yaml.YAMLError as error:
-        raise ContentError(f"Cards: invalid YAML: {error}") from error
-    errors = list(_validator().iter_errors(spec))
-    if errors:
-        raise ContentError(f"Cards: {errors[0].message[:200]}")
-    for card in spec["cards"]:
+        raise ContentError(str(input_error(
+            source_path, place, f"is not valid YAML: {error}",
+            "Write JSON or YAML; see capabilities/cards-metrics",
+        ))) from error
+    error = schema_error(list(_validator().iter_errors(spec)), source_path,
+                         "capabilities/cards-metrics", place=place)
+    if error:
+        raise ContentError(str(error))
+    for index, card in enumerate(spec["cards"]):
         if any(token.type == "fence" and token.info.strip() == "cards"
                for token in shared_authoring_markdown().parse(card["body"])):
-            raise ContentError("Cards cannot contain nested cards fences.")
+            raise ContentError(str(input_error(
+                source_path, f"{place}, cards[{index}].body", "contains a nested cards fence",
+                "Move the inner cards fence out of the card body; see capabilities/cards-metrics",
+            )))
     return spec
 
 
-def validate_count_query(query):
+def validate_count_query(query, source_path, field="query"):
+    from obs.input import schema_error
     from obs_html.content import ContentError
 
-    errors = list(_count_query_validator().iter_errors(query))
-    if errors:
-        raise ContentError(f"Quantity query: {errors[0].message[:200]}")
+    error = schema_error(list(_count_query_validator().iter_errors(query)), source_path,
+                         "capabilities/queries", field=field)
+    if error:
+        raise ContentError(str(error))
 
 
-def render_cards(text, render_body, source_metadata=None):
+def render_cards(text, render_body, source_path, source_metadata=None):
     from obs_html.content import ContentError
 
-    spec = parse_card_spec(text)
+    spec = parse_card_spec(text, source_path)
     cards = []
     for card in spec["cards"]:
         series = card.get("obsHtml", {}).get("metricsFrom")
