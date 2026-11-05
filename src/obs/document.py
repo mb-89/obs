@@ -5,12 +5,15 @@ import subprocess
 from pathlib import Path
 from typing import Sequence
 
-from jsonschema import validate
+from jsonschema import Draft202012Validator
+from jsonschema.exceptions import ValidationError
+from referencing import Registry, Resource
 
 from obs.adapter import AdapterError, load_adapter
 
 
 DOCUMENT_SCHEMA_PATH = Path(__file__).with_name("document.schema.json")
+FIGURE_SCHEMA_PATH = Path(__file__).with_name("figure.schema.json")
 CONTRACT_VERSION = 1
 STRUCTURAL_NODE_TYPES = {"document", "section", "paragraph", "text", "list", "list-item", "code"}
 
@@ -35,9 +38,13 @@ def read_capability_reference(path: Path) -> dict[str, object]:
 
 def validate_document(document: dict[str, object], reference: dict[str, object]) -> None:
     schema = json.loads(DOCUMENT_SCHEMA_PATH.read_text(encoding="utf-8"))
+    figure_schema = json.loads(FIGURE_SCHEMA_PATH.read_text(encoding="utf-8"))
+    registry = Registry().with_resource(
+        FIGURE_SCHEMA_PATH.name, Resource.from_contents(figure_schema),
+    )
     try:
-        validate(document, schema)
-    except ValueError as error:
+        Draft202012Validator(schema, registry=registry).validate(document)
+    except (ValidationError, ValueError) as error:
         raise DocumentError(f"Invalid Document: {error}") from error
     known = {item["id"] for item in reference["capabilities"]}
     unknown = sorted(set(document["capabilities"]) - known)
