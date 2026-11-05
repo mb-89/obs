@@ -102,3 +102,23 @@ def test_everything_on_the_title_page_is_centered(tmp_path, reader_browser) -> N
     # The subtitle's text and badges are centered together as one line.
     line = [offset for text, offset in offsets if text in {"Bridge", "img"}]
     assert abs(sum(line) / len(line)) < 40
+
+
+@pytest.mark.parametrize("width, side", [(700, "right"), (700, "left"), (1100, "right"), (1100, "top")])
+def test_a_resized_bar_follows_the_pointer(report_page, width, side) -> None:
+    """A narrow screen insets an overlaid bar beside the chapter arrows; dragging its edge still
+    puts that edge under the pointer, as it does for a docked bar."""
+    report_page.set_viewport_size({"width": width, "height": 800})
+    report_page.evaluate(f"obsReport.openBar('filter', '{side}')")
+    handle = report_page.locator(f'[data-dock-region="{side}"] [data-dock-resize]')
+    start = handle.bounding_box()
+    x, y = start["x"] + start["width"] / 2, start["y"] + start["height"] / 2
+    shift = {"right": (-40, 0), "left": (40, 0), "top": (0, 40)}[side]
+    report_page.mouse.move(x, y)
+    report_page.mouse.down()
+    report_page.mouse.move(x + shift[0], y + shift[1], steps=4)
+    report_page.mouse.up()
+    edge = report_page.locator(f'[data-dock-region="{side}"]').bounding_box()
+    inner = {"right": edge["x"], "left": edge["x"] + edge["width"], "top": edge["y"] + edge["height"]}[side]
+    pointer = x + shift[0] if side != "top" else y + shift[1]
+    assert abs(inner - pointer) <= 1, f"test/test_report_browser.py: the {side} bar's edge is at {inner}, the pointer at {pointer}"
