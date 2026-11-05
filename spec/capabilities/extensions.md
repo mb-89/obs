@@ -17,3 +17,10 @@ Add a bounded next Obsidian syntax extension.
 ```markdown
 > [!note] An explicitly supported extension.
 ```
+
+## Trusted adapter extensions
+
+An adapter's trusted runtime extensions are not Obsidian syntax extensions. Where an adapter
+documents them and how it names their namespace is owned by
+[[capabilities/trusted-actions#Adapter extensions|Trusted actions]]. Example:
+obs-html's [[obs-html-attachment-replacement|attachment replacement]].
