@@ -28,7 +28,7 @@ from mdit_py_plugins.dollarmath import dollarmath_plugin
 from latex2mathml import exceptions as math_errors
 from latex2mathml.converter import convert as mathml
 from obs import selection
-from obs.input import InputError
+from obs.input import InputError, schema_error
 from obs_html.callouts import decorate_callouts, marker as callout_marker
 from obs_html.markdown import authoring_markdown, shared_authoring_markdown
 
@@ -527,7 +527,7 @@ def collect_notes(
             for token in tokens:
                 if token.type == "fence" and token.info.strip() == "cards":
                     from obs_html.cards import parse_card_spec
-                    for card in parse_card_spec(token.content)["cards"]:
+                    for card in parse_card_spec(token.content, note.source_path)["cards"]:
                         texts.append(card["body"])
                         for metric in card.get("metrics", []):
                             if "secondary" in metric:
@@ -905,7 +905,7 @@ def render_chapter(
                         or path not in reference_index.metadata_by_path:
                     raise ContentError(f"Cards source note does not resolve: {identity}")
                 return reference_index.metadata_by_path[path]
-            return render_cards(token.content, render_card_body, source_metadata)
+            return render_cards(token.content, render_card_body, chapter.source_path, source_metadata)
         if info and info[0] == "figure":
             from obs_html.figures import FigureError, render_figure
             nonlocal figure_index
@@ -1869,7 +1869,7 @@ def _chapter_content(chapter: Chapter, source: _NoteSource) -> ChapterContent:
     for token in tokens:
         if token.type == "fence" and token.info.strip() == "cards":
             from obs_html.cards import parse_card_spec
-            for card in parse_card_spec(token.content)["cards"]:
+            for card in parse_card_spec(token.content, chapter.source_path)["cards"]:
                 series = card.get("obsHtml", {}).get("metricsFrom")
                 if series:
                     source_notes.append(series["sourceNote"])
@@ -1926,7 +1926,7 @@ def _parse_base_tables(
                 try:
                     definition = deepcopy(_base_file_definition(path, stat.st_mtime_ns, stat.st_size))
                 except ContentError as error:
-                    raise ContentError(f"{error} (embedded in {chapter.source_path})") from error
+                    raise ContentError(f"{error} {chapter.source_path} embeds it.") from error
                 if token.meta["view"]:
                     definition = _single_view(definition, token.meta["view"], path, chapter)
                 tables.append(BaseTable(f"{chapter.slug}-base-{len(tables) + 1}", definition))
@@ -1938,7 +1938,7 @@ def _parse_base_tables(
             elif token.type == "fence" and info and info[0] == "cards":
                 from obs_html.cards import parse_card_spec
 
-                for card in parse_card_spec(token.content)["cards"]:
+                for card in parse_card_spec(token.content, chapter.source_path)["cards"]:
                     add_tables(shared_authoring_markdown().parse(card["body"]))
 
     add_tables(tokens)
@@ -2013,11 +2013,10 @@ def validate_base_definition(definition: dict[str, object], source_path: Path, f
     for index, view in enumerate(views if isinstance(views, list) else []):
         if isinstance(view, dict) and "filters" in view:
             _compile_base_filter_at(view["filters"], f"at views.{index}.filters in {place}")
-    errors = list(_base_validator().iter_errors(definition))
-    if errors:
-        error = errors[0]
-        path = ".".join(str(part) for part in error.absolute_path)
-        raise ContentError(f"Invalid base definition at {path or 'root'} in {place}: {error.message}")
+    error = schema_error(list(_base_validator().iter_errors(definition)), source_path,
+                         "capabilities/bases", place="" if fence in {None, "base file"} else fence)
+    if error:
+        raise ContentError(str(error))
     for property_name in definition.get("properties", {}):
         _base_property(property_name)
     for property_name, declaration in definition.get("properties", {}).items():
@@ -2071,7 +2070,7 @@ def _validate_quantity_metadata(metadata: dict[str, object], source_path: Path) 
         raise ContentError(f"Quantity requires exactly one of value or query: {source_path}")
     if "query" in metadata:
         from obs_html.cards import validate_count_query
-        validate_count_query(metadata["query"])
+        validate_count_query(metadata["query"], source_path)
     value = metadata.get("value")
     if "value" in metadata and (
         isinstance(value, bool) or not isinstance(value, (int, float))
@@ -2110,7 +2109,7 @@ def quantity_label(metadata: dict[str, object]) -> str:
 def _validate_query_references(query, owner, notes, vault_root, reference_index, seen):
     from obs_html.cards import validate_count_query
 
-    validate_count_query(query)
+    validate_count_query(query, owner.source_path)
     if owner.source_path in seen:
         raise ContentError(f"Quantity query reference cycle: {owner.source_path}")
     if "from" not in query:
@@ -2331,7 +2330,7 @@ def _validate_note_profile(profile: object, source_path: Path) -> None:
             raise ContentError(
                 f"obsHtml.{errors[0].path[-1]} was removed in {source_path}: {removed}"
             )
-        raise ContentError(f"Invalid obsHtml note profile in {source_path}: {errors[0].message}")
+        raise ContentError(str(schema_error(errors, source_path, "capabilities/profiles", field="obsHtml")))
     _VALID_NOTE_PROFILES.add(key)
 
 

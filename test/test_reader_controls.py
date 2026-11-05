@@ -86,7 +86,7 @@ def test_reader_control_declarations_reject_unsupported_values(mutate):
 
     invalid = copy.deepcopy(definition())
     mutate(invalid)
-    with pytest.raises(ContentError, match="Invalid base definition"):
+    with pytest.raises(ContentError, match=r"Invalid base definition|; see capabilities/bases\."):
         validate_base_definition(invalid, Path("reader.md"))
     run_browser_script("assert.throws(() => context.obsBases.validate(payload));", invalid)
 

@@ -44,7 +44,7 @@ def test_query_quantity_uses_existing_implicit_reference(tmp_path):
 ])
 def test_query_quantity_rejects_missing_dual_and_malformed_sources(tmp_path, metadata):
     manifest = quantity(tmp_path, metadata)
-    with pytest.raises(ContentError, match="Quantity"):
+    with pytest.raises(ContentError, match=r"Quantity|; see capabilities/queries\."):
         chapters = parse_manifest(manifest)
         render_chapter(chapters[0], chapters, tmp_path)
 
@@ -53,5 +53,5 @@ def test_query_quantity_rejects_missing_dual_and_malformed_sources(tmp_path, met
 def test_query_quantity_rejects_bad_upstream_owners(tmp_path, reference):
     manifest = quantity(tmp_path, {"query": {"from": reference, "where": []}})
     chapters = parse_manifest(manifest)
-    with pytest.raises(ContentError, match="Quantity"):
+    with pytest.raises(ContentError, match=r"Quantity|; see capabilities/queries\."):
         render_chapter(chapters[0], chapters, tmp_path)

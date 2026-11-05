@@ -18,6 +18,7 @@ from obs.config import CoreConfig, CoreConfigError, load_core_config
 from obs.figure import FigureDescriptorError, validate_figure_descriptor
 from obs.input import (
     InputError,
+    input_error,
     parse_callout,
     parse_card_spec,
     parse_property_editor,
@@ -370,7 +371,7 @@ def _validate_note(path: Path, vault: _Vault) -> None:
         if metadata.get("kind") == "quantity":
             validate_quantity(metadata, path)
         if "query" in metadata:
-            validate_count_query(metadata["query"])
+            validate_count_query(metadata["query"], path)
     except InputError as error:
         raise VaultError(str(error)) from error
 
@@ -476,7 +477,7 @@ class _Context:
     asset_ids: set[str]
     capability_ids: set[str]
     capabilities: set[str]
-    base_fences: int = 0
+    fences: dict[str, int] = field(default_factory=dict)
 
 
 @cache
@@ -623,23 +624,29 @@ def _fence_node(token: Token, context: _Context) -> dict[str, object]:
     language = info[0] if info else ""
     silent_command = info == ["cmd", "silent"]
     figure_descriptor: dict[str, object] | None = None
+    if language in {"base", "cards", "property-editor", "cmd", "figure"}:
+        context.fences[language] = context.fences.get(language, 0) + 1
+    place = f"{language} fence {context.fences.get(language, 0)}"
     try:
         if language == "base":
-            specification = yaml.safe_load(token.content)
-            validate_base_definition(specification, source_path)
-            context.base_fences += 1
-            _base_selection(specification, source_path, vault, f"base fence {context.base_fences}")
+            try:
+                specification = yaml.safe_load(token.content)
+            except yaml.YAMLError as error:
+                raise input_error(source_path, place, f"is not valid YAML: {error}",
+                                  "Write YAML; see capabilities/bases") from error
+            validate_base_definition(specification, source_path, place)
+            _base_selection(specification, source_path, vault, place)
         elif language == "cards":
-            specification = parse_card_spec(token.content)
+            specification = parse_card_spec(token.content, source_path, place)
             card_bodies = []
-            body_context = replace(context, capabilities=set(), base_fences=0)
+            body_context = replace(context, capabilities=set(), fences={})
             for card in specification["cards"]:
                 _card_selection(card, source_path, vault)
                 card_bodies.append({
                     "type": "document", "attrs": {}, "children": _nodes(card["body"], body_context),
                 })
         elif language == "property-editor":
-            specification = parse_property_editor(token.content, source_path)
+            specification = parse_property_editor(token.content, source_path, place)
         elif language == "cmd":
             validate_command(token.content)
         elif language == "figure":
@@ -649,8 +656,10 @@ def _fence_node(token: Token, context: _Context) -> dict[str, object]:
                 figure_descriptor = None
             if figure_descriptor is not None:
                 if not isinstance(figure_descriptor, dict):
-                    raise FigureDescriptorError("Figure descriptor must be an object.")
-                validate_figure_descriptor(figure_descriptor)
+                    raise input_error(source_path, place, "must hold a JSON object",
+                                      "Write the descriptor as one JSON object; "
+                                      "see capabilities/figure-descriptor")
+                validate_figure_descriptor(figure_descriptor, source_path, place)
     except (InputError, FigureDescriptorError, yaml.YAMLError) as error:
         raise VaultError(str(error)) from error
     fence_type = {
@@ -788,8 +797,7 @@ def _semantic_text_nodes(
                 validate_base_definition(definition, resolved)
             except InputError as error:
                 raise VaultError(
-                    f"{error} (embedded {target} in {vault.relative(source_path)}); "
-                    "correct the .base file."
+                    f"{error} {vault.relative(source_path)} embeds it as {target}."
                 ) from error
             _base_selection(definition, source_path, vault, f"embedded {target}")
         if is_base and "registers" in capability_ids:

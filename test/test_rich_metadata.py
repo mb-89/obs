@@ -50,7 +50,7 @@ def test_rich_metadata_formats_reject_invalid_declarations(value):
 
     spec = rich_definition()
     spec["properties"]["subject"]["obsHtml"]["reference"]["metadataFormats"]["item.description"] = value
-    with pytest.raises(ContentError, match="Invalid base definition"):
+    with pytest.raises(ContentError, match=r"Invalid base definition|; see capabilities/bases\."):
         validate_base_definition(spec, Path("rich.md"))
     run_browser_script("assert.throws(() => context.obsBases.validate(payload));", spec)
 

@@ -1,4 +1,5 @@
 """Semantic IDs are exact data, including at the schema/regex boundary."""
+import re
 import json
 
 import pytest
@@ -27,7 +28,7 @@ def test_shared_python_identifier_consumers_reject_trailing_whitespace(tmp_path,
     name = "icon.help" + suffix
     with pytest.raises(ValueError, match="Invalid icon name"):
         markup(name)
-    with pytest.raises(ContentError, match="Invalid base definition"):
+    with pytest.raises(ContentError, match=r"Invalid base definition|; see capabilities/bases\."):
         validate_base_definition(_definition(name), tmp_path / "invalid.base")
     for assets in (
         {"local" + suffix: {"type": "icon", "value": {"glyph": "X"}}},
@@ -98,7 +99,7 @@ def test_tiny_real_base_cli_preserves_exact_id_boundary(tmp_path, capsys, name, 
         with pytest.raises(SystemExit) as failure:
             main(arguments)
         assert failure.value.code == 2
-        assert "Invalid base definition" in capsys.readouterr().err
+        assert re.search(r"Invalid base definition|; see capabilities/bases\.", capsys.readouterr().err)
         assert not output.exists()
 
 
@@ -108,7 +109,7 @@ def test_all_semantic_consumers_reject_invalid_identifier_profiles(tmp_path, nam
     definition = {"properties": {"icon": {"obsHtml": {"icon": {
         "name": name, "label": "Invalid", "help": "Not selectable",
     }}}}, "views": [{"type": "table", "order": ["icon"]}]}
-    with pytest.raises(ContentError, match="Invalid base definition"):
+    with pytest.raises(ContentError, match=r"Invalid base definition|; see capabilities/bases\."):
         validate_base_definition(definition, tmp_path / "invalid.base")
     with pytest.raises(ValueError, match="Invalid icon name"):
         markup(name)

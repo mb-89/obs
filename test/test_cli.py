@@ -244,7 +244,7 @@ def test_cli_check_rejects_protected_editor_projection(tmp_path, capsys) -> None
     output = tmp_path / "artifact.html"
     with pytest.raises(SystemExit, match="2"):
         main(["--source", str(vault), "--output", str(output), "--check"])
-    assert "Property editor" in capsys.readouterr().err
+    assert "property-editor fence, projection.nonblank: \"title\" is reserved" in capsys.readouterr().err
     assert not output.exists()
 
 
@@ -417,7 +417,7 @@ def test_check_rejects_broken_view_members(tmp_path, capsys) -> None:
     )
     with pytest.raises(SystemExit, match="2"):
         main(["--source", str(vault), "--check"])
-    assert "Invalid base definition" in capsys.readouterr().err
+    assert "; see capabilities/bases." in capsys.readouterr().err
 
     (vault / "register.md").write_text(
         "# Register\n\n```base\nfilters: 'kind == \"reference\"'\n"
