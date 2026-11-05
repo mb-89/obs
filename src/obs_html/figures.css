@@ -1,0 +1,326 @@
+.report-figure,
+.engineering-figure {
+    --figure-width: min(
+        calc(var(--content-inline-size) * var(--figure-prose-width-multiplier)),
+        calc(100vw - 2 * var(--figure-viewport-gutter))
+    );
+    border-block: var(--border-width) solid var(--color-border);
+    break-inside: avoid;
+    margin-block: 1.25rem;
+    margin-inline: calc((100% - var(--figure-width)) / 2);
+    max-width: calc(100vw - 2 * var(--figure-viewport-gutter));
+    min-width: 0;
+    padding-block: 0.75rem;
+    position: relative;
+    width: var(--figure-width);
+}
+
+.report-figure > img {
+    display: block;
+    height: auto;
+    margin-inline: auto;
+    max-width: 100%;
+    width: auto;
+}
+
+.engineering-figure > .figure-default {
+    background: var(--color-surface);
+    display: block;
+    height: auto;
+    margin-inline: auto;
+    max-width: 100%;
+    width: 100%;
+}
+
+.engineering-figure figcaption,
+.report-figure figcaption {
+    font-size: 0.9em;
+    margin-block: 0.65rem 0;
+    overflow-wrap: anywhere;
+    text-align: center;
+}
+
+.figure-number {
+    font-weight: 600;
+}
+
+[data-report-figure][id] {
+    scroll-margin-top: 4rem;
+}
+
+.figure-provenance {
+    display: none;
+}
+
+.paper-content :is(.report-figure, .engineering-figure) {
+    --figure-width: 100%;
+    margin-inline: 0;
+    max-width: 100%;
+}
+
+.figure-expand,
+.figure-overlay-close {
+    align-items: center;
+    display: flex;
+    height: 2rem;
+    justify-content: center;
+    padding: 0.25rem;
+    position: absolute;
+    right: 0.4rem;
+    top: 0.4rem;
+    width: 2rem;
+    z-index: 11;
+}
+
+.figure-expand>.resource-icon {
+    height: 1.2rem;
+    width: 1.2rem;
+}
+
+.figure-overlay-close {
+    font-size: 1.4rem;
+    line-height: 1;
+}
+
+.figure-live {
+    max-width: 100%;
+    min-width: 0;
+    position: relative;
+}
+
+.figure-plot-ready > .figure-default {
+    display: none;
+}
+
+.figure-chart {
+    background: var(--color-surface);
+    height: 450px;
+    margin-inline: auto;
+    max-width: var(--content-inline-size);
+    min-width: 0;
+    width: 100%;
+}
+
+.figure-chart .modebar-container {
+    display: none;
+}
+
+.figure-inspector {
+    display: none;
+}
+
+.figure-controls {
+    align-items: center;
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    margin-block: 0.5rem;
+}
+
+.figure-controls button,
+.figure-controls select {
+    font: inherit;
+    margin: 0.2rem;
+}
+
+.figure-viewport {
+    background: var(--color-surface);
+    cursor: grab;
+    height: min(60vh, 48rem);
+    touch-action: none;
+    width: 100%;
+}
+
+.figure-sankey > .sankey-canvas {
+    display: block;
+    height: auto;
+    margin-inline: auto;
+    max-width: 100%;
+    width: 100%;
+}
+
+.sankey-label,
+.sankey-link-label {
+    fill: var(--color-text);
+    font: 12px var(--font-interface);
+}
+
+.sankey-link-label { pointer-events: none; }
+.sankey-node[role="button"],
+.sankey-link[role="button"] { cursor: pointer; }
+.sankey-node:focus-visible rect {
+    stroke: var(--color-focus);
+    stroke-width: 3;
+}
+
+.figure-overlay[open] {
+    background: var(--color-canvas);
+    border: 0;
+    color: var(--color-text);
+    height: 100vh;
+    margin: 0;
+    max-height: none;
+    max-width: none;
+    overflow: auto;
+    padding: 1rem;
+    width: 100vw;
+}
+
+.figure-overlay::backdrop {
+    background: var(--color-canvas);
+}
+
+.figure-overlay > .report-figure,
+.figure-overlay > .engineering-figure {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    justify-content: center;
+    margin: 0;
+    max-width: none;
+    min-height: 0;
+    padding: 3rem 0 1rem;
+    width: 100%;
+}
+
+.figure-overlay figcaption {
+    flex-shrink: 0;
+}
+
+.figure-overlay > .report-figure {
+    overflow: hidden;
+}
+
+.figure-overlay .figure-magnifiable {
+    cursor: zoom-in;
+    touch-action: none;
+    transform-origin: 0 0;
+}
+
+.figure-overlay .report-figure > figcaption {
+    background: var(--color-canvas);
+    position: relative;
+    z-index: 1;
+}
+
+.figure-overlay .figure-chart,
+.figure-overlay .figure-sankey > .sankey-canvas {
+    max-width: 100%;
+}
+
+.figure-overlay > [data-figure-kind="plot"] {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+}
+
+.figure-overlay [data-figure-kind="plot"] > .figure-live {
+    flex: 1;
+    min-height: 0;
+}
+
+.figure-overlay .figure-chart {
+    height: 100%;
+}
+
+.figure-chart g.legend:focus {
+    outline: var(--border-width) solid var(--color-border);
+}
+
+.figure-overlay .modebar-container,
+.figure-overlay .figure-inspector {
+    display: block;
+}
+
+.figure-overlay .figure-overlay-close {
+    left: auto;
+    right: 0.4rem;
+}
+
+.figure-expanded > .figure-expand {
+    display: none;
+}
+
+.figure-overlay .figure-viewport {
+    flex: 1;
+    height: auto;
+    min-height: 0;
+}
+
+.figure-overlay [data-figure-kind="svg"] > .figure-default {
+    display: none;
+}
+
+.figure-overlay [data-figure-kind="svg"] > .figure-live {
+    flex: 1;
+    min-height: 0;
+}
+
+.figure-overlay .figure-inspector {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+}
+
+.print-book .report-figure button,
+.print-book .engineering-figure button {
+    display: none !important;
+}
+
+@media screen {
+    .report-figure:not(.figure-expanded) > img,
+    .engineering-figure:not(.figure-expanded) > .figure-default {
+        max-height: calc(100dvh * var(--figure-viewport-height-ratio));
+        width: auto;
+    }
+}
+
+.paper-content :is(.report-figure, .engineering-figure):not(.figure-expanded) > img {
+    max-height: var(--figure-paper-image-height, calc(var(--paper-height) - 2 * var(--paper-margin)));
+    width: auto;
+}
+
+@media screen {
+    .paged-reader .paper-content :is(.report-figure, .engineering-figure):not(.figure-expanded) > img {
+        max-height: min(
+            var(--figure-paper-image-height, calc(var(--paper-height) - 2 * var(--paper-margin))),
+            calc(100dvh * var(--figure-viewport-height-ratio))
+        );
+    }
+}
+
+@media print {
+    .report-figure button,
+    .engineering-figure button,
+    .figure-overlay {
+        display: none !important;
+    }
+
+    .figure-sankey > .sankey-canvas {
+        height: auto;
+        max-width: 100%;
+        width: 100%;
+    }
+
+    .engineering-figure > .figure-default {
+        display: block !important;
+    }
+
+    .engineering-figure .figure-live {
+        display: none !important;
+    }
+
+    .engineering-figure[data-figure-kind="plot"]:not(:has(> .figure-default)) .figure-live {
+        display: block !important;
+    }
+}
+
+@media (max-width: 42rem) {
+    .figure-overlay[open] {
+        padding: 0.5rem;
+    }
+
+    .figure-viewport {
+        height: 55vh;
+    }
+}

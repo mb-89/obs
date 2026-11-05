@@ -54,7 +54,7 @@ PDF operations:
   execution.renderedCheckTimeoutSeconds.
 
 Timings:
-  --timings prints "Timing: STAGE SECONDS s" for render, commands, print and write.
+  --timings prints "Timing: STAGE SECONDS s" for render, commands, figures, print and write.
 
 Examples:
   obs-html document.json document.html
