@@ -173,8 +173,17 @@
         {
           "if": {"properties": {"type": {"const": "registers"}}},
           "then": {"properties": {"attrs": {
-            "type": "object", "additionalProperties": false, "required": ["target", "heading"],
-            "properties": {"target": {"type": "string"}, "heading": {"type": "string"}}
+            "description": "A register embed with everything an adapter renders it from (capabilities/registers, Document node).",
+            "type": "object", "additionalProperties": false, "required": ["target", "heading", "base", "view", "rows"],
+            "properties": {
+              "target": {"type": "string", "minLength": 1}, "heading": {"type": "string"},
+              "base": {"description": "The embedded Base definition; base.schema.json validates it.", "type": "object", "required": ["views"]},
+              "view": {"description": "The index in base.views of the view heading names; null embeds all views.", "oneOf": [{"type": "integer", "minimum": 0}, {"type": "null"}]},
+              "rows": {
+                "description": "Per view of base.views, in order: the ids of the note records it selects, or null for a view whose rows are not note records.",
+                "type": "array", "items": {"oneOf": [{"type": "array", "items": {"$ref": "#/$defs/id"}}, {"type": "null"}]}
+              }
+            }
           }}}
         }
       ]
