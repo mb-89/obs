@@ -78,11 +78,15 @@
           }}}
         },
         {
+          "description": "A cards fence: its authored source and validated spec; its children are one document node per card, in the spec's order, holding that card's body parsed like chapter content.",
           "if": {"properties": {"type": {"const": "cards-metrics"}}},
-          "then": {"properties": {"attrs": {
-            "type": "object", "additionalProperties": false, "required": ["source", "spec"],
-            "properties": {"source": {"type": "string"}, "spec": {"type": "object"}}
-          }}}
+          "then": {"properties": {
+            "attrs": {
+              "type": "object", "additionalProperties": false, "required": ["source", "spec"],
+              "properties": {"source": {"type": "string"}, "spec": {"type": "object"}}
+            },
+            "children": {"items": {"properties": {"type": {"const": "document"}, "attrs": {"maxProperties": 0}}}}
+          }}
         },
         {
           "if": {"properties": {"type": {"enum": ["markdown-frontmatter", "quantities", "references"]}}},
