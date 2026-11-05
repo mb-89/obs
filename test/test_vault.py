@@ -6,7 +6,7 @@ from jsonschema import ValidationError, validate
 import pytest
 
 from obs.capabilities import build_capability_reference
-from obs.document import STRUCTURAL_NODE_TYPES, build_document
+from obs.document import STRUCTURAL_NODE_TYPES, DocumentError, build_document
 
 
 ROOT = Path(__file__).parents[1]
@@ -67,7 +67,9 @@ def additional_capability_vault(tmp_path) -> Path:
         "---\ntitle: Fixture\n---\n- [[chapter]]\n",
         encoding="utf-8",
     )
-    (vault / "register.base").write_text("views: []\n", encoding="utf-8")
+    (vault / "register.base").write_text(
+        "views:\n  - type: table\n    name: Open\n    order: [file.name]\n", encoding="utf-8",
+    )
     (vault / "source.csv").write_text("value\n1\n", encoding="utf-8")
     (vault / "chapter.md").write_text(
         "---\nkind: quantity\naliases: [coverage]\nsource: '[[manifest]]'\nquery: {where: []}\n"
@@ -339,6 +341,92 @@ def test_core_emits_data_only_nodes_for_additional_input_capabilities(tmp_path) 
         "markdown-frontmatter", "profiles", "property-editors", "quantities", "queries",
         "references", "registers",
     } <= set(document["capabilities"])
+
+
+def register_vault(tmp_path, embed: str = "![[x.base#Open points]]") -> Path:
+    vault = tmp_path / "registers"
+    vault.mkdir()
+    (vault / "manifest.md").write_text("- [[chapter]]\n", encoding="utf-8")
+    (vault / "chapter.md").write_text(f"# Chapter\n\n{embed}\n", encoding="utf-8")
+    (vault / "x.base").write_text(
+        "filters: 'kind == \"point\"'\n"
+        "views:\n"
+        "  - type: table\n    name: All points\n    order: [file.name]\n"
+        "  - type: table\n    name: Open points\n    filters: 'status == \"open\"'\n"
+        "    order: [file.name, status]\n"
+        "  - type: table\n    name: Marked\n    order: [label]\n    obsHtml: {records: tag}\n",
+        encoding="utf-8",
+    )
+    for name, status in (("a-point", "open"), ("b-point", "closed"), ("c-point", "Open")):
+        (vault / f"{name}.md").write_text(f"---\nkind: point\nstatus: {status}\n---\n", encoding="utf-8")
+    (vault / "d-point.md").write_text(
+        "---\nkind: point\nstatus: open\nignored: true\n---\n", encoding="utf-8",
+    )
+    (vault / "other.md").write_text("---\nstatus: open\n---\n", encoding="utf-8")
+    return vault
+
+
+def _registers(document: dict[str, object]) -> list[dict[str, object]]:
+    return [
+        node for node in document["chapters"][0]["content"] if node["type"] == "paragraph"
+        for node in node["children"] if node["type"] == "registers"
+    ]
+
+
+def test_a_register_embed_carries_the_base_definition_and_its_view_rows(tmp_path) -> None:
+    document = build_document(register_vault(tmp_path) / "manifest.md", capability_reference())
+
+    validate(document, json.loads((ROOT / "src" / "obs" / "document.schema.json").read_text(
+        encoding="utf-8",
+    )))
+    [register] = _registers(document)
+    assert register["attrs"]["target"] == "x.base"
+    assert register["attrs"]["heading"] == "Open points"
+    assert register["attrs"]["base"]["filters"] == 'kind == "point"'
+    assert [view["name"] for view in register["attrs"]["base"]["views"]] == [
+        "All points", "Open points", "Marked",
+    ]
+    assert register["attrs"]["view"] == 1
+    assert register["attrs"]["rows"] == [
+        ["a-point", "b-point", "c-point"], ["a-point", "c-point"], None,
+    ]
+    records = {record["id"] for record in document["records"]}
+    assert {identifier for rows in register["attrs"]["rows"] if rows for identifier in rows} <= records
+
+
+def test_a_register_embed_without_a_view_embeds_all_views(tmp_path) -> None:
+    document = build_document(
+        register_vault(tmp_path, "![[x.base]]") / "manifest.md", capability_reference(),
+    )
+
+    [register] = _registers(document)
+    assert register["attrs"]["heading"] == ""
+    assert register["attrs"]["view"] is None
+    assert register["attrs"]["rows"][0] == ["a-point", "b-point", "c-point"]
+
+
+@pytest.mark.parametrize(("embed", "message"), [
+    ("![[x.base#Closed]]", r"Register view does not exist in chapter\.md: !\[\[x\.base#Closed\]\] "
+     r"names no view of x\.base; name one of: All points, Open points, Marked\."),
+    ("![[missing.base#Open]]", r"Register Base does not exist in chapter\.md: !\[\[missing\.base#Open\]\]; "
+     r"create missing\.base in the vault or correct the embed\."),
+])
+def test_a_register_embed_that_does_not_resolve_names_the_note_and_the_remedy(
+    tmp_path, embed: str, message: str,
+) -> None:
+    with pytest.raises(DocumentError, match=message):
+        build_document(register_vault(tmp_path, embed) / "manifest.md", capability_reference())
+
+
+def test_an_invalid_register_base_names_the_embedding_note_and_the_remedy(tmp_path) -> None:
+    vault = register_vault(tmp_path)
+    (vault / "x.base").write_text("views:\n  - type: table\n", encoding="utf-8")
+
+    with pytest.raises(DocumentError, match=(
+        r"Invalid base definition at views\.0 in .*x\.base: 'order' is a required property "
+        r"\(embedded x\.base in chapter\.md\); correct the \.base file"
+    )):
+        build_document(vault / "manifest.md", capability_reference())
 
 
 def test_core_resolves_link_and_embed_targets_to_chapter_ids(tmp_path) -> None:

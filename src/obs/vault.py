@@ -28,7 +28,7 @@ from obs.input import (
     validate_project_config,
     validate_quantity,
 )
-from obs.selection import IGNORED, base_selects, conditions_select, note_marks
+from obs.selection import IGNORED, base_selects, conditions_select, note_marks, view_selectors
 
 
 _MANIFEST_ITEM = re.compile(
@@ -772,6 +772,7 @@ def _semantic_text_nodes(
         target = (match["target"] or "").strip()
         resolved = _link(target, source_path, vault) if target else None
         is_base = bool(match["embed"]) and Path(target).suffix == ".base"
+        definition: object = None
         if is_base and resolved is not None:
             try:
                 definition = yaml.safe_load(resolved.read_text(encoding="utf-8-sig"))
@@ -780,11 +781,18 @@ def _semantic_text_nodes(
                     f"Cannot read the Base {target} embedded in {vault.relative(source_path)}: "
                     f"{error}; make the .base file valid YAML."
                 ) from error
+            try:
+                validate_base_definition(definition, resolved)
+            except InputError as error:
+                raise VaultError(
+                    f"{error} (embedded {target} in {vault.relative(source_path)}); "
+                    "correct the .base file."
+                ) from error
             _base_selection(definition, source_path, vault, f"embedded {target}")
         if is_base and "registers" in capability_ids:
             nodes.append({
                 "type": "registers",
-                "attrs": {"target": target, "heading": match["heading"] or ""},
+                "attrs": _register_attrs(value, target, match["heading"] or "", definition, source_path, vault),
                 "children": [],
             })
             capabilities.add("registers")
@@ -808,6 +816,37 @@ def _semantic_text_nodes(
     if position < len(text):
         nodes.append({"type": "text", "attrs": {}, "children": [], "text": text[position:]})
     return nodes
+
+
+def _register_attrs(
+    embed: str, target: str, heading: str, definition: object, source_path: Path, vault: _Vault,
+) -> dict[str, object]:
+    """The registers node's attrs: the Base, the embedded view and each view's rows; see capabilities/registers."""
+    source = vault.relative(source_path)
+    if not isinstance(definition, dict):
+        raise VaultError(
+            f"Register Base does not exist in {source}: {embed}; "
+            f"create {target} in the vault or correct the embed."
+        )
+    names = [view.get("name") for view in definition["views"]]
+    view = None
+    if heading:
+        if heading not in names:
+            raise VaultError(
+                f"Register view does not exist in {source}: {embed} names no view of {target}; "
+                f"name one of: {', '.join(str(name) for name in names if name is not None)}."
+            )
+        view = names.index(heading)
+    rows = [
+        None if selects is None else [
+            vault.identities[path] for path, (fields, _) in vault.notes.items()
+            if selects(fields, vault.relative(path))
+        ]
+        for selects in view_selectors(definition)
+    ]
+    return {
+        "target": target, "heading": heading, "base": _json_value(definition), "view": view, "rows": rows,
+    }
 
 
 def _link_label(children: list[Token]) -> str:

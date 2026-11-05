@@ -74,7 +74,11 @@ def capability_node_attrs(identifier: str) -> dict[str, object]:
         "queries": {"query": {}},
         "references": {"metadata": {}},
         "property-editors": {"source": "", "spec": {}},
-        "registers": {"target": "register.base", "heading": ""},
+        "registers": {
+            "target": "register.base", "heading": "Open",
+            "base": {"views": [{"type": "table", "name": "Open", "order": ["file.name"]}]},
+            "view": 0, "rows": [["chapter"]],
+        },
         "wikilinks": {"target": "chapter", "chapter": "chapter", "heading": "", "label": "chapter"},
         "embeds": {"target": "outside", "chapter": None},
         "figure-descriptor": {"descriptor": figure_descriptor()},
