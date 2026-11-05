@@ -198,3 +198,13 @@ def test_paths_include_paths_inside_form_xobjects(tmp_path, capsys) -> None:
     pdf_inspect.main(["paths", str(pdf), "--page", "1"])
     [square] = json.loads(capsys.readouterr().out)["paths"]
     assert square["bounds"] == [100, 140, 110, 150]  # 50 pt up from the bottom of a 200 pt page.
+
+
+def test_a_file_that_is_no_pdf_is_named(tmp_path, capsys) -> None:
+    html = tmp_path / "document.html"
+    html.write_text("<!doctype html>", encoding="utf-8")
+    with pytest.raises(SystemExit):
+        pdf_inspect.main(["text", str(html), "--page", "1"])
+    error = capsys.readouterr().err
+    assert error.startswith(f"obs-html-inspect text: cannot read {html} as a PDF (") and ". Remedy:" in error
+    assert ".)." not in error

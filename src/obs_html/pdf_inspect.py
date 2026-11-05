@@ -40,7 +40,8 @@ def _open_page(pdf: Path, number: int) -> pdfium.PdfPage:
     try:
         document = pdfium.PdfDocument(pdf)
     except pdfium.PdfiumError as error:
-        raise InspectError(f"cannot read {pdf} as a PDF ({error}). Remedy: pass a PDF file.") from error
+        raise InspectError(f"cannot read {pdf} as a PDF ({str(error).rstrip('.')}). "
+                           f"Remedy: pass a PDF file.") from error
     if not 1 <= number <= len(document):
         raise InspectError(f"{pdf} has {len(document)} pages, no page {number}. "
                            f"Remedy: pass --page from 1 to {len(document)}.")
@@ -200,7 +201,7 @@ def annotate(raster: Path, marks: Sequence[tuple[Box, str]], scale: float, colou
     try:
         image = Image.open(raster).convert("RGB")
     except (OSError, UnidentifiedImageError) as error:
-        raise InspectError(f"cannot read {raster} as a raster image ({error}). "
+        raise InspectError(f"cannot read {raster} as a raster image ({str(error).rstrip('.')}). "
                            f"Remedy: pass a PNG written by render or crop.") from None
     draw = ImageDraw.Draw(image)
     font = ImageFont.load_default(size=max(12, 8 * scale))
