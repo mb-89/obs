@@ -16,6 +16,6 @@ Compute one declared count from canonical records.
 
 ```markdown
 query:
-  count: true
-  where: [{field: status, equals: open}]
+  where: [{field: mark.open_point, exists: true}]
+  distinct: mark.open_point
 ```
