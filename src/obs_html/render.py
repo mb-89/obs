@@ -133,8 +133,47 @@ def _base(node: dict[str, object], context: Context) -> str:
     except ValueError as error:
         raise RenderError(f"Base in chapter {context.chapter or HOME}: {error}") from error
     key = f"{context.chapter or HOME}-base-{len(context.tables) + 1}"
+    for filters in [definition.get("filters"), *(view.get("filters") for view in definition.get("views", []))]:
+        unsupported = _unsupported_filter(filters)
+        if unsupported is not None:
+            names = ", ".join(str(view.get("name", "")) for view in definition.get("views", []))
+            raise RenderError(
+                f'Base "{names}" ({key}) in chapter {context.chapter or HOME}: obs-html cannot evaluate '
+                f"the filter: {unsupported}. Supported: comparisons PROPERTY == LITERAL or PROPERTY != LITERAL, "
+                "where PROPERTY is a frontmatter property (dotted, or note[\"name with spaces\"]) or one of "
+                f"{', '.join(FILE_PROPERTIES)}, and LITERAL is quoted text, a number, true, false or null; "
+                "combined with and, or and not. Remedy: rewrite the filter in this subset.")
     context.tables.append({"key": key, "definition": definition})
     return f'<div class="data-table-placeholder" data-base-table="{escape(key, quote=True)}"></div>\n'
+
+
+FILE_PROPERTIES = ("file.name", "file.path", "file.folder", "file.ext")
+COMPARISON = re.compile(json.loads(files("obs_html").joinpath("base.schema.json").read_text(encoding="utf-8"))
+                        ["$defs"]["comparison"]["pattern"])
+
+
+def _unsupported_filter(filters: object) -> str | None:
+    """The first filter expression base.js cannot evaluate, as authored, or None.
+
+    The schema's comparison pattern owns the comparison syntax (generic-tables, Bases filter
+    grammar); base.js evaluates the same subset at runtime.
+    """
+    if filters is None:
+        return None
+    if isinstance(filters, str):
+        match = COMPARISON.fullmatch(filters)
+        if not match or match[1] == "recordType" or (match[2] or "").startswith("file."):
+            return filters
+        name = (match[1] or "").removeprefix("note.")
+        if name.startswith(("formula.", "this.", "file.")) and (match[1] != name or name not in FILE_PROPERTIES):
+            return filters
+        return None
+    if isinstance(filters, dict) and len(filters) == 1:
+        [(operator, operands)] = filters.items()
+        operands = operands if isinstance(operands, list) else [operands]
+        if operator in {"and", "or", "not"} and operands and all(item is not None for item in operands):
+            return next((found for found in map(_unsupported_filter, operands) if found is not None), None)
+    return json.dumps(filters, ensure_ascii=False)
 
 
 def _figure(node: dict[str, object], context: Context) -> str:
