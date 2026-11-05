@@ -17,7 +17,7 @@ from jsonschema import SchemaError, ValidationError
 
 from obs.producers import run_producers
 from obs_html.comments import CommentError, extract_comments
-from obs_html.config import load_config
+from obs_html.config import Config, load_config
 from obs_html.content import ContentError, read_manifest
 from obs_html.commands import run_command
 from obs_html.renderer import render_report
@@ -25,7 +25,7 @@ from obs_html.report_data import same_document_content
 from obs_html.reproduction import (
     embed_archive, embed_payload_runtime, embedded_archive, source_archive,
 )
-from obs_html.timings import STAGES, recording, stage
+from obs_html.timings import STAGES, load_baselines, recording, slower_stages, stage
 
 
 _IMPORTED = perf_counter()
@@ -334,10 +334,11 @@ def main(argv: Sequence[str] | None = None) -> int:
         with stage("provenance"):
             generator = _generator_provenance()
     _print_timings(options, recorded.durations)
+    baselines = load_baselines() if options.timings else {}
     for document in documents:
         with recording() as recorded:
             try:
-                chapters, output_path = _build_document(options, document, generator)
+                chapters, output_path, config = _build_document(options, document, generator)
             except (CommentError, ContentError, OSError, ValueError, SchemaError, ValidationError) as error:
                 parser.error(f"{document.source}: {error}" if len(documents) > 1 else str(error))
         if options.check:
@@ -345,6 +346,9 @@ def main(argv: Sequence[str] | None = None) -> int:
         else:
             print(f"Generated {output_path} from {chapters} chapters.")
         _print_timings(options, recorded.durations, output_path)
+        for message in slower_stages(recorded.durations, baselines, config.timing_relative_threshold,
+                                     config.timing_absolute_threshold_seconds):
+            print(f"Warning: {output_path}: {message}", file=sys.stderr)
     _print_timings(options, {"total": _total(started)})
     return 0
 
@@ -375,7 +379,7 @@ def _documents(parser: argparse.ArgumentParser, options: argparse.Namespace) -> 
 
 def _build_document(
     options: argparse.Namespace, document: Document, generator: dict[str, str],
-) -> tuple[int, Path]:
+) -> tuple[int, Path, Config]:
     with stage("parse"):
         defaults = load_config(options.config)
         source = document.source
@@ -469,7 +473,7 @@ def _build_document(
             ))
     if not options.check:
         _write_if_changed(output_path, report, partial(_same_document, report))
-    return len(chapters), output_path
+    return len(chapters), output_path, config
 
 
 def _total(started: float) -> float:

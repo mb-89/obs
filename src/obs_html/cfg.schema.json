@@ -9,6 +9,7 @@
     "schemaVersion",
     "input",
     "execution",
+    "timings",
     "report"
   ],
   "properties": {
@@ -90,6 +91,29 @@
           "minimum": 1,
           "maximum": 600,
           "description": "Maximum time --check-rendered waits for the opened HTML to report ready or error."
+        }
+      }
+    },
+    "timings": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "relativeThreshold",
+        "absoluteThresholdSeconds"
+      ],
+      "description": "A --timings build warns about a stage only when it exceeds its timing baseline by both thresholds.",
+      "properties": {
+        "relativeThreshold": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "maximum": 100,
+          "description": "Minimum increase over the baseline as a fraction of it (0.5 is 50 percent)."
+        },
+        "absoluteThresholdSeconds": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "maximum": 3600,
+          "description": "Minimum increase over the baseline in seconds."
         }
       }
     },

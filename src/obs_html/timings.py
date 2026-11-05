@@ -44,6 +44,22 @@ def load_baselines(path: Path = BASELINES_PATH) -> dict[str, float]:
     return value["stages"]
 
 
+def slower_stages(
+    durations: dict[str, float], baselines: dict[str, float], relative: float, absolute_seconds: float,
+) -> list[str]:
+    """Describe each stage that exceeds its baseline by both thresholds."""
+    messages = []
+    for name, seconds in durations.items():
+        baseline = baselines.get(name)
+        if baseline is None:
+            continue
+        increase = seconds - baseline
+        if increase > absolute_seconds and increase > relative * baseline:
+            messages.append(f"stage {name} took {seconds:.3f} s, {increase / baseline:.0%} and "
+                            f"{increase:.3f} s over its baseline of {baseline:.3f} s.")
+    return messages
+
+
 class Timings:
     def __init__(self) -> None:
         self.durations: dict[str, float] = {}
