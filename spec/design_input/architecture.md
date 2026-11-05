@@ -11,7 +11,7 @@ aliases follow the shared Bases reference/value adapters, not copied target meta
 
 Chapter/paragraph totals derive from canonical chapter content; reader and print clones
 are disposable views. One retained navigation sequence includes Home and supplies arrows,
-breadcrumbs, sidebar and document contents; record scope leaves authored sections intact.
+breadcrumbs, sidebar and artifact contents; record scope leaves authored sections intact.
 
 The system is a Python package managed and executed by `uv`.
 
@@ -52,7 +52,7 @@ Per-stage baselines live in one committed data file,
 `timing-baselines.schema.json`: an object of stage name to baseline seconds for a
 build of this repository's own spec. A stage without a baseline is not compared.
 
-With `--timings`, a document stage that exceeds its baseline by both the relative and
+With `--timings`, an artifact stage that exceeds its baseline by both the relative and
 the absolute threshold of the [[configuration]] `timings` section prints a warning to
 stderr; it never fails the build. Either threshold alone stays silent, so small stages
 and small absolute changes do not cause noise.

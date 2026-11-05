@@ -1774,7 +1774,7 @@ math {
 }
 
 .filter-warning,
-.document-warning {
+.artifact-warning {
     align-items: center;
     background: var(--color-warning-soft);
     border: var(--border-width) solid var(--color-warning);
@@ -1792,20 +1792,20 @@ math {
 }
 
 .filter-warning[hidden],
-.document-warning[hidden] { display: none; }
+.artifact-warning[hidden] { display: none; }
 
 .filter-warning {
     flex-wrap: nowrap;
 }
 
 .filter-warning > [role="status"],
-.document-warning > [role="status"] {
+.artifact-warning > [role="status"] {
     flex: 1 1 auto;
     min-width: 0;
     overflow-wrap: anywhere;
 }
 
-.document-warning button {
+.artifact-warning button {
     color: var(--color-text);
     max-width: 100%;
 }

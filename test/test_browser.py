@@ -98,15 +98,15 @@ def test_tag_navigation_uses_bases_filter_grammar(tmp_path: Path) -> None:
     (tmp_path / "register.md").write_text("# Register\n\n" + table.format(kind="open_point"), encoding="utf-8")
     manifest = tmp_path / "manifest.md"
     manifest.write_text("- [[owner]]\n- [[decoy]]\n- [[register]]\n", encoding="utf-8")
-    document = tmp_path / "document.html"
-    document.write_text(render_artifact(manifest, parse_manifest(manifest)), encoding="utf-8")
+    artifact_path = tmp_path / "document.html"
+    artifact_path.write_text(render_artifact(manifest, parse_manifest(manifest)), encoding="utf-8")
     with sync_playwright() as playwright:
         browser = playwright.chromium.launch(executable_path=os.environ["OBS_HTML_TEST_NATIVE_BROWSER"])
         page = browser.new_page(viewport={"width": 1920, "height": 1080})
         errors = []
         page.on("pageerror", lambda error: errors.append(str(error)))
         try:
-            page.goto(document.as_uri() + "#owner")
+            page.goto(artifact_path.as_uri() + "#owner")
             page.locator('[data-chapter-body] a[data-tag-label="datum_a_continuity"]').first.click()
             expect(page.locator('[data-active-chapter]')).to_have_attribute("data-chapter", "register")
             expect(page.locator('[data-row-key="owner:open_point:datum_a_continuity"]')).to_be_visible()
@@ -180,13 +180,13 @@ def test_native_comment_export_uses_isolated_browser_clipboard(native_reader_art
             window.fixtureClipboardWrites.push(text);
         };
     }""")
-    documents = {"artifact.html": artifact.read_text(encoding="utf-8")}
+    artifacts = {"artifact.html": artifact.read_text(encoding="utf-8")}
     context.route(
         "http://localhost/**",
         lambda route: route.fulfill(
             status=200,
             content_type="text/html; charset=utf-8",
-            body=documents[route.request.url.rsplit("/", 1)[-1]],
+            body=artifacts[route.request.url.rsplit("/", 1)[-1]],
         ),
     )
     page = context.new_page()
@@ -276,9 +276,9 @@ def test_native_comment_export_uses_isolated_browser_clipboard(native_reader_art
         page.locator("[data-comment-save]").click()
         expect(page.locator("[data-comment-announcer]")).to_have_text("HTML saved.")
         expect(page.locator("[data-review-save-guidance]")).to_have_attribute("data-dirty", "false")
-        documents["reviewed.html"] = page.evaluate("window.fixtureSavedHtml")
+        artifacts["reviewed.html"] = page.evaluate("window.fixtureSavedHtml")
         reviewed = artifact.with_name("reviewed.html")
-        reviewed.write_text(documents["reviewed.html"], encoding="utf-8")
+        reviewed.write_text(artifacts["reviewed.html"], encoding="utf-8")
         artifact.with_name("comments.md").write_text(copied[0], encoding="utf-8")
         reopened = context.new_page()
         reopened.on("pageerror", lambda error: errors.append(str(error)))
@@ -291,7 +291,7 @@ def test_native_comment_export_uses_isolated_browser_clipboard(native_reader_art
         assert reopened.locator("[data-review-save-guidance]").get_attribute("data-dirty") == "false"
         reopened.evaluate("""async html => {
             await obsComments.importFiles([{text: async () => html}]);
-        }""", documents["reviewed.html"])
+        }""", artifacts["reviewed.html"])
         assert reopened.evaluate("obsComments.data.annotations.length") == 2
         assert reopened.locator("[data-review-save-guidance]").get_attribute("data-dirty") == "false"
         reopened.close()

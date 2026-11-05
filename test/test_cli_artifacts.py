@@ -36,7 +36,7 @@ def _vault(root: Path, name: str, body: str, figure: bool = False) -> Path:
     return vault
 
 
-def test_one_call_builds_several_documents_equal_to_separate_calls(tmp_path, monkeypatch, capsys) -> None:
+def test_one_call_builds_several_artifacts_equal_to_separate_calls(tmp_path, monkeypatch, capsys) -> None:
     monkeypatch.setattr("obs_html.renderer.datetime", _FixedClock)
     first = _vault(tmp_path, "alpha", "First body.", figure=True)
     second = _vault(tmp_path, "beta", "Second body with a [[chapter]] link.")
@@ -74,11 +74,11 @@ def test_trusted_runtime_bundles_pair_with_sources_in_order(tmp_path, capsys) ->
 
 @pytest.mark.parametrize(("arguments", "message"), [
     (["--source", "a", "--source", "b", "--output", "a.html"], "one --output per --source"),
-    (["--source", "a", "--output", "x.html", "--source", "b", "--output", "x.html"], "own --output"),
+    (["--source", "a", "--output", "x.html", "--source", "b", "--output", "x.html"], "x.html: each artifact needs its own --output; give each --source a different --output"),
     (["--source", "a", "--output", "a.html", "--source", "b", "--output", "b.html",
       "--trusted-runtime-bundle", "app-v1=a/runtime.js"], "one --trusted-runtime-bundle per --source"),
 ])
-def test_several_documents_need_unambiguous_pairs(arguments, message, capsys) -> None:
+def test_several_artifacts_need_unambiguous_pairs(arguments, message, capsys) -> None:
     with pytest.raises(SystemExit, match="2"):
         main(arguments)
     assert message in capsys.readouterr().err
@@ -86,7 +86,7 @@ def test_several_documents_need_unambiguous_pairs(arguments, message, capsys) ->
 
 def test_generation_refuses_a_pdf_output_and_names_the_export_remedy(tmp_path, capsys) -> None:
     vault = _vault(tmp_path, "alpha", "First.")
-    output = tmp_path / "document.PDF"
+    output = tmp_path / "artifact.PDF"
 
     with pytest.raises(SystemExit, match="2"):
         main(["--source", str(vault), "--output", str(output)])
@@ -131,9 +131,9 @@ def test_timings_print_one_line_per_stage(tmp_path, capsys) -> None:
     assert stages[0] == ("imports", None) and stages[-1] == ("total", None)
     labels = [str(output.resolve()) for output in outputs]
     for label in labels:
-        document = [stage for stage, owner in stages if owner == label]
-        assert {"parse", "provenance", "render", "write"} <= set(document)
-        assert len(document) == len(set(document))
+        artifact = [stage for stage, owner in stages if owner == label]
+        assert {"parse", "provenance", "render", "write"} <= set(artifact)
+        assert len(artifact) == len(set(artifact))
     assert ("figures", labels[0]) in stages
     assert ("figures", labels[1]) not in stages
     assert not any(line.startswith("Timing") for line, match in zip(lines, timed) if not match)
@@ -193,11 +193,11 @@ def test_stage_durations_do_not_overlap_and_sum_to_at_most_the_total(tmp_path, c
     vault = _vault(tmp_path, "alpha", "Body.", figure=True)
     assert main(["--timings", "--source", str(vault), "--output", str(tmp_path / "a.html")]) == 0
     timed = re.findall(r"^Timing: (\S+) (\d+\.\d{3}) s(?: \((.+)\))?$", capsys.readouterr().out, re.MULTILINE)
-    document = {name: float(seconds) for name, seconds, label in timed if label}
+    artifact = {name: float(seconds) for name, seconds, label in timed if label}
     call = {name: float(seconds) for name, seconds, label in timed if not label}
-    assert set(document) <= set(timings.STAGES)
-    assert {"parse", "render", "figures", "write"} <= set(document)
-    parts = [*document.values(), call["imports"], call["provenance"]]
+    assert set(artifact) <= set(timings.STAGES)
+    assert {"parse", "render", "figures", "write"} <= set(artifact)
+    parts = [*artifact.values(), call["imports"], call["provenance"]]
     assert sum(parts) <= call["total"] + 0.0005 * (len(parts) + 1)  # three-decimal rounding
 
 

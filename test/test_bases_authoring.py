@@ -37,7 +37,7 @@ def _fence(view: str, top: str = "") -> str:
 
 
 @pytest.fixture(scope="module")
-def document(tmp_path_factory):
+def artifact(tmp_path_factory):
     vault = tmp_path_factory.mktemp("bases-authoring") / "vault"
     vault.mkdir()
     (vault / "manifest.md").write_text(
@@ -90,7 +90,7 @@ def document(tmp_path_factory):
 
 
 @pytest.fixture(scope="module")
-def page(document):
+def page(artifact):
     executable = os.environ.get("OBS_HTML_TEST_NATIVE_BROWSER")
     if not executable:
         pytest.skip("Set OBS_HTML_TEST_NATIVE_BROWSER for authored table checks.")
@@ -101,7 +101,7 @@ def page(document):
         page = browser.new_page(viewport={"width": 1400, "height": 900})
         errors = []
         page.on("pageerror", lambda error: errors.append(str(error)))
-        page.goto(document.as_uri())
+        page.goto(artifact.as_uri())
         page.wait_for_function("document.documentElement.dataset.artifactStatus === 'ready'")
         page.evaluate("obsPages.setPaged(false)")
         try:
@@ -125,8 +125,8 @@ def test_view_page_size_overrides_the_document_default(page):
     expect(default.locator("tbody tr[data-row-key]:visible")).to_have_count(ITEMS)
 
 
-def test_manifest_declares_the_global_query_catalog(document, page):
-    assert decode_artifact_data(document.read_text(encoding="utf-8"))["query"] == QUERY
+def test_manifest_declares_the_global_query_catalog(artifact, page):
+    assert decode_artifact_data(artifact.read_text(encoding="utf-8"))["query"] == QUERY
     page.evaluate("obsArtifact.openBar('filter', 'left')")
     pills = page.locator('[data-bar="filter"] .filter-pill').all_text_contents()
     assert any(pill.startswith("Lead") for pill in pills), pills
@@ -216,10 +216,10 @@ def test_several_views_need_unique_names(tmp_path, names):
         validate_base_definition({"views": views}, tmp_path / "x.md")
 
 
-def test_one_base_file_embedded_in_two_notes_renders_twice(document, page):
+def test_one_base_file_embedded_in_two_notes_renders_twice(artifact, page):
     from playwright.sync_api import expect
 
-    notes = {note["slug"]: note for note in decode_artifact_data(document.read_text(encoding="utf-8"))["notes"]}
+    notes = {note["slug"]: note for note in decode_artifact_data(artifact.read_text(encoding="utf-8"))["notes"]}
     first, second = notes["embed-a"]["tables"][0], notes["embed-b"]["tables"][0]
     assert first["definition"] == notes["views"]["tables"][0]["definition"]
     assert second["definition"] == {**first["definition"], "views": first["definition"]["views"][1:]}

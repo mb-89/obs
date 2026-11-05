@@ -207,7 +207,7 @@ def test_inline_fallback_stages_then_applies_atomically(guided_browser, guided_a
         table = page.locator("[data-active-chapter] table")
         expect(table).to_contain_text("New description")
         expect(table).to_contain_text("new bytes")
-        expect(page.locator("[data-document-warning]")).to_be_visible()
+        expect(page.locator("[data-artifact-warning]")).to_be_visible()
         expect(_action(page)).to_be_focused()
         assert errors == []
     finally:

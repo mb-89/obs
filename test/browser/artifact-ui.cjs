@@ -254,7 +254,7 @@ if (process.argv[7] === "--comments-only") {
     await verifyCommentExportOnly();
     return;
 }
-if (process.argv[7] === "--document-change-only") {
+if (process.argv[7] === "--artifact-change-only") {
     context.structuredClone = structuredClone;
     context.Node = window.Node;
     context.CSS = {escape: value => value};
@@ -263,31 +263,31 @@ if (process.argv[7] === "--document-change-only") {
     vm.runInContext(fs.readFileSync(process.argv[6], "utf8"), context);
     vm.runInContext(fs.readFileSync(process.argv[4], "utf8"), context);
     vm.runInContext(fs.readFileSync(process.argv[5], "utf8"), context);
-    const warning = document.querySelector("[data-document-warning]");
+    const warning = document.querySelector("[data-artifact-warning]");
     assert.ok(warning, "The existing save owner supplies a persistent HTML change notice.");
     const semanticDirty = () => document.querySelector("[data-review-save-guidance]").dataset.dirty === "true";
-    const documentDirty = () => {
+    const artifactDirty = () => {
         const event = new window.Event("beforeunload", {cancelable: true});
         window.dispatchEvent(event);
         assert.equal(!warning.hidden, event.defaultPrevented);
         return event.defaultPrevented;
     };
-    assert.equal(documentDirty(), false);
+    assert.equal(artifactDirty(), false);
     context.obsArtifact.commitProperty("one", "explanation", "Original");
-    assert.equal(documentDirty(), false, "No-op canonical editors do not dirty HTML.");
+    assert.equal(artifactDirty(), false, "No-op canonical editors do not dirty HTML.");
     context.obsFilter.setExpression("status:draft");
-    assert.equal(documentDirty(), true);
+    assert.equal(artifactDirty(), true);
     assert.equal(semanticDirty(), false, "Saved reader state is not a semantic review edit.");
     context.obsFilter.setExpression("status: /[");
-    assert.equal(documentDirty(), true, "Invalid drafts preserve the saved applied query.");
+    assert.equal(artifactDirty(), true, "Invalid drafts preserve the saved applied query.");
     click(document.querySelector("[data-filter-warning] button"));
-    assert.equal(documentDirty(), false, "Reverting the serialized query clears document state.");
+    assert.equal(artifactDirty(), false, "Reverting the serialized query clears document state.");
     context.obsArtifact.setViewSelection("proof", ["a"], ["a", "b"]);
-    assert.equal(documentDirty(), true);
+    assert.equal(artifactDirty(), true);
     assert.equal(semanticDirty(), false);
     context.obsArtifact.commitProperty("one", "explanation", "Changed");
     assert.equal(semanticDirty(), true);
-    assert.equal(documentDirty(), true);
+    assert.equal(artifactDirty(), true);
     let output, closed = false;
     context.showSaveFilePicker = async () => ({createWritable: async () => ({
         write: async contents => {output = contents;},
@@ -295,7 +295,7 @@ if (process.argv[7] === "--document-change-only") {
     })});
     await context.obsComments.saveReviewedCopy();
     assert.equal(closed, true);
-    assert.equal(documentDirty(), false);
+    assert.equal(artifactDirty(), false);
     assert.equal(semanticDirty(), false);
     assert.ok(output.includes("Changed"));
     const saved = parseHTML(output).document;
@@ -303,7 +303,7 @@ if (process.argv[7] === "--document-change-only") {
     context.obsFilter.setExpression("status:draft");
     context.showSaveFilePicker = async () => {throw Object.assign(new Error("cancel"), {name: "AbortError"});};
     await context.obsComments.saveReviewedCopy();
-    assert.equal(documentDirty(), true, "Cancel is not a save.");
+    assert.equal(artifactDirty(), true, "Cancel is not a save.");
     context.Blob = Blob;
     let downloads = 0;
     context.URL = {createObjectURL: () => {downloads++; return "blob:proof";}, revokeObjectURL() {}};
@@ -311,11 +311,11 @@ if (process.argv[7] === "--document-change-only") {
         write: async () => {}, close: async () => {throw new Error("close failed");},
     })});
     await context.obsComments.saveReviewedCopy();
-    assert.equal(documentDirty(), true, "Failed close cannot confirm retention.");
+    assert.equal(artifactDirty(), true, "Failed close cannot confirm retention.");
     assert.equal(downloads, 1);
     delete context.showSaveFilePicker;
     await context.obsComments.saveReviewedCopy();
-    assert.equal(documentDirty(), true, "Fallback download is unconfirmed.");
+    assert.equal(artifactDirty(), true, "Fallback download is unconfirmed.");
     assert.equal(downloads, 2);
     const writeIsland = context.obsArtifactTransport.writeIsland;
     let resume;
@@ -332,14 +332,14 @@ if (process.argv[7] === "--document-change-only") {
     context.obsFilter.setExpression("");
     resume();
     await pending;
-    assert.equal(documentDirty(), true, "A confirmed capture cannot clean later canonical or reader edits.");
+    assert.equal(artifactDirty(), true, "A confirmed capture cannot clean later canonical or reader edits.");
     assert.equal(semanticDirty(), true);
     assert.ok(!output.includes("Newer edit"));
     context.obsArtifact.commitProperty("one", "explanation", "Changed");
-    assert.equal(documentDirty(), true, "Later reader-only edits remain unsaved.");
+    assert.equal(artifactDirty(), true, "Later reader-only edits remain unsaved.");
     assert.equal(semanticDirty(), false);
     context.obsFilter.setExpression("status:draft");
-    assert.equal(documentDirty(), false, "Reverting to the confirmed capture is clean.");
+    assert.equal(artifactDirty(), false, "Reverting to the confirmed capture is clean.");
     console.log("PASS document/review dirty, revert, invalid draft, save/cancel/failure/download/newer edits.");
     return;
 }
@@ -955,10 +955,10 @@ async function verifyPages() {
     await context.obsPages.exportPDF();
     assert.equal(printBook.querySelectorAll(".page-contents a").length, 6);
     assert.ok(printBook.querySelector("#pdf-node"));
-    const documentPageNumbers = [...printBook.querySelectorAll(".paper-page-number")].map(
+    const artifactPageNumbers = [...printBook.querySelectorAll(".paper-page-number")].map(
         pageNumber,
     );
-    assert.deepEqual(documentPageNumbers, documentPageNumbers.map((_number, index) => index + 1));
+    assert.deepEqual(artifactPageNumbers, artifactPageNumbers.map((_number, index) => index + 1));
     const pdfNodeFirstPage = printBook.querySelector("#pdf-node .paper-page-number").textContent;
     assert.ok(printBook.querySelector('a[href="#pdf-conclusion"]') === null);
     assert.ok(printBook.querySelector('a[href="artifact.html#conclusion"]'));

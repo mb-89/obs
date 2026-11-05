@@ -58,4 +58,6 @@ def test_artifact_without_data_names_the_file(tmp_path, capsys) -> None:
     page.write_text("<!doctype html><p>no data</p>", encoding="utf-8")
     with pytest.raises(SystemExit, match="2"):
         main(["--print-chapter", str(page), "intro"])
-    assert f"--print-chapter {page}: Cannot read document data" in capsys.readouterr().err
+    error = capsys.readouterr().err
+    assert f"--print-chapter {page}: Cannot read artifact data" in error
+    assert "regenerate the HTML with obs-html" in error

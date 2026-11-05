@@ -5,7 +5,7 @@
 })(globalThis, () => {
     "use strict";
 
-    // Overlay tier 1 (artifact-ui.md "Overlays"): the one in-page card every hover in the document uses.
+    // Overlay tier 1 (artifact-ui.md "Overlays"): the one in-page card every hover in the artifact uses.
     // Features register a trigger selector and a resolver; this owner places, fits, renders and dismisses.
     const create = ({window, delayMilliseconds}) => {
         const document = window.document;

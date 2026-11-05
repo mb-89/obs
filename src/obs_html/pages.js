@@ -22,7 +22,7 @@
     let measuredCounts = new Map();
     let measuredTableAllocations = new Map();
     let measuredTotal = 0;
-    // Current-chapter page slots measured synchronously while whole-document numbering is pending,
+    // Current-chapter page slots measured synchronously while whole-artifact numbering is pending,
     // so the live screen gets its final layout at once and numbering later updates in place.
     let provisionalCounts = new Map();
     let provisionalAllocations = new Map();
