@@ -145,8 +145,15 @@
       "properties": {"id": {"$ref": "#/$defs/id"}, "href": {"type": "string", "minLength": 1}, "mediaType": {"type": "string", "minLength": 1}}
     },
     "record": {
+      "description": "A selectable row for Bases and queries. A note record (type note) is one vault note: its vault-relative POSIX path and its frontmatter as fields.",
       "type": "object", "additionalProperties": false, "required": ["id", "type", "fields"],
-      "properties": {"id": {"$ref": "#/$defs/id"}, "type": {"type": "string", "minLength": 1}, "fields": {"type": "object"}}
+      "properties": {
+        "id": {"$ref": "#/$defs/id"}, "type": {"type": "string", "minLength": 1},
+        "path": {"type": "string", "pattern": "^(?!/)(?!.*(^|/)\\.\\.?(/|$)).+\\.md$"},
+        "fields": {"type": "object"}
+      },
+      "if": {"properties": {"type": {"const": "note"}}},
+      "then": {"required": ["path"]}
     },
     "resource": {
       "type": "object", "additionalProperties": false, "required": ["id", "type", "attrs"],
