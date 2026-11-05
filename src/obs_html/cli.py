@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 import sys
 import tempfile
 from functools import partial
@@ -11,8 +12,10 @@ from time import perf_counter
 from typing import Sequence
 
 from obs_html.commands import CommandError, run_command
+from obs_html.comments import CommentError, extract_comments
 from obs_html.config import ConfigError, load_config
 from obs_html.render import RenderError, render
+from obs_html.report_data import same_document_content
 from obs_html.timings import recording, stage
 
 
@@ -24,11 +27,23 @@ EPILOG = """Rendering:
   They run with --command-root as working directory, normally the source vault root.
   --check renders without writing output or executing commands.
   Document diagnostics are printed to stderr, never into the HTML.
+  --style FOLDER selects an external style module: a folder with style.css, laid over the
+  packaged base stylesheet, and an optional assets.json semantic asset index. It must not
+  declare page geometry (@page, size, --paper-*, --sheet-*); the Document's profile owns it.
 
 Settings:
   --config FILE merges a JSON settings file over the packaged cfg.json, validated by
   cfg.schema.json: execution limits and the print catalogue (paper sizes and default
   paper). A Document chooses its paper and margin in its profile's print mapping.
+
+Trusted runtime:
+  --trusted-runtime-bundle ID=PATH explicitly trusts one local JavaScript application
+  bundle (a regular .js file, not a link) and embeds it in the HTML after the report
+  runtime. The Document itself can never opt into executable code.
+
+Comments:
+  --extract-comments HTML reads the comment JSON island of a returned, reviewed report
+  without executing its scripts and prints deterministic comment candidates to stdout.
 
 PDF operations:
   --export-pdf HTML --output file.pdf prints existing HTML with local Chrome/Edge/Chromium
@@ -46,8 +61,10 @@ Examples:
   obs-html document.json document.pdf
   obs-html document.json document.html --execute-commands --command-root vault
   obs-html document.json --check
+  obs-html document.json document.html --style styles/corporate
   obs-html --export-pdf document.html --output document.pdf
   obs-html --check-rendered document.html
+  obs-html --extract-comments reviewed.html
 
 Exit status:
   0: success (including --help); 2: invalid options, input or operation failure.
@@ -72,6 +89,13 @@ def build_parser() -> argparse.ArgumentParser:
                         help="Execute command fences while rendering.")
     parser.add_argument("--command-root", type=Path, metavar="FOLDER",
                         help="Working directory of executed command fences.")
+    parser.add_argument("--style", type=Path, metavar="FOLDER",
+                        help="Style module folder containing style.css (and optionally assets.json); "
+                             "replaces the packaged generic style.")
+    parser.add_argument("--trusted-runtime-bundle", metavar="ID=PATH",
+                        help="Embed one explicitly trusted local JavaScript bundle.")
+    parser.add_argument("--extract-comments", type=Path, metavar="HTML",
+                        help="Print comment candidates from a returned, reviewed report.")
     parser.add_argument("--export-pdf", type=Path, metavar="HTML", help="Print existing HTML to PDF.")
     parser.add_argument("--output", type=Path, metavar="PDF", help="PDF written by --export-pdf.")
     parser.add_argument("--check-rendered", type=Path, metavar="HTML",
@@ -87,11 +111,13 @@ def main(argv: Sequence[str] | None = None) -> int:
     try:
         config = load_config(options.config)
         with recording() as recorded:
-            if options.check_rendered or options.export_pdf:
+            if options.extract_comments:
+                _extract(parser, options)
+            elif options.check_rendered or options.export_pdf:
                 _browser_operation(parser, options, config)
             else:
                 _render(parser, options, config)
-    except (CommandError, ConfigError, RenderError, OSError, RuntimeError) as error:
+    except (CommandError, CommentError, ConfigError, RenderError, OSError, RuntimeError, ValueError) as error:
         parser.error(str(error))
     if options.timings:
         for name, seconds in {**recorded.durations, "total": perf_counter() - started}.items():
@@ -123,7 +149,8 @@ def _render(parser: argparse.ArgumentParser, options: argparse.Namespace, config
                          timeout_seconds=config.command_timeout_seconds)
     else:
         runner = None
-    report = render(document, config, runner)
+    report = render(document, config, runner, style_folder=options.style,
+                    trusted_runtime=_trusted_runtime(parser, options.trusted_runtime_bundle))
     for diagnostic in document["diagnostics"]:
         print(f"{diagnostic['level'].title()}: {diagnostic['message']}", file=sys.stderr)
     if options.check:
@@ -132,18 +159,29 @@ def _render(parser: argparse.ArgumentParser, options: argparse.Namespace, config
     destination = options.destination.resolve()
     if destination.suffix.lower() == ".pdf":
         from obs_html.pdf import export_pdf
-        with tempfile.TemporaryDirectory() as folder:
-            html = Path(folder) / f"{destination.stem}.html"
-            html.write_text(report, encoding="utf-8")
-            _write_if_changed(destination, export_pdf(html))
+        # Print beside the destination, so the Document's relative asset links resolve.
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        with tempfile.NamedTemporaryFile("w", encoding="utf-8", dir=destination.parent,
+                                         prefix=f".{destination.stem}.", suffix=".html",
+                                         delete=False) as temporary:
+            temporary.write(report)
+        html = Path(temporary.name)
+        try:
+            pdf = export_pdf(html)
+        finally:
+            html.unlink()
+        _write_if_changed(destination, pdf)
     else:
-        _write_if_changed(destination, report.encode("utf-8"))
+        existing = _read_existing(destination)
+        if existing is None or not same_document_content(report, existing):
+            _write_if_changed(destination, report.encode("utf-8"))
     print(f"Generated {destination}.")
 
 
 def _browser_operation(parser: argparse.ArgumentParser, options: argparse.Namespace, config) -> None:
     if (options.document or options.destination or options.check or options.execute_commands
-            or options.command_root or options.check_rendered and options.export_pdf):
+            or options.command_root or options.style or options.trusted_runtime_bundle
+            or options.check_rendered and options.export_pdf):
         parser.error("--export-pdf and --check-rendered are separate operations without DOCUMENT.")
     from obs_html.pdf import check_rendered, export_pdf
     if options.export_pdf:
@@ -169,10 +207,40 @@ def _browser_operation(parser: argparse.ArgumentParser, options: argparse.Namesp
         raise RenderError(f"Rendered check failed: {', '.join(failures)}.")
 
 
+RUNTIME_ID = re.compile(r"[a-z][a-z0-9-]{0,63}")
+
+
+def _trusted_runtime(parser: argparse.ArgumentParser, bundle: str | None) -> tuple[str, str] | None:
+    if bundle is None:
+        return None
+    runtime_id, separator, runtime_path = bundle.partition("=")
+    if not separator or not RUNTIME_ID.fullmatch(runtime_id) or not runtime_path:
+        parser.error("--trusted-runtime-bundle must use the form ID=PATH.")
+    path = Path(runtime_path)
+    if path.is_symlink() or not path.is_file() or path.suffix.lower() != ".js":
+        raise RenderError("Trusted application runtime must be a regular .js file.")
+    return runtime_id, path.read_text(encoding="utf-8")
+
+
+def _extract(parser: argparse.ArgumentParser, options: argparse.Namespace) -> None:
+    if any((options.document, options.destination, options.check, options.execute_commands,
+            options.command_root, options.style, options.trusted_runtime_bundle,
+            options.export_pdf, options.check_rendered, options.output)):
+        parser.error("--extract-comments is a separate operation without DOCUMENT.")
+    print(extract_comments(options.extract_comments.resolve()), end="")
+
+
 def _check_command(command: str) -> str:
     if not command.strip():
         raise CommandError("A command fence cannot be empty.")
     return ""
+
+
+def _read_existing(path: Path) -> str | None:
+    try:
+        return path.read_text(encoding="utf-8")
+    except (OSError, UnicodeError):
+        return None
 
 
 @stage("write")

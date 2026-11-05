@@ -1,0 +1,289 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "required": ["views"],
+  "additionalProperties": false,
+  "properties": {
+    "filters": {"$ref": "#/$defs/filter"},
+    "properties": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "displayName": {"type": "string"},
+          "obsHtml": {
+            "type": "object",
+            "additionalProperties": false,
+            "not": {"required": ["icon", "icons"]},
+            "dependentRequired": {"editor": ["editable"]},
+            "properties": {
+              "reference": {
+                "type": "object",
+                "required": ["label"],
+                "additionalProperties": false,
+                "properties": {
+                  "label": {
+                    "type": "array", "minItems": 1, "uniqueItems": true,
+                    "items": {"type": "string", "pattern": "\\S"}
+                  },
+                  "metadata": {
+                    "type": "array", "minItems": 1, "uniqueItems": true,
+                    "items": {"type": "string", "pattern": "\\S"}
+                  },
+                  "linkProperty": {"type": "string", "pattern": "\\S"},
+                  "metadataFormats": {
+                    "type": "object",
+                    "additionalProperties": {
+                      "type": "object",
+                      "required": ["format"],
+                      "additionalProperties": false,
+                      "properties": {
+                        "format": {"enum": ["html", "table"]},
+                        "source": {"type": "string", "pattern": "\\S"}
+                      }
+                    }
+                  }
+                }
+              },
+              "detail": {"type": "boolean"},
+              "editable": {"const": true},
+              "editor": {"enum": ["singleLine"]},
+              "singleLine": {"type": "boolean"},
+              "linkProperty": {"type": "string", "pattern": "\\S"},
+              "leadingLines": {
+                "type": "array", "minItems": 1, "uniqueItems": true,
+                "items": {"type": "string", "pattern": "\\S"}
+              },
+              "icon": {"$ref": "#/$defs/icon"},
+              "icons": {
+                "type": "array", "minItems": 1,
+                "items": {"$ref": "#/$defs/icon"}
+              }
+            }
+          }
+        }
+      }
+    },
+    "views": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["type", "order"],
+        "additionalProperties": false,
+        "properties": {
+          "type": {"enum": ["table"]},
+          "name": {"type": "string"},
+          "filters": {"$ref": "#/$defs/filter"},
+          "order": {
+            "type": "array",
+            "minItems": 1,
+            "uniqueItems": true,
+            "items": {"type": "string", "pattern": "\\S"}
+          },
+          "groupBy": {"$ref": "#/$defs/directive"},
+          "sort": {"$ref": "#/$defs/directives"},
+          "columnSize": {
+            "type": "object",
+            "additionalProperties": {"type": "number", "minimum": 1}
+          },
+          "obsHtml": {
+            "type": "object",
+            "additionalProperties": false,
+            "not": {"required": ["pagination", "pageSize"]},
+            "properties": {
+              "records": {"$ref": "#/properties/obsHtml/properties/records"},
+              "wide": {"type": "boolean"},
+              "compact": {"type": "boolean"},
+              "details": {"enum": ["columns"]},
+              "showEmptyDetailTabs": {"type": "boolean"},
+              "screenPageBreaks": {"type": "boolean"},
+              "pagination": {"const": false},
+              "pageSize": {"type": "integer", "minimum": 1},
+              "groupOrder": {
+                "type": "array", "minItems": 1, "uniqueItems": true,
+                "items": {"type": "string", "pattern": "\\S"}
+              },
+              "columnSizing": {"enum": ["equal"]},
+              "detailFontSize": {"type": "integer", "minimum": 8, "maximum": 14}
+            }
+          }
+        }
+      }
+    },
+    "obsHtml": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "records": {"enum": ["note", "chapter", "tag", "glossary", "documentHistory", "documentMetadata"]},
+        "viewProjection": {"type": "string", "pattern": "^[a-z][a-z0-9._-]*$"},
+        "fallbackColumns": {
+          "type": "array", "minItems": 1, "uniqueItems": true,
+          "items": {"$ref": "#/$defs/text"}
+        },
+        "expandProperties": {
+          "type": "object",
+          "minProperties": 1,
+          "additionalProperties": {
+            "type": "object",
+            "required": ["sourceNote", "property", "keyProperty"],
+            "additionalProperties": false,
+            "properties": {
+              "sourceNote": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._/-]*$"},
+              "property": {"$ref": "#/$defs/text"},
+              "keyProperty": {"$ref": "#/$defs/text"},
+              "labelProperties": {
+                "type": "array", "minItems": 1, "uniqueItems": true,
+                "items": {"$ref": "#/$defs/text"}
+              },
+              "separator": {"type": "string", "maxLength": 64}
+            }
+          }
+        },
+        "maxRows": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Approximate body-row threshold for a table's vertical viewport."
+        },
+        "members": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "required": ["path"],
+            "additionalProperties": false,
+            "properties": {
+              "path": {
+                "type": "string",
+                "pattern": "^(?!/)(?![A-Za-z]:)(?!.*(?:^|/)\\.\\.(?:/|$))[^\\\\?#]+\\.md$"
+              },
+              "label": {"type": "string"}
+            }
+          }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "iconName": {"$ref": "assets.schema.json#/$defs/name"},
+    "text": {"type": "string", "pattern": "\\S"},
+    "guidedCard": {
+      "type": "object", "required": ["title", "submit"],
+      "additionalProperties": false,
+      "properties": {
+        "title": {"$ref": "#/$defs/text"},
+        "subject": {"$ref": "#/$defs/text"},
+        "content": {"type": "array", "items": {"$ref": "#/$defs/text"}},
+        "link": {"$ref": "#/$defs/text"},
+        "input": {
+          "type": "object", "required": ["property", "label"],
+          "additionalProperties": false,
+          "properties": {"property": {"$ref": "#/$defs/text"}, "label": {"$ref": "#/$defs/text"}}
+        },
+        "submit": {"$ref": "#/$defs/text"}
+      }
+    },
+    "icon": {
+      "oneOf": [
+        {
+          "type": "object", "required": ["name", "label", "linkProperty", "unavailable"],
+          "additionalProperties": false,
+          "properties": {
+            "name": {"$ref": "#/$defs/iconName"}, "label": {"$ref": "#/$defs/text"},
+            "linkProperty": {"$ref": "#/$defs/text"}, "unavailable": {"$ref": "#/$defs/text"},
+            "download": {"type": "boolean"}
+          }
+        },
+        {
+          "type": "object", "required": ["name", "label", "action"],
+          "additionalProperties": false,
+          "properties": {
+            "name": {"$ref": "#/$defs/iconName"}, "label": {"$ref": "#/$defs/text"},
+            "action": {"type": "string", "pattern": "^[a-z][A-Za-z0-9._-]{0,63}$"},
+            "help": {"$ref": "#/$defs/text"},
+            "helpProperty": {"$ref": "#/$defs/text"},
+            "card": {"$ref": "#/$defs/guidedCard"},
+            "unavailable": {"$ref": "#/$defs/text"}
+          },
+          "if": {"required": ["card"], "properties": {"card": {"required": ["link"]}}},
+          "then": {"required": ["unavailable"]},
+          "else": {"not": {"required": ["unavailable"]}}
+        },
+        {
+          "type": "object", "required": ["name", "label", "help"],
+          "additionalProperties": false,
+          "properties": {
+            "name": {"$ref": "#/$defs/iconName"}, "label": {"$ref": "#/$defs/text"},
+            "help": {"$ref": "#/$defs/text"}
+          }
+        },
+        {
+          "type": "object", "required": ["name", "label", "unavailable"],
+          "additionalProperties": false,
+          "properties": {
+            "name": {"$ref": "#/$defs/iconName"}, "label": {"$ref": "#/$defs/text"},
+            "unavailable": {"$ref": "#/$defs/text"}
+          }
+        },
+        {
+          "type": "object", "required": ["name", "label", "helpProperty"],
+          "additionalProperties": false,
+          "properties": {
+            "name": {"$ref": "#/$defs/iconName"}, "label": {"$ref": "#/$defs/text"},
+            "helpProperty": {"$ref": "#/$defs/text"}, "help": {"$ref": "#/$defs/text"}
+          }
+        }
+      ]
+    },
+    "directive": {
+      "type": "object",
+      "required": ["property"],
+      "additionalProperties": false,
+      "properties": {
+        "property": {"type": "string", "pattern": "\\S"},
+        "direction": {"enum": ["ASC", "DESC"]}
+      }
+    },
+    "directives": {
+      "oneOf": [
+        {"$ref": "#/$defs/directive"},
+        {"type": "array", "items": {"$ref": "#/$defs/directive"}}
+      ]
+    },
+    "comparison": {
+      "$comment": "Owns Bases comparison syntax for both evaluators; groups: name, bracketed name, operator, literal.",
+      "type": "string",
+      "pattern": "^(?:([A-Za-z][A-Za-z0-9_.]*)|note\\[\"([^\"\\r\\n]+)\"\\])[ \\t]*(==|!=)[ \\t]*(null|true|false|-?(?:0|[1-9][0-9]*)(?:\\.[0-9]+)?|\"[^\"\\\\\\r\\n]*\"|'[^'\\\\\\r\\n]*')$"
+    },
+    "filter": {
+      "oneOf": [
+        {"$ref": "#/$defs/comparison"},
+        {
+          "type": "object",
+          "required": ["and"],
+          "additionalProperties": false,
+          "properties": {"and": {"$ref": "#/$defs/operands"}}
+        },
+        {
+          "type": "object",
+          "required": ["or"],
+          "additionalProperties": false,
+          "properties": {"or": {"$ref": "#/$defs/operands"}}
+        },
+        {
+          "type": "object",
+          "required": ["not"],
+          "additionalProperties": false,
+          "properties": {"not": {"$ref": "#/$defs/operands"}}
+        }
+      ]
+    },
+    "operands": {
+      "oneOf": [
+        {"$ref": "#/$defs/filter"},
+        {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/filter"}}
+      ]
+    }
+  }
+}
