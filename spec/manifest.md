@@ -14,6 +14,7 @@ approvers: ""
 copyright: ""
 confidentiality: ""
 legal entity: ""
+ignored: true
 obsHtml:
   layout: paged
   pages:

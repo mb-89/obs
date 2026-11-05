@@ -65,3 +65,12 @@ def test_an_ignored_note_listed_in_the_manifest_or_linked_from_an_included_note_
 
     assert [chapter["id"] for chapter in document["chapters"]] == ["listed", "chapter", "linked"]
     assert document["diagnostics"] == []
+
+
+def test_the_spec_manifest_is_not_selected_by_a_query_or_base_matching_all_notes() -> None:
+    records = build_document(ROOT / "spec" / "manifest.md", capability_reference())["records"]
+    every_query = _selected(records, lambda fields, path: conditions_select([], fields, path))
+
+    assert "manifest.md" not in every_query
+    assert "manifest.md" not in _selected(records, base_selects(MATCH_ALL_BASE))
+    assert len(every_query) == len(records) - 1
