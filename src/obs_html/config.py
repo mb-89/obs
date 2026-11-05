@@ -13,6 +13,7 @@ REMOVED_READING_SETTINGS = {
     "paged": "declare the opening layout in the manifest frontmatter as obsHtml: {layout: paged} "
              "or obsHtml: {layout: scrolling}.",
 }
+RENAMED_KEYS = {"report": "artifact"}
 REMOVED_ARTIFACT_SETTINGS = {
     "paper": "declare the document's paper in the manifest frontmatter as "
              "obsHtml: {print: {paper: A4, margin: 20mm}}.",
@@ -58,11 +59,21 @@ class Config:
     guided_card: dict[str, int]
 
 
+def _reject_renamed_keys(configuration: object, path: Path) -> None:
+    for old, new in RENAMED_KEYS.items():
+        if isinstance(configuration, dict) and old in configuration:
+            raise ValueError(
+                f"{path}: configuration key '{old}' was renamed to '{new}'; rename the key in that file."
+            )
+
+
 def load_config(config_path: Path, override_path: Path | None = None) -> Config:
     config = json.loads(config_path.read_text(encoding="utf-8"))
+    _reject_renamed_keys(config, config_path)
     schema = json.loads(SCHEMA_PATH.read_text(encoding="utf-8"))
     if override_path is not None:
         override = json.loads(override_path.read_text(encoding="utf-8"))
+        _reject_renamed_keys(override, override_path)
         artifact = override.get("artifact", {}) if isinstance(override, dict) else {}
         reading = artifact.get("reading", {}) if isinstance(artifact, dict) else {}
         for key, replacement in REMOVED_READING_SETTINGS.items():
