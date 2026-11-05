@@ -617,6 +617,23 @@ def test_a_callout_nested_under_a_list_item_is_a_callout_of_that_item(tmp_path) 
     assert "callouts" in document["capabilities"]
 
 
+def test_a_list_keeps_whether_it_was_authored_tight_or_loose(tmp_path) -> None:
+    vault = tmp_path / "vault"
+    vault.mkdir()
+    (vault / "manifest.md").write_text("- [[chapter]]\n", encoding="utf-8")
+    (vault / "chapter.md").write_text(
+        "- tight one\n- tight two\n\nText.\n\n1. loose one\n\n2. loose two\n", encoding="utf-8",
+    )
+
+    document = build_document(vault / "manifest.md", capability_reference())
+
+    validate(document, json.loads((ROOT / "src" / "obs" / "document.schema.json").read_text(
+        encoding="utf-8",
+    )))
+    lists = [node["attrs"] for node in document["chapters"][0]["content"] if node["type"] == "list"]
+    assert lists == [{"ordered": False, "tight": True}, {"ordered": True, "tight": False}]
+
+
 INLINE_SOURCE = "A *em* **strong** ~~gone~~ `code` $x^2$ [link](https://example.test)"
 """One of each inline mark the input model supports; INLINE_NODES is what it becomes."""
 
