@@ -64,6 +64,7 @@ def figure_descriptor() -> dict[str, object]:
 def capability_node_attrs(identifier: str) -> dict[str, object]:
     attrs = {
         "attachments": {"asset": "asset", "label": "Attachment"},
+        "callouts": {"kind": "note", "title": ""},
         "cards-metrics": {"source": "", "spec": {}},
         "chapter-inclusion": {"id": "chapter"},
         "count-query": {"query": {}},
