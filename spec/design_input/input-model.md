@@ -648,6 +648,20 @@ Generation time remains separate from document revision dates.
 
   Unreferenced notes stay out.
 
+  Links are wikilinks and embeds in body text (not in code) and in frontmatter string
+  values. A `base` fence (also inside a `cards` body) or an embedded `.base` file selects
+  the notes whose record matches its `filters` and any view's `filters`.
+
+  A frontmatter `query`, and a cards metric, selects the notes whose record has every
+  `where` condition (`equals` an exact text value or a list holding it; `exists` a nonblank
+  value), narrowed by its `from` owner's selection; the `from` and `secondary` owner notes
+  are included too. Each note is included once, so cycles end.
+
+  The Document's `chapters` hold the TOC tree first. Every other included note follows as
+  a top-level chapter with `toc: false`, in the case-insensitive order of its vault path
+  (worker decision, 5 Nov 2026), so the place does not depend on which link reached it
+  first.
+
   Dot-prefixed directories/files are excluded.
 
   TOC membership is a separate ordered reference
@@ -683,8 +697,13 @@ Generation time remains separate from document revision dates.
 - Standard Markdown is supported before optional Obsidian extensions.
 - `[[wikilinks]]` resolve by source-relative path, vault-relative path, unique note name, and
   then alias. Relative Markdown note links use the same canonical targets. Nested note links
-  and note-heading fragments are resolvable; unresolved or ambiguous note references fail
-  generation explicitly. Link examples inside code remain literal.
+  and note-heading fragments are resolvable; ambiguous note references fail generation
+  explicitly. Link examples inside code remain literal.
+
+  A link's `attrs.chapter` names the chapter of its target; a link to the manifest names
+  `home`, which no chapter identifier takes. Name lookup skips the manifest. `null` remains
+  only for a target that does not exist; the build then warns, naming the source note, the
+  target and the remedy (decided 5 Nov 2026).
 - Obsidian `aliases` frontmatter supplies alternative names for the same note.
 
   It accepts a

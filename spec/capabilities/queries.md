@@ -13,7 +13,8 @@ capability:
 Define reusable, declarative selections and aggregates.
 
 Queries select from the Document's note records, which [[capabilities/bases#Note records]]
-describes.
+describes. The notes a query in an included note selects are included in the Document too
+([[input-model#Chapter content]]).
 
 ## Authoring example
 
