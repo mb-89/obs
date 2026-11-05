@@ -24,6 +24,11 @@ IGNORED = "ignored"
 """The frontmatter field that marks a note as ignored; see markdown-frontmatter."""
 
 
+def selectable(fields: dict[str, object]) -> bool:
+    """Whether queries and Bases may select a note record; an ignored note is never selected."""
+    return fields.get(IGNORED) is not True
+
+
 def note_value(fields: dict[str, object], path: str, field: str) -> object:
     """Resolve a Bases property of a note record at a vault-relative POSIX path."""
     field = field.removeprefix("note.")
@@ -128,7 +133,7 @@ def base_selects(definition: dict[str, object]) -> Callable[[dict[str, object], 
     paths = None if not isinstance(members, list) else {member.get("path") for member in members}
 
     def selects(fields: dict[str, object], path: str) -> bool:
-        if paths is not None and path not in paths:
+        if not selectable(fields) or paths is not None and path not in paths:
             return False
         value_for = lambda field: note_value(fields, path, field)  # noqa: E731
         return base(value_for) and any(view(value_for) for view in views)
@@ -147,6 +152,8 @@ def _texts(value: object) -> list[str]:
 
 def conditions_select(conditions: list[dict[str, object]], fields: dict[str, object], path: str) -> bool:
     """Whether a note record has every query condition (``equals`` text, ``exists``)."""
+    if not selectable(fields):
+        return False
     for condition in conditions:
         texts = _texts(note_value(fields, path, str(condition["field"])))
         if "equals" in condition and condition["equals"] not in texts:
