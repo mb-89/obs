@@ -92,6 +92,10 @@ JSON capability reference for their definitions and dependencies. Its schema and
 adapter-manifest schema are the executable owners of the exchanged shape.
 Its `records` are owned by [[capabilities/bases#Note records|Note records]].
 
+An adapter never parses Markdown: what the author wrote arrives as nodes, metadata values
+included ([[capabilities/markdown#Document nodes]],
+[[capabilities/markdown-frontmatter#Document node]]).
+
 The boundary has no Python types, package entry points, application names, or
 output-format terms. An implementation may change language without changing either
 JSON contract.

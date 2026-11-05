@@ -28,8 +28,8 @@ holds the values as JSON. Its `children` hold every nonempty string value parsed
 Markdown, one `field` node each, in frontmatter order.
 
 `attrs.name` is the value's dotted field
-path, a list item by its index (`product.name`, `authors.0`). Marks, links, wikilinks and images
-in a value arrive as the same inline nodes as in
+path, a list item by its index (`product.name`, `authors.0`). Marks, links, wikilinks, images
+and TeX math in a value arrive as the same inline nodes as in
 [[capabilities/markdown#Document nodes|chapter text]]; numbers, booleans and dates stay data only.
 
 ## Authoring example
