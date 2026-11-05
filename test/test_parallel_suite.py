@@ -45,3 +45,37 @@ def test_a_module_runs_on_one_worker_unless_a_test_names_its_own_group() -> None
 
     assert [item.get_closest_marker("xdist_group").args[0] for item in items] == [
         "test/test_a.py", "test/test_a.py", "own"]
+
+
+def test_each_part_writes_its_junit_report_into_the_directory_se_names(tmp_path) -> None:
+    import suite
+
+    reports = {part: suite.part_command(part, ["--durations=10"], {"SE_TEST_REPORTS": str(tmp_path)})
+               for part in suite.PARTS}
+    unnamed = suite.part_command(suite.ROOT, [], {})
+
+    assert [argument for argument in reports[suite.ROOT] if argument.startswith("--junitxml=")] == [
+        f"--junitxml={tmp_path / 'core.xml'}"]
+    assert {argument for command in reports.values() for argument in command
+            if argument.startswith("--junitxml=")} == {
+        f"--junitxml={tmp_path / (suite.part_name(part).replace('/', '-') + '.xml')}" for part in suite.PARTS}
+    assert not [argument for argument in unnamed if argument.startswith("--junitxml")]
+
+
+def test_the_parts_run_side_by_side_and_any_failed_part_fails_the_suite(monkeypatch, capsys) -> None:
+    import threading
+
+    import suite
+
+    together = threading.Barrier(len(suite.PARTS), timeout=10)
+
+    def run_part(part, arguments):
+        together.wait()
+        return (1 if part == suite.ROOT else 0), f"== {suite.part_name(part)} {arguments}\n"
+
+    monkeypatch.setattr(suite, "run_part", run_part)
+
+    assert suite.main(["-x"]) == 1
+    output = capsys.readouterr()
+    assert all(f"== {suite.part_name(part)} ['-x']" in output.out for part in suite.PARTS)
+    assert "failed parts: core." in output.err
