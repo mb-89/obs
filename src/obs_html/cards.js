@@ -8,10 +8,8 @@
   let owners;
   let pending = false;
   let initialized = !globalThis.obsStartup;
-  const values = (record, field) => {
-    const value = record.fields[field.toLocaleLowerCase()];
-    return (Array.isArray(value) ? value : [value]).filter(item => item !== undefined && item !== null);
-  };
+  // A distinct count reads the property its conditions read (capabilities/queries#Conditions).
+  const values = (record, field) => globalThis.obsQuery.propertyTexts(record, field);
   function owner(path) {
     owners ||= new Map(report.records.map(record => [record.sourcePath, record]));
     return owners.get(path);

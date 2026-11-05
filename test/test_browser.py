@@ -93,7 +93,8 @@ def test_tag_navigation_uses_bases_filter_grammar(tmp_path: Path) -> None:
     (tmp_path / "owner.md").write_text(
         "# Owner\n\nDoes the datum continue? #mark/open_point/datum_a_continuity\n", encoding="utf-8",
     )
-    (tmp_path / "decoy.md").write_text("# Decoy\n\n" + table.format(kind="OPEN_POINT"), encoding="utf-8")
+    # Bases text ignores case (capabilities/bases#Comparisons), so the decoy names another kind.
+    (tmp_path / "decoy.md").write_text("# Decoy\n\n" + table.format(kind="risk"), encoding="utf-8")
     (tmp_path / "register.md").write_text("# Register\n\n" + table.format(kind="open_point"), encoding="utf-8")
     manifest = tmp_path / "manifest.md"
     manifest.write_text("- [[owner]]\n- [[decoy]]\n- [[register]]\n", encoding="utf-8")

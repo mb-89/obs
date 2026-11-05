@@ -102,8 +102,10 @@
         "properties": {
           "field": {"type": "string", "minLength": 1, "maxLength": 256},
           "equals": {"type": "string", "maxLength": 512},
-          "exists": {"const": true}
+          "exists": {"const": true},
+          "matchCase": {"const": true, "$comment": "capabilities/queries#Conditions: makes equals case-sensitive."}
         },
+        "dependentRequired": {"matchCase": ["equals"]},
         "oneOf": [{"required": ["equals"]}, {"required": ["exists"]}]
       }
     }

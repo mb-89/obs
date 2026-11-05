@@ -27,16 +27,26 @@ Base in an included note selects are included in the Document too
 
 ## Comparisons
 
-Obsidian's [[obsidian-bases-syntax|Bases syntax]] is the reference: `==`
-and `!=` work on any value, text, numbers and booleans are distinct primitive types, and text
-comparison is case-sensitive (a filter that wants another case calls
-[[obsidian-bases-functions|lower()]], which this subset does not support).
+One rule set selects notes everywhere: Bases filters and query conditions, in the core and in
+the browser, and the report's drill-downs and reader filter. The shared conformance fixture
+`test/fixtures/bases-filter-conformance.json` checks every evaluator.
 
-Every evaluator, in the core and in the browser, follows these rules, and the shared
-conformance fixture `test/fixtures/bases-filter-conformance.json` checks them:
+Obsidian's [[obsidian-bases-syntax|Bases syntax]] is the reference for `==` and `!=`. Where
+this rule set differs, a good system comes before full compatibility, and the rule says so.
 
-- **Case:** text equals text only with the same characters in the same case; `"Open"` does not
-  equal `"open"`.
+- **Case:** text equals text when the two differ at most in letter case: `"Open"` equals
+  `"open"`. Each runtime's case-insensitive regular-expression matching pairs the letters.
+
+  Obsidian compares text case-sensitively; this rule set does not, because a reader selects
+  by meaning, not by spelling. A query condition asks for the exact case with its flag
+  ([[capabilities/queries#Conditions]]); a Bases filter cannot, as Obsidian's syntax has no
+  place for a flag.
+- **Property names:** a name matches a frontmatter key that differs at most in letter case,
+  at every dotted segment. A key spelled exactly the same wins, otherwise the note's first
+  such key. The `note.` prefix and the `file.*` properties are written in lower case.
+
+  Obsidian's reference does not say whether names ignore case; this rule set pairs names
+  with values.
 - **Types:** text, numbers and booleans never equal each other: the number `1` does not equal
   the text `"1"`, nor `true` the text `"true"`. A whole number equals its decimal form (`1` and
   `1.0`). A list never equals a single literal.

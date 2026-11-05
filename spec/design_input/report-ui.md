@@ -1210,6 +1210,13 @@ separate from document presentation.
 - Search and Filter use the same query runtime. All chapter frontmatter fields participate in
   bare and field-specific queries. That runtime owns the report's browser port
   of the filter language implemented by `quack_v5/src/tui/draw/filter.go`.
+- A field clause selects by the one rule set ([[capabilities/bases#Comparisons]]): it resolves
+  a note property and tests its text as [[capabilities/queries#Conditions]] does. Words,
+  wildcards and regular expressions ignore case; a `c` after a regular expression
+  (`status: /^Open$/c`) matches case, as a condition's `matchCase` does.
+
+  A name that is no note property falls back to the reader's own fields (title, text, slug,
+  depth, marks, query aliases); a `note.` prefix asks for the property alone.
 - Every query-language help button is square and exactly the same height as its adjacent query
   input.
 - Filter narrows the chapter set represented by the table of contents and previous/next
@@ -1246,6 +1253,10 @@ separate from document presentation.
   its represented records; a strand selects the exact trace rather than unrelated paths
   sharing an item. Every selection is an ordinary valid, editable query, not an invisible
   record-ID set.
+
+  A selection writes its conditions as `note.` clauses with the same exact pattern the count
+  compares with, so it retains exactly the rows its count counted, rows differing only in
+  case included.
 - Reviewed copies restore the last applied global query, its Filter input, and an open Filter
   bar. Cleared or closed filters reopen unfiltered with the bar closed; invalid drafts reopen
   with the preceding valid query, not the draft. A stored query that no longer compiles stays
@@ -1300,8 +1311,8 @@ separate from document presentation.
 
   Activating an open attribute pill again closes its menu.
 
-  Selecting values produces exact field clauses;
-  values selected from the same field are joined with `OR`.
+  Selecting values produces exact field clauses that match case, because a pill counts one
+  spelling; values selected from the same field are joined with `OR`.
 
   Facet selections remain visible as
   removable `field: value` pills after their value menu closes.

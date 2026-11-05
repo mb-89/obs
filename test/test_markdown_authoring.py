@@ -25,7 +25,7 @@ def test_home_contains_only_authored_tables_and_preserves_placement(tmp_path):
     assert decode_report_data(render_report(manifest, parse_manifest(manifest)))["notes"][0]["tables"] == []
 
 
-def test_standard_bases_typed_comparisons_and_note_prefix():
+def test_bases_comparisons_are_typed_and_ignore_case_with_note_prefix():
     root = Path(__file__).resolve().parents[1]
     script = r"""
 const fs = require("node:fs"), vm = require("node:vm");
@@ -43,7 +43,8 @@ console.log(JSON.stringify({
 }));
 """
     result = subprocess.run(["node", "-e", script], cwd=root, capture_output=True, text=True, check=True)
-    assert json.loads(result.stdout) == {"exact": [True, False, False], "nulls": [False, True, True]}
+    # capabilities/bases#Comparisons: text ignores case; a list never equals a single literal.
+    assert json.loads(result.stdout) == {"exact": [True, True, False], "nulls": [False, True, True]}
 
 
 def test_standard_not_means_none_and_grouping_is_one_property(tmp_path):
