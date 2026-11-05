@@ -8,10 +8,12 @@ import pytest
 from filelock import FileLock
 
 import browser_pool
+import network_guard
 import tiers
 
 
 _close_browser_pool = browser_pool.install()
+network_guard.install()
 
 
 def pytest_addoption(parser):
@@ -34,8 +36,15 @@ def group_by_module(items) -> None:
 
 
 @pytest.hookimpl(wrapper=True)
+def pytest_runtest_protocol(item, nextitem):
+    with network_guard.running(item.nodeid):
+        return (yield)
+
+
+@pytest.hookimpl(wrapper=True)
 def pytest_runtest_makereport(item, call):
     report = yield
+    network_guard.fail(report)
     tiers.make_report(item, report)
     return report
 
