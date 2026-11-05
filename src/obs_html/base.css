@@ -1786,7 +1786,8 @@ math {
 }
 
 .filter-warning,
-.document-warning {
+.document-warning,
+.capability-notice {
     align-items: center;
     background: var(--color-warning-soft);
     border: var(--border-width) solid var(--color-warning);
@@ -1820,6 +1821,37 @@ math {
 .document-warning button {
     color: var(--color-text);
     max-width: 100%;
+}
+
+.capability-notice details {
+    max-width: 32rem;
+}
+
+.capability-notice summary {
+    cursor: pointer;
+    font-weight: 600;
+}
+
+.capability-notice ul {
+    color: var(--color-text);
+    margin: 0.4rem 0 0.2rem;
+    max-height: 50vh;
+    overflow-y: auto;
+    padding-inline-start: 1.1rem;
+}
+
+.capability-notice li + li {
+    margin-block-start: 0.3rem;
+}
+
+.capability-notice li strong {
+    margin-inline-end: 0.3rem;
+}
+
+.capability-message {
+    color: var(--color-warning);
+    font: 0.8rem var(--font-interface);
+    margin-inline-start: 0.4rem;
 }
 
 .data-table-shell[data-filter-active="true"] {
