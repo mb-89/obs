@@ -17,3 +17,9 @@ Embed supported note and Base content in authored Markdown.
 ```markdown
 ![[shared-note]]
 ```
+
+## Document node
+
+An `embeds` node keeps the `target` as authored and adds `chapter`: the id of the included
+chapter the target resolves to, or `null` when the note is outside the manifest. The node's
+attributes are defined by `src/obs/document.schema.json`.
