@@ -38,11 +38,15 @@ reads nothing from the vault. Its attributes are defined by `src/obs/document.sc
   like a `base` fence ([[generic-tables#Bases filter grammar]]).
 - `view`: the index in `base.views` of the view `heading` names, or `null` when the embed names
   none and embeds all views with a selector ([[input-model#Registers]]).
-- `rows`: one entry per view of `base.views`, in order: the ids of the note records the view
-  selects, in `records` order, or `null` for a view whose rows are not note records
-  (`obsHtml.records` other than `note`). The core's one selection evaluator selects them by the
+- `rows`: one entry per view of `base.views`, in order: the ids of the records the view
+  selects, in `records` order. The core's one selection evaluator selects them by the
   rules of [[capabilities/bases#Comparisons]], the same that decide which notes the Document
   includes.
+
+The view's `obsHtml.records`, else the base's, names the record type its rows have: `note`,
+`chapter`, `tag`, `glossary`, `documentMetadata` or `documentHistory`, `note` when neither
+names one. `src/obs/document.schema.json` (`$defs/record`) defines each record type and its
+fields; [[generic-tables#Bases filter grammar]] owns how a filter resolves them.
 
 A register embed whose `.base` file does not exist, is not valid Base YAML, or whose heading
 names no view of the file is an input error that names the embedding note and the remedy.
