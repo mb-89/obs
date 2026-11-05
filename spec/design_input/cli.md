@@ -61,6 +61,14 @@ and the provenance carries only the package version. Either form resolves depend
 from the ranges in `pyproject.toml`, not from `uv.lock`; builds that must match the lock
 run `uv run` in the checkout. Remove the tool with `uv tool uninstall obs-html`.
 
+## PDF output
+
+Generation writes HTML only; a PDF comes from `--export-pdf` on the generated HTML. Generation
+therefore refuses an `--output` ending in `.pdf` instead of writing HTML into a file a reader
+would open as a PDF, and its message names the two-step remedy. Refusing was chosen over
+exporting in the same call because it is the smaller change and keeps generation independent
+of a browser.
+
 ## Rendered check
 
 `--check` proves the source; `--check-rendered` proves that the delivered HTML opens

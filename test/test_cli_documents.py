@@ -84,6 +84,19 @@ def test_several_documents_need_unambiguous_pairs(arguments, message, capsys) ->
     assert message in capsys.readouterr().err
 
 
+def test_generation_refuses_a_pdf_output_and_names_the_export_remedy(tmp_path, capsys) -> None:
+    vault = _vault(tmp_path, "alpha", "First.")
+    output = tmp_path / "document.PDF"
+
+    with pytest.raises(SystemExit, match="2"):
+        main(["--source", str(vault), "--output", str(output)])
+    err = capsys.readouterr().err
+    assert "obs-html: error: --output " in err
+    assert "generation writes HTML, not PDF" in err
+    assert f"--export-pdf {output.with_suffix('.html')} --output {output}" in err
+    assert not output.exists()
+
+
 def test_check_accepts_several_sources_without_outputs(tmp_path, capsys) -> None:
     first = _vault(tmp_path, "alpha", "First.")
     second = _vault(tmp_path, "beta", "Second.")
