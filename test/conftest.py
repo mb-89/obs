@@ -32,3 +32,4 @@ def document_validator(core_root: Path) -> Draft202012Validator:
 @pytest.fixture
 def document() -> dict[str, object]:
     return json.loads(FIXTURE.read_text(encoding="utf-8"))
+

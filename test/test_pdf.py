@@ -14,12 +14,15 @@ PIXEL = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjC
 
 def test_pdf_destination_prints_the_rendered_document(tmp_path, capsys) -> None:
     destination = tmp_path / "document.pdf"
+    (tmp_path / "images").mkdir()
+    (tmp_path / "images" / "logo.png").write_bytes(base64.b64decode(PIXEL))
     cli.main([str(FIXTURE), str(destination), "--execute-commands", "--command-root", str(tmp_path)])
     reader = PdfReader(BytesIO(destination.read_bytes()))
     box = reader.pages[0].mediabox
     assert (round(float(box.width) / 72 * 25.4, 1), round(float(box.height) / 72 * 25.4, 1)) == (215.9, 279.4)
     assert "Fixture document" in reader.pages[0].extract_text()
     assert len(reader.pages) >= 4  # Cover, contents, abstract and chapters start new pages.
+    assert sorted(path.name for path in tmp_path.iterdir()) == ["document.pdf", "images"]
 
 
 def test_export_pdf_and_rendered_check_read_existing_html(tmp_path, capsys) -> None:
