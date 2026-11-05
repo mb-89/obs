@@ -1752,12 +1752,12 @@ def test_native_live_pages_and_split_pdf(tmp_path: Path, native_reader_report) -
 
 
 def test_browser_and_generation_share_definition_validation() -> None:
-    valid = {"views": [{"type": "table", "order": ["chapter", "bottom line"]}]}
+    valid = {"views": [{"type": "table", "order": ["chapter", "project status"]}]}
     viewport = {**valid, "obsHtml": {"maxRows": 10}}
     definitions = [
         valid,
         viewport,
-        {**valid, "filters": {"and": ['chapter != null', 'note["bottom line"] != null']}},
+        {**valid, "filters": {"and": ['chapter != null', 'note["project status"] != null']}},
         {**valid, "filters": {"not": {"or": ['type == "risk"', 'type != "issue"']}}},
         {**valid, "filters": "unsupported()"},
         {**valid, "filters": {"or": []}},
@@ -1811,18 +1811,18 @@ def test_browser_yaml_and_queries_handle_spaced_fields_and_errors() -> None:
 const yaml = `filters:
   and:
     - chapter == "One"
-    - note["bottom line"] != null
+    - note["project status"] != null
 views:
   - type: table
-    order: [chapter, bottom line]
+    order: [chapter, project status]
 `;
 const definition = context.obsBases.parse(yaml);
 const query = context.obsQuery.compile(context.obsBases.filterExpression(definition.filters));
-assert.equal(query.match({fields: {chapter: "One", "bottom line": "Result"}}), true);
+assert.equal(query.match({fields: {chapter: "One", "project status": "Result"}}), true);
 assert.equal(query.match({fields: {chapter: "One"}}), false);
-assert.equal(query.match({fields: {chapter: "Two", "bottom line": "Result"}}), false);
-assert.equal(context.obsQuery.compile('"bottom line": result').match({fields: {"bottom line": "RESULT"}}), true);
-assert.equal(context.obsQuery.compile('NOT "bottom line": result').match({fields: {"bottom line": "other"}}), true);
+assert.equal(query.match({fields: {chapter: "Two", "project status": "Result"}}), false);
+assert.equal(context.obsQuery.compile('"project status": result').match({fields: {"project status": "RESULT"}}), true);
+assert.equal(context.obsQuery.compile('NOT "project status": result').match({fields: {"project status": "other"}}), true);
 const exact = context.obsQuery.compile(context.obsBases.filterExpression('chapter == "One"'));
 assert.equal(exact.match({fields: {chapter: "One"}}), true);
 assert.equal(exact.match({fields: {chapter: "Someone"}}), false);
@@ -2063,7 +2063,7 @@ def test_complete_document_dom_interactions(tmp_path: Path) -> None:
         "subtitle: 'Bridge **subtitle** ![Obsidian](https://example.invalid/obsidian.svg) "
         "![HTML](https://example.invalid/html.svg)'\n"
         "status: active\nowners: {team: [Ada, Lin]}\n"
-        "obsHtml: {bottomLine: {title: '[[bluf|Bottom line upfront]]'}}\n---\n"
+        "---\n"
         "- [[parent|Parent]]\n  - [[child|Child]]\n    - [[node|Node]]\n"
         "- [[glossary|Glossary]]\n- [[tags|Tags]]\n- [[references|References]]\n"
         "\n> [!important]\n> Abstract prose.\n"

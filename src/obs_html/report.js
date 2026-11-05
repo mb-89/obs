@@ -221,7 +221,7 @@
             (node) => node.textContent.trim(),
         ).filter(Boolean);
         const summary = document.createElement("template");
-        summary.innerHTML = record.bottomLineHtml || record.definitionHtml || "";
+        summary.innerHTML = record.definitionHtml || "";
         const lead = summary.content.textContent.trim();
         return shortenPreview(
             [lead, ...paragraphs.filter((text) => text !== lead)].filter(Boolean).join(" "),
@@ -304,7 +304,7 @@
         card.append(cardTitle(record.title, href));
         const metadata = document.createElement("dl");
         record.metadataEntries.filter(([key]) =>
-            !["title", "term", "aliases", "definition", "bottom line"].includes(key.toLocaleLowerCase()),
+            !["title", "term", "aliases", "definition"].includes(key.toLocaleLowerCase()),
         ).slice(0, previewConfig.metadataEntries).forEach(([key, value]) => {
             const detail = document.createElement("dd");
             const rendered = record.frontmatterHtml?.[key];
@@ -818,12 +818,6 @@
             ancestors.length = record.depth;
             const parentKey = record.depth ? ancestors[record.depth - 1] || "" : "";
             ancestors[record.depth] = record.slug;
-            const bottomLine = record.bottomLineHtml
-                ? (() => {
-                    contentTemplate.innerHTML = record.bottomLineHtml;
-                    return contentTemplate.content.textContent.trim();
-                })()
-                : "";
             const ownFields = noteOwnFields(record);
             const row = tableRecord(record.slug, {
                 ...Object.fromEntries(record.metadataEntries),
@@ -832,7 +826,6 @@
                 chapter: record.title,
                 title: record.title,
                 sourcePath: record.sourcePath,
-                ...(bottomLine ? {"bottom line": bottomLine} : {}),
                 depth: String(record.depth),
                 slug: record.slug,
             }, {
@@ -845,12 +838,9 @@
                         ([field, html]) => [field, {type: "html", html}],
                     )),
                     chapter: {type: "link", href: `#${record.slug}`, label: record.title},
-                    "bottom line": {type: "html", html: record.bottomLineHtml},
                 },
             });
-            if (bottomLine) row.fields["bottom line"] = bottomLine;
-            else delete row.fields["bottom line"];
-            row.haystack = `${record.title} ${bottomLine}`;
+            row.haystack = record.title;
             return row;
         });
     };

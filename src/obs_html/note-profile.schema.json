@@ -40,16 +40,6 @@
         "then": {"not": {"required": ["title"]}}
       }
     },
-    "bottomLine": {
-      "type": "object",
-      "additionalProperties": false,
-      "default": {"title": "Bottom line upfront", "position": "beforeTitle"},
-      "description": "Manifest only: the chapter bottom-line card. Omitted keys use the defaults.",
-      "properties": {
-        "title": {"type": "string", "pattern": "^$|\\S", "description": "Inline Markdown card title; empty omits the heading."},
-        "position": {"enum": ["beforeTitle", "afterTitle"], "description": "Above or below the chapter's first first-level heading."}
-      }
-    },
     "figures": {
       "type": "object",
       "additionalProperties": false,
