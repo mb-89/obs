@@ -338,8 +338,8 @@ central stylesheet embedded into the generated HTML.
   From a note outside the TOC, the Home icon always navigates Home; the note's current crumb
   neither invents a TOC path nor intercepts the Home link.
 - No table of contents, filter, toolbar, or navigation bar is open initially.
-- The top band is one row and holds every top control: Home, the breadcrumbs, the chapter
-  controls, the notice icons and the menu. The notice icons sit directly left of the menu.
+- The top band is one row and holds every top control: Home, the breadcrumbs, the
+  frontmatter chevron, the notice icons and the menu. The notice icons sit directly left of the menu.
   Every control in the band is a square of one size. No control takes a row of its own.
 - Each table-options icon shows a small, top-right funnel bubble while its interactive
   filter is active, even if it matches every record. Its label/tooltip expose that state.
@@ -1147,20 +1147,20 @@ separate from document presentation.
   The applied-filter information entry's details hold the filter and its clear action.
   Clearing a filter does not remove the changed-HTML entry.
 
-  Each capability canary that reports limited raises its own warning entry, naming the
-  feature, why the host limits it, what was observed and the remedy, for example "Open
-  the HTML file directly in a browser to print".
+  The artifact includes a host-dependent feature, with its code, controls and canary, only
+  when its Document uses it or the artifact always offers it. A feature that is not included
+  raises nothing.
 
-  The canaries are one registry in
-  obs-html's `capabilities.js` (history updates, storage, printing, modal dialogs,
-  downloads, clipboard, popups) and run before any feature is used.
+  A canary decides or stays silent. A canary that observes a refusal raises one warning
+  entry: the feature, why the host refuses it, what was observed and the remedy, for example
+  "Open the HTML file directly in a browser to print".
 
-  A probe never blocks or throws, and a refused or unknown result counts as limited.
+  A canary that cannot decide raises nothing at load. The feature is tried on use, and an
+  observed failure then shows the reason and remedy inline and raises the warning.
 
-  A limited feature degrades in place: its control shows the same reason and remedy
-  inline, never through a modal dialog, and Print to PDF never stays in its preparing
-  state. In a host that allows everything there is no warning and no visible delay.
-  Probes, reasons and remedies are owned by the registry, not repeated here.
+  No feature uses a browser dialog; its messages are inline. Print to PDF never stays in
+  its preparing state. The registry and its entries are owned by obs-html's
+  `capabilities.js`; the list of abilities is not repeated here.
 
   Generic reader-facing controls and messages call the artifact HTML, not a report.
   Where its semantic name is useful, derive it from the authored document type;
