@@ -43,6 +43,10 @@ arrive as structural nodes, which every adapter renders; `document.schema.json` 
   (the formula as `text`; `attrs.display` is false for `$x$` and true for `$$x$$` inside a
   line, which Obsidian shows as display math).
 
+A `list` says whether it is numbered (`attrs.ordered`) and whether it was authored tight
+(`attrs.tight`): true where no blank line separates its items or their blocks, as CommonMark
+defines a tight list, so an adapter renders a loose list's paragraphs as paragraphs.
+
 Every place that holds Markdown yields these nodes: chapter and abstract text, list items,
 callout, quote and card bodies, table cells, and frontmatter values
 ([[capabilities/markdown-frontmatter#Document node]]). A list item holds any block, including a
