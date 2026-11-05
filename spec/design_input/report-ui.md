@@ -55,10 +55,6 @@ desktop paper width. They stack only when the available reader width cannot supp
 readable columns; the default single-column card layout is not imposed over that
 authored composition.
 
-Compact overview blocks and their canonical bottom-line table should fit one abstract
-sheet when their actual content fits the configured paper.
-Do not shrink fonts, discard content or hard-code a domain-specific page height to fit.
-
 Content-card grids must not make a short metrics card as tall as an adjacent evidence-table
 card; cards follow their content height while retaining responsive columns. Embedded tables
 in cards use the shared table runtime with compact, readable row spacing, not the full-density
@@ -180,19 +176,6 @@ central stylesheet embedded into the generated HTML.
   and neutral border and text colors for quote. A soft fill, matching border and the title carry
   the tone, so the type remains identifiable without color. Callouts keep these colors in light,
   dark, paged and print views.
-- The opening takeaway is one explicit, concise claim.
-
-  The generated chapter bottom-line table
-  supplies the overview; do not precede it with a second manually maintained chapter synopsis.
-
-  A bottom line expresses one conclusion in one short sentence, with an essential qualification
-  where omitting it would overstate the evidence.
-
-  Methods, assumptions, detailed figures and
-  supporting arguments belong in the chapter body, not in a paragraph-length bottom line.
-
-  Editorial judgment owns concision; never truncate authored content automatically.
-
 ## Interactive engineering figures
 
 - A shared figure presentation owns images, screenshots, plots, and diagrams, not only
@@ -409,10 +392,10 @@ central stylesheet embedded into the generated HTML.
 - Preview data is derived lazily from the canonical note, never a second serialized record.
 
   Show its title, a bounded set of flattened metadata values (excluding duplicated title,
-  term, aliases, definition, and bottom line), and a plain-text excerpt.
+  term, aliases, and definition), and a plain-text excerpt.
 
-  Prefer the bottom line or glossary
-  definition, then prose paragraphs; omit tables, code, images, and interactive content.
+  Prefer the glossary definition, then prose paragraphs; omit tables, code, images, and
+  interactive content.
 
   Limits and delays belong to packaged configuration, with project overrides.
 - A single viewport-contained card is shared by all links, including dynamically rendered
@@ -530,7 +513,7 @@ Lifecycle and content (decided by the user, 4 Nov 2026, option B):
     (prose, command or query);
   - glossary term: term and definition;
   - mark: kind, label and the marked paragraph's text;
-  - any other note: title, bottom line, first paragraph, as the preview shows today.
+  - any other note: title and first paragraph, as the preview shows today.
 
 ## Overlays
 
@@ -1286,7 +1269,7 @@ separate from document presentation.
   distinct atomic value and its distinct-value count is no greater than the configured fraction
   of records where that field is populated.
 
-  No field, including `bottom line`, is special-cased.
+  No field is special-cased.
   Curated catalogs follow this same gate; curation does not make constant or
   near-unique values discriminative. Apply the same rule to global and table-local
   suggestion surfaces while retaining valid typed queries over non-facet fields.
@@ -1378,20 +1361,6 @@ separate from document presentation.
   Multiple tags never cause nested or repeated borders.
 
   The source syntax is unchanged.
-- A chapter with the semantic bottom-line field defined in [[input-model]] renders that value in
-  this card treatment, above or below its first heading as the manifest's
-  `obsHtml.bottomLine.position` declares.
-
-  Its title is the manifest's `obsHtml.bottomLine.title` (default "Bottom line upfront"). The
-  maintained manifest links that title explicitly to the BLUF presentation principle, distinct
-  from the canonical Bottom line content concept; their semantic relationship is owned by
-  [[input-model]].
-
-  The card contains the
-  title and authored content.
-
-  All chapters use the same treatment; the first chapter has no
-  special navigation.
 
   Authors may place ordinary Markdown links or wikilinks in that content.
 - A paragraph marked with [[input-model#Mark tags]] uses an 80/20 text-and-marks layout. Authored prose occupies at most 80% of the
