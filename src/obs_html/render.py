@@ -335,6 +335,8 @@ def _attach_records(records: list[dict[str, object]], notes: list[dict[str, obje
         fields = dict(record["fields"])
         note = by_slug.get(record["id"])
         source_path = record.get("path") or f"{record['id']}.md"
+        if note is not None and record.get("ignored"):
+            note["ignored"] = True  # Runtime selections skip it (report.js, selectable).
         if note is not None and not note["generated"]:
             note["frontmatter"] = {**fields, **note["frontmatter"]}
             note["frontmatterHtml"] = _frontmatter_html(note["frontmatter"], context)
@@ -349,6 +351,7 @@ def _attach_records(records: list[dict[str, object]], notes: list[dict[str, obje
             "frontmatter": fields, "editableProperties": {},
             "frontmatterHtml": _frontmatter_html(fields, context),
             "definitionHtml": "", "marks": [], "tables": [], "html": "", "record": True,
+            **({"ignored": True} if record.get("ignored") else {}),
         })
 
 

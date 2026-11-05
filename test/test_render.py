@@ -194,6 +194,20 @@ def test_the_filter_check_accepts_and_refuses_what_the_shared_conformance_fixtur
             _render(_filtered(filters))
 
 
+def test_an_ignored_record_marks_its_note_and_an_ignored_chapter_stays_in_the_reading_order() -> None:
+    link = node("wikilinks", target="kept", chapter="kept", heading="", label="kept")
+    source = build("Ignored", chapter("kept", "Kept"), chapter("index", "Index", paragraph(link)), records=(
+        {"id": "kept", "type": "note", "path": "kept.md", "fields": {"ignored": True}, "ignored": True},
+        {"id": "aside", "type": "note", "path": "aside.md", "fields": {"ignored": True}, "ignored": True},
+        {"id": "index", "type": "note", "path": "index.md", "fields": {}}))
+    model = _model(source)
+    notes = {note["slug"]: note for note in model["notes"]}
+    assert notes["kept"]["ignored"] is True and notes["aside"]["ignored"] is True
+    assert "ignored" not in notes["index"]
+    assert "kept" in model["toc"]
+    assert '<a class="internal-link" href="#kept">Kept</a>' in notes["index"]["html"]
+
+
 def test_command_fences_render_escaped_output_and_skip_silent_producers(document) -> None:
     commands = []
     notes = _notes(document, lambda command: commands.append(command) or "<b>derived</b>\n")
