@@ -1,0 +1,279 @@
+{
+  "schemaVersion": 1,
+  "manifest": {
+    "title": "Design notes",
+    "metadata": {
+      "title": "Design notes"
+    },
+    "abstract": [
+      {
+        "type": "markdown-frontmatter",
+        "attrs": {
+          "metadata": {
+            "title": "Design notes"
+          }
+        },
+        "children": []
+      },
+      {
+        "type": "manifest",
+        "attrs": {},
+        "children": []
+      }
+    ]
+  },
+  "chapters": [
+    {
+      "id": "one",
+      "title": "One",
+      "content": [
+        {
+          "type": "markdown-frontmatter",
+          "attrs": {
+            "metadata": {
+              "explanation": "Original",
+              "status": "draft"
+            }
+          },
+          "children": []
+        },
+        {
+          "type": "chapter-inclusion",
+          "attrs": {
+            "id": "one"
+          },
+          "children": []
+        },
+        {
+          "type": "markdown",
+          "attrs": {},
+          "children": []
+        },
+        {
+          "type": "section",
+          "attrs": {
+            "level": 1
+          },
+          "children": [
+            {
+              "type": "text",
+              "attrs": {},
+              "children": [],
+              "text": "One"
+            }
+          ]
+        },
+        {
+          "type": "paragraph",
+          "attrs": {},
+          "children": [
+            {
+              "type": "text",
+              "attrs": {},
+              "children": [],
+              "text": "Reviewable text."
+            }
+          ]
+        },
+        {
+          "type": "paragraph",
+          "attrs": {},
+          "children": [
+            {
+              "type": "attachments",
+              "attrs": {
+                "asset": "sample",
+                "label": "Sample"
+              },
+              "children": []
+            }
+          ]
+        },
+        {
+          "type": "code",
+          "attrs": {
+            "language": "property-editor"
+          },
+          "children": [],
+          "text": "version: 1\nfield: explanation\nlabel: Explanation\n"
+        },
+        {
+          "type": "bases",
+          "attrs": {
+            "source": "obsHtml: {records: note}\nviews:\n  - type: table\n    order: [title, status, explanation]\n",
+            "spec": {
+              "obsHtml": {
+                "records": "note"
+              },
+              "views": [
+                {
+                  "type": "table",
+                  "order": [
+                    "title",
+                    "status",
+                    "explanation"
+                  ]
+                }
+              ]
+            }
+          },
+          "children": []
+        }
+      ],
+      "children": [],
+      "metadata": {
+        "explanation": "Original",
+        "status": "draft"
+      }
+    },
+    {
+      "id": "two",
+      "title": "Two",
+      "content": [
+        {
+          "type": "markdown-frontmatter",
+          "attrs": {
+            "metadata": {
+              "explanation": "Original",
+              "status": "draft"
+            }
+          },
+          "children": []
+        },
+        {
+          "type": "chapter-inclusion",
+          "attrs": {
+            "id": "two"
+          },
+          "children": []
+        },
+        {
+          "type": "markdown",
+          "attrs": {},
+          "children": []
+        },
+        {
+          "type": "section",
+          "attrs": {
+            "level": 1
+          },
+          "children": [
+            {
+              "type": "text",
+              "attrs": {},
+              "children": [],
+              "text": "Two"
+            }
+          ]
+        },
+        {
+          "type": "paragraph",
+          "attrs": {},
+          "children": [
+            {
+              "type": "text",
+              "attrs": {},
+              "children": [],
+              "text": "Reviewable text."
+            }
+          ]
+        },
+        {
+          "type": "paragraph",
+          "attrs": {},
+          "children": [
+            {
+              "type": "attachments",
+              "attrs": {
+                "asset": "sample",
+                "label": "Sample"
+              },
+              "children": []
+            }
+          ]
+        },
+        {
+          "type": "code",
+          "attrs": {
+            "language": "property-editor"
+          },
+          "children": [],
+          "text": "version: 1\nfield: explanation\nlabel: Explanation\n"
+        },
+        {
+          "type": "bases",
+          "attrs": {
+            "source": "obsHtml: {records: note}\nviews:\n  - type: table\n    order: [title, status, explanation]\n",
+            "spec": {
+              "obsHtml": {
+                "records": "note"
+              },
+              "views": [
+                {
+                  "type": "table",
+                  "order": [
+                    "title",
+                    "status",
+                    "explanation"
+                  ]
+                }
+              ]
+            }
+          },
+          "children": []
+        }
+      ],
+      "children": [],
+      "metadata": {
+        "explanation": "Original",
+        "status": "draft"
+      }
+    }
+  ],
+  "links": [],
+  "assets": [
+    {
+      "id": "sample",
+      "href": "sample.svg",
+      "mediaType": "image/svg+xml"
+    }
+  ],
+  "records": [
+    {
+      "id": "manifest",
+      "type": "note",
+      "path": "manifest.md",
+      "fields": {
+        "title": "Design notes"
+      }
+    },
+    {
+      "id": "one",
+      "type": "note",
+      "path": "one.md",
+      "fields": {
+        "explanation": "Original",
+        "status": "draft"
+      }
+    },
+    {
+      "id": "two",
+      "type": "note",
+      "path": "two.md",
+      "fields": {
+        "explanation": "Original",
+        "status": "draft"
+      }
+    }
+  ],
+  "semanticResources": [],
+  "diagnostics": [],
+  "capabilities": [
+    "attachments",
+    "bases",
+    "chapter-inclusion",
+    "manifest",
+    "markdown",
+    "markdown-frontmatter"
+  ]
+}
