@@ -10,7 +10,8 @@ from referencing import Registry, Resource
 ROOT = Path(__file__).parents[1]
 FIXTURE = ROOT / "test" / "fixtures" / "document.json"
 CORE_ROOT = Path(os.environ.get("OBS_CORE_PATH", ROOT / ".se" / "modules" / "obs"))
-SYNC_COMMAND = "uv run python ../se/scripts/se_modules.py sync"
+README = ROOT / "README.md"
+SYNC_SECTION = "Core module"
 
 
 def require_core(core_root: Path) -> Path:
@@ -19,8 +20,8 @@ def require_core(core_root: Path) -> Path:
     if not schema.is_file():
         pytest.fail(
             f"test/conftest.py: obs core module not found, no {schema}. "
-            f"Remedy: run `{SYNC_COMMAND}` from the repository root (se checked out next to "
-            "this repository), or set OBS_CORE_PATH to an obs checkout.",
+            f'Remedy: synchronize the module as {README.name}, section "{SYNC_SECTION}" says, '
+            "or set OBS_CORE_PATH to an obs checkout.",
             pytrace=False,
         )
     return core_root
