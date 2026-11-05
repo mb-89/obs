@@ -1,0 +1,16 @@
+{
+  "schemaVersion": 1,
+  "manifest": {
+    "title": "Fixture document",
+    "metadata": {}
+  },
+  "chapters": [],
+  "links": [],
+  "assets": [],
+  "records": [],
+  "semanticResources": [],
+  "diagnostics": [],
+  "capabilities": [
+    "manifest"
+  ]
+}
