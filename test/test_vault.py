@@ -62,7 +62,8 @@ def additional_capability_document(tmp_path) -> dict[str, object]:
     (vault / "register.base").write_text("views: []\n", encoding="utf-8")
     (vault / "source.csv").write_text("value\n1\n", encoding="utf-8")
     (vault / "chapter.md").write_text(
-        "---\nkind: quantity\nquery: {where: []}\nobsHtml: {document: false}\n"
+        "---\nkind: quantity\naliases: [coverage]\nsource: '[[manifest]]'\nquery: {where: []}\n"
+        "obsHtml: {document: false}\n"
         "reference: https://example.test/source\n---\n"
         "![Source](source.csv)\n\n![[register.base#Open]]\n\n"
         "```cards\nversion: 1\ncards: [{title: Coverage, body: Current state.}]\n```\n\n"
@@ -211,6 +212,71 @@ def test_a_callout_body_arrives_as_parsed_nodes_like_chapter_content(tmp_path) -
     ]}
     assert {"callouts", "wikilinks"} <= set(document["capabilities"])
     assert {"id": "site", "href": "https://example.test", "label": "site"} in document["links"]
+
+
+def test_a_card_body_arrives_as_parsed_nodes_with_its_capability_fences(tmp_path) -> None:
+    vault = tmp_path / "vault"
+    vault.mkdir()
+    (vault / "manifest.md").write_text("- [[chapter]]\n", encoding="utf-8")
+    (vault / "target.md").write_text("---\nstatus: open\n---\n# Target\n", encoding="utf-8")
+    inner_cards = '{"version": 1, "cards": [{"title": "Inner", "body": "Nested body."}]}'
+    body = (
+        "See [[target|Target]].\n\n"
+        "```base\nfilters: 'status == \"open\"'\nviews: []\n```\n\n"
+        "```cmd\necho card\n```\n\n"
+        "```figure\ncaption: Diagram\n```\n\n"
+        f"```cards\n{inner_cards}\n```\n\n"
+        "```property-editor\nversion: 1\nfield: status\nlabel: Status\n```\n"
+    )
+    cards = {"version": 1, "cards": [
+        {"title": "First", "body": body},
+        {"title": "Second", "body": "Plain text."},
+    ]}
+    (vault / "chapter.md").write_text(
+        f"```cards\n{json.dumps(cards)}\n```\n", encoding="utf-8",
+    )
+    reference = capability_reference()
+    reference["capabilities"].append({
+        "id": "property-editors", "summary": "An adapter's capability.", "authoring": "",
+        "dependsOn": [], "source": "[[adapter]]",
+    })
+
+    document = build_document(vault / "manifest.md", reference)
+
+    validate(document, json.loads((ROOT / "src" / "obs" / "document.schema.json").read_text(
+        encoding="utf-8",
+    )))
+    [node] = [node for node in document["chapters"][0]["content"] if node["type"] == "cards-metrics"]
+    assert node["attrs"]["spec"] == cards
+    first, second = node["children"]
+    assert first["type"] == second["type"] == "document"
+    assert first["attrs"] == second["attrs"] == {}
+    assert [child["type"] for child in first["children"]] == [
+        "paragraph", "bases", "command-fences", "figures", "cards-metrics", "property-editors",
+    ]
+    assert first["children"][0]["children"][1]["attrs"]["chapter"] == "target"
+    assert first["children"][4]["children"][0]["children"] == [
+        {"type": "paragraph", "attrs": {}, "children": [
+            {"type": "text", "attrs": {}, "children": [], "text": "Nested body."},
+        ]},
+    ]
+    assert second["children"] == [{"type": "paragraph", "attrs": {}, "children": [
+        {"type": "text", "attrs": {}, "children": [], "text": "Plain text."},
+    ]}]
+    assert {
+        "bases", "command-fences", "figures", "cards-metrics", "property-editors", "wikilinks",
+    } <= set(document["capabilities"])
+    assert "target" in [chapter["id"] for chapter in document["chapters"]]
+
+
+def test_a_cards_document_node_holds_only_card_body_documents() -> None:
+    schema = json.loads((ROOT / "src" / "obs" / "document.schema.json").read_text(encoding="utf-8"))
+    node_schema = {"$defs": schema["$defs"], "$ref": "#/$defs/node"}
+    body = {"type": "document", "attrs": {}, "children": []}
+    node = {"type": "cards-metrics", "attrs": {"source": "", "spec": {}}, "children": [body]}
+    validate(node, node_schema)
+    with pytest.raises(ValidationError):
+        validate({**node, "children": [{**body, "type": "paragraph"}]}, node_schema)
 
 
 def test_a_callout_document_node_has_only_kind_and_title_attrs() -> None:
