@@ -1,12 +1,13 @@
-"""Select note records by Base filters and query conditions, to decide note inclusion.
+"""Select records by Base filters and note records by query conditions.
 
 The Bases filter grammar is owned by generic-tables ("Bases filter grammar"); query
-conditions by input-model ("Chapter content"). The core uses both only to decide which
-notes a Document includes.
+conditions by input-model ("Chapter content"). The core uses both to decide which notes a
+Document includes and which records a register's views select.
 """
 from __future__ import annotations
 
 from functools import cache
+from itertools import pairwise
 from importlib.resources import files
 import json
 from pathlib import PurePosixPath
@@ -147,35 +148,56 @@ def compile_base_filter(filters: object) -> BaseFilter:
     raise _unsupported(filters)
 
 
-NoteSelector = Callable[[dict[str, object], str], bool]
-"""Whether a note record (fields, vault-relative path) is selected."""
+Record = dict[str, object]
+"""A Document record (document.schema.json, $defs/record)."""
+RecordSelector = Callable[[Record, "Record | None"], bool]
+"""Whether a record is selected, given the note record it comes from (None for a row without one)."""
+_RESOLVES_ON_NOTE = frozenset({"chapter", "glossary"})
+"""The record types whose properties other than their own fields resolve on their note (generic-tables)."""
 
 
-def view_selectors(definition: dict[str, object]) -> list[NoteSelector | None]:
-    """One selector per view of a Base definition; ``None`` for a view whose rows are not notes."""
+def record_value(record: Record, note: Record | None, field: str) -> object:
+    """Resolve a Bases property of a record: a note's frontmatter and path, else a row's own fields first."""
+    if record["type"] == "note":
+        return note_value(record["fields"], str(record["path"]), field)
+    own = record["fields"]
+    key = _key(own, field.removeprefix("note."))
+    if key is not None:
+        return own[key]
+    if record["type"] in _RESOLVES_ON_NOTE and note is not None:
+        return note_value(note["fields"], str(note["path"]), field)
+    return None
+
+
+def view_selectors(definition: dict[str, object]) -> list[RecordSelector]:
+    """One selector per view of a Base definition, over the record type its obsHtml.records names."""
     base = compile_base_filter(definition.get("filters"))
-    members = (definition.get("obsHtml") or {}).get("members")
+    profile = definition.get("obsHtml") if isinstance(definition.get("obsHtml"), dict) else {}
+    members = profile.get("members")
     paths = None if not isinstance(members, list) else {member.get("path") for member in members}
 
-    def selector(view: dict[str, object]) -> NoteSelector | None:
-        profile = view.get("obsHtml", {}) if isinstance(view.get("obsHtml"), dict) else {}
-        if profile.get("records", (definition.get("obsHtml") or {}).get("records", "note")) != "note":
-            return None
+    def selector(view: dict[str, object]) -> RecordSelector:
+        own_profile = view.get("obsHtml") if isinstance(view.get("obsHtml"), dict) else {}
+        kind = own_profile.get("records", profile.get("records", "note"))
         own = compile_base_filter(view.get("filters"))
 
-        def selects(fields: dict[str, object], path: str) -> bool:
-            if not selectable(fields) or paths is not None and path not in paths:
+        def selects(record: Record, note: Record | None) -> bool:
+            owner = record if record["type"] == "note" else note
+            if record["type"] != kind or owner is not None and (
+                not selectable(owner["fields"]) or paths is not None and owner["path"] not in paths
+            ):
                 return False
-            value_for = lambda field: note_value(fields, path, field)  # noqa: E731
+            def value_for(field: str) -> object:
+                return record_value(record, note, field)
             return base(value_for) and own(value_for)
         return selects
     return [selector(view) for view in definition.get("views", [])]
 
 
-def base_selects(definition: dict[str, object]) -> NoteSelector:
-    """Return whether any view of a Base definition selects a note record (fields, path)."""
-    views = [view for view in view_selectors(definition) if view is not None]
-    return lambda fields, path: any(view(fields, path) for view in views)
+def base_selects(definition: dict[str, object]) -> RecordSelector:
+    """Return whether any view of a Base definition selects a record, given its note."""
+    views = view_selectors(definition)
+    return lambda record, note: any(view(record, note) for view in views)
 
 
 def _texts(value: object) -> list[str]:
@@ -202,6 +224,27 @@ def note_marks(body: str) -> tuple[Mark, ...]:
         for child in token.children or []:
             if child.type == "text":
                 marks.extend((match["category"], match["id"]) for match in _MARK.finditer(child.content))
+    return tuple(marks)
+
+
+ParagraphMark = tuple[str, str, str]
+"""A mark of a marked paragraph: its category, identifier and the paragraph's text without marks."""
+
+
+@cache
+def paragraph_marks(body: str) -> tuple[ParagraphMark, ...]:
+    """The marks of a note's marked paragraphs, in order; see capabilities/marks."""
+    tokens = MarkdownIt("commonmark", {"html": False, "linkify": False}).parse(body)
+    marks: list[ParagraphMark] = []
+    for previous, token in pairwise(tokens):
+        if token.type != "inline" or previous.type != "paragraph_open":
+            continue
+        found = [match for child in token.children or [] if child.type == "text"
+                 for match in _MARK.finditer(child.content)]
+        text = token.content
+        for match in found:
+            text = text.replace(match.group(0), "", 1)
+        marks.extend((match["category"], match["id"], " ".join(text.split())) for match in found)
     return tuple(marks)
 
 

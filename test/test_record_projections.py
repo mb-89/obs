@@ -96,3 +96,90 @@ def test_filter_attributes_come_from_the_single_flattened_frontmatter(projected)
 
 def test_marked_paragraph_and_tag_table_row_have_unique_ids(projected):
     assert projected["chapters"]["registers"]["duplicateIds"] == []
+
+
+REGISTER_BASE = """\
+views:
+  - type: table
+    name: Risks
+    filters: 'type == "risk"'
+    order: [label]
+    obsHtml: {records: tag}
+  - type: table
+    name: Terms
+    filters: 'status == "approved"'
+    order: [term]
+    obsHtml: {records: glossary}
+"""
+
+
+@pytest.fixture(scope="module")
+def register_rows(tmp_path_factory):
+    """One vault built by the interim adapter (DOM rows) and by the core (registers rows)."""
+    from obs.capabilities import build_capability_reference
+    from obs.document import build_document
+
+    vault = tmp_path_factory.mktemp("register-projections")
+    (vault / "manifest.md").write_text("- [[registers]]\n", encoding="utf-8")
+    (vault / "x.base").write_text(REGISTER_BASE, encoding="utf-8")
+    (vault / "registers.md").write_text(
+        "# Registers\n\nCheck the register. #mark/risk/register_check\n\n"
+        "![[x.base#Risks]]\n\n![[x.base#Terms]]\n",
+        encoding="utf-8",
+    )
+    (vault / "marked.md").write_text(
+        "# Marked\n\nWatch the datum. #mark/risk/datum_watch\n\nAsk. #mark/open_point/ask_once\n",
+        encoding="utf-8",
+    )
+    (vault / "glossary.md").write_text(
+        "---\nkind: glossary\nterm: Datum\ndefinition: A reference.\nstatus: approved\n---\n# Datum\n",
+        encoding="utf-8",
+    )
+    (vault / "draft-term.md").write_text(
+        "---\nkind: glossary\nterm: Draft\ndefinition: Not yet.\nstatus: draft\n---\n# Draft\n",
+        encoding="utf-8",
+    )
+    manifest = vault / "manifest.md"
+    html = render_artifact(manifest, parse_manifest(manifest))
+    artifact = vault / "artifact.html"
+    artifact.write_text(html, encoding="utf-8")
+    paths = {note["slug"]: note["sourcePath"] for note in decode_artifact_data(html)["notes"]}
+    inspected = json.loads(run_artifact_dom_contract(
+        artifact, "--inspect-json", arguments=(json.dumps(["registers"]),),
+    ))
+    tags, terms = inspected["chapters"]["registers"]["tables"]
+    interim = {
+        "tags": sorted((paths[key.split(":")[0]], *key.split(":")[1:]) for key in tags),
+        "terms": sorted(paths[key.removeprefix("glossary:")] for key in terms),
+    }
+    reference = build_capability_reference(
+        Path(__file__).parents[1] / "spec" / "capabilities",
+        Path(__file__).parents[1] / "spec" / "capabilities" / "coverage.json",
+    )
+    document = build_document(manifest, reference)
+    records = {record["id"]: record for record in document["records"]}
+    [chapter] = [item for item in document["chapters"] if item["id"] == "registers"]
+    risks, glossary = [
+        node["attrs"] for block in chapter["content"] for node in block["children"]
+        if node["type"] == "registers"
+    ]
+    def fields(identifier: str) -> dict[str, object]:
+        return records[identifier]["fields"]
+    core = {
+        "tags": sorted((fields(row)["sourcePath"], fields(row)["type"], fields(row)["label"])
+                       for row in risks["rows"][risks["view"]]),
+        "terms": sorted(fields(row)["sourcePath"] for row in glossary["rows"][glossary["view"]]),
+    }
+    return interim, core
+
+
+def test_a_register_over_tag_records_yields_the_rows_the_interim_adapter_shows(register_rows):
+    interim, core = register_rows
+    assert interim["tags"] == [("marked.md", "risk", "datum_watch"), ("registers.md", "risk", "register_check")]
+    assert core["tags"] == interim["tags"]
+
+
+def test_a_register_over_the_glossary_yields_the_rows_the_interim_adapter_shows(register_rows):
+    interim, core = register_rows
+    assert interim["terms"] == ["glossary.md"]
+    assert core["terms"] == interim["terms"]
