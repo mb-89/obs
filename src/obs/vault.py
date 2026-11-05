@@ -1,6 +1,7 @@
 """Parse a Markdown vault into the neutral Document data model."""
 from __future__ import annotations
 
+import base64
 from copy import copy
 from functools import cache
 from dataclasses import dataclass, field, replace
@@ -8,6 +9,7 @@ import mimetypes
 import json
 from pathlib import Path
 import re
+from urllib.parse import unquote, urlparse
 
 from markdown_it import MarkdownIt
 from markdown_it.token import Token
@@ -62,9 +64,21 @@ class _Vault:
     links: list[tuple[dict[str, object], Path | None]] = field(default_factory=list)
     warnings: list[str] = field(default_factory=list)
     validated: set[Path] = field(default_factory=set)
+    files: dict[str, list[Path]] | None = None
 
     def relative(self, path: Path) -> str:
         return path.relative_to(self.root).as_posix()
+
+    def files_named(self, name: str) -> list[Path]:
+        """The vault files outside hidden folders with this case-insensitive name, listed once."""
+        if self.files is None:
+            self.files = {}
+            for path in sorted(self.root.rglob("*"), key=lambda item: item.as_posix().casefold()):
+                if path.is_file() and not any(
+                    part.startswith(".") for part in path.relative_to(self.root).parts
+                ):
+                    self.files.setdefault(path.name.casefold(), []).append(path)
+        return self.files.get(name.casefold(), [])
 
 
 class VaultError(ValueError):
@@ -729,7 +743,7 @@ def _inline_nodes(token: Token, context: _Context) -> list[dict[str, object]]:
             link = None
         elif child.type == "image":
             src = child.attrGet("src") or ""
-            asset = _asset(context.assets, context.asset_ids, child.content or src, src)
+            asset = _asset(context, child.content or src, src, _image_file(src, child.content, context))
             if "attachments" in context.capability_ids:
                 output.append({
                     "type": "attachments", "attrs": {"asset": asset["id"], "label": child.content},
@@ -750,10 +764,7 @@ def _inline_nodes(token: Token, context: _Context) -> list[dict[str, object]]:
             if link:
                 output.append({"type": "text", "attrs": {"link": link["id"]}, "children": [], "text": text})
             else:
-                output.extend(_semantic_text_nodes(
-                    text, context.source_path, context.vault, context.links, context.link_ids,
-                    context.capability_ids, context.capabilities,
-                ))
+                output.extend(_semantic_text_nodes(text, context))
     return result
 
 
@@ -775,10 +786,9 @@ def _field_nodes(value: object, name: str, context: _Context) -> list[dict[str, 
     return [{"type": "field", "attrs": {"name": name}, "children": _inline_nodes(tokens[0], context)}]
 
 
-def _semantic_text_nodes(
-    text: str, source_path: Path, vault: _Vault, links: list[dict[str, str]],
-    link_ids: set[str], capability_ids: set[str], capabilities: set[str],
-) -> list[dict[str, object]]:
+def _semantic_text_nodes(text: str, context: _Context) -> list[dict[str, object]]:
+    source_path, vault, links, link_ids = context.source_path, context.vault, context.links, context.link_ids
+    capability_ids, capabilities = context.capability_ids, context.capabilities
     nodes: list[dict[str, object]] = []
     position = 0
     for match in _SEMANTIC.finditer(text):
@@ -812,7 +822,10 @@ def _semantic_text_nodes(
             })
             capabilities.add("registers")
         elif match["embed"] and "embeds" in capability_ids:
-            attrs = {"target": target, "chapter": None}
+            attrs: dict[str, object] = {"target": target, "chapter": None}
+            if Path(target).suffix not in {"", ".md", ".base"}:
+                path = resolved or _embedded_file(value, target, source_path, vault)
+                attrs["asset"] = _asset(context, target, target, path)["id"]
             vault.links.append((attrs, resolved))
             nodes.append({"type": "embeds", "attrs": attrs, "children": []})
             capabilities.add("embeds")
@@ -885,19 +898,66 @@ def _resource(
     return resource
 
 
-def _asset(
-    assets: list[dict[str, str]], identifiers: set[str], label: str, href: str,
-) -> dict[str, str]:
-    existing = next((item for item in assets if item["href"] == href), None)
+def _asset(context: _Context, label: str, href: str, path: Path | None) -> dict[str, str]:
+    """The one asset of a referenced file, with its bytes; see architecture "Asset bytes".
+
+    A vault file is one asset however often it is referenced; ``path`` is None for a URL.
+    """
+    relative = context.vault.relative(path) if path is not None else None
+    existing = next((
+        item for item in context.assets
+        if (item.get("path") == relative if relative is not None else item["href"] == href)
+    ), None)
     if existing is not None:
         return existing
     asset = {
-        "id": _unique_identifier(label or href, identifiers),
+        "id": _unique_identifier(label or href, context.asset_ids),
         "href": href,
-        "mediaType": mimetypes.guess_type(href)[0] or "application/octet-stream",
+        "mediaType": mimetypes.guess_type(relative or href)[0] or "application/octet-stream",
     }
-    assets.append(asset)
+    if path is not None:
+        asset["path"] = relative
+        asset["data"] = base64.b64encode(path.read_bytes()).decode("ascii")
+    context.assets.append(asset)
     return asset
+
+
+def _image_file(src: str, label: str, context: _Context) -> Path | None:
+    """The vault file a Markdown image or marked attachment names, next to its note; None for a URL."""
+    parsed = urlparse(src)
+    if parsed.scheme or parsed.netloc:
+        return None
+    source = context.vault.relative(context.source_path)
+    syntax = f"![{label}]({src})"
+    path = (context.source_path.parent / unquote(parsed.path)).resolve()
+    if not path.is_relative_to(context.vault.root):
+        raise VaultError(f"Asset escapes the vault in {source}: {syntax}; keep the file inside the vault.")
+    if not path.is_file():
+        raise VaultError(
+            f"Asset does not exist in {source}: {syntax}; "
+            f"add {context.vault.relative(path)} to the vault or correct the path."
+        )
+    return path
+
+
+def _embedded_file(embed: str, target: str, source_path: Path, vault: _Vault) -> Path:
+    """An embedded file that is neither next to its note nor at the vault root, by its unique name.
+
+    Resolution follows input-model ("Document home and abstract"): next to the note, from the
+    vault root, then the case-insensitive file name, which must be unique.
+    """
+    source = vault.relative(source_path)
+    matches = vault.files_named(Path(target).name) if len(Path(target).parts) == 1 else []
+    if len(matches) > 1:
+        raise VaultError(
+            f"Ambiguous file name in {source}: {embed} matches "
+            f"{', '.join(vault.relative(path) for path in matches)}; embed the vault path instead."
+        )
+    if not matches:
+        raise VaultError(
+            f"Asset does not exist in {source}: {embed}; add {target} to the vault or correct the embed."
+        )
+    return matches[0]
 
 
 def _link(target: str, source_path: Path, vault: _Vault) -> Path | None:

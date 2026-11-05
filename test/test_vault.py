@@ -132,6 +132,7 @@ def test_core_parses_a_vault_into_semantic_document_json(tmp_path) -> None:
     }]
     assert document["assets"] == [{
         "id": "diagram", "href": "diagram.svg", "mediaType": "image/svg+xml",
+        "path": "diagram.svg", "data": "PHN2Zy8+",
     }]
     assert all(node["type"] != "html" for node in chapter["content"])
 
