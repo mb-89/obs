@@ -1,4 +1,5 @@
 ---
+kind: capability
 capability:
   id: marks
   summary: Annotate authored content with stable semantic marks.

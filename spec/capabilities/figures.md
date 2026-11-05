@@ -1,4 +1,5 @@
 ---
+kind: capability
 capability:
   id: figures
   summary: Render declared figures from canonical records.

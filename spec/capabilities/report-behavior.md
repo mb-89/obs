@@ -1,4 +1,5 @@
 ---
+kind: capability
 capability:
   id: report-behavior
   summary: Declare portable report behavior without executable author code.

@@ -1,4 +1,5 @@
 ---
+kind: capability
 capability:
   id: canonical-references
   summary: Present canonical references through declared detail views.

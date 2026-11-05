@@ -1,4 +1,5 @@
 ---
+kind: capability
 capability:
   id: named-icons
   summary: Refer to named icon resources without embedding presentation literals.

@@ -1,4 +1,5 @@
 ---
+kind: capability
 capability:
   id: attachments
   summary: Link or embed vault-local source attachments.

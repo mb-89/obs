@@ -1,4 +1,5 @@
 ---
+kind: capability
 capability:
   id: declarative-tables
   summary: Present compact tables using declared columns and record projections.

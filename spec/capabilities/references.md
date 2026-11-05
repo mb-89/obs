@@ -1,4 +1,5 @@
 ---
+kind: capability
 capability:
   id: references
   summary: Resolve reference notes, labels, and external source links.

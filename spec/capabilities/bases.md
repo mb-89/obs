@@ -1,4 +1,5 @@
 ---
+kind: capability
 capability:
   id: bases
   summary: Define declarative Base views over canonical note records.

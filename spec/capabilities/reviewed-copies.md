@@ -1,4 +1,5 @@
 ---
+kind: capability
 capability:
   id: reviewed-copies
   summary: Preserve review comments and block decisions in a portable copy.

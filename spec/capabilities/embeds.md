@@ -1,4 +1,5 @@
 ---
+kind: capability
 capability:
   id: embeds
   summary: Embed supported note and Base content in authored Markdown.

@@ -1,4 +1,5 @@
 ---
+kind: capability
 capability:
   id: extensions
   summary: Add a bounded next Obsidian syntax extension.

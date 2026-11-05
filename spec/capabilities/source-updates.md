@@ -1,4 +1,5 @@
 ---
+kind: capability
 capability:
   id: source-updates
   summary: Project current canonical source after a trusted update.

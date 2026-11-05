@@ -1,4 +1,5 @@
 ---
+kind: capability
 capability:
   id: count-query
   summary: Compute one declared count from canonical records.

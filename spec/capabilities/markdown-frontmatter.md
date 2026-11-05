@@ -1,4 +1,5 @@
 ---
+kind: capability
 capability:
   id: markdown-frontmatter
   summary: Add structured metadata to a Markdown note.

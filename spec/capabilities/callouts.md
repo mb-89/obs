@@ -1,4 +1,5 @@
 ---
+kind: capability
 capability:
   id: callouts
   summary: Mark block content with typed, data-only callouts.

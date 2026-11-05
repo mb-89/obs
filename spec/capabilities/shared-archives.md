@@ -1,4 +1,5 @@
 ---
+kind: capability
 capability:
   id: shared-archives
   summary: Reuse one source archive through a shared source link.

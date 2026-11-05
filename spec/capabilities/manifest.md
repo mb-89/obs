@@ -1,4 +1,5 @@
 ---
+kind: capability
 capability:
   id: manifest
   summary: Define document metadata, ordered chapters, and an optional abstract.
