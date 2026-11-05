@@ -1,4 +1,4 @@
-// Notice center: every notice the report raises is one entry here, and no notice draws its own banner.
+// Notice center: every notice the artifact raises is one entry here, and no notice draws its own banner.
 // The top of the page shows at most one icon per severity, with a count pill; an icon opens its list,
 // an entry expands its details. Adding a kind of notice is one post() call from its owner.
 (() => {
@@ -141,7 +141,7 @@
         groups.forEach((_, key) => close(key));
     });
 
-    // The icon row reserves its height at the top of the page so it never covers report controls;
+    // The icon row reserves its height at the top of the page so it never covers artifact controls;
     // an open list floats over the page below it.
     const updateClearance = () => {
         const visible = [...groups.values()].some(({group}) => !group.hidden);

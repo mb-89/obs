@@ -1,4 +1,4 @@
-"""Native-browser tier: the obsHtml.attachments trusted extension over the real report runtime."""
+"""Native-browser tier: the obsHtml.attachments trusted extension over the real artifact runtime."""
 from pathlib import Path
 
 import pytest
@@ -8,31 +8,31 @@ from obs_html.config import load_config
 from obs_html.render import render
 
 
-BUNDLE = """globalThis.obsReport.registerApplication({id: "fixture-v1", actions: [
+BUNDLE = """globalThis.obsArtifact.registerApplication({id: "fixture-v1", actions: [
     {id: "attach", accept: ".pdf", help: "Attach evidence.", handle: async () => true}]});"""
 
 # Attach evidence to two records through the canonical transaction, as a trusted bundle does,
-# and return the attachment's key and the report revision after that commit.
+# and return the attachment's key and the artifact revision after that commit.
 SEED = """async () => {
-    const report = globalThis.obsReport;
+    const artifact = globalThis.obsArtifact;
     const bytes = new TextEncoder().encode("%PDF old");
     const descriptor = await globalThis.obsPayload.describeAsset(
         "assets/evidence/test.pdf", bytes, "application/pdf");
     const reference = `obs-asset:${descriptor.key}`;
-    const notes = report.canonicalNotes().map(note => ["test", "summary"].includes(note.slug)
+    const notes = artifact.canonicalNotes().map(note => ["test", "summary"].includes(note.slug)
         ? {...note, frontmatter: {...note.frontmatter, evidence: reference},
            html: `<a href="${reference}">Evidence</a>`}
         : note);
-    const staged = await report.stageCanonicalTransaction({expectedRevision: report.revision, notes,
+    const staged = await artifact.stageCanonicalTransaction({expectedRevision: artifact.revision, notes,
         assetChanges: [{...descriptor, bytes}]});
     staged.commit();
-    return {key: descriptor.key, revision: report.revision};
+    return {key: descriptor.key, revision: artifact.revision};
 }"""
 
 STATE = """async () => {
-    const report = globalThis.obsReport;
-    const notes = Object.fromEntries(report.canonicalNotes().map(note => [note.slug, note]));
-    const assets = report.embeddedAssets();
+    const artifact = globalThis.obsArtifact;
+    const notes = Object.fromEntries(artifact.canonicalNotes().map(note => [note.slug, note]));
+    const assets = artifact.embeddedAssets();
     const members = {};
     for (const asset of Object.values(assets)) {
         if (typeof asset === "object") {
@@ -41,7 +41,7 @@ STATE = """async () => {
         }
     }
     const keys = Object.keys(assets).filter(key => typeof assets[key] === "object").sort();
-    return {revision: report.revision, keys, members,
+    return {revision: artifact.revision, keys, members,
         evidence: ["test", "summary", "other"].map(slug => notes[slug].frontmatter.evidence ?? null),
         html: ["test", "summary"].map(slug => notes[slug].html)};
 }"""
@@ -52,7 +52,7 @@ REPLACE = """async ({expectedRevision, key, text, mime, failRewrite}) => {
         globalThis.ObsHtmlZipRewrite = {...zip, rewrite: () => { throw new Error("compression failed"); }};
     }
     try {
-        return await globalThis.obsReport.trustedExtension("obsHtml.attachments").replace({
+        return await globalThis.obsArtifact.trustedExtension("obsHtml.attachments").replace({
             expectedRevision, key, bytes: new TextEncoder().encode(text), mime});
     } catch (error) {
         return {error: error.message};
@@ -62,7 +62,7 @@ REPLACE = """async ({expectedRevision, key, text, mime, failRewrite}) => {
 }"""
 
 
-def _report(tmp_path: Path, trusted: bool) -> Path:
+def _artifact(tmp_path: Path, trusted: bool) -> Path:
     source = document(
         "Evidence",
         chapter("one", "One", heading(1, "One"), paragraph("Chapter.")),
@@ -74,14 +74,14 @@ def _report(tmp_path: Path, trusted: bool) -> Path:
     return path
 
 
-def _open(reader_browser, report: Path):
+def _open(reader_browser, artifact: Path):
     from playwright.sync_api import expect
 
     page = reader_browser.new_page()
     errors: list[str] = []
     page.on("pageerror", lambda error: errors.append(str(error)))
-    page.goto(report.as_uri())
-    expect(page.locator("html")).to_have_attribute("data-report-status", "ready")
+    page.goto(artifact.as_uri())
+    expect(page.locator("html")).to_have_attribute("data-artifact-status", "ready")
     assert errors == []
     return page
 
@@ -89,7 +89,7 @@ def _open(reader_browser, report: Path):
 @pytest.mark.browser
 def test_trusted_extension_replaces_an_attachment_and_its_records_in_one_transaction(
         tmp_path: Path, reader_browser) -> None:
-    page = _open(reader_browser, _report(tmp_path, trusted=True))
+    page = _open(reader_browser, _artifact(tmp_path, trusted=True))
     seeded = page.evaluate(SEED)
     key, revision = seeded["key"], seeded["revision"]
     before = page.evaluate(STATE)
@@ -129,7 +129,7 @@ def test_trusted_extension_replaces_an_attachment_and_its_records_in_one_transac
 
 @pytest.mark.browser
 def test_trusted_extension_refuses_html_without_a_trusted_runtime_bundle(tmp_path: Path, reader_browser) -> None:
-    page = _open(reader_browser, _report(tmp_path, trusted=False))
+    page = _open(reader_browser, _artifact(tmp_path, trusted=False))
     refused = page.evaluate(REPLACE, {"expectedRevision": 0, "key": "0" * 64, "text": "%PDF new"})
     assert "no registered trusted runtime bundle" in refused["error"]
     assert "--trusted-runtime-bundle ID=PATH" in refused["error"]

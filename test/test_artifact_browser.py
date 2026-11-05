@@ -1,4 +1,4 @@
-"""Native-browser tier: the fixture report's presentation runs in Chromium."""
+"""Native-browser tier: the fixture artifact's presentation runs in Chromium."""
 import base64
 
 import pytest
@@ -12,40 +12,40 @@ PIXEL = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjC
 
 
 @pytest.fixture
-def report_page(tmp_path, reader_browser):
+def artifact_page(tmp_path, reader_browser):
     (tmp_path / "images").mkdir()
     (tmp_path / "images" / "logo.png").write_bytes(base64.b64decode(PIXEL))
-    report = tmp_path / "report.html"
-    cli.main([str(FIXTURE), str(report), "--execute-commands", "--command-root", str(tmp_path)])
+    artifact = tmp_path / "artifact.html"
+    cli.main([str(FIXTURE), str(artifact), "--execute-commands", "--command-root", str(tmp_path)])
     page = reader_browser.new_page(viewport={"width": 1200, "height": 1000})
     errors = []
     page.on("pageerror", lambda error: errors.append(str(error)))
     page.on("console", lambda message: message.type == "error" and errors.append(message.text))
-    page.goto(report.as_uri())
-    page.wait_for_function("document.documentElement.dataset.reportStatus === 'ready'")
+    page.goto(artifact.as_uri())
+    page.wait_for_function("document.documentElement.dataset.artifactStatus === 'ready'")
     yield page
     page.close()
     assert errors == []
 
 
-def test_figures_draw_their_plot_and_sankey(report_page) -> None:
-    report_page.evaluate("obsReport.activateChapter('appendix')")
-    report_page.wait_for_selector("#appendix--figure-response.figure-plot-ready")
-    assert report_page.locator("#appendix--figure-response .scatterlayer .trace").count() == 2
-    assert report_page.locator("#appendix--figure-flow .sankey-node").count() == 3
+def test_figures_draw_their_plot_and_sankey(artifact_page) -> None:
+    artifact_page.evaluate("obsArtifact.activateChapter('appendix')")
+    artifact_page.wait_for_selector("#appendix--figure-response.figure-plot-ready")
+    assert artifact_page.locator("#appendix--figure-response .scatterlayer .trace").count() == 2
+    assert artifact_page.locator("#appendix--figure-flow .sankey-node").count() == 3
 
 
-def test_base_tables_evaluate_document_records_and_marks_show_their_icon(report_page) -> None:
-    report_page.evaluate("obsReport.activateChapter('intro')")
-    rows = report_page.locator('[data-data-table="intro-base-1"] tbody tr[data-row-key]')
+def test_base_tables_evaluate_document_records_and_marks_show_their_icon(artifact_page) -> None:
+    artifact_page.evaluate("obsArtifact.activateChapter('intro')")
+    rows = artifact_page.locator('[data-data-table="intro-base-1"] tbody tr[data-row-key]')
     rows.first.wait_for()
     assert [row.locator("td").first.inner_text() for row in rows.all()] == ["beta", "alpha"]
-    assert report_page.locator(".semantic-mark-icon--risk .resource-icon").inner_text() == "!"
+    assert artifact_page.locator(".semantic-mark-icon--risk .resource-icon").inner_text() == "!"
 
 
-def test_the_print_book_holds_every_front_page_and_chapter(report_page) -> None:
-    report_page.evaluate("window.print = () => {}; globalThis.obsPages.exportPDF()")
-    text = report_page.locator(".print-book").inner_text()
+def test_the_print_book_holds_every_front_page_and_chapter(artifact_page) -> None:
+    artifact_page.evaluate("window.print = () => {}; globalThis.obsPages.exportPDF()")
+    text = artifact_page.locator(".print-book").inner_text()
     for expected in ("Fixture document", "Contents", "Abstract", "Intro", "Usage", "Appendix"):
         assert expected in text
 
@@ -59,11 +59,11 @@ def test_everything_on_the_title_page_is_centered(tmp_path, reader_browser) -> N
     source.write_text(json.dumps(document), encoding="utf-8")
     (tmp_path / "images").mkdir()
     (tmp_path / "images" / "logo.png").write_bytes(base64.b64decode(PIXEL))
-    report = tmp_path / "report.html"
-    cli.main([str(source), str(report), "--execute-commands", "--command-root", str(tmp_path)])
+    artifact = tmp_path / "artifact.html"
+    cli.main([str(source), str(artifact), "--execute-commands", "--command-root", str(tmp_path)])
     page = reader_browser.new_page(viewport={"width": 1200, "height": 1000})
-    page.goto(report.as_uri())
-    page.wait_for_function("document.documentElement.dataset.reportStatus === 'ready'")
+    page.goto(artifact.as_uri())
+    page.wait_for_function("document.documentElement.dataset.artifactStatus === 'ready'")
     offsets = page.evaluate("""() => {
         const heading = document.querySelector('[data-chapter-body] .document-heading');
         const sheet = heading.getBoundingClientRect();
@@ -105,20 +105,20 @@ def test_everything_on_the_title_page_is_centered(tmp_path, reader_browser) -> N
 
 
 @pytest.mark.parametrize("width, side", [(700, "right"), (700, "left"), (1100, "right"), (1100, "top")])
-def test_a_resized_bar_follows_the_pointer(report_page, width, side) -> None:
+def test_a_resized_bar_follows_the_pointer(artifact_page, width, side) -> None:
     """A narrow screen insets an overlaid bar beside the chapter arrows; dragging its edge still
     puts that edge under the pointer, as it does for a docked bar."""
-    report_page.set_viewport_size({"width": width, "height": 800})
-    report_page.evaluate(f"obsReport.openBar('filter', '{side}')")
-    handle = report_page.locator(f'[data-dock-region="{side}"] [data-dock-resize]')
+    artifact_page.set_viewport_size({"width": width, "height": 800})
+    artifact_page.evaluate(f"obsArtifact.openBar('filter', '{side}')")
+    handle = artifact_page.locator(f'[data-dock-region="{side}"] [data-dock-resize]')
     start = handle.bounding_box()
     x, y = start["x"] + start["width"] / 2, start["y"] + start["height"] / 2
     shift = {"right": (-40, 0), "left": (40, 0), "top": (0, 40)}[side]
-    report_page.mouse.move(x, y)
-    report_page.mouse.down()
-    report_page.mouse.move(x + shift[0], y + shift[1], steps=4)
-    report_page.mouse.up()
-    edge = report_page.locator(f'[data-dock-region="{side}"]').bounding_box()
+    artifact_page.mouse.move(x, y)
+    artifact_page.mouse.down()
+    artifact_page.mouse.move(x + shift[0], y + shift[1], steps=4)
+    artifact_page.mouse.up()
+    edge = artifact_page.locator(f'[data-dock-region="{side}"]').bounding_box()
     inner = {"right": edge["x"], "left": edge["x"] + edge["width"], "top": edge["y"] + edge["height"]}[side]
     pointer = x + shift[0] if side != "top" else y + shift[1]
-    assert abs(inner - pointer) <= 1, f"test/test_report_browser.py: the {side} bar's edge is at {inner}, the pointer at {pointer}"
+    assert abs(inner - pointer) <= 1, f"test/test_artifact_browser.py: the {side} bar's edge is at {inner}, the pointer at {pointer}"

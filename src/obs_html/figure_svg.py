@@ -3,7 +3,7 @@
 The same descriptor always gives the same bytes: the drawing follows the descriptor's lists in
 order, never a dict's or set's order, formats every number one way, derives every id from the
 descriptor's own ids and carries no time or random value. ``traces`` descriptors are drawn
-here as static plots on their panels' bounds and axes; ``sankey`` descriptors reuse the report's
+here as static plots on their panels' bounds and axes; ``sankey`` descriptors reuse the artifact's
 static Sankey drawing.
 """
 from __future__ import annotations
@@ -16,7 +16,7 @@ from .figures import FigureError, checked_traces, panel_axes, sankey_svg, unsupp
 
 STYLE = ("text{font:12px sans-serif;fill:#1f2933}.figure-tick{font-size:11px;fill:#52606d}"
          ".sankey-label,.sankey-link-label{font:12px sans-serif;fill:#1f2933}")
-# Plotly's default colorway, so a static export colours traces as the interactive report does.
+# Plotly's default colorway, so a static export colours traces as the interactive artifact does.
 COLORS = ("#1f77b4", "#ff7f0e", "#2ca02c", "#d62728", "#9467bd",
           "#8c564b", "#e377c2", "#7f7f7f", "#bcbd22", "#17becf")
 MARGIN = {"left": 64, "right": 16, "top": 16, "bottom": 48}
@@ -24,7 +24,7 @@ HOME = "home"
 
 
 def document_figures(document: dict) -> Iterator[tuple[str, dict]]:
-    """Each FigureDescriptor in Document order, named like its anchor in the HTML report."""
+    """Each FigureDescriptor in Document order, named like its anchor in the HTML artifact."""
     def walk(nodes: list[dict], chapter: str) -> Iterator[tuple[str, dict]]:
         for node in nodes:
             if node["type"] == "figure-descriptor":

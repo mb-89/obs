@@ -4,19 +4,19 @@ from pathlib import Path
 
 import pytest
 
-from test_sandboxed_preview_browser import keep_screenshot, open_page, preview_report
+from test_sandboxed_preview_browser import keep_screenshot, open_page, preview_artifact
 
 
 pytestmark = pytest.mark.browser
 
 
-def open_report(tmp_path: Path, reader_browser, errors: list[str]):
+def open_artifact(tmp_path: Path, reader_browser, errors: list[str]):
     from playwright.sync_api import expect
 
-    path = tmp_path / "report.html"
-    path.write_text(preview_report(), encoding="utf-8")
+    path = tmp_path / "artifact.html"
+    path.write_text(preview_artifact(), encoding="utf-8")
     page = open_page(reader_browser, path, errors)
-    expect(page.locator("html")).to_have_attribute("data-report-status", "ready")
+    expect(page.locator("html")).to_have_attribute("data-artifact-status", "ready")
     return page
 
 
@@ -32,7 +32,7 @@ def visible_icons(page) -> dict[str, str]:
 
 def test_three_severities_give_exactly_three_icons_with_counts(tmp_path: Path, reader_browser) -> None:
     errors: list[str] = []
-    page = open_report(tmp_path, reader_browser, errors)
+    page = open_artifact(tmp_path, reader_browser, errors)
     assert visible_icons(page) == {}
     post(page, [
         {"id": "e1", "severity": "error", "title": "Broken figure", "details": "The figure failed."},
@@ -58,7 +58,7 @@ def test_three_severities_give_exactly_three_icons_with_counts(tmp_path: Path, r
 
 def test_ten_notices_of_one_severity_give_one_icon_with_pill_ten(tmp_path: Path, reader_browser) -> None:
     errors: list[str] = []
-    page = open_report(tmp_path, reader_browser, errors)
+    page = open_artifact(tmp_path, reader_browser, errors)
     post(page, [{"id": f"w{index}", "severity": "warning", "title": f"Warning {index}"} for index in range(10)])
     icons = page.locator("[data-header-notices] [data-notice-icon]:visible")
     assert icons.count() == 1
@@ -70,7 +70,7 @@ def test_icon_opens_its_list_an_entry_expands_and_escape_closes(tmp_path: Path, 
     from playwright.sync_api import expect
 
     errors: list[str] = []
-    page = open_report(tmp_path, reader_browser, errors)
+    page = open_artifact(tmp_path, reader_browser, errors)
     post(page, [
         {"id": "e1", "severity": "error", "title": "Broken figure", "details": "The figure failed."},
         {"id": "w1", "severity": "warning", "title": "Disk almost full",
@@ -107,7 +107,7 @@ def test_icon_opens_its_list_an_entry_expands_and_escape_closes(tmp_path: Path, 
 
 def test_an_unknown_severity_names_the_post_and_the_choices(tmp_path: Path, reader_browser) -> None:
     errors: list[str] = []
-    page = open_report(tmp_path, reader_browser, errors)
+    page = open_artifact(tmp_path, reader_browser, errors)
     message = page.evaluate("""() => {
         try { globalThis.obsNotices.post({id: "x", severity: "fatal", title: "X"}); }
         catch (error) { return error.message; }
@@ -120,7 +120,7 @@ def test_changed_html_and_the_applied_filter_are_entries_that_keep_their_behavio
     from playwright.sync_api import expect
 
     errors: list[str] = []
-    page = open_report(tmp_path, reader_browser, errors)
+    page = open_artifact(tmp_path, reader_browser, errors)
     unload_prevented = """() => {
         const event = new Event("beforeunload", {cancelable: true});
         window.dispatchEvent(event);
@@ -128,7 +128,7 @@ def test_changed_html_and_the_applied_filter_are_entries_that_keep_their_behavio
     }"""
     assert page.evaluate(unload_prevented) is False
     # A view selection is saved reader state, so it changes the HTML; a filter alone does not.
-    page.evaluate("globalThis.obsReport.setViewSelection('proof', ['a'], ['a', 'b'])")
+    page.evaluate("globalThis.obsArtifact.setViewSelection('proof', ['a'], ['a', 'b'])")
     page.evaluate("globalThis.obsFilter.setExpression(\"file.name == 'One'\")")
     changed = page.locator('[data-notice-list="information"] [data-notice="changed-html"]')
     applied = page.locator('[data-notice-list="information"] [data-notice="applied-filter"]')
@@ -139,14 +139,14 @@ def test_changed_html_and_the_applied_filter_are_entries_that_keep_their_behavio
     expect(page.locator('[data-notice-icon="information"] [data-notice-count]')).to_have_text("2")
     page.locator('[data-notice-icon="information"]').click()
     changed.locator("[data-notice-title]").click()
-    expect(changed.locator("[data-document-download]")).to_be_visible()
+    expect(changed.locator("[data-artifact-download]")).to_be_visible()
     applied.locator("[data-notice-title]").click()
     expect(applied).to_contain_text("Filter: file.name == 'One'")
     applied.locator("[data-filter-clear]").click()
     expect(applied).to_have_count(0)
-    assert page.evaluate("globalThis.obsReport.filterSummary().empty") is True
+    assert page.evaluate("globalThis.obsArtifact.filterSummary().empty") is True
     expect(changed).to_have_count(1)
-    page.evaluate("globalThis.obsReport.setViewSelection('proof', [], ['a', 'b'])")
+    page.evaluate("globalThis.obsArtifact.setViewSelection('proof', [], ['a', 'b'])")
     expect(changed).to_have_count(0)
     assert page.evaluate(unload_prevented) is False
     assert errors == []

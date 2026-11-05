@@ -5,7 +5,7 @@
     "commandTimeoutSeconds": 15,
     "renderedCheckTimeoutSeconds": 120
   },
-  "report": {
+  "artifact": {
     "inactiveIconOpacity": 0.45,
     "guidedCard": {
       "widthPixels": 440,

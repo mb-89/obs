@@ -88,7 +88,7 @@
     let originalParent = null;
     let fittedVisual = null;
     let originalVisualStyle = null;
-    const magnifier = figure.matches(".report-figure") ? imageMagnifier(figure) : null;
+    const magnifier = figure.matches(".artifact-figure") ? imageMagnifier(figure) : null;
     function fitVisual() {
       if (!dialog.open) return;
       let visual = figure.querySelector(":scope > img, :scope > .sankey-canvas");
@@ -776,7 +776,7 @@
   const projections = new Map();
   function updateDynamicSankey(figure, spec) {
     if (spec.sourceNote) {
-      const owner = globalThis.obsReport.records.find(record =>
+      const owner = globalThis.obsArtifact.records.find(record =>
         record.sourcePath === `${spec.sourceNote}.md`);
       const graph = projections.get(spec.sourceNote) || owner?.frontmatter?.graph;
       if (!graph || !Array.isArray(graph.nodes) || !Array.isArray(graph.links) ||
@@ -785,8 +785,8 @@
       }
       spec = {...spec, ...graph};
     }
-    const records = globalThis.obsReport.records.filter(record => globalThis.obsReport.selectable(record) &&
-      globalThis.obsReport.matchesFilter(record) && sankeyConditionsMatch(record, spec.data.where));
+    const records = globalThis.obsArtifact.records.filter(record => globalThis.obsArtifact.selectable(record) &&
+      globalThis.obsArtifact.matchesFilter(record) && sankeyConditionsMatch(record, spec.data.where));
     const links = spec.links.map((link, index) => ({
       ...link,
       index,
@@ -817,13 +817,13 @@
   function dynamicSankey(figure, spec) {
     const update = () => {
       if (!figure.isConnected) {
-        document.removeEventListener("obs-report-filter", update);
+        document.removeEventListener("obs-artifact-filter", update);
         return;
       }
       updateDynamicSankey(figure, spec);
     };
     update();
-    document.addEventListener("obs-report-filter", update);
+    document.addEventListener("obs-artifact-filter", update);
   }
   function initialize(figure) {
     if (!figure.isConnected || figure.closest(".print-book")) return;
@@ -923,20 +923,20 @@
   }
   function scan(root) {
     if (root.nodeType !== 1 && root !== document) return;
-    if (root.matches?.("[data-report-figure]")) initialize(root);
-    root.querySelectorAll("[data-report-figure]").forEach(initialize);
+    if (root.matches?.("[data-artifact-figure]")) initialize(root);
+    root.querySelectorAll("[data-artifact-figure]").forEach(initialize);
   }
   new MutationObserver(records => records.forEach(record => record.addedNodes.forEach(scan)))
     .observe(document.body, {childList: true, subtree: true});
-  const reportData = JSON.parse(document.querySelector("[data-report-data]").textContent);
+  const artifactData = JSON.parse(document.querySelector("[data-artifact-data]").textContent);
   document.documentElement.style.setProperty(
-    "--figure-prose-width-multiplier", reportData.figures.proseWidthMultiplier,
+    "--figure-prose-width-multiplier", artifactData.figures.proseWidthMultiplier,
   );
   document.documentElement.style.setProperty(
-    "--figure-viewport-gutter", `${reportData.figures.viewportGutterRem}rem`,
+    "--figure-viewport-gutter", `${artifactData.figures.viewportGutterRem}rem`,
   );
   document.documentElement.style.setProperty(
-    "--figure-viewport-height-ratio", reportData.figures.viewportHeightRatio,
+    "--figure-viewport-height-ratio", artifactData.figures.viewportHeightRatio,
   );
   document.addEventListener("obs-chapter-changing", () => closeActiveOverlay?.());
   document.addEventListener("obs-print-start", () => closeActiveOverlay?.());

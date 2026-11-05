@@ -8,7 +8,7 @@ import pytest
 from obs_html.cli import main
 from obs_html.config import load_config
 from obs_html.render import RenderError, render
-from obs_html.report_data import decode_report_data
+from obs_html.artifact_data import decode_artifact_data
 from obs_html.semantic_assets import SemanticAssets
 
 
@@ -48,7 +48,7 @@ def test_packaged_icons_resolve_in_the_shell_and_the_island(document) -> None:
     html = render(document, CONFIG, lambda command: "")
     assert 'data-icon="menu" aria-hidden="true">☰</span>' in html
     assert '<style id="semantic-asset-styles">:root{' in html and "--color-canvas:var(" in html
-    data = decode_report_data(html)
+    data = decode_artifact_data(html)
     assert data["assets"]["icon.menu"]["value"] == {"glyph": "☰"}
 
 
@@ -60,7 +60,7 @@ def test_style_catalog_overrides_framework_icons_and_reaches_base_columns(docume
     })
     html = render(with_icon_column(document, "project.evidence"), CONFIG, lambda command: "",
                   style_folder=style)
-    data = decode_report_data(html)
+    data = decode_artifact_data(html)
     assert data["assets"]["project.evidence"]["value"] == {"glyph": "\U0001f9ea"}
     assert 'data-icon="menu" aria-hidden="true">CAT</span>' in html
     intro = next(note for note in data["notes"] if note["slug"] == "intro")
@@ -105,7 +105,7 @@ def test_invalid_style_catalogs_fail_the_cli(document, tmp_path, capsys, case, e
         )
     source = tmp_path / "document.json"
     source.write_text(json.dumps(document), encoding="utf-8")
-    output = tmp_path / "report.html"
+    output = tmp_path / "artifact.html"
     with pytest.raises(SystemExit) as failure:
         main([str(source), str(output), "--style", str(style),
               "--execute-commands", "--command-root", str(tmp_path)])

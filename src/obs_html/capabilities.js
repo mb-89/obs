@@ -1,7 +1,7 @@
 // Canaries: probe, before any feature runs, what the host lets this HTML do.
 // One registry entry per browser capability; adding a capability is one entry.
 // A probe returns {allowed, observation}: allowed is true, false (refused) or undefined (unknown, which
-// counts as limited); observation says what the canary saw, so a report can show why it is limited.
+// counts as limited); observation says what the canary saw, so an artifact can show why it is limited.
 // A probe that throws is refused, and its error is what it observed.
 (() => {
     const view = globalThis.window || globalThis;
@@ -159,6 +159,6 @@
             title: `Limited functionality: ${entry.feature}`, details,
         });
     });
-    // The startup loader announces this once every report script, report.js included, has run.
+    // The startup loader announces this once every artifact script, artifact.js included, has run.
     view.document.addEventListener("obs-html-interactive", mount, {once: true});
 })();

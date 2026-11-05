@@ -21,7 +21,7 @@ EDITOR = {"type": "code", "attrs": {"language": "property-editor"}, "children": 
 TABLE = {"obsHtml": {"records": "note"}, "views": [{"type": "table", "order": ["identifier", "explanation"]}]}
 
 
-def _report(path: Path) -> Path:
+def _artifact(path: Path) -> Path:
     chapters, records = [], []
     for name in ("one", "two"):
         fields = {"explanation": f"Original {name}", "identifier": name}
@@ -35,7 +35,7 @@ def _report(path: Path) -> Path:
 def test_native_property_edits_survive_actual_reviewed_download_and_reopen(tmp_path, reader_browser) -> None:
     from playwright.sync_api import expect
 
-    report = _report(tmp_path / "report.html")
+    artifact = _artifact(tmp_path / "artifact.html")
     malicious = 'Accepted α 中 </script><script>window.editExecuted=true</script> **literal**'
     context = reader_browser.new_context(accept_downloads=True)
     context.add_init_script("delete window.showSaveFilePicker")
@@ -46,11 +46,11 @@ def test_native_property_edits_survive_actual_reviewed_download_and_reopen(tmp_p
 
     def open_chapter(path: Path, slug: str) -> None:
         page.goto(path.as_uri() + f"#{slug}")
-        page.wait_for_function("document.documentElement.dataset.reportStatus === 'ready'")
-        page.evaluate(f"obsPages.setPaged(false); obsReport.activateChapter('{slug}')")
+        page.wait_for_function("document.documentElement.dataset.artifactStatus === 'ready'")
+        page.evaluate(f"obsPages.setPaged(false); obsArtifact.activateChapter('{slug}')")
 
     def save(name: str) -> Path:
-        page.evaluate("obsReport.openBar('comments')")
+        page.evaluate("obsArtifact.openBar('comments')")
         with page.expect_download() as download:
             page.locator("[data-comment-save]").click()
         saved = tmp_path / name
@@ -58,21 +58,21 @@ def test_native_property_edits_survive_actual_reviewed_download_and_reopen(tmp_p
         return saved
 
     try:
-        open_chapter(report, "one")
+        open_chapter(artifact, "one")
         editor = page.locator("[data-active-chapter] [data-property-editor]")
         expect(editor).to_have_value("Original one")
         editor.fill(malicious)
         editor.press("Tab")
-        explanation = "name => obsReport.records.find(note => note.slug === name).frontmatter.explanation"
+        explanation = "name => obsArtifact.records.find(note => note.slug === name).frontmatter.explanation"
         assert page.evaluate(f"({explanation})('one')") == malicious
         assert malicious in page.locator("[data-active-chapter] .data-table-shell table").inner_text()
         assert page.evaluate(f"({explanation})('two')") == "Original two"
         assert page.evaluate("""() => {
-            try { obsReport.commitProperty('one', 'identifier', 'changed'); return false; }
+            try { obsArtifact.commitProperty('one', 'identifier', 'changed'); return false; }
             catch (_) { return true; }
         }""")
         assert page.evaluate("""obsQuery.compile('explanation:"Accepted"').match(
-            obsReport.records.find(note => note.slug === 'one'))""")
+            obsArtifact.records.find(note => note.slug === 'one'))""")
         assert not page.evaluate("Boolean(window.editExecuted)")
         page.evaluate("""() => {
             obsComments.data.reviewers.push('Reader');
@@ -85,7 +85,7 @@ def test_native_property_edits_survive_actual_reviewed_download_and_reopen(tmp_p
         assert page.evaluate("obsComments.data.annotations[0].text") == "Keep this comment"
         assert page.evaluate("obsComments.data.reviews[0].state") == "accepted"
         assert not page.evaluate("Boolean(window.editExecuted)")
-        page.evaluate("obsReport.activateChapter('two')")
+        page.evaluate("obsArtifact.activateChapter('two')")
         editor = page.locator("[data-active-chapter] [data-property-editor]")
         expect(editor).to_have_value("Original two")
         editor.fill("")
@@ -93,7 +93,7 @@ def test_native_property_edits_survive_actual_reviewed_download_and_reopen(tmp_p
         open_chapter(save("reviewed-twice.html"), "two")
         expect(page.locator("[data-active-chapter] [data-property-editor]")).to_have_value("")
         assert page.evaluate(f"({explanation})('one')") == malicious
-        assert page.evaluate("obsReport.records.find(note => note.slug === 'one').frontmatter.identifier") == "one"
+        assert page.evaluate("obsArtifact.records.find(note => note.slug === 'one').frontmatter.identifier") == "one"
         assert page.evaluate("obsComments.data.annotations.length") == 1
         open_chapter(save("reviewed-no-new-edits.html"), "two")
         expect(page.locator("[data-active-chapter] [data-property-editor]")).to_have_value("")

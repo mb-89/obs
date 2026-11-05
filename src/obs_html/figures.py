@@ -76,7 +76,7 @@ def _sankey_number(value):
 
 def _render_sankey(graph, nodes, caption, source_name, caption_html, alt="", source_note=None,
                    *, layout_width=0, identity="", count_labels=COUNT_LABELS, standalone_style=None):
-    """The report's Sankey figure; with standalone_style, only its SVG, styled by that CSS."""
+    """The artifact's Sankey figure; with standalone_style, only its SVG, styled by that CSS."""
     stages = sorted({node["stage"] for node in graph["nodes"]})
     columns = {stage: [] for stage in stages}
     incoming = {node["id"]: 0.0 for node in graph["nodes"]}
@@ -271,7 +271,7 @@ def _render_sankey(graph, nodes, caption, source_name, caption_html, alt="", sou
     parts.append("</svg>")
     if standalone_style is not None:
         return "".join(parts) + "\n"
-    parts.insert(0, f'<figure class="engineering-figure figure-sankey" data-report-figure data-engineering-figure data-figure-kind="sankey" data-figure-spec="{encoded}"{identity}>')
+    parts.insert(0, f'<figure class="engineering-figure figure-sankey" data-artifact-figure data-engineering-figure data-figure-kind="sankey" data-figure-spec="{encoded}"{identity}>')
     if caption_html:
         parts.append(f"<figcaption>{caption_html}</figcaption>")
     parts.append("</figure>\n")
@@ -301,7 +301,7 @@ def render_descriptor(descriptor: dict, anchor: str) -> str:
         payload = {**_plot(descriptor), "kind": "plot", "source": name, "alt": name}
         encoded = escape(json.dumps(payload, separators=(",", ":"), allow_nan=False), quote=True)
         return (
-            f'<figure class="engineering-figure" data-report-figure data-engineering-figure '
+            f'<figure class="engineering-figure" data-artifact-figure data-engineering-figure '
             f'data-figure-kind="plot" data-figure-spec="{encoded}"{identity}>'
             '<div class="figure-live" aria-label="Interactive figure"></div></figure>\n'
         )

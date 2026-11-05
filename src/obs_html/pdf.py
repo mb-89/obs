@@ -56,7 +56,7 @@ def _browser_page(operation: str) -> Iterator[Page]:
 
 
 def _print(page: Page) -> bytes:
-    """Print through the report runtime's own print book when the page has one."""
+    """Print through the artifact runtime's own print book when the page has one."""
     page.evaluate("window.print = () => {}; globalThis.obsPages?.exportPDF()")
     page.emulate_media(media="print")
     return page.pdf(print_background=True, prefer_css_page_size=True)
@@ -87,10 +87,10 @@ def check_rendered(html: Path, timeout_seconds: int) -> RenderedCheck:
             page.goto(html.resolve().as_uri(), wait_until="load")
             try:
                 page.wait_for_function(
-                    "['ready', 'error'].includes(document.documentElement.dataset.reportStatus)",
+                    "['ready', 'error'].includes(document.documentElement.dataset.artifactStatus)",
                     timeout=timeout_seconds * 1000,
                 )
-                status = page.evaluate("document.documentElement.dataset.reportStatus")
+                status = page.evaluate("document.documentElement.dataset.artifactStatus")
             except BrowserTimeoutError:
                 status = "timeout"
         pages = 0

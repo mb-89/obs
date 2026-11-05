@@ -180,10 +180,10 @@ def page_paths(pdf: Path, number: int) -> dict:
     return {"pdf": str(pdf), "page": number, "size": [width, height], "paths": paths}
 
 
-def _paths_json(report: dict) -> str:
-    """The paths report as JSON with one path per line, so it reads and diffs line by line."""
-    head = json.dumps({key: value for key, value in report.items() if key != "paths"})[:-1]
-    lines = ",\n".join(json.dumps(path) for path in report["paths"])
+def _paths_json(inspection: dict) -> str:
+    """The paths inspection as JSON with one path per line, so it reads and diffs line by line."""
+    head = json.dumps({key: value for key, value in inspection.items() if key != "paths"})[:-1]
+    lines = ",\n".join(json.dumps(path) for path in inspection["paths"])
     return f'{head}, "paths": [\n{lines}\n]}}\n'
 
 
@@ -315,9 +315,9 @@ def main(argv: Sequence[str] | None = None) -> None:
             _deliver_text(page_text(arguments.pdf, arguments.page), arguments.output,
                           f"page {arguments.page} text")
         elif arguments.command == "paths":
-            report = page_paths(arguments.pdf, arguments.page)
-            _deliver_text(_paths_json(report), arguments.output,
-                          f"{len(report['paths'])} paths of page {arguments.page}")
+            inspection = page_paths(arguments.pdf, arguments.page)
+            _deliver_text(_paths_json(inspection), arguments.output,
+                          f"{len(inspection['paths'])} paths of page {arguments.page}")
         elif arguments.command == "annotate":
             marks = [parse_mark(text) for text in arguments.box]
             annotate(arguments.raster, marks, arguments.scale, arguments.colour, arguments.line_width,

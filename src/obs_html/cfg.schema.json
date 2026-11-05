@@ -1,14 +1,14 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "cfg.schema.json",
-  "title": "obs-html report settings",
-  "description": "Adapter settings: command execution limits, print geometry and report presentation. A --config file merges over the packaged cfg.json.",
+  "title": "obs-html artifact settings",
+  "description": "Adapter settings: command execution limits, print geometry and artifact presentation. A --config file merges over the packaged cfg.json.",
   "type": "object",
   "additionalProperties": false,
   "required": [
     "schemaVersion",
     "execution",
-    "report"
+    "artifact"
   ],
   "properties": {
     "$schema": {
@@ -39,7 +39,7 @@
         }
       }
     },
-    "report": {
+    "artifact": {
       "type": "object",
       "additionalProperties": false,
       "required": [
@@ -94,7 +94,7 @@
             "gzip",
             "none"
           ],
-          "description": "Canonical report-data transport. Gzip embeds base64 compressed JSON, with plain fallback when smaller; none embeds plain JSON."
+          "description": "Canonical artifact-data transport. Gzip embeds base64 compressed JSON, with plain fallback when smaller; none embeds plain JSON."
         },
         "reading": {
           "$ref": "#/$defs/reading",
