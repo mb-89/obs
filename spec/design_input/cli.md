@@ -70,6 +70,18 @@ scripts, so callers can gate a build on its exit code.
 The page count comes from the print path that `--export-pdf` uses, so it equals the
 pages of an exported PDF and does not depend on the reader's scrolling container.
 
+## Printing a chapter
+
+`--print-chapter HTML ID` prints one chapter of a built report to stdout, as HTML or, with
+`--chapter-format text`, as plain text. Tests and agents check what a report shows, for
+example that a link resolves, directly from the command instead of a browser script; the
+report's data island is packed, so reading it by hand needs a decoder.
+
+It prints the chapter as the generator stored it in the report's data, without starting a
+browser: what the reader runtime changes on load, such as interactive table controls, is not
+included; `--check-rendered` covers the opened page. Chapter ids are the note slugs the report's table of
+contents uses; an unknown id lists the available ones.
+
 ## PowerShell callers
 
 The CLI writes diagnostics, such as warnings, to stderr; uv adds progress lines there,
