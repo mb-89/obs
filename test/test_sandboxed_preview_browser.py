@@ -83,7 +83,42 @@ def test_canaries_find_what_a_scripts_only_sandbox_limits(tmp_path: Path, reader
 
 
 @pytest.mark.browser
-def test_canaries_find_nothing_limited_in_a_normally_opened_report(tmp_path: Path, reader_browser) -> None:
+def test_a_sandboxed_frame_shows_one_limited_functionality_notice(tmp_path: Path, reader_browser) -> None:
+    from playwright.sync_api import expect
+
+    errors: list[str] = []
+    page, frame = open_sandboxed(tmp_path, reader_browser, errors)
+    notice = frame.locator("[data-header-notices] [data-capability-notice]")
+    expect(notice).to_have_count(1)
+    summary = notice.locator("summary")
+    expect(summary).to_have_text(re.compile(r"^Limited functionality: \d+ features$"))
+    items = notice.locator("li[data-capability]")
+    expect(items.first).to_be_hidden()
+    count = int(summary.inner_text().split(": ")[1].split()[0])
+    assert items.count() == count
+    keep_screenshot(page, "limited-functionality-collapsed")
+    summary.click()
+    printing = notice.locator('li[data-capability="printing"]')
+    dialogs = notice.locator('li[data-capability="dialogs"]')
+    expect(printing).to_be_visible()
+    expect(printing).to_contain_text("Print to PDF")
+    expect(printing).to_contain_text("print dialog")
+    expect(printing).to_contain_text("Open the HTML file directly in a browser to print.")
+    expect(dialogs).to_contain_text("Dialogs")
+    expect(dialogs).to_contain_text("Open the HTML file directly in a browser")
+    keep_screenshot(page, "limited-functionality-expanded")
+    frame.locator("html").evaluate("() => globalThis.obsFilter.setExpression('file.name == \\'One\\'')")
+    expect(frame.locator("[data-filter-warning]")).to_be_visible()
+    expect(notice).to_be_visible()
+    frame.locator(".filter-warning-clear").click()
+    expect(notice).to_be_visible()
+    page.emulate_media(media="print")
+    expect(notice).to_be_hidden()
+    assert errors == []
+
+
+@pytest.mark.browser
+def test_the_same_report_opened_normally_shows_no_notice(tmp_path: Path, reader_browser) -> None:
     from playwright.sync_api import expect
 
     path = tmp_path / "report.html"
@@ -92,4 +127,6 @@ def test_canaries_find_nothing_limited_in_a_normally_opened_report(tmp_path: Pat
     page = open_page(reader_browser, path, errors)
     expect(page.locator("html")).to_have_attribute("data-report-status", "ready")
     assert page.evaluate("globalThis.obsCapabilities.limits.length") == 0
+    expect(page.locator("[data-capability-notice]")).to_have_count(0)
     assert errors == []
+
