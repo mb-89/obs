@@ -15,6 +15,7 @@
     "Numeric-value notes": "input",
     "Reference notes and link text": "input",
     "Remaining chapter content": "input",
+    "Figure descriptor": "input",
     "Markdown body and frontmatter": "input",
     "Mark tags": "input",
     "Base fences": "input",
