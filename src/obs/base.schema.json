@@ -19,5 +19,12 @@
         }
       }
     }
+  },
+  "$defs": {
+    "comparison": {
+      "$comment": "Bases comparison syntax for the core evaluator; groups: name, bracketed name, operator, literal. A test keeps it equal to the interim adapter's pattern.",
+      "type": "string",
+      "pattern": "^(?:([A-Za-z][A-Za-z0-9_.]*)|note\\[\"([^\"\\r\\n]+)\"\\])[ \\t]*(==|!=)[ \\t]*(null|true|false|-?(?:0|[1-9][0-9]*)(?:\\.[0-9]+)?|\"[^\"\\\\\\r\\n]*\"|'[^'\\\\\\r\\n]*')$"
+    }
   }
 }

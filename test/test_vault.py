@@ -129,11 +129,11 @@ def test_core_places_recognized_capabilities_in_content_nodes(tmp_path) -> None:
     ]
     assert content[3]["children"][1] == {
         "type": "wikilinks",
-        "attrs": {"target": "target", "chapter": None, "heading": "Heading", "label": "Label"},
+        "attrs": {"target": "target", "chapter": "target", "heading": "Heading", "label": "Label"},
         "children": [],
     }
     assert content[3]["children"][3] == {
-        "type": "embeds", "attrs": {"target": "target", "chapter": None}, "children": [],
+        "type": "embeds", "attrs": {"target": "target", "chapter": "target"}, "children": [],
     }
     assert content[3]["children"][5] == {
         "type": "marks", "attrs": {"category": "risk", "id": "watch"}, "children": [],
@@ -209,7 +209,7 @@ def test_core_resolves_link_and_embed_targets_to_chapter_ids(tmp_path) -> None:
 
     assert [(node["type"], node["attrs"]["chapter"]) for node in nodes] == [
         ("wikilinks", "part-details"), ("embeds", "part-details"),
-        ("wikilinks", None), ("embeds", None), ("wikilinks", None),
+        ("wikilinks", "outside"), ("embeds", "outside"), ("wikilinks", None),
     ]
 
 
@@ -236,8 +236,10 @@ def test_spec_document_wikilinks_name_their_included_chapter() -> None:
     included = [attrs for attrs in resolved if Path(attrs["target"]).name in chapter_ids]
     assert included
     assert all(attrs["chapter"] == chapter_ids[Path(attrs["target"]).name] for attrs in included)
+    unlisted = {chapter["id"] for chapter in document["chapters"] if chapter.get("toc") is False}
     assert all(
-        attrs["chapter"] is None for attrs in resolved if Path(attrs["target"]).name not in chapter_ids
+        attrs["chapter"] in unlisted | {"home"}
+        for attrs in resolved if Path(attrs["target"]).name not in chapter_ids
     )
 
 
