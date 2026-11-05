@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "document.schema.json",
-  "description": "A neutral Document. Structural node types are document, section, paragraph, text, list, list-item, and code; all other node types are capability identifiers from the supplied capability reference.",
+  "description": "A neutral Document. Node types are the structural types $defs/structuralType lists, or capability identifiers from the supplied capability reference.",
   "type": "object",
   "additionalProperties": false,
   "required": ["schemaVersion", "manifest", "chapters", "links", "assets", "records", "semanticResources", "diagnostics", "capabilities"],
@@ -33,6 +33,13 @@
   },
   "$defs": {
     "id": {"type": "string", "pattern": "^[a-z][a-z0-9-]*$"},
+    "structuralType": {
+      "description": "The node types every adapter renders, whatever capabilities it declares: Markdown's own blocks and inline marks (capabilities/markdown) and frontmatter fields (capabilities/markdown-frontmatter).",
+      "enum": [
+        "document", "section", "paragraph", "text", "list", "list-item", "code", "quote",
+        "table", "table-row", "table-cell", "emphasis", "strong", "strikethrough", "math", "field"
+      ]
+    },
     "node": {
       "type": "object", "additionalProperties": false, "required": ["type", "attrs", "children"],
       "properties": {
@@ -42,6 +49,35 @@
         "text": {"type": "string"}
       },
       "allOf": [
+        {
+          "description": "Containers that carry no attributes: a quotation's blocks, a table's rows, a row's cells, and a mark's inline nodes.",
+          "if": {"properties": {"type": {"enum": ["quote", "table", "table-row", "emphasis", "strong", "strikethrough"]}}},
+          "then": {"properties": {"attrs": {"maxProperties": 0}}}
+        },
+        {
+          "description": "A table cell: whether it is a header cell and its authored alignment; its children are inline nodes.",
+          "if": {"properties": {"type": {"const": "table-cell"}}},
+          "then": {"properties": {"attrs": {
+            "type": "object", "additionalProperties": false, "required": ["header"],
+            "properties": {"header": {"type": "boolean"}, "align": {"enum": ["left", "center", "right"]}}
+          }}}
+        },
+        {
+          "description": "TeX math: the formula is text, display is true for a $$ formula.",
+          "if": {"properties": {"type": {"const": "math"}}},
+          "then": {"required": ["text"], "properties": {"children": {"maxItems": 0}, "attrs": {
+            "type": "object", "additionalProperties": false, "required": ["display"],
+            "properties": {"display": {"type": "boolean"}}
+          }}}
+        },
+        {
+          "description": "One frontmatter string value parsed as inline Markdown; name is its dotted field path (list items by index).",
+          "if": {"properties": {"type": {"const": "field"}}},
+          "then": {"properties": {"attrs": {
+            "type": "object", "additionalProperties": false, "required": ["name"],
+            "properties": {"name": {"type": "string", "minLength": 1}}
+          }}}
+        },
         {
           "if": {"properties": {"type": {"const": "figure-descriptor"}}},
           "then": {

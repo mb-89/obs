@@ -21,6 +21,15 @@ references still reach it ([[input-model#Chapter content]]). Automatic selection
 Base's `obsHtml.members` list, which only narrows what the Base selects. Any other value than
 `true` or `false` is an error that names the note. The note's record carries `ignored: true` ([[capabilities/bases#Note records]]).
 
+## Document node
+
+A note with frontmatter starts its content with one `markdown-frontmatter` node: `attrs.metadata`
+holds the values as JSON. Its `children` hold every nonempty string value parsed as inline
+Markdown, one `field` node each, in frontmatter order. `attrs.name` is the value's dotted field
+path, a list item by its index (`product.name`, `authors.0`). Marks, links, wikilinks and images
+in a value arrive as the same inline nodes as in
+[[capabilities/markdown#Document nodes|chapter text]]; numbers, booleans and dates stay data only.
+
 ## Authoring example
 
 ```markdown
