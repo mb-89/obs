@@ -60,3 +60,22 @@ def test_each_part_writes_its_junit_report_into_the_directory_se_names(tmp_path)
             if argument.startswith("--junitxml=")} == {
         f"--junitxml={tmp_path / (suite.part_name(part).replace('/', '-') + '.xml')}" for part in suite.PARTS}
     assert not [argument for argument in unnamed if argument.startswith("--junitxml")]
+
+
+def test_the_parts_run_side_by_side_and_any_failed_part_fails_the_suite(monkeypatch, capsys) -> None:
+    import threading
+
+    import suite
+
+    together = threading.Barrier(len(suite.PARTS), timeout=10)
+
+    def run_part(part, arguments):
+        together.wait()
+        return (1 if part == suite.ROOT else 0), f"== {suite.part_name(part)} {arguments}\n"
+
+    monkeypatch.setattr(suite, "run_part", run_part)
+
+    assert suite.main(["-x"]) == 1
+    output = capsys.readouterr()
+    assert all(f"== {suite.part_name(part)} ['-x']" in output.out for part in suite.PARTS)
+    assert "failed parts: core." in output.err

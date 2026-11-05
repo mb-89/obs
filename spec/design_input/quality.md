@@ -83,8 +83,8 @@ definitions alike. Keeping the same fact in two places is an anti-pattern (user,
 - Give browser features independently selectable tests and small fixtures. Share expensive
   adapter startup within a selected module; do not require the end-to-end scenario to test a
   local interaction. Prefer extracting pure transformations only when they have a cohesive owner.
-- The complete suite (`test/suite.py`) runs each part's tests in parallel worker processes,
-  one per CPU (pytest-xdist). A module's tests share a worker, so its module fixtures are built
+- The complete suite (`test/suite.py`) runs its parts side by side and each part's tests in
+  parallel worker processes, one per CPU (pytest-xdist). A module's tests share a worker, so its module fixtures are built
   once per run; each worker starts one browser and gives every test fresh contexts in it.
 - An input many tests read, such as obs's spec Document, a fixture artifact or the parity
   builds, is built once per run by `built_once` in the part's `conftest.py` and shared by every
