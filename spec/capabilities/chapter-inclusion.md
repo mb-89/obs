@@ -12,6 +12,10 @@ capability:
 
 Include and navigate source notes through manifest and query references.
 
+The manifest's notes, and every note their links, Bases and queries reach, recursively,
+become chapters of the Document; [[input-model#Chapter content]] owns the rule and where
+unlisted notes go.
+
 ## Authoring example
 
 ```markdown

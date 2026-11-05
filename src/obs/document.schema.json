@@ -124,7 +124,7 @@
       ]
     },
     "chapterReference": {
-      "description": "The id of the included chapter a note link resolves to, or null when the note is outside the manifest.",
+      "description": "The id of the included chapter a note link resolves to, home for the manifest, or null when the target does not exist.",
       "oneOf": [{"$ref": "#/$defs/id"}, {"type": "null"}]
     },
     "chapter": {
@@ -133,7 +133,8 @@
         "id": {"$ref": "#/$defs/id"}, "title": {"type": "string", "minLength": 1},
         "content": {"type": "array", "items": {"$ref": "#/$defs/node"}},
         "children": {"type": "array", "items": {"$ref": "#/$defs/chapter"}},
-        "metadata": {"type": "object"}
+        "metadata": {"type": "object"},
+        "toc": {"const": false, "description": "An included note the manifest does not list; it follows the TOC chapters at the top level."}
       }
     },
     "link": {

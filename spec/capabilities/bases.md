@@ -20,7 +20,9 @@ the manifest included. Each record holds an `id` derived from its path, its vaul
 
 An adapter evaluates a Base filter on these records,
 taking `file.*` properties from `path` and every other property from `fields`, without reading
-the vault. The [[input-model#Base fences]] contract owns the filter grammar.
+the vault. The [[input-model#Base fences]] contract owns the filter grammar. The notes a
+Base in an included note selects are included in the Document too
+([[input-model#Chapter content]]).
 
 ## Authoring example
 

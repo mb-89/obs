@@ -2,6 +2,7 @@
 import argparse
 import json
 import subprocess
+import sys
 from pathlib import Path
 from typing import Sequence
 
@@ -164,9 +165,11 @@ def main(argv: Sequence[str] | None = None) -> int:
     try:
         reference = read_capability_reference(options.capability_reference)
         if options.source:
-            write_document(
-                build_document(options.source, reference, options.config), options.document, reference,
-            )
+            document = build_document(options.source, reference, options.config)
+            for diagnostic in document["diagnostics"]:
+                if diagnostic["level"] == "warning":
+                    print(f"obs-document: warning: {diagnostic['message']}", file=sys.stderr)
+            write_document(document, options.document, reference)
         if not options.adapter:
             if options.source:
                 return 0

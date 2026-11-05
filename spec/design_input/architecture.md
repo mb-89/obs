@@ -101,8 +101,11 @@ and optional `text`.
 Its fixed structural types are `document`, `section`, `paragraph`, `text`, `list`,
 `list-item`, and `code`. Every other type is a capability identifier.
 For each recognized input capability, the core emits an in-place, schema-validated
-capability node containing only its authored data; it neither evaluates queries nor
-executes commands or creates presentation output.
+capability node containing only its authored data; it neither executes commands nor
+creates presentation output.
+
+It evaluates queries and Base filters only to decide which
+notes the Document includes ([[input-model#Chapter content]]), never to emit results.
 
 The Document separately carries semantic resources so adapters can resolve their
 identifiers without inferring them from presentation nodes.
