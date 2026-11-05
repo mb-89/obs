@@ -1,0 +1,15 @@
+{
+  "name": "html",
+  "command": [
+    "uv",
+    "run",
+    "obs-html-smoke"
+  ],
+  "contractVersion": 1,
+  "capabilities": [
+    "manifest",
+    "markdown",
+    "markdown-frontmatter",
+    "wikilinks"
+  ]
+}
