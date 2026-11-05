@@ -249,6 +249,8 @@ def _frontmatter_nodes(
         add("profiles", {"profile": _json_value(metadata["obsHtml"])})
     if metadata.get("kind") == "quantity":
         add("quantities", {"metadata": _json_value(metadata)})
+    if "bottom line" in metadata or metadata.get("kind") == "glossary":
+        add("bottom-lines", {"metadata": _json_value(metadata)})
     if "query" in metadata:
         query = _json_value(metadata["query"])
         add("queries", {"query": query})
