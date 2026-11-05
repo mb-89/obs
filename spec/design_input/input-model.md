@@ -657,6 +657,12 @@ Generation time remains separate from document revision dates.
   value), narrowed by its `from` owner's selection; the `from` and `secondary` owner notes
   are included too. Each note is included once, so cycles end.
 
+  Queries and Bases never select an ignored note
+  ([[capabilities/markdown-frontmatter#Ignored notes]]), the manifest included when it marks
+  itself ignored. Following the person's underscore analogy (not yet confirmed in detail), an
+  explicit reference still reaches it: an ignored note in the manifest's TOC, or linked or
+  embedded from an included note, is included and resolves normally.
+
   The Document's `chapters` hold the TOC tree first. Every other included note follows as
   a top-level chapter with `toc: false`, in the case-insensitive order of its vault path
   (worker decision, 5 Nov 2026), so the place does not depend on which link reached it
