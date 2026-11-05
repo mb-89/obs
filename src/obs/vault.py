@@ -548,6 +548,9 @@ def _blocks(
                 tokens[position:closing], context,
             )})
             position = closing + 1
+        elif token.type == "hr":
+            result.append({"type": "rule", "attrs": {}, "children": []})
+            position += 1
         elif token.type == "math_block":
             result.append({
                 "type": "math", "attrs": {"display": True}, "children": [],

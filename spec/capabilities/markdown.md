@@ -36,7 +36,8 @@ arrive as structural nodes, which every adapter renders; `document.schema.json` 
 - blocks: `section` (a heading), `paragraph`, `list` and `list-item`, `code` (fenced or
   indented, `attrs.language`), `quote` (a blockquote that is not a
   [[capabilities/callouts|callout]]), `table` with `table-row` and `table-cell`
-  (`attrs.header`, and `attrs.align` where the delimiter row sets one), and display `math`;
+  (`attrs.header`, and `attrs.align` where the delimiter row sets one), display `math`, and
+  `rule` (a thematic break: `---`, `***` or `___` on its own line);
 - inline: `text` (link text carries `attrs.link`), `emphasis`, `strong`, `strikethrough`
   (each holding the inline nodes it marks, so marks nest), inline `code` and `math`
   (`attrs.display: false`, the formula as `text`).
