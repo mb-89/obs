@@ -367,6 +367,27 @@ def test_archive_opt_in_includes_sources_and_roundtrips_pdf(tmp_path: Path) -> N
     assert source_pdf.read_bytes() == pdf.getvalue()
 
 
+def test_source_archive_records_authorized_silent_producers(tmp_path: Path) -> None:
+    vault = vault_at(tmp_path)
+    (vault / "one.md").write_text(
+        "# One\n\n```cmd silent\necho produced > produced.txt\n```\n", encoding="utf-8",
+    )
+    output = tmp_path / "report.html"
+
+    assert main([
+        "--source", str(vault), "--output", str(output), "--embed-source", "--execute-commands",
+    ]) == 0
+
+    archive = embedded_archive(output.read_text(encoding="utf-8"))
+    assert archive is not None
+    with ZipFile(BytesIO(archive)) as contents:
+        assert contents.read("vault/one.md") == (vault / "one.md").read_bytes()
+        assert contents.read("vault/produced.txt") == b"produced \r\n"
+        assert "Original generation authorized command fences: True." in (
+            contents.read("REPRODUCE.txt").decode()
+        )
+
+
 def test_check_archive_never_writes_and_missing_checkout_fails(tmp_path: Path) -> None:
     vault = vault_at(tmp_path)
     output = tmp_path / "report.html"

@@ -152,6 +152,23 @@ def test_core_places_recognized_capabilities_in_content_nodes(tmp_path) -> None:
     }
 
 
+def test_core_marks_silent_command_fences_as_non_rendering_producers(tmp_path) -> None:
+    vault = tmp_path / "vault"
+    vault.mkdir()
+    (vault / "manifest.md").write_text("- [[chapter]]\n", encoding="utf-8")
+    (vault / "chapter.md").write_text(
+        "```cmd silent\nproduce-artifact\n```\n", encoding="utf-8",
+    )
+
+    document = build_document(vault / "manifest.md", capability_reference())
+
+    assert document["chapters"][0]["content"][-1] == {
+        "type": "command-fences",
+        "attrs": {"source": "produce-artifact\n", "silent": True},
+        "children": [],
+    }
+
+
 def test_core_emits_data_only_nodes_for_additional_input_capabilities(tmp_path) -> None:
     document = additional_capability_document(tmp_path)
     nodes = document["chapters"][0]["content"]

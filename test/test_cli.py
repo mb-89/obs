@@ -265,6 +265,90 @@ def test_check_validates_commands_without_execution_or_output(tmp_path, monkeypa
     assert "Unresolved note reference" in capsys.readouterr().err
 
 
+def test_authorized_silent_producers_create_inputs_before_conversion(tmp_path) -> None:
+    vault = tmp_path / "vault"
+    vault.mkdir()
+    (vault / "manifest.md").write_text("- [[producer]]\n- [[generated]]\n", encoding="utf-8")
+    (vault / "producer.md").write_text(
+        "# Producer\n\n```cmd silent\n"
+        "copy /Y template.svg generated.svg > NUL & copy /Y template.md generated.md > NUL\n"
+        "```\n",
+        encoding="utf-8",
+    )
+    (vault / "template.svg").write_text("<svg/>", encoding="utf-8")
+    (vault / "template.md").write_text(
+        "# Generated\n\nGenerated note.\n\n![Producer figure](generated.svg)\n", encoding="utf-8",
+    )
+    output = tmp_path / "report.html"
+
+    assert main(["--source", str(vault), "--output", str(output), "--execute-commands"]) == 0
+
+    report = output.read_text(encoding="utf-8")
+    data = decode_report_data(report)
+    generated = next(note for note in data["notes"] if note["slug"] == "generated")
+    assert "Generated note." in generated["html"]
+    assert 'src="data:image/svg+xml;base64,PHN2Zy8+" alt="Producer figure" />' in generated["html"]
+    assert "copy /Y template.svg" not in report
+
+
+@pytest.mark.parametrize("check", [False, True])
+def test_unauthorized_silent_producers_use_existing_artifacts_without_execution(
+    tmp_path, check,
+) -> None:
+    vault = tmp_path / "vault"
+    vault.mkdir()
+    (vault / "manifest.md").write_text("- [[producer]]\n- [[generated]]\n", encoding="utf-8")
+    (vault / "producer.md").write_text(
+        "# Producer\n\n```cmd silent\nmust-not-run\n```\n", encoding="utf-8",
+    )
+    (vault / "generated.md").write_text("# Generated\n\nExisting artifact.\n", encoding="utf-8")
+    output = tmp_path / "report.html"
+    arguments = ["--source", str(vault), "--output", str(output)]
+    if check:
+        arguments.append("--check")
+
+    assert main(arguments) == 0
+
+    if check:
+        assert not output.exists()
+    else:
+        data = decode_report_data(output.read_text(encoding="utf-8"))
+        generated = next(note for note in data["notes"] if note["slug"] == "generated")
+        assert "Existing artifact." in generated["html"]
+
+
+def test_unauthorized_silent_producer_missing_artifact_fails_clearly(tmp_path, capsys) -> None:
+    vault = tmp_path / "vault"
+    vault.mkdir()
+    (vault / "manifest.md").write_text("- [[producer]]\n- [[generated]]\n", encoding="utf-8")
+    (vault / "producer.md").write_text(
+        "# Producer\n\n```cmd silent\nmust-not-run\n```\n", encoding="utf-8",
+    )
+
+    with pytest.raises(SystemExit, match="2"):
+        main(["--source", str(vault), "--output", str(tmp_path / "report.html")])
+
+    assert "Manifest target does not exist: generated" in capsys.readouterr().err
+
+
+def test_conversion_failure_after_authorized_producer_preserves_previous_output(tmp_path) -> None:
+    vault = tmp_path / "vault"
+    vault.mkdir()
+    (vault / "manifest.md").write_text("- [[producer]]\n- [[generated]]\n", encoding="utf-8")
+    (vault / "producer.md").write_text(
+        "# Producer\n\n```cmd silent\ncopy /Y template.md generated.md > NUL\n```\n",
+        encoding="utf-8",
+    )
+    (vault / "template.md").write_text("# Generated\n\n[[missing]]\n", encoding="utf-8")
+    output = tmp_path / "report.html"
+    output.write_text("previous report", encoding="utf-8")
+
+    with pytest.raises(SystemExit, match="2"):
+        main(["--source", str(vault), "--output", str(output), "--execute-commands"])
+
+    assert output.read_text(encoding="utf-8") == "previous report"
+
+
 def test_cli_checks_and_renders_card_metric_links_and_base_queries(tmp_path, capsys) -> None:
     vault = tmp_path / "vault"
     vault.mkdir()
