@@ -26,13 +26,13 @@
         if (link) applyLinkPolicy(link);
     }, true);
     applyLinkPolicy();
-    const reportData = JSON.parse(document.querySelector("[data-report-data]").textContent);
-    let embeddedAssets = reportData.embeddedAssets || {};
-    const notes = reportData.notes;
+    const artifactData = JSON.parse(document.querySelector("[data-artifact-data]").textContent);
+    let embeddedAssets = artifactData.embeddedAssets || {};
+    const notes = artifactData.notes;
     const notesBySlug = new Map(notes.map((note) => [note.slug, note]));
-    const chapters = reportData.toc.map((slug) => notesBySlug.get(slug));
-    const tocSlugs = new Set(reportData.toc);
-    const queryProfile = reportData.query || {scope: "chapters"};
+    const chapters = artifactData.toc.map((slug) => notesBySlug.get(slug));
+    const tocSlugs = new Set(artifactData.toc);
+    const queryProfile = artifactData.query || {scope: "chapters"};
     const contentTemplate = document.createElement("template");
     const formatMetadataValue = (value) => {
         if (value === null) return "null";
@@ -71,7 +71,7 @@
     const makeRecord = (chapter) => {
         contentTemplate.innerHTML = chapter.html;
         const text = contentTemplate.content.textContent.replace(/\s+/g, " ").trim();
-        const metadata = chapter.generated === "home" ? reportData.document.metadata : chapter.frontmatter;
+        const metadata = chapter.generated === "home" ? artifactData.document.metadata : chapter.frontmatter;
         const metadataEntries = flattenFrontmatter(metadata);
         const frontmatterAttributes = Object.fromEntries(metadataEntries
             .filter(([, , atoms]) => atoms).map(([name, , atoms]) => [name, atoms]));
@@ -183,7 +183,7 @@
             });
         });
         return [...values].filter(([field, available]) => available.size > 1 &&
-            available.size <= Math.floor(populated.get(field) * reportData.facetDistinctRatio))
+            available.size <= Math.floor(populated.get(field) * artifactData.facetDistinctRatio))
             .sort(([left], [right]) => left.localeCompare(right))
             .map(([field, available]) => ({
                 field, label: selected?.get(field.toLocaleLowerCase())?.label || field,
@@ -192,7 +192,7 @@
                     left.localeCompare(right, undefined, {numeric: true})),
             }));
     };
-    const previewConfig = reportData.hoverCard;
+    const previewConfig = artifactData.hoverCard;
     const hoverCard = globalThis.ObsHtmlHoverCard.create({
         window, delayMilliseconds: previewConfig.showDelayMilliseconds,
     });
@@ -247,7 +247,7 @@
         if (html) card.append(cardHtml("p", html, className));
         else if (html === null) card.append(element("p", className, formatStructuredValue(record.frontmatter[field])));
     };
-    // Report-ui.md "Link hover card": the content shown depends on the kind of the linked target.
+    // Artifact-ui.md "Link hover card": the content shown depends on the kind of the linked target.
     const renderReferenceCard = (card, record, href, url) => {
         card.append(cardTitle(record.title, href));
         const link = element("a", "hover-card-external", url);
@@ -388,10 +388,10 @@
     const tocTree = document.querySelector("[data-toc-tree]");
     const stepButtons = [...document.querySelectorAll("[data-step]")];
     const rootStyle = document.documentElement.style;
-    rootStyle.setProperty("--inactive-icon-opacity", String(reportData.inactiveIconOpacity));
-    rootStyle.setProperty("--attention-period", `${reportData.reading.pingPeriodMilliseconds}ms`);
-    rootStyle.setProperty("--attention-count", String(reportData.reading.pingCount));
-    rootStyle.setProperty("--attention-scale", String(reportData.reading.pingScale));
+    rootStyle.setProperty("--inactive-icon-opacity", String(artifactData.inactiveIconOpacity));
+    rootStyle.setProperty("--attention-period", `${artifactData.reading.pingPeriodMilliseconds}ms`);
+    rootStyle.setProperty("--attention-count", String(artifactData.reading.pingCount));
+    rootStyle.setProperty("--attention-scale", String(artifactData.reading.pingScale));
     const stopPing = (target) => target?.classList.remove("attention-ping");
     const ping = (target) => {
         if (target.classList.contains("attention-ping")) return;
@@ -900,7 +900,7 @@
 
     const sourceArchiveInfo = () => {
         const available = Boolean(document.getElementById("obs-source-archive"));
-        const complete = available && reportData.sourceArchiveComplete !== false;
+        const complete = available && artifactData.sourceArchiveComplete !== false;
         return {available, complete, label: !available ? "Source archive unavailable"
             : complete ? "Download source ZIP" : "Download partial evidence ZIP"};
     };
@@ -972,9 +972,9 @@
     const documentMetadataRows = () => {
         if (!cachedDocumentMetadataRows) {
             cachedDocumentMetadataRows = [
-                ...Object.entries(reportData.document.metadata).filter(([key]) => key !== "history")
+                ...Object.entries(artifactData.document.metadata).filter(([key]) => key !== "history")
                     .map(([key, value]) => [key, value, "metadata"]),
-                ...Object.entries(reportData.document.generation).map(
+                ...Object.entries(artifactData.document.generation).map(
                     ([key, value]) => [key, value, "generation"],
                 ),
             ].map(([key, value, owner]) => {
@@ -990,7 +990,7 @@
     let cachedDocumentHistoryRows;
     const documentHistoryRows = () => {
         if (!cachedDocumentHistoryRows) {
-            cachedDocumentHistoryRows = (reportData.document.metadata.history || []).map((entry, index) =>
+            cachedDocumentHistoryRows = (artifactData.document.metadata.history || []).map((entry, index) =>
                 tableRecord(`history:${index}`, {
                     recordType: "documentHistory", ...entry, date: entry.date || "",
                 })
@@ -999,14 +999,14 @@
         return cachedDocumentHistoryRows;
     };
 
-    let cachedReportTableRows;
-    const reportTableRows = () => {
-        if (!cachedReportTableRows) {
-            cachedReportTableRows = [
+    let cachedArtifactTableRows;
+    const artifactTableRows = () => {
+        if (!cachedArtifactTableRows) {
+            cachedArtifactTableRows = [
                 ...contentTableRows(), ...documentMetadataRows(), ...documentHistoryRows(),
             ];
         }
-        return cachedReportTableRows;
+        return cachedArtifactTableRows;
     };
 
     const appendTableCell = (cell, descriptor, fallback) => {
@@ -1090,7 +1090,7 @@
             } else link.removeAttribute("download");
         }
         if (!link && icon.action && icon.action !== "sourceArchive" && !cardUnavailable) {
-            control.dataset.reportAction = icon.action;
+            control.dataset.artifactAction = icon.action;
             control.dataset.actionNoteId = row.canonicalId;
             if (icon.card) tableIconCards.set(control, {card: icon.card, row});
         }
@@ -1277,7 +1277,7 @@
             const normalize = item => ({...item, property: fieldName(item.property)});
             view[key] = Array.isArray(view[key]) ? view[key].map(normalize) : normalize(view[key]);
         }
-        const allRows = reportTableRows();
+        const allRows = artifactTableRows();
         const parts = [definition.filters, view.filters]
             .filter((item) => item !== undefined && item !== null);
         const filters = parts.length ? {and: parts} : undefined;
@@ -1360,7 +1360,7 @@
                 },
                 fixed: icons.length > 0,
                 weight: icons.length ? undefined : columnSizes[key],
-                width: icons.length ? reportData.tableIconWidthPixels * icons.length : undefined,
+                width: icons.length ? artifactData.tableIconWidthPixels * icons.length : undefined,
                 render: (row, cell) => {
                     if (presentation.singleLine) cell.classList.add("data-table-cell--single-line");
                     if (icons.length) {
@@ -1433,14 +1433,14 @@
             wide: view.obsHtml?.wide === true,
             compact: view.obsHtml?.compact === true,
             minimumColumnWidth: view.obsHtml?.compact
-                ? reportData.tableCompactColumnMinimumPixels : reportData.tableColumnMinimumPixels,
+                ? artifactData.tableCompactColumnMinimumPixels : artifactData.tableColumnMinimumPixels,
             columnDetails: view.obsHtml?.details === "columns",
             showEmptyDetailTabs: view.obsHtml?.showEmptyDetailTabs === true,
             screenPageBreaks: view.obsHtml?.screenPageBreaks !== false,
             pagination: view.obsHtml?.pagination !== false,
-            pageSize: view.obsHtml?.pageSize ?? reportData.tablePageSize,
+            pageSize: view.obsHtml?.pageSize ?? artifactData.tablePageSize,
             columnSizing: view.obsHtml?.columnSizing,
-            detailFontSize: view.obsHtml?.detailFontSize ?? reportData.tableDetailFontSizePoints,
+            detailFontSize: view.obsHtml?.detailFontSize ?? artifactData.tableDetailFontSizePoints,
             fieldCatalog: queryProfile.scope === "records" && queryProfile.fields && matched.length &&
                 matched.every(row => queryPopulation.match(recordsBySlug.get(row.noteId) || row))
                 ? queryProfile.fields.map(({field, label}) => ({
@@ -1549,10 +1549,10 @@
         ]);
         return searchIndex.filter(hit => hit.kind !== "row" || filterTableRows([hit.row]).length);
     };
-    const viewSelections = new Map(Object.entries(reportData.readerState?.views || {}));
+    const viewSelections = new Map(Object.entries(artifactData.readerState?.views || {}));
     const tableDefinitions = notes.flatMap(note => note.tables || []);
     const tableKeys = new Set(tableDefinitions.map(table => table.key));
-    const savedPresentations = reportData.readerState?.tables;
+    const savedPresentations = artifactData.readerState?.tables;
     const invalidSavedPresentations = savedPresentations !== undefined &&
         (!savedPresentations || typeof savedPresentations !== "object" ||
         Array.isArray(savedPresentations) || Object.keys(savedPresentations).some(key => !tableKeys.has(key)));
@@ -1609,7 +1609,7 @@
                         JSON.stringify(presentation) === JSON.stringify(defaults) ? undefined : presentation;
                     document.dispatchEvent(new CustomEvent("obs-reader-state-change"));
                 },
-                // Resized widths are session-only view state: not reader state, not a document change.
+                // Resized widths are session-only view state: not reader state, not an artifact change.
                 initialColumnWidths: state.widths,
                 onColumnWidthsChange: staticView ? undefined : widths => {state.widths = widths;},
                 initialDetailState: definition.columnDetails ? state.details : undefined,
@@ -1741,7 +1741,7 @@
                     const refreshRows = (event) => {
                         if (!rendered.element.isConnected) {
                             document.removeEventListener("obs-canonical-property-change", refreshRows);
-                            document.removeEventListener("obs-report-filter", refreshRows);
+                            document.removeEventListener("obs-artifact-filter", refreshRows);
                             return;
                         }
                         if (queryProfile.scope === "records" && event.type === "obs-canonical-property-change") return;
@@ -1751,7 +1751,7 @@
                     };
                     document.addEventListener("obs-canonical-property-change", refreshRows);
                     if (queryProfile.scope === "records") {
-                        document.addEventListener("obs-report-filter", refreshRows);
+                        document.addEventListener("obs-artifact-filter", refreshRows);
                     }
                 }
                 if (staticView) {
@@ -1759,7 +1759,7 @@
                     plainTable.querySelectorAll(".data-table-detail-panel[hidden]").forEach(panel => panel.remove());
                     if (definition.wide) plainTable.dataset.tableWide = "true";
                     if (!definition.screenPageBreaks) plainTable.dataset.screenPageBreaks = "false";
-                    plainTable.style.setProperty("--table-icon-width", `${reportData.tableIconWidthPixels}px`);
+                    plainTable.style.setProperty("--table-icon-width", `${artifactData.tableIconWidthPixels}px`);
                     plainTable.style.tableLayout = "fixed";
                     const columns = [...plainTable.querySelector("colgroup").children];
                     const weights = rendered.fittedWidths();
@@ -1848,7 +1848,7 @@
         home.href = "#home";
         home.className = "chapter-home-link";
         home.setAttribute("aria-label", "Home");
-        home.title = reportData.document.title;
+        home.title = artifactData.document.title;
         globalThis.obsAssets.replace(home, "home");
         if (record.generated === "home") home.setAttribute("aria-current", "page");
         navigation.append(home);
@@ -1970,9 +1970,9 @@
         activeChapter.className = ["chapter", ...record.cssClasses].join(" ");
         replaceTrustedHtml(chapterBody, record.html);
         const deferred = [];
-        if (globalThis.obsStartup && globalThis.obsReport) {
-            chapterBody.querySelectorAll("[data-base-table], [data-report-figure]").forEach(node => {
-                if (node.parentElement.closest("[data-report-figure]")) return;
+        if (globalThis.obsStartup && globalThis.obsArtifact) {
+            chapterBody.querySelectorAll("[data-base-table], [data-artifact-figure]").forEach(node => {
+                if (node.parentElement.closest("[data-artifact-figure]")) return;
                 const placeholder = document.createElement("div");
                 placeholder.className = "reader-pending";
                 placeholder.setAttribute("role", "status");
@@ -2110,7 +2110,7 @@
         const bounds = separators[0]?.getBoundingClientRect();
         const gap = bounds ? horizontalDock(region) ? bounds.width : bounds.height : 0;
         const span = dockSpan(region);
-        const minimum = Math.min(reportData.dockPaneMinimumPixels,
+        const minimum = Math.min(artifactData.dockPaneMinimumPixels,
             Math.max(0, (span - separators.length * gap) / panes.length));
         const anchors = dockAnchors.get(region) || new Map();
         const fixed = [{index: 0, position: -gap}];
@@ -2157,7 +2157,7 @@
         const sizeOf = (bar) => horizontal ? bar.getBoundingClientRect().width : bar.getBoundingClientRect().height;
         const previousSize = sizeOf(previous);
         const nextSize = sizeOf(next);
-        const minimum = Math.min(reportData.dockPaneMinimumPixels, (previousSize + nextSize) / 2);
+        const minimum = Math.min(artifactData.dockPaneMinimumPixels, (previousSize + nextSize) / 2);
         const constrained = Math.min(Math.max(delta, minimum - previousSize), nextSize - minimum);
         barsInRegion.forEach((bar) => bar.style.setProperty("--bar-size", `${sizeOf(bar)}px`));
         previous.style.setProperty("--bar-size", `${previousSize + constrained}px`);
@@ -2276,7 +2276,7 @@
     };
     window.addEventListener("resize", updateFilterClearance);
     if (globalThis.ResizeObserver) new ResizeObserver(updateFilterClearance).observe(headerNotices);
-    document.addEventListener("obs-document-state-change", updateFilterClearance);
+    document.addEventListener("obs-artifact-state-change", updateFilterClearance);
     document.addEventListener("obs-figure-overlay", ({detail}) => {
         (detail.open ? detail.dialog : document.body).append(headerNotices);
         updateFilterClearance();
@@ -2334,7 +2334,7 @@
             (queryProfile.scope === "records" ? ` \u00b7 ${summary.records}/${summary.totalRecords} records` : "");
         updateFilterClearance();
         updateStepButtons();
-        document.dispatchEvent(new CustomEvent("obs-report-filter"));
+        document.dispatchEvent(new CustomEvent("obs-artifact-filter"));
         return summary.chapters;
     };
 
@@ -2611,10 +2611,10 @@
         });
     });
 
-    // Report-ui.md "Floating window": a note without a place in the contents shows here as context;
+    // Artifact-ui.md "Floating window": a note without a place in the contents shows here as context;
     // the page stays put. Links inside the window follow the same rule.
     const floatingWindow = globalThis.ObsHtmlGuidedCard.createHost({
-        window, size: reportData.guidedCard, applyLinkPolicy,
+        window, size: artifactData.guidedCard, applyLinkPolicy,
     });
     const contextSources = "[data-chapter-body], [data-frontmatter-panel], #hover-card";
     const noteTarget = (href) => {
@@ -2637,7 +2637,7 @@
             }
             const content = element("div", "guided-card-note");
             content.append(trustedFragment(record.html));
-            const omitted = content.querySelectorAll("[data-base-table], [data-report-figure]");
+            const omitted = content.querySelectorAll("[data-base-table], [data-artifact-figure]");
             omitted.forEach((node) => node.remove());
             if (omitted.length) {
                 content.append(element("p", "guided-card-hint", "Tables and figures of this note are not shown here."));
@@ -2842,13 +2842,13 @@
     const projectionValuesEqual = (left, right) => Array.isArray(left) && Array.isArray(right)
         ? left.length === right.length && left.every((value, index) => Object.is(value, right[index]))
         : Object.is(left, right);
-    // The document timestamp is the time of the last content change. Content equal to a
-    // baseline (the opened document or a confirmed save) keeps that baseline's timestamp, so
+    // The artifact timestamp is the time of the last content change. Content equal to a
+    // baseline (the opened artifact or a confirmed save) keeps that baseline's timestamp, so
     // reverting an edit is not a change.
     const contentBaselines = new Map();
     const contentSignature = () => JSON.stringify(notes.map(({frontmatterHtml, ...note}) => note));
     const contentBaseline = () => ({
-        signature: contentSignature(), timestamp: reportData.document.generation?.timestamp,
+        signature: contentSignature(), timestamp: artifactData.document.generation?.timestamp,
     });
     let openedContentRecorded = false;
     const beforeContentChange = () => {
@@ -2862,9 +2862,9 @@
         if (baseline?.signature) contentBaselines.set(baseline.signature, baseline.timestamp);
     };
     const recordContentChange = () => {
-        if (!reportData.document.generation) return;
+        if (!artifactData.document.generation) return;
         const signature = contentSignature();
-        reportData.document.generation.timestamp = contentBaselines.has(signature)
+        artifactData.document.generation.timestamp = contentBaselines.has(signature)
             ? contentBaselines.get(signature) : new Date().toISOString().replace(/Z$/, "+00:00");
     };
     const commitCanonicalProjection = (projection) => {
@@ -2929,7 +2929,7 @@
         cachedContentTableRows = undefined;
         subjectContentCache = new WeakMap();
         cachedDocumentMetadataRows = undefined;
-        cachedReportTableRows = undefined;
+        cachedArtifactTableRows = undefined;
         const changes = prepared.map(({note, fields}) => ({slug: note.slug, fields}));
         const detail = {projection: true, changes};
         if (changes.length === 1) {
@@ -3053,7 +3053,7 @@
                 note.html = renderSafeCanonicalContent(note.safeContent, {
                     note, candidateNotes: sourceNotes,
                     assetKeys: new Set([
-                        ...Object.keys(reportData.embeddedAssets || {}),
+                        ...Object.keys(artifactData.embeddedAssets || {}),
                         ...assetChanges.map(change => change.key),
                     ]),
                 });
@@ -3065,7 +3065,7 @@
                     rendered[field] = renderSafeCanonicalContent(content, {
                         note, candidateNotes: sourceNotes,
                         assetKeys: new Set([
-                            ...Object.keys(reportData.embeddedAssets || {}),
+                            ...Object.keys(artifactData.embeddedAssets || {}),
                             ...assetChanges.map(change => change.key),
                         ]),
                     });
@@ -3083,7 +3083,7 @@
         if (new Set(preparedNotes.map(canonicalNoteId)).size !== preparedNotes.length) {
             throw new Error("Canonical transaction note identities must be unique.");
         }
-        for (const slug of reportData.toc) {
+        for (const slug of artifactData.toc) {
             if (!preparedNotes.some(note => note.slug === slug)) {
                 throw new Error(`Canonical transaction removed authored chapter ${slug}.`);
             }
@@ -3096,7 +3096,7 @@
             if (!record) throw new Error(`Canonical transaction removed navigation record ${chapter.slug}.`);
             return record;
         });
-        const nextModel = {...reportData, notes: preparedNotes};
+        const nextModel = {...artifactData, notes: preparedNotes};
         const stagedAssets = assetChanges.length || sourceChanges.length
             ? await globalThis.obsPayload.stageRewrite(assetChanges, nextModel, sourceChanges)
             : null;
@@ -3113,10 +3113,10 @@
         beforeContentChange();
         notes.splice(0, notes.length, ...staged.notes);
         recordContentChange();
-        reportData.notes = notes;
+        artifactData.notes = notes;
         if (staged.assets) {
-            reportData.embeddedAssets = staged.assets.assets;
-            reportData.sourceArchiveComplete = staged.assets.complete;
+            artifactData.embeddedAssets = staged.assets.assets;
+            artifactData.sourceArchiveComplete = staged.assets.complete;
             embeddedAssets = staged.assets.assets;
         }
         notesBySlug.clear();
@@ -3128,7 +3128,7 @@
         cachedContentTableRows = undefined;
         subjectContentCache = new WeakMap();
         cachedDocumentMetadataRows = undefined;
-        cachedReportTableRows = undefined;
+        cachedArtifactTableRows = undefined;
         canonicalRevision += 1;
         refreshQueryFields();
         refreshSourceControls();
@@ -3186,8 +3186,8 @@
     const openGuidedAction = (action, noteId, {card, row}) => floatingWindow.open({
         use: "Evidence collection",
         title: card.title,
-        returnFocus: () => [...document.querySelectorAll("[data-report-action]")].find(control =>
-            control.dataset.reportAction === action.id && control.dataset.actionNoteId === noteId),
+        returnFocus: () => [...document.querySelectorAll("[data-artifact-action]")].find(control =>
+            control.dataset.artifactAction === action.id && control.dataset.actionNoteId === noteId),
         mount: (root, session) => globalThis.ObsHtmlGuidedCard.mountForm(root, session, {
             card,
             accept: action.accept,
@@ -3198,7 +3198,7 @@
                     throw new Error(`Canonical action note no longer exists: ${noteId}`);
                 }
                 const applied = await action.handle({
-                    noteId, file, values, signal, report: globalThis.obsReport,
+                    noteId, file, values, signal, artifact: globalThis.obsArtifact,
                 });
                 if (applied === false) throw new Error("The action did not apply the file.");
             },
@@ -3224,7 +3224,7 @@
             cleanup();
             if (!file) return;
             const operation = Promise.resolve().then(() =>
-                action.handle({noteId, file, report: globalThis.obsReport}));
+                action.handle({noteId, file, artifact: globalThis.obsArtifact}));
             operation.catch(showApplicationError);
         }, {once: true});
         try {
@@ -3235,12 +3235,12 @@
         }
     };
     document.addEventListener("click", event => {
-        const control = event.target.closest?.("[data-report-action]");
+        const control = event.target.closest?.("[data-artifact-action]");
         if (!control) return;
         event.preventDefault();
         event.stopImmediatePropagation();
         try {
-            dispatchApplicationAction(control.dataset.reportAction, control.dataset.actionNoteId,
+            dispatchApplicationAction(control.dataset.artifactAction, control.dataset.actionNoteId,
                 tableIconCards.get(control));
         } catch (error) {
             showApplicationError(error);
@@ -3271,7 +3271,7 @@
                 : state.presentation])),
     });
     const staticViews = new Map();
-    globalThis.obsReport = {
+    globalThis.obsArtifact = {
         applyLinkPolicy,
         whenChapterReady: () => navigationReady,
         viewSelection: key => structuredClone(viewSelections.get(key)),
@@ -3282,7 +3282,7 @@
                 new Set(selected).size !== selected.length) {
                 throw new Error("View selections must be unique known choices.");
             }
-            if (selected.length || Object.hasOwn(reportData.readerState?.views || {}, key)) {
+            if (selected.length || Object.hasOwn(artifactData.readerState?.views || {}, key)) {
                 viewSelections.set(key, structuredClone(selected));
             } else {
                 viewSelections.delete(key);
@@ -3299,9 +3299,9 @@
         queryProfile,
         filterSummary,
         recordValues,
-        filterPresets: reportData.filterPresets || [],
-        facetDistinctRatio: reportData.facetDistinctRatio ?? 0.5,
-        initialFilterExpression: reportData.readerState?.filterExpression ?? "",
+        filterPresets: artifactData.filterPresets || [],
+        facetDistinctRatio: artifactData.facetDistinctRatio ?? 0.5,
+        initialFilterExpression: artifactData.readerState?.filterExpression ?? "",
         setFilter,
         commitProperty,
         commitCanonicalProjection,
@@ -3321,7 +3321,7 @@
         downloadSourceArchive,
         readerState,
         serializeModel: () => JSON.stringify({
-            ...reportData,
+            ...artifactData,
             readerState: readerState(),
         }).replace(
             /[<>&\u2028\u2029]/g,

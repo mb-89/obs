@@ -574,7 +574,7 @@ input[data-property-single-line]:focus {
     margin-block-end: 0;
 }
 
-/* Callout tone: soft fill, border and title share one semantic color (report-ui.md). */
+/* Callout tone: soft fill, border and title share one semantic color (artifact-ui.md). */
 .content-callout {
     --callout-tone: var(--color-accent);
     --callout-fill: var(--color-accent-soft);
@@ -925,13 +925,13 @@ math {
     width: var(--sheet-width);
     font-size: 11pt;
     line-height: 1.5;
-    page: report-portrait;
+    page: artifact-portrait;
 }
 
 .paper-sheet[data-page-orientation="landscape"] {
     --sheet-width: var(--paper-height);
     --sheet-height: var(--paper-width);
-    page: report-landscape;
+    page: artifact-landscape;
 }
 
 .paper-content {
@@ -1774,7 +1774,7 @@ math {
 }
 
 .filter-warning,
-.document-warning {
+.artifact-warning {
     align-items: center;
     background: var(--color-warning-soft);
     border: var(--border-width) solid var(--color-warning);
@@ -1792,20 +1792,20 @@ math {
 }
 
 .filter-warning[hidden],
-.document-warning[hidden] { display: none; }
+.artifact-warning[hidden] { display: none; }
 
 .filter-warning {
     flex-wrap: nowrap;
 }
 
 .filter-warning > [role="status"],
-.document-warning > [role="status"] {
+.artifact-warning > [role="status"] {
     flex: 1 1 auto;
     min-width: 0;
     overflow-wrap: anywhere;
 }
 
-.document-warning button {
+.artifact-warning button {
     color: var(--color-text);
     max-width: 100%;
 }

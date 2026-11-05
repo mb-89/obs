@@ -10,7 +10,7 @@ import yaml
 from obs_html.content import ContentError, parse_manifest, validate_base_definition
 from obs_html.config import load_config
 from obs_html.cli import main
-from obs_html.renderer import render_report
+from obs_html.renderer import render_artifact
 from test_browser import run_browser_script
 
 
@@ -33,7 +33,7 @@ def reference_definition():
             }}},
             "upload": {"displayName": "Recalculate", "obsHtml": {"icon": {
                 "name": "upload", "label": "Recalculate evidence",
-                "unavailable": "Recalculation is unavailable in this report",
+                "unavailable": "Recalculation is unavailable in this artifact",
             }}},
             "help": {"displayName": "Help", "obsHtml": {"icon": {
                 "name": "help", "label": "Evidence help", "helpProperty": "reproduce",
@@ -99,9 +99,9 @@ def test_icon_width_has_one_configured_owner(tmp_path):
 
     config = Path(__file__).parents[1] / "src" / "obs_html" / "cfg.json"
     override = tmp_path / "cfg.json"
-    override.write_text('{"report":{"tableIconWidthPixels":40}}', encoding="utf-8")
+    override.write_text('{"artifact":{"tableIconWidthPixels":40}}', encoding="utf-8")
     assert load_config(config, override).table_icon_width_pixels == 40
-    override.write_text('{"report":{"tableIconWidthPixels":0}}', encoding="utf-8")
+    override.write_text('{"artifact":{"tableIconWidthPixels":0}}', encoding="utf-8")
     with pytest.raises(ValidationError):
         load_config(config, override)
 
@@ -180,8 +180,8 @@ def test_native_comment_target_waits_for_lazy_table_mount(
     from playwright.sync_api import expect
 
     manifest = write_reference_fixture(tmp_path)
-    output = tmp_path / "report.html"
-    output.write_text(render_report(manifest, parse_manifest(manifest)), encoding="utf-8")
+    output = tmp_path / "artifact.html"
+    output.write_text(render_artifact(manifest, parse_manifest(manifest)), encoding="utf-8")
     page = reference_native_browser.new_page()
     errors = []
     page.on("pageerror", lambda error: errors.append(str(error)))
@@ -196,7 +196,7 @@ def test_native_comment_target_waits_for_lazy_table_mount(
         saved.write_text(page.evaluate("obsComments.reviewedHtml()"), encoding="utf-8")
         page.goto(saved.as_uri())
         page.evaluate("paged => obsPages.setPaged(paged)", paged)
-        page.evaluate("obsReport.openBar('comments')")
+        page.evaluate("obsArtifact.openBar('comments')")
         assert page.locator('[data-data-table="chapter-base-1"]').count() == 0
         page.locator(".comment-target").click()
         detail = page.locator(
@@ -214,8 +214,8 @@ def test_native_canonical_reference_tabs_icons_and_reviewed_reopen(tmp_path, ref
     from playwright.sync_api import expect
 
     manifest = write_reference_fixture(tmp_path)
-    output = tmp_path / "report.html"
-    output.write_text(render_report(manifest, parse_manifest(manifest)), encoding="utf-8")
+    output = tmp_path / "artifact.html"
+    output.write_text(render_artifact(manifest, parse_manifest(manifest)), encoding="utf-8")
     context = reference_native_browser.new_context(accept_downloads=True)
     context.add_init_script("delete window.showSaveFilePicker")
     page = context.new_page()
@@ -223,7 +223,7 @@ def test_native_canonical_reference_tabs_icons_and_reviewed_reopen(tmp_path, ref
     errors = []
     page.on("pageerror", lambda error: errors.append(str(error)))
     page.goto(output.as_uri() + "#chapter")
-    page.evaluate("obsPages.setPaged(false); obsReport.activateChapter('chapter')")
+    page.evaluate("obsPages.setPaged(false); obsArtifact.activateChapter('chapter')")
     table = page.locator('[data-active-chapter] [data-data-table="chapter-base-1"]')
     expect(table).to_have_attribute("data-table-wide", "true")
     expect(table.locator("thead th").first).to_contain_text("Requirement")
@@ -248,7 +248,7 @@ def test_native_canonical_reference_tabs_icons_and_reviewed_reopen(tmp_path, ref
     ).locator('[data-icon][data-icon-state="inactive"]')).to_have_text(
         row.get_by_role("link", name="Download snapshot", exact=True).locator("[data-icon]").inner_text(),
     )
-    expect(row.get_by_role("button", name="Recalculate evidence: Recalculation is unavailable in this report",
+    expect(row.get_by_role("button", name="Recalculate evidence: Recalculation is unavailable in this artifact",
                            exact=True)).to_be_disabled()
     row.get_by_role("button", name="Evidence help", exact=True).click()
     help_card = page.locator("#hover-card")
@@ -285,13 +285,13 @@ def test_native_canonical_reference_tabs_icons_and_reviewed_reopen(tmp_path, ref
     empty_detail = table.locator('[data-detail-owner="note:missing"]')
     expect(empty_detail.get_by_role("tab")).to_have_text(["Requirement"])
     expect(empty_detail.get_by_role("tabpanel")).to_contain_text("Unique canonical requirement text.")
-    model = json.loads(page.evaluate("obsReport.serializeModel()"))
+    model = json.loads(page.evaluate("obsArtifact.serializeModel()"))
     left = next(note for note in model["notes"] if note["slug"] == "left")
     assert left["frontmatter"]["explanation"] == "Reviewed canonical subject"
     assert "item" not in next(note for note in model["notes"] if note["slug"] == "relation")["frontmatter"]
     assert "tabCache" not in json.dumps(model)
     assert json.dumps(model).count("Unique canonical requirement text.") == 1
-    page.evaluate("obsReport.openBar('comments')")
+    page.evaluate("obsArtifact.openBar('comments')")
     page.locator("[data-comment-author]").fill("Reader")
     page.locator("[data-comment-author]").press("Tab")
     page.evaluate("""() => {
@@ -323,9 +323,9 @@ def test_native_canonical_reference_tabs_icons_and_reviewed_reopen(tmp_path, ref
     reviewed = tmp_path / "reviewed.html"
     download.value.save_as(reviewed)
     page.goto(reviewed.as_uri() + "#chapter")
-    page.evaluate("obsPages.setPaged(false); obsReport.activateChapter('chapter')")
+    page.evaluate("obsPages.setPaged(false); obsArtifact.activateChapter('chapter')")
     table = page.locator('[data-active-chapter] [data-data-table="chapter-base-1"]')
-    page.evaluate("obsReport.openBar('comments')")
+    page.evaluate("obsArtifact.openBar('comments')")
     page.locator(".comment-target").first.click()
     expect(table.locator('[data-detail-owner="note:relation"] [data-property-note="left"]')).to_have_value(
         "Reviewed canonical subject",
@@ -349,13 +349,13 @@ def test_native_reference_tabs_follow_columns_pagination_and_row_review(tmp_path
     from playwright.sync_api import expect
 
     manifest = write_reference_fixture(tmp_path)
-    output = tmp_path / "report.html"
+    output = tmp_path / "artifact.html"
     # A one-row page size makes the two-row table multi-page, so its pagination controls exist.
-    output.write_text(render_report(manifest, parse_manifest(manifest), table_page_size=1), encoding="utf-8")
+    output.write_text(render_artifact(manifest, parse_manifest(manifest), table_page_size=1), encoding="utf-8")
     page = reference_native_browser.new_page(viewport={"width": 1440, "height": 1000})
     page.set_default_timeout(6000)
     page.goto(output.as_uri() + "#chapter")
-    page.evaluate("obsPages.setPaged(false); obsReport.activateChapter('chapter')")
+    page.evaluate("obsPages.setPaged(false); obsArtifact.activateChapter('chapter')")
     table = page.locator('[data-active-chapter] [data-data-table="chapter-base-1"]')
     expect(table.locator(".data-table-count")).to_have_text("2 of 2 items")
     expect(table.locator(".data-table-page")).to_have_text("Page 1 of 2")
@@ -376,7 +376,7 @@ def test_native_reference_tabs_follow_columns_pagination_and_row_review(tmp_path
     table.get_by_role("spinbutton", name="Items per page").press("Tab")
     static_subjects = page.evaluate("""() => {
         const root = document.createElement('div');
-        obsReport.renderStatic('chapter',root);
+        obsArtifact.renderStatic('chapter',root);
         return [...root.querySelectorAll('[data-detail-owner="note:relation"] [data-reference-note]')]
             .map(subject=>subject.dataset.referenceNote);
     }""")
@@ -393,7 +393,7 @@ def test_native_reference_tabs_follow_columns_pagination_and_row_review(tmp_path
     expect(detail).to_have_count(0)
     table.locator(".data-table-group-toggle").click()
     expect(detail.get_by_role("tab")).to_have_text(["Requirement"])
-    page.evaluate("obsReport.openBar('comments')")
+    page.evaluate("obsArtifact.openBar('comments')")
     page.locator("[data-comment-author]").fill("Reader")
     page.locator("[data-comment-author]").press("Tab")
     row = table.locator('[data-row-key="note:relation"]')
@@ -408,7 +408,7 @@ def test_native_reference_tabs_follow_columns_pagination_and_row_review(tmp_path
     assert widths and all(abs(width - 44) < 1 for width in widths)
     static = page.evaluate("""() => {
         const root = document.createElement('div');
-        obsReport.renderStatic('chapter',root);
+        obsArtifact.renderStatic('chapter',root);
         const table = root.querySelector('table');
         return {wide:table.dataset.tableWide, links:table.querySelectorAll('a[href="#left"]').length};
     }""")
@@ -422,9 +422,9 @@ def test_native_source_icon_download_reuses_original_archive(tmp_path, reference
 
     manifest = write_reference_fixture(tmp_path / "vault")
     (manifest.parent / "cfg.json").write_text(
-        '{"report":{"tableIconWidthPixels":40}}', encoding="utf-8",
+        '{"artifact":{"tableIconWidthPixels":40}}', encoding="utf-8",
     )
-    output = tmp_path / "report.html"
+    output = tmp_path / "artifact.html"
     assert main(["--source", str(manifest), "--check", "--embed-source"]) == 0
     assert not output.exists()
     assert main(["--source", str(manifest), "--output", str(output), "--embed-source"]) == 0
@@ -435,7 +435,7 @@ def test_native_source_icon_download_reuses_original_archive(tmp_path, reference
         for line in warnings)
     page = reference_native_browser.new_page(accept_downloads=True)
     page.goto(output.as_uri() + "#chapter")
-    page.evaluate("obsPages.setPaged(false); obsReport.activateChapter('chapter')")
+    page.evaluate("obsPages.setPaged(false); obsArtifact.activateChapter('chapter')")
     table = page.locator('[data-active-chapter] [data-data-table="chapter-base-1"]')
     source = table.locator('[data-row-key="note:relation"]').get_by_role(
         "link", name="Download original source", exact=True,
@@ -448,7 +448,7 @@ def test_native_source_icon_download_reuses_original_archive(tmp_path, reference
     destination = tmp_path / "downloaded-source.zip"
     downloaded.value.save_as(destination)
     assert destination.read_bytes() == original
-    assert page.evaluate("JSON.parse(document.querySelector('[data-report-data]').textContent).tableIconWidthPixels") == 40
+    assert page.evaluate("JSON.parse(document.querySelector('[data-artifact-data]').textContent).tableIconWidthPixels") == 40
     widths = table.locator('td.data-table-icon-cell').evaluate_all(
         "cells => cells.map(cell => cell.getBoundingClientRect().width)",
     )

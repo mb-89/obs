@@ -7,7 +7,7 @@ import os
 import pytest
 
 from obs_html.cli import main
-from test_reader_controls import _write_reader_report, reader_browser  # noqa: F401
+from test_reader_controls import _write_reader_artifact, reader_browser  # noqa: F401
 
 
 @pytest.fixture(scope="module")
@@ -255,11 +255,11 @@ def test_native_compact_table_fits_and_resizes_without_masking(tmp_path, reader_
         spec["properties"]["actions"]["obsHtml"]["icons"].append(
             {"name": "replace", "label": "Import replacement", "help": "Choose replacement evidence."})
 
-    output = _write_reader_report(tmp_path, compact)
+    output = _write_reader_artifact(tmp_path, compact)
     page = reader_browser.new_page(viewport={"width": width, "height": 1000})
     try:
         page.goto(output.as_uri())
-        page.evaluate("paged=>{obsPages.setPaged(paged);obsReport.activateChapter('chapter')}", paged)
+        page.evaluate("paged=>{obsPages.setPaged(paged);obsArtifact.activateChapter('chapter')}", paged)
         table = page.locator("[data-active-chapter] [data-data-table='chapter-base-1']")
         expect(table).to_have_attribute("data-compact", "true")
         # Match the user's narrow card, independently of the wider matrix fixture.

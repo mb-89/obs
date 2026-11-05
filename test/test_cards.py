@@ -3,8 +3,8 @@ import json
 import pytest
 
 from obs_html.content import ContentError, parse_manifest
-from obs_html.renderer import render_report
-from obs_html.report_data import decode_report_data
+from obs_html.renderer import render_artifact
+from obs_html.artifact_data import decode_artifact_data
 
 
 def test_generic_filtered_cards_and_static_markdown(tmp_path):
@@ -23,10 +23,10 @@ def test_generic_filtered_cards_and_static_markdown(tmp_path):
     )
     (tmp_path / "chapter.md").write_text("# Operations\n", encoding="utf-8")
     manifest = tmp_path / "manifest.md"
-    html = render_report(manifest, parse_manifest(manifest))
+    html = render_artifact(manifest, parse_manifest(manifest))
     assert 'data-record-cards' in html
     assert 'id="cards-script"' in html
-    data = decode_report_data(html)
+    data = decode_artifact_data(html)
     assert "Ordinary <strong>operations</strong>." in data["notes"][0]["html"]
     assert 'class="content-card' in data["notes"][0]["html"]
     assert "paired-service" not in html.lower()
@@ -42,13 +42,13 @@ def test_cards_declare_compact_metric_pills_without_changing_metric_links(tmp_pa
         }) + "\n```\n", encoding="utf-8",
     )
     (tmp_path / "chapter.md").write_text("# Results\n", encoding="utf-8")
-    report = render_report(tmp_path / "manifest.md", parse_manifest(tmp_path / "manifest.md"))
-    home = next(note for note in decode_report_data(report)["notes"] if note["slug"] == "home")
+    artifact = render_artifact(tmp_path / "manifest.md", parse_manifest(tmp_path / "manifest.md"))
+    home = next(note for note in decode_artifact_data(artifact)["notes"] if note["slug"] == "home")
     assert 'class="record-metrics record-metrics--pills"' in home["html"]
     assert "#chapter" in home["html"]
 
 
-def test_card_metric_links_and_base_fences_use_existing_report_owners(tmp_path):
+def test_card_metric_links_and_base_fences_use_existing_artifact_owners(tmp_path):
     (tmp_path / "manifest.md").write_text(
         "- [[chapter]]\n\n```cards\n" + json.dumps({
             "version": 1, "cards": [{
@@ -78,7 +78,7 @@ def test_card_metric_links_and_base_fences_use_existing_report_owners(tmp_path):
         encoding="utf-8",
     )
     manifest = tmp_path / "manifest.md"
-    data = decode_report_data(render_report(manifest, parse_manifest(manifest)))
+    data = decode_artifact_data(render_artifact(manifest, parse_manifest(manifest)))
 
     home = next(note for note in data["notes"] if note["slug"] == "home")
     assert home["tables"][0]["key"] == "home-base-1"
@@ -96,7 +96,7 @@ def test_cards_reject_executable_or_invalid_contract(tmp_path, extra):
     }) + "\n```\n", encoding="utf-8")
     manifest = tmp_path / "manifest.md"
     with pytest.raises(ContentError, match="Card"):
-        render_report(manifest, parse_manifest(manifest))
+        render_artifact(manifest, parse_manifest(manifest))
 
 
 @pytest.mark.parametrize("link", ["https://example.org", "javascript:alert(1)"])
@@ -112,7 +112,7 @@ def test_cards_reject_non_internal_metric_links(tmp_path, link):
     }) + "\n```\n", encoding="utf-8")
     manifest = tmp_path / "manifest.md"
     with pytest.raises(ContentError, match="Card"):
-        render_report(manifest, parse_manifest(manifest))
+        render_artifact(manifest, parse_manifest(manifest))
 
 
 def test_card_compound_quantity_and_bounded_tone_declarations():

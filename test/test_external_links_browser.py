@@ -1,7 +1,7 @@
 """External links open in a new, opener-free tab; internal routes and downloads stay in place."""
 import pytest
 
-from test_reader_controls import _write_reader_report, reader_browser  # noqa: F401
+from test_reader_controls import _write_reader_artifact, reader_browser  # noqa: F401
 
 
 @pytest.mark.parametrize("width", [1500, 390])
@@ -15,11 +15,11 @@ def test_native_external_link_policy_covers_dynamic_and_download_links(tmp_path,
             "  id: S-1\n", "  id: S-1\n  url: https://example.invalid/table-subject\n"),
             encoding="utf-8")
 
-    output = _write_reader_report(tmp_path, external_reference)
+    output = _write_reader_artifact(tmp_path, external_reference)
     page = reader_browser.new_page(viewport={"width": width, "height": 1000})
     try:
         page.goto(output.as_uri())
-        page.evaluate("obsPages.setPaged(true); obsReport.activateChapter('chapter')")
+        page.evaluate("obsPages.setPaged(true); obsArtifact.activateChapter('chapter')")
         page.evaluate("""() => {
             const host=document.createElement('p');
             host.innerHTML='<a href="https://example.invalid/prose">External prose</a> '+
@@ -47,7 +47,7 @@ def test_native_external_link_policy_covers_dynamic_and_download_links(tmp_path,
         assert popup.value.evaluate("window.opener") is None
         assert page.url == original_url
         popup.value.close()
-        page.evaluate("obsReport.activateChapter('chapter')")
+        page.evaluate("obsArtifact.activateChapter('chapter')")
         table = page.locator("[data-active-chapter] [data-data-table='chapter-base-1']")
         table_source = table.locator("td a[href='https://example.invalid/table-subject']").first
         with page.expect_popup(timeout=5000) as table_popup:

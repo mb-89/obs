@@ -7,8 +7,8 @@ diagnostics and operation restrictions belong to its parser, not this note.
 uv run obs-html --help
 ````
 
-This command fence derives the report's reference from the running CLI.
-See [[input-model]] for source semantics, [[report-ui]] for presentation requirements,
+This command fence derives the artifact's reference from the running CLI.
+See [[input-model]] for source semantics, [[artifact-ui]] for presentation requirements,
 and [[configuration]] for configuration ownership.
 
 ## Attachments per build
@@ -18,10 +18,10 @@ files with `![label](file)` or `![[file]]`, and only a build with the flag embed
 therefore yields a light edition and a self-contained evidence edition without editing Markdown,
 and a source archive rebuilds with the flag it was built with.
 
-## Several documents per call
+## Several artifacts per call
 
-A caller that builds several documents passes repeated `--source`/`--output` pairs in one
-call rather than starting obs-html once per document. Each start pays the Python start with
+A caller that builds several artifacts passes repeated `--source`/`--output` pairs in one
+call rather than starting obs-html once per artifact. Each start pays the Python start with
 its imports (about 1 s), uv's environment check (0.1–0.3 s) and the generator's git
 provenance.
 
@@ -30,8 +30,8 @@ independent of the vault.
 
 Repeated options were chosen over a job file. Callers already assemble argument arrays,
 and a job file would be a second input format with its own schema and path rules. The
-only per-document option besides the pair, the trusted runtime bundle, repeats in the same
-order; every other option applies to all documents of the call.
+only per-artifact option besides the pair, the trusted runtime bundle, repeats in the same
+order; every other option applies to all artifacts of the call.
 
 `--timings` attributes a call's time to its internal stages so callers can see where
 convert time goes. Durations are exclusive: a nested stage, such as figures inside
@@ -55,7 +55,7 @@ The editable install runs the checkout's sources, so `git pull` updates it, the
 generator provenance names the checkout commit and `--embed-source` works. After a
 dependency change in `pyproject.toml`, rerun the install with `--reinstall`.
 
-A plain `uv tool install` copies the package instead. It generates documents but has no
+A plain `uv tool install` copies the package instead. It generates artifacts but has no
 checkout: `--embed-source` refuses, the default source and output point nowhere useful
 and the provenance carries only the package version. Either form resolves dependencies
 from the ranges in `pyproject.toml`, not from `uv.lock`; builds that must match the lock
@@ -80,14 +80,14 @@ pages of an exported PDF and does not depend on the reader's scrolling container
 
 ## Printing a chapter
 
-`--print-chapter HTML ID` prints one chapter of a built report to stdout, as HTML or, with
-`--chapter-format text`, as plain text. Tests and agents check what a report shows, for
+`--print-chapter HTML ID` prints one chapter of a built artifact to stdout, as HTML or, with
+`--chapter-format text`, as plain text. Tests and agents check what an artifact shows, for
 example that a link resolves, directly from the command instead of a browser script; the
-report's data island is packed, so reading it by hand needs a decoder.
+artifact's data island is packed, so reading it by hand needs a decoder.
 
-It prints the chapter as the generator stored it in the report's data, without starting a
+It prints the chapter as the generator stored it in the artifact's data, without starting a
 browser: what the reader runtime changes on load, such as interactive table controls, is not
-included; `--check-rendered` covers the opened page. Chapter ids are the note slugs the report's table of
+included; `--check-rendered` covers the opened page. Chapter ids are the note slugs the artifact's table of
 contents uses; an unknown id lists the available ones.
 
 ## PowerShell callers

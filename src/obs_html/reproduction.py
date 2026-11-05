@@ -13,7 +13,7 @@ from zlib import error as ZlibError
 
 from obs_html.config import Config
 from obs_html.content import ContentError, manifest_presentation
-from obs_html.report_data import REPORT_PATTERN, decode_report_data, encode_report_data, prepare_report_scripts
+from obs_html.artifact_data import ARTIFACT_PATTERN, decode_artifact_data, encode_artifact_data, prepare_artifact_scripts
 
 
 ARCHIVE_NAME = "obs-html-source.zip"
@@ -30,7 +30,7 @@ EXCLUDED_DIRECTORIES = {
 COMPILED_SUFFIXES = {".pyc", ".pyo", ".exe", ".dll", ".so", ".dylib", ".o", ".obj", ".class"}
 # New runtime files and schemas accompany uncommitted development builds.
 RUNTIME_ADDITIONS = (
-    "src/obs_html/payloads.js", "src/obs_html/report_data.py", "src/obs_html/report-data.js",
+    "src/obs_html/payloads.js", "src/obs_html/artifact_data.py", "src/obs_html/artifact-data.js",
     "src/obs_html/note-profile.schema.json", "src/obs_html/canonical-transaction.js",
     "src/obs_html/guided-card.js", "src/obs_html/hover-card.js",
     "src/obs_html/zip-rewrite.js", "src/obs_html/running-header.js",
@@ -84,11 +84,11 @@ def _snapshot_paths(root: Path) -> list[str]:
             if path.is_file() or path.is_symlink()]
 
 
-def _report_data(report: str) -> tuple[re.Match[str], dict]:
-    match = REPORT_PATTERN.search(report)
+def _artifact_data(artifact: str) -> tuple[re.Match[str], dict]:
+    match = ARTIFACT_PATTERN.search(artifact)
     if not match:
         raise ContentError("Cannot read embedded assets: document data is missing.")
-    return match, decode_report_data(report)
+    return match, decode_artifact_data(artifact)
 
 
 def _share_archive_assets(data: dict, archive: bytes) -> None:
@@ -224,7 +224,7 @@ def source_archive(vault: Path, manifest: Path, generator: Path, config: Config,
                       "renderedCheckTimeoutSeconds": config.rendered_check_timeout_seconds},
         "timings": {"relativeThreshold": config.timing_relative_threshold,
                     "absoluteThresholdSeconds": config.timing_absolute_threshold_seconds},
-        "report": {
+        "artifact": {
             "facetDistinctRatio": config.facet_distinct_ratio,
             "filterPresets": [{"label": item.label, "expression": item.expression}
                               for item in config.filter_presets],
@@ -294,17 +294,17 @@ def source_archive(vault: Path, manifest: Path, generator: Path, config: Config,
     return buffer.getvalue()
 
 
-def embed_payload_runtime(report: str) -> str:
-    if 'id="payload-script"' in report or 'id="zip-rewrite-script"' in report:
-        if 'id="payload-script"' in report and 'id="zip-rewrite-script"' in report:
-            return report
+def embed_payload_runtime(artifact: str) -> str:
+    if 'id="payload-script"' in artifact or 'id="zip-rewrite-script"' in artifact:
+        if 'id="payload-script"' in artifact and 'id="zip-rewrite-script"' in artifact:
+            return artifact
         raise ContentError("The canonical payload runtime is incomplete.")
     payload_runtime = files("obs_html").joinpath("payloads.js").read_text(encoding="utf-8")
     zip_runtime = files("obs_html").joinpath("zip-rewrite.js").read_text(encoding="utf-8")
-    marker = '<script id="assets-script"' if 'id="assets-script"' in report else '<script id="report-script"'
-    if marker not in report:
+    marker = '<script id="assets-script"' if 'id="assets-script"' in artifact else '<script id="artifact-script"'
+    if marker not in artifact:
         raise ContentError("Cannot install the canonical payload runtime.")
-    return prepare_report_scripts(report.replace(
+    return prepare_artifact_scripts(artifact.replace(
         marker,
         f'<script id="zip-rewrite-script">{zip_runtime}</script>\n'
         f'<script id="payload-script">{payload_runtime}</script>\n'
@@ -313,9 +313,9 @@ def embed_payload_runtime(report: str) -> str:
     ))
 
 
-def embed_archive(report: str, archive: bytes) -> str:
-    report = embed_payload_runtime(report)
-    match, data = _report_data(report)
+def embed_archive(artifact: str, archive: bytes) -> str:
+    artifact = embed_payload_runtime(artifact)
+    match, data = _artifact_data(artifact)
     _share_archive_assets(data, archive)
     data["sourceArchiveComplete"] = True
     home = next(note for note in data["notes"] if note["slug"] == "home")
@@ -329,25 +329,25 @@ def embed_archive(report: str, archive: bytes) -> str:
     home["html"] = home["html"].replace('<header class="document-heading">',
                                        '<header class="document-heading">' + bar, 1)
     compression = re.search(r'data-compression="([^"]+)"', match[1])
-    serialized = encode_report_data(data, compression[1] if compression else "none")
-    report = report[:match.start()] + serialized + report[match.end():]
+    serialized = encode_artifact_data(data, compression[1] if compression else "none")
+    artifact = artifact[:match.start()] + serialized + artifact[match.end():]
     island = f'<script id="obs-source-archive" type="application/octet-stream">{base64.b64encode(archive).decode("ascii")}</script>'
     library = files("obs_html").joinpath("vendor", "pdf-lib.min.js").read_text(encoding="utf-8")
     license_text = files("obs_html").joinpath("vendor", "pdf-lib.LICENSE").read_text(encoding="utf-8")
     runtime = files("obs_html").joinpath("archive.js").read_text(encoding="utf-8")
-    report = report.replace('<script id="report-script"',
-                            island + '<script id="report-script"', 1)
+    artifact = artifact.replace('<script id="artifact-script"',
+                            island + '<script id="artifact-script"', 1)
     scripts = (
         f'\n<script id="pdf-library-script">/* {license_text} */\n{library}</script>'
         f'\n<script id="archive-script">{runtime}</script>\n'
     )
-    return prepare_report_scripts(report.replace("</body>", scripts + "</body>"))
+    return prepare_artifact_scripts(artifact.replace("</body>", scripts + "</body>"))
 
 
-def embedded_archive(report: str) -> bytes | None:
-    match = ARCHIVE_PATTERN.search(report)
+def embedded_archive(artifact: str) -> bytes | None:
+    match = ARCHIVE_PATTERN.search(artifact)
     if not match:
-        if 'id="obs-source-archive"' in report:
+        if 'id="obs-source-archive"' in artifact:
             raise ContentError("Invalid embedded source archive data.")
         return None
     try:
@@ -355,8 +355,8 @@ def embedded_archive(report: str) -> bytes | None:
         with ZipFile(BytesIO(content)) as archive:
             if archive.testzip() is not None:
                 raise ContentError("Embedded source archive has a corrupt member.")
-            if REPORT_PATTERN.search(report):
-                _validate_shared_assets(_report_data(report)[1], archive)
+            if ARTIFACT_PATTERN.search(artifact):
+                _validate_shared_assets(_artifact_data(artifact)[1], archive)
     except (ValueError, OSError, BadZipFile, RuntimeError, NotImplementedError, EOFError, ZlibError) as error:
         raise ContentError(f"Invalid embedded source archive: {error}") from error
     return content

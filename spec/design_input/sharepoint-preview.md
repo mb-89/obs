@@ -4,16 +4,16 @@ Status: findings record. SharePoint/OneDrive preview stays a desired experience,
 investigated further (user, 4 Nov 2026). The diagnostic generator
 `scripts/sharepoint_diagnostic.py` and its test were deleted; restore them with
 `git restore --source 32eae7f -- scripts/sharepoint_diagnostic.py test/test_sharepoint_diagnostic.py`.
-Researched 2026-10-23. No generator or delivered report changes made.
+Researched 2026-10-23. No generator or delivered artifact changes made.
 
 ## Desired experience
 
-Readers should be able to open a report from a SharePoint document library or
+Readers should be able to open an artifact from a SharePoint document library or
 OneDrive without downloading it first. The user reports that the old tracing
-report mostly works there, except its Sankey diagram, whereas current obs-html
-reports do not display useful content.
+artifact mostly works there, except its Sankey diagram, whereas current obs-html
+artifacts do not display useful content.
 
-Distinguish two targets: readable document preview and full interactive report
+Distinguish two targets: readable document preview and full interactive artifact
 execution. Neither is guaranteed merely because the service accepts an HTML upload.
 
 ## Findings from the actual files
@@ -36,7 +36,7 @@ The corrected version renders Plotly in a local allow-scripts iframe sandbox
 without allow-same-origin, with storage denied and zero network requests.
 User screenshots confirm the corrected embedded variant loads Plotly 2.35.3 and
 renders the graph in SharePoint. Storage access remains denied.
-No generator or delivered report was changed by these probe revisions.
+No generator or delivered artifact was changed by these probe revisions.
 
 Storage implications: current application-level localStorage use is remembered
 appearance (`src/obs_html/bars/settings.js`) and reviewer name
@@ -47,19 +47,19 @@ permission in the actual sandbox is not established by Blob URL creation alone;
 test it independently before promising review persistence there.
 
 The current generator emits an empty chapter container and stores chapter HTML in
-a JSON script island; JavaScript populates the visible document
-(`src/obs_html/renderer.py:213-214,240`). This affects the entire document, not
+a JSON script island; JavaScript populates the visible artifact
+(`src/obs_html/renderer.py:213-214,240`). This affects the entire artifact, not
 only Plotly or CDN-backed diagrams.
 
 In Chrome with JavaScript disabled, the current `leaves.html` and `obs-html.html`
 each expose only the menu icon as visible body text. This reproduces an important
 failure mode locally, but does not prove the tenant uses that exact restriction.
-The self-report does not load an external script, so CDN removal alone cannot
-explain or fix both reports.
+The self-artifact does not load an external script, so CDN removal alone cannot
+explain or fix both artifacts.
 
-The available legacy report has no external script tags.
+The available legacy artifact has no external script tags.
 With JavaScript disabled it shows a shell and "Loading trace data", not the full
-trace document. This file was regenerated today; it is not proven to be the exact
+trace artifact. This file was regenerated today; it is not proven to be the exact
 old file the user viewed successfully in SharePoint. Do not conclude that the
 user's working old version is static or that its Sankey failure is CDN-related.
 
@@ -84,7 +84,7 @@ a CDN is a supported way to bypass host restrictions.
 
 ## Feasible directions, pending evidence
 
-1. A pre-rendered, script-independent document surface could make content readable
+1. A pre-rendered, script-independent artifact surface could make content readable
    when JavaScript is unavailable, provided the actual preview accepts the HTML
    and required styling/images. Enhance that surface when scripts can execute.
    Query tables and diagrams must be rendered too, not just chapter headings.
@@ -107,7 +107,7 @@ asset loading is the actual failure.
   will report what is visible and which interactions work.
 - Do not require corporate IT involvement, tenant policy changes, app-catalog
   deployment, or approval to run code. SPFx is therefore not the chosen route.
-- Do not duplicate document data or store parallel static diagram fallbacks merely
+- Do not duplicate artifact data or store parallel static diagram fallbacks merely
   for preview compatibility.
 - Prefer one readable HTML/DOM representation enhanced by JavaScript, if feasible.
   Without JavaScript, unavailable dynamic features should have a concise message
@@ -123,7 +123,7 @@ asset loading is the actual failure.
 
 - Loss of remembered appearance and reviewer name is acceptable in preview.
 - Centralize optional browser-storage access behind a shared capability boundary.
-  Appearance persistence is superseded by the opening-state rule in [[report-ui]]:
+  Appearance persistence is superseded by the opening-state rule in [[artifact-ui]]:
   appearance is session-only and has no storage warning. The capability boundary
   and warning below now apply only to remembered settings such as reviewer name.
   If storage is unavailable, keep the control usable with in-memory state and show
@@ -135,8 +135,8 @@ asset loading is the actual failure.
   Download the HTML and open it directly in your browser for full functionality."
   Do not promise persistence locally if that browser also denies storage.
 - Embedded libraries are a viable compatibility option, confirmed for Plotly by
-  the tenant probe. This does not yet prove the entire report works: investigate
-  current-report initialization and test navigation, tables, review, edited-HTML
+  the tenant probe. This does not yet prove the entire artifact works: investigate
+  current-artifact initialization and test navigation, tables, review, edited-HTML
   download and printing separately in the same preview.
 - Minified generated HTML, CSS and JavaScript are acceptable; generated output
   need not be readable. Keep authored sources readable and reproduction archives
@@ -150,7 +150,7 @@ asset loading is the actual failure.
 
 ### Recommended next check
 
-Use a diagnostic copy of an actual generated report, not another generic API
+Use a diagnostic copy of an actual generated artifact, not another generic API
 spike. Keep published deliverables untouched. Embed the existing minified
 dependencies and expose initialization errors visibly in that diagnostic copy.
 First reproduce it locally in an allow-scripts sandbox without allow-same-origin;
@@ -162,15 +162,15 @@ reviewer-name controls, comments/decisions/field edits, downloaded edited HTML
 reopened locally, and PDF export. Mark host-restricted actions explicitly with
 the download-and-open remedy.
 
-The report now does this itself: in a limited host its capability canaries
+The artifact now does this itself: in a limited host its capability canaries
 raise the Limited functionality notice; see
-[Report UI](report-ui.md#dock-menu) (the shared heading notice area) for the notice and
-the registry that lists the browser capabilities the report depends on. Defer minification until compatibility works so
+[Artifact UI](artifact-ui.md#dock-menu) (the shared heading notice area) for the notice and
+the registry that lists the browser capabilities the artifact depends on. Defer minification until compatibility works so
 format transformations do not obscure diagnosis.
 
-For agreed SharePoint/OneDrive viewing paths, reports should offer a readable,
+For agreed SharePoint/OneDrive viewing paths, artifacts should offer a readable,
 script-independent representation of chapters, tables, and diagrams without
-requiring a download. Preserve the existing interactive standalone report when
+requiring a download. Preserve the existing interactive standalone artifact when
 scripts are available. If HTML preview is unsupported by the target service,
 document that boundary and offer an explicit PDF viewing alternative instead of
 claiming native compatibility.
@@ -184,12 +184,12 @@ reported separately.
 The diagnostic generator wrote an isolated artifact to
 `data/data_output/sharepoint-preview-spike.html`. It tests static content, script
 execution, DOM/JSON initialization, graphics, browser APIs, and pinned CDN loading
-independently. It contains no company report data or automatic telemetry.
+independently. It contains no company artifact data or automatic telemetry.
 Compare local-browser results with the same file in SharePoint preview.
 This is a research probe, not a generator behavior change.
-Keep actual-report diagnostic generation reproducible from ordinary generated HTML
+Keep actual-artifact diagnostic generation reproducible from ordinary generated HTML
 without changing chapter data or authored generation settings. Its error banner
-must not intercept report controls.
+must not intercept artifact controls.
 
 The user reports seeing JavaScript-calculated abstract numbers in the old trace
 preview. Treat this as evidence against assuming blanket script blocking. Establish
@@ -200,10 +200,10 @@ comparison before proposing an HTML-first redesign.
 - Compare the exact working old trace file and current file in the same library,
   browser, and opening method; record whether links open a preview frame, raw
   document, or download.
-- Determine which old-report actions actually work: chapter switching, filtering,
+- Determine which old-artifact actions actually work: chapter switching, filtering,
   editing, and Sankey rendering. Visible text alone is not proof scripts execute.
 - Inspect browser console/network errors and response headers, including CSP and
-  iframe sandbox restrictions, without uploading company reports elsewhere.
+  iframe sandbox restrictions, without uploading company artifacts elsewhere.
 - Use a tiny approved probe in the same tenant to test static text, embedded
   styling/images/SVG, inline JavaScript, and version-pinned external JavaScript
   separately. No tenant configuration changes are needed for this diagnosis.

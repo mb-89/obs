@@ -34,7 +34,7 @@ npm --prefix test/browser ci
 - [CLI](spec/design_input/cli.md): live executable help.
 - [Configuration](spec/design_input/configuration.md): defaults and schemas.
 - [Input model](spec/design_input/input-model.md): authored source contracts.
-- [Report UI](spec/design_input/report-ui.md): reader, review, and PDF presentation.
+- [Artifact UI](spec/design_input/artifact-ui.md): reader, review, and PDF presentation.
 
 ## License
 

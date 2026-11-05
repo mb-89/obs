@@ -28,7 +28,7 @@ Base in an included note selects are included in the Document too
 ## Comparisons
 
 One rule set selects notes everywhere: Bases filters and query conditions, in the core and in
-the browser, and the report's drill-downs and reader filter. The shared conformance fixture
+the browser, and the artifact's drill-downs and reader filter. The shared conformance fixture
 `test/fixtures/bases-filter-conformance.json` checks every evaluator.
 
 Obsidian's [[obsidian-bases-syntax|Bases syntax]] is the reference for `==` and `!=`. Where

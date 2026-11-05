@@ -7,7 +7,7 @@
         globalThis.obsAssets.replace(document.querySelector("[data-theme-icon]"), `theme.${value}`);
     };
 
-    apply(JSON.parse(document.querySelector("[data-report-data]").textContent).reading.theme);
+    apply(JSON.parse(document.querySelector("[data-artifact-data]").textContent).reading.theme);
     input.addEventListener("change", () => apply(input.value));
     document.querySelector("[data-pages-toggle]").addEventListener("change", (event) => {
         globalThis.obsPages.setPaged(event.target.checked);

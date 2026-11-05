@@ -1,10 +1,10 @@
 ---
-summary: obs-html turns an ordered Obsidian Markdown vault into one portable, reviewable HTML report. To use it, download the source archive and follow the README's Install and Run instructions.
+summary: obs-html turns an ordered Obsidian Markdown vault into one portable, reviewable HTML artifact. To use it, download the source archive and follow the README's Install and Run instructions.
 ---
 
 # obs-html
 
-`obs-html` creates portable HTML reports from Obsidian-compatible Markdown vaults.
+`obs-html` creates portable HTML artifacts from Obsidian-compatible Markdown vaults.
 The first release is one-way: vault content is read, and generated output is never
 written back into the source vault.
 
@@ -14,7 +14,7 @@ written back into the source vault.
 - Accept this design manifest or a manifest in another vault through the same interface.
 - Produce one portable HTML file with generation provenance suitable for local viewing or static
   hosting.
-- Keep all report data inside that file so it can be sent by email and opened on another
+- Keep all artifact data inside that file so it can be sent by email and opened on another
   machine without access to the source vault.
 - Network CDN dependencies are allowed; local filesystem dependencies are not.
 - Build distributions belong under `data/data_output/dist`, not a user-facing root folder.

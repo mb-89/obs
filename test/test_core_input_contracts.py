@@ -35,7 +35,7 @@ def test_core_input_contracts_validate_without_loading_adapter(tmp_path) -> None
                     "projectConfigFilename": "project.json",
                 },
                 "execution": {"commandTimeoutSeconds": 5},
-                "report": {"tablePageSize": 20},
+                "artifact": {"tablePageSize": 20},
             }
         ),
         encoding="utf-8",

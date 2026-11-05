@@ -4,7 +4,7 @@ import os
 import pytest
 
 from obs_html.content import parse_manifest
-from obs_html.renderer import render_report
+from obs_html.renderer import render_artifact
 
 
 def test_native_quantity_selection_chain_cache_edit_print_and_reopen(tmp_path):
@@ -49,25 +49,25 @@ def test_native_quantity_selection_chain_cache_edit_print_and_reopen(tmp_path):
         '---\nkind: operator\nidentity: z\n---\n', encoding="utf-8")
     manifest = tmp_path / "manifest.md"
     output = tmp_path / "reader.html"
-    output.write_text(render_report(manifest, parse_manifest(manifest)), encoding="utf-8")
+    output.write_text(render_artifact(manifest, parse_manifest(manifest)), encoding="utf-8")
     with sync_playwright() as playwright:
         browser = playwright.chromium.launch(executable_path=executable)
         page = browser.new_page()
         errors = []
         page.on("pageerror", lambda error: errors.append(str(error)))
         page.goto(output.as_uri())
-        page.evaluate("obsPages.setPaged(false); obsReport.activateChapter('chapter')")
+        page.evaluate("obsPages.setPaged(false); obsArtifact.activateChapter('chapter')")
         summary = page.locator("[data-active-chapter] .record-card p")
         expect(summary).to_have_text("Items 2 (1 active).")
         expect(page.locator("[data-active-chapter] .record-metric strong")).to_have_text(["2", "50.0%"])
         expect(page.locator("[data-active-chapter] a").filter(has_text="20 mm")).to_have_count(1)
         expect(page.locator("[data-active-chapter] a").filter(has_text="services")).to_have_count(1)
         assert page.evaluate("""() => obsRecordMetrics.select({from:'counts/total', where:[]})
-            .every(record => obsReport.records.includes(record))""")
+            .every(record => obsArtifact.records.includes(record))""")
         page.evaluate("""() => {
             window.aggregatePopulationPasses = 0;
-            const previous = obsReport.matchesFilter;
-            obsReport.matchesFilter = record => {aggregatePopulationPasses++; return previous(record);};
+            const previous = obsArtifact.matchesFilter;
+            obsArtifact.matchesFilter = record => {aggregatePopulationPasses++; return previous(record);};
             const clone = document.querySelector('[data-quantity-reference]').cloneNode(true);
             clone.dataset.transientView = '';
             clone.id = 'cached-quantity-clone';
@@ -76,26 +76,26 @@ def test_native_quantity_selection_chain_cache_edit_print_and_reopen(tmp_path):
         }""")
         expect(page.locator("#cached-quantity-clone")).to_have_text("2")
         assert page.evaluate("aggregatePopulationPasses") == 0
-        before_filter = page.evaluate("JSON.stringify(obsReport.canonicalNotes())")
-        before_revision = page.evaluate("obsReport.revision")
-        page.evaluate("obsReport.setFilter(obsQuery.compile('identity:b'))")
+        before_filter = page.evaluate("JSON.stringify(obsArtifact.canonicalNotes())")
+        before_revision = page.evaluate("obsArtifact.revision")
+        page.evaluate("obsArtifact.setFilter(obsQuery.compile('identity:b'))")
         expect(summary).to_have_text("Items 1 (0 active).")
-        assert page.evaluate("JSON.stringify(obsReport.canonicalNotes())") == before_filter
-        assert page.evaluate("obsReport.revision") == before_revision
-        page.evaluate("obsReport.commitCanonicalProjection([{slug:'two', fields:{active:'yes'}}])")
+        assert page.evaluate("JSON.stringify(obsArtifact.canonicalNotes())") == before_filter
+        assert page.evaluate("obsArtifact.revision") == before_revision
+        page.evaluate("obsArtifact.commitCanonicalProjection([{slug:'two', fields:{active:'yes'}}])")
         expect(summary).to_have_text("Items 1 (1 active).")
-        page.evaluate("obsReport.setFilter(obsQuery.compile('identity:missing'))")
+        page.evaluate("obsArtifact.setFilter(obsQuery.compile('identity:missing'))")
         expect(summary).to_have_text("Items 0 (0 active).")
-        page.evaluate("obsReport.setFilter(obsQuery.compile('identity:b')); obsPages.setPaged(true)")
+        page.evaluate("obsArtifact.setFilter(obsQuery.compile('identity:b')); obsPages.setPaged(true)")
         page.wait_for_function("""() => [...document.querySelectorAll('.paged-reader [data-quantity-reference]')]
             .length > 0 && [...document.querySelectorAll('.paged-reader [data-quantity-reference]')]
             .every(link => link.textContent === '1')""")
         saved = tmp_path / "reviewed.html"
         saved.write_text(page.evaluate("obsComments.reviewedHtml()"), encoding="utf-8")
         page.goto(saved.as_uri())
-        page.evaluate("obsPages.setPaged(false); obsReport.activateChapter('chapter')")
+        page.evaluate("obsPages.setPaged(false); obsArtifact.activateChapter('chapter')")
         expect(page.locator("[data-active-chapter] .record-card p")).to_have_text("Items 1 (1 active).")
-        assert page.evaluate("""() => obsReport.canonicalNotes().filter(note =>
+        assert page.evaluate("""() => obsArtifact.canonicalNotes().filter(note =>
             note.frontmatter.kind === 'quantity' && note.frontmatter.query)
             .every(note => !Object.hasOwn(note.frontmatter, 'value'))""")
         assert errors == []

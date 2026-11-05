@@ -19,12 +19,12 @@ TIERS = ("unit", "dom", "browser", "e2e", "external")
 DEFAULT_TIERS = {"unit", "dom"}
 STRICT_VARIABLE = "OBS_HTML_STRICT"
 EVIDENCE = {
-    "external": re.compile(r"OBS_HTML_TEST_AUTHORED_REPORT|OBS_HTML_REPORT_DATA_PROOF|REFERENCE_EXAMPLE_SNAPSHOT"),
+    "external": re.compile(r"OBS_HTML_TEST_AUTHORED_ARTIFACT|OBS_HTML_ARTIFACT_DATA_PROOF|REFERENCE_EXAMPLE_SNAPSHOT"),
     "e2e": re.compile(r"REFERENCE_EVIDENCE_WORKTREE|REFERENCE_LEVEL_TEST_ROOT|reproduce\.py|[\"']powershell[\"']"),
     "browser": re.compile(r"OBS_HTML_TEST_NATIVE_BROWSER|sync_playwright|\.chromium\b"),
     "dom": re.compile(
         r"OBS_HTML_TEST_DOM_MODULE|linkedom|which\([\"']node[\"']\)|[\[(][\"']node[\"']"
-        r"|run_report_dom_contract|run_browser_script"),
+        r"|run_artifact_dom_contract|run_browser_script"),
 }
 
 

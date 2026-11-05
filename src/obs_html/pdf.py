@@ -107,10 +107,10 @@ def check_rendered(html: Path, timeout_seconds: int) -> RenderedCheck:
             page.goto(html.resolve().as_uri(), wait_until="load")
             try:
                 page.wait_for_function(
-                    "['ready', 'error'].includes(document.documentElement.dataset.reportStatus)",
+                    "['ready', 'error'].includes(document.documentElement.dataset.artifactStatus)",
                     timeout=timeout_seconds * 1000,
                 )
-                status = page.evaluate("document.documentElement.dataset.reportStatus")
+                status = page.evaluate("document.documentElement.dataset.artifactStatus")
             except BrowserTimeoutError:
                 status = "timeout"
         pages = 0

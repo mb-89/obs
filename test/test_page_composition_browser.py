@@ -7,8 +7,8 @@ import re
 import pytest
 
 from obs_html.content import parse_manifest
-from obs_html.renderer import render_report
-from obs_html.report_data import decode_report_data, encode_report_data
+from obs_html.renderer import render_artifact
+from obs_html.artifact_data import decode_artifact_data, encode_artifact_data
 
 
 @pytest.fixture(scope="module")
@@ -26,7 +26,7 @@ def composition_browser():
             browser.close()
 
 
-def _report(tmp_path, *, wide=False, print_profile="", wrapper=False):
+def _artifact(tmp_path, *, wide=False, print_profile="", wrapper=False):
     cards = {"version": 1, "cards": [{
         "title": "Coverage", "body": "See [[chapter#Matrix]].", "metrics": [
             {"label": label, "where": []} for label in ["All items", "Much longer item label", "Ready"]
@@ -53,12 +53,12 @@ def _report(tmp_path, *, wide=False, print_profile="", wrapper=False):
         + "\n\n## After matrix\n\nPORTRAIT-AFTER\n",
         encoding="utf-8",
     )
-    html = render_report(manifest, parse_manifest(manifest))
+    html = render_artifact(manifest, parse_manifest(manifest))
     if wide:
         # Supply the table owner's rendered hint at the consumer boundary. The
         # input/schema producer has its own tests in the table-owner work package.
-        match = re.search(r'(<script id="report-data"[^>]*>)(.*?)(</script>)', html, re.S)
-        data = decode_report_data(html)
+        match = re.search(r'(<script id="artifact-data"[^>]*>)(.*?)(</script>)', html, re.S)
+        data = decode_artifact_data(html)
         record = next(note for note in data["notes"] if note["slug"] == "chapter")
         if wrapper:
             record["html"] = record["html"].replace(
@@ -67,8 +67,8 @@ def _report(tmp_path, *, wide=False, print_profile="", wrapper=False):
             ).replace("</table>", "</table></section>", 1)
         else:
             record["html"] = record["html"].replace("<table>", '<table data-table-wide="true">', 1)
-        html = html[:match.start()] + encode_report_data(data, "gzip") + html[match.end():]
-    output = tmp_path / "report.html"
+        html = html[:match.start()] + encode_artifact_data(data, "gzip") + html[match.end():]
+    output = tmp_path / "artifact.html"
     output.write_text(html, encoding="utf-8")
     return output
 
@@ -78,7 +78,7 @@ def test_native_explicit_columns_align_metrics_in_pages_and_stack_on_mobile(
 ):
     page = composition_browser.new_page(viewport={"width": 1600, "height": 1000})
     try:
-        page.goto(_report(tmp_path).as_uri())
+        page.goto(_artifact(tmp_path).as_uri())
         columns = page.locator(".paged-reader .markdown-columns")
         assert columns.count() == 1
         positions = columns.locator(":scope > .markdown-column").evaluate_all(
@@ -119,8 +119,8 @@ def test_native_pdf_destination_hint_is_compact_accessible_and_print_excluded(
     errors = []
     page.on("pageerror", lambda error: errors.append(str(error)))
     try:
-        page.goto(_report(tmp_path).as_uri())
-        page.evaluate("obsReport.openBar('settings', 'right')")
+        page.goto(_artifact(tmp_path).as_uri())
+        page.evaluate("obsArtifact.openBar('settings', 'right')")
         button = page.locator("[data-export-pdf]")
         hint = page.get_by_text("Choose Save as PDF, not Microsoft Print to PDF.", exact=True)
         assert hint.count() == 1
@@ -162,14 +162,14 @@ def test_native_home_sections_follow_authored_headings_without_implicit_pages(
         "- [[chapter]]\n\nOpening prose.\n\n## Decisions\n\nRetained decision.\n\n"
         "## Other evidence\n\nRetained evidence.\n", encoding="utf-8",
     )
-    output = tmp_path / "report.html"
-    output.write_text(render_report(manifest, parse_manifest(manifest)), encoding="utf-8")
+    output = tmp_path / "artifact.html"
+    output.write_text(render_artifact(manifest, parse_manifest(manifest)), encoding="utf-8")
     page = composition_browser.new_page()
     errors = []
     page.on("pageerror", lambda error: errors.append(str(error)))
     try:
         page.goto(output.as_uri())
-        page.wait_for_function("document.documentElement.dataset.reportStatus === 'ready'")
+        page.wait_for_function("document.documentElement.dataset.artifactStatus === 'ready'")
         assert page.locator(".paged-reader .paper-sheet").evaluate_all(
             "nodes => nodes.map(node => node.dataset.pageChapter)"
         ) == ["home", "@abstract", "@decisions", "@other-evidence", "@contents"]
@@ -187,20 +187,20 @@ def test_native_compact_heading_opens_the_only_page_of_a_home_only_document(
 ):
     manifest = tmp_path / "manifest.md"
     manifest.write_text(
-        "---\ntitle: Summary\norganization: Org\nproduct: {name: Product}\ndocument type: Report\n"
+        "---\ntitle: Summary\norganization: Org\nproduct: {name: Product}\ndocument type: Artifact\n"
         "obsHtml: {heading: compact, pages: [{page: abstract}]}\n---\n"
         "| Item | Status |\n|---|---|\n"
         + "\n".join(f"| ROW-{index:03d} | Ready |" for index in range(80)) + "\n",
         encoding="utf-8",
     )
-    output = tmp_path / "report.html"
-    output.write_text(render_report(manifest, parse_manifest(manifest)), encoding="utf-8")
+    output = tmp_path / "artifact.html"
+    output.write_text(render_artifact(manifest, parse_manifest(manifest)), encoding="utf-8")
     page = composition_browser.new_page()
     errors = []
     page.on("pageerror", lambda error: errors.append(str(error)))
     try:
         page.goto(output.as_uri())
-        page.wait_for_function("document.documentElement.dataset.reportStatus === 'ready'")
+        page.wait_for_function("document.documentElement.dataset.artifactStatus === 'ready'")
         assert page.locator("[data-step]").evaluate_all("nodes => nodes.every(node => node.disabled)")
         for view in (".paged-reader", ".print-book"):
             if view == ".print-book":
@@ -216,7 +216,7 @@ def test_native_compact_heading_opens_the_only_page_of_a_home_only_document(
                 "node.querySelector('.document-heading--compact, table')"
             )
             assert first.locator(".compact-heading").inner_text().split("\n") == [
-                "Org", "Product", "Report", "Summary"]
+                "Org", "Product", "Artifact", "Summary"]
             assert first.locator("tbody tr").count() > 0
             assert page.locator(f"{view} .document-heading").count() == 1
         assert page.locator(".print-book .paper-sheet").count() > 1
@@ -240,7 +240,7 @@ def test_native_wide_table_continuations_and_real_mixed_pdf_boxes(
     errors = []
     page.on("pageerror", lambda error: errors.append(str(error)))
     try:
-        page.goto(_report(tmp_path, wide=True, print_profile=print_profile, wrapper=wrapper).as_uri() + "#chapter")
+        page.goto(_artifact(tmp_path, wide=True, print_profile=print_profile, wrapper=wrapper).as_uri() + "#chapter")
         tables = page.locator(".paged-reader [data-table-wide='true']")
         assert tables.count() > 1
         assert tables.evaluate_all("""nodes => nodes.every(node =>
@@ -384,7 +384,7 @@ def test_native_nested_print_tables_reflow_inside_weighted_cards(
             encoding="utf-8",
         )
     output = tmp_path / "weighted.html"
-    output.write_text(render_report(manifest, parse_manifest(manifest), embed_attachments=True),
+    output.write_text(render_artifact(manifest, parse_manifest(manifest), embed_attachments=True),
                       encoding="utf-8")
     page = composition_browser.new_page(viewport={"width": 1600, "height": 1000})
     try:
@@ -427,7 +427,7 @@ def test_native_physical_print_glyphs_are_not_squeezed(tmp_path, composition_bro
 
     page = composition_browser.new_page(viewport={"width": 1600, "height": 1000})
     try:
-        page.goto(_report(tmp_path, wide=True).as_uri())
+        page.goto(_artifact(tmp_path, wide=True).as_uri())
         page.evaluate("window.print = () => {}; obsPages.exportPDF()")
         page.emulate_media(media="print")
         pdf_bytes = page.pdf(prefer_css_page_size=True, print_background=True)
@@ -511,7 +511,7 @@ def test_native_static_findings_preserve_population_values_and_pdf_links(
             }) + "\n---\n", encoding="utf-8",
         )
     output = tmp_path / "findings.html"
-    output.write_text(render_report(manifest, parse_manifest(manifest)), encoding="utf-8")
+    output.write_text(render_artifact(manifest, parse_manifest(manifest)), encoding="utf-8")
     page = composition_browser.new_page(viewport={"width": 1600, "height": 1000})
     page.add_init_script("delete window.showSaveFilePicker")
     try:
@@ -532,7 +532,7 @@ def test_native_static_findings_preserve_population_values_and_pdf_links(
         assert "Explanation 2" in text and "Explanation 3" in text
         assert "Explanation 0" not in text and "Explanation 1" not in text
         page.emulate_media(media="screen")
-        page.evaluate("""() => obsReport.commitCanonicalProjection([
+        page.evaluate("""() => obsArtifact.commitCanonicalProjection([
             {slug: 'path-3', fields: {explanation: 'UPDATED explanation 3'}},
         ])""")
         assert page.evaluate("""async () => {
@@ -553,7 +553,7 @@ def test_native_static_findings_preserve_population_values_and_pdf_links(
         )
         assert "UPDATED explanation 3" in changed_text
         page.emulate_media(media="screen")
-        page.evaluate("obsReport.setFilter(obsQuery.compile('explanation: UPDATED'))")
+        page.evaluate("obsArtifact.setFilter(obsQuery.compile('explanation: UPDATED'))")
         page.evaluate("obsPages.exportPDF()")
         assert rows.count() == 1
         page.emulate_media(media="print")
@@ -564,8 +564,8 @@ def test_native_static_findings_preserve_population_values_and_pdf_links(
         )
         assert "UPDATED explanation 3" in filtered_text and "Explanation 2" not in filtered_text
         page.emulate_media(media="screen")
-        page.evaluate("obsReport.setFilter(obsQuery.compile(''))")
-        page.evaluate("obsReport.openBar('comments')")
+        page.evaluate("obsArtifact.setFilter(obsQuery.compile(''))")
+        page.evaluate("obsArtifact.openBar('comments')")
         with page.expect_download() as download:
             page.locator("[data-comment-save]").click()
         saved = tmp_path / "reviewed.html"
@@ -589,7 +589,7 @@ def test_native_static_findings_preserve_population_values_and_pdf_links(
 def test_live_wide_rows_keep_identity_and_recompose_after_owner_mutation(tmp_path, composition_browser):
     page = composition_browser.new_page(viewport={"width": 1600, "height": 1000})
     try:
-        page.goto(_report(tmp_path, wide=True).as_uri() + "#chapter")
+        page.goto(_artifact(tmp_path, wide=True).as_uri() + "#chapter")
         assert page.locator(".paged-reader [data-table-wide='true']").count() > 1
         page.evaluate("""() => {
             const table = document.querySelector('.paged-reader [data-table-wide]');

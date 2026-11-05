@@ -8,8 +8,8 @@ from pathlib import Path
 import pytest
 
 from obs_html.content import ContentError, base_note_value, compile_base_filter, parse_manifest
-from obs_html.renderer import render_report
-from obs_html.report_data import decode_report_data
+from obs_html.renderer import render_artifact
+from obs_html.artifact_data import decode_artifact_data
 
 FIXTURE = json.loads(
     (Path(__file__).parent / "fixtures" / "bases-filter-conformance.json").read_text(encoding="utf-8")
@@ -51,7 +51,7 @@ def test_unsupported_fence_filter_names_file_fence_and_expression(tmp_path, filt
     invalid = FENCE.format(filters=filters, view_filters=view_filters)
     manifest = _vault(tmp_path, "# Chapter\n\n" + valid + invalid)
     with pytest.raises(ContentError) as error:
-        render_report(manifest, parse_manifest(manifest))
+        render_artifact(manifest, parse_manifest(manifest))
     message = str(error.value)
     assert "Unsupported Bases" in message
     assert "chapter.md" in message and "base fence 2" in message and location in message
@@ -67,7 +67,7 @@ def test_inclusion_uses_the_grammar_for_indexed_and_literal_dotted_paths(tmp_pat
     fence = ("```base\nfilters:\n  or: ['items.0.name == \"first\"', 'note[\"a.b\"] == \"literal\"']\n"
              "views:\n  - type: table\n    order: [file.name]\n```\n")
     manifest = _vault(tmp_path, "# Chapter\n\n" + fence)
-    notes = decode_report_data(render_report(manifest, parse_manifest(manifest)))["notes"]
+    notes = decode_artifact_data(render_artifact(manifest, parse_manifest(manifest)))["notes"]
     assert sorted(note["sourcePath"] for note in notes) == [
         "chapter.md", "indexed.md", "literal.md", "manifest.md",
     ]

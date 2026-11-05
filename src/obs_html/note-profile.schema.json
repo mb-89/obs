@@ -61,7 +61,7 @@
       "default": {"paper": "A4", "margin": "20mm"},
       "description": "Manifest only: paper and margin of the paged and PDF projections. Omitted keys use the defaults.",
       "properties": {
-        "paper": {"type": "string", "pattern": "^\\S+$", "description": "A paper name from configuration's report.print.paperSizes, portrait."},
+        "paper": {"type": "string", "pattern": "^\\S+$", "description": "A paper name from configuration's artifact.print.paperSizes, portrait."},
         "margin": {"type": "string", "pattern": "^[0-9]+(\\.[0-9]+)?mm$", "description": "Margin on every side, in millimetres, for example 20mm; limits come from configuration."}
       }
     },

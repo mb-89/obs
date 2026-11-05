@@ -6,7 +6,7 @@ import pytest
 import yaml
 
 from obs_html.content import parse_manifest
-from obs_html.renderer import render_report
+from obs_html.renderer import render_artifact
 from pickers import choose_files
 
 
@@ -15,18 +15,18 @@ INSTRUCTIONS = (
     "2. Export it as XML ([export help](https://example.org/help)).\n"
     "3. Drop the exported file into this card."
 )
-RUNTIME = """obsReport.registerApplication({id: 'guided-fixture', actions: [{
+RUNTIME = """obsArtifact.registerApplication({id: 'guided-fixture', actions: [{
     id: 'collect', accept: '.txt', help: 'Collect a replacement file.',
-    handle: async ({noteId, file, values, signal, report}) => {
+    handle: async ({noteId, file, values, signal, artifact}) => {
         globalThis.guidedCalls = [...(globalThis.guidedCalls || []), {noteId, name: file.name, values}];
         const text = await file.text();
         if (globalThis.failNextApply) throw new Error('Synthetic validation failure');
-        const notes = report.canonicalNotes();
+        const notes = artifact.canonicalNotes();
         const note = notes.find(candidate => candidate.sourcePath === noteId + '.md');
         note.frontmatter = {...note.frontmatter, ...values, payload: text};
         for (const field of [...Object.keys(values), 'payload']) delete note.frontmatterHtml?.[field];
-        const staged = await report.stageCanonicalTransaction({
-            expectedRevision: report.revision, notes, assetChanges: [],
+        const staged = await artifact.stageCanonicalTransaction({
+            expectedRevision: artifact.revision, notes, assetChanges: [],
         });
         if (signal.aborted) throw new DOMException('Cancelled', 'AbortError');
         staged.commit();
@@ -71,14 +71,14 @@ def _write_fixture(root: Path) -> Path:
 
 
 @pytest.fixture(scope="module")
-def guided_report(tmp_path_factory) -> Path:
+def guided_artifact(tmp_path_factory) -> Path:
     root = tmp_path_factory.mktemp("guided")
     manifest = _write_fixture(root / "vault")
-    report = root / "guided.html"
-    report.write_text(render_report(
+    artifact = root / "guided.html"
+    artifact.write_text(render_artifact(
         manifest, parse_manifest(manifest), trusted_runtime_bundle=("guided-fixture", RUNTIME),
     ), encoding="utf-8")
-    return report
+    return artifact
 
 
 @pytest.fixture(scope="module")
@@ -99,7 +99,7 @@ def guided_browser():
             browser.close()
 
 
-def _open(browser, report: Path, *, pip: bool = True, helper: bool = True):
+def _open(browser, artifact: Path, *, pip: bool = True, helper: bool = True):
     context = browser.new_context(viewport={"width": 1200, "height": 800})
     context.set_default_timeout(10000)
     context.route("https://example.org/**", lambda route: route.fulfill(
@@ -115,15 +115,15 @@ def _open(browser, report: Path, *, pip: bool = True, helper: bool = True):
     page = context.new_page()
     errors = []
     page.on("pageerror", lambda error: errors.append(str(error)))
-    page.goto(report.as_uri() + "#chapter")
+    page.goto(artifact.as_uri() + "#chapter")
     page.evaluate("obsHtmlReady")
-    page.evaluate("obsPages.setPaged(false); obsReport.activateChapter('chapter')")
-    page.evaluate("obsReport.whenChapterReady()")
+    page.evaluate("obsPages.setPaged(false); obsArtifact.activateChapter('chapter')")
+    page.evaluate("obsArtifact.whenChapterReady()")
     return context, page, errors
 
 
 def _model_note(page) -> dict:
-    return page.evaluate("""() => obsReport.canonicalNotes()
+    return page.evaluate("""() => obsArtifact.canonicalNotes()
         .find(note => note.sourcePath === 'evidence.md').frontmatter""")
 
 
@@ -140,12 +140,12 @@ def _action(page):
 
 
 @pytest.mark.e2e
-def test_inline_fallback_stages_then_applies_atomically(guided_browser, guided_report, tmp_path):
+def test_inline_fallback_stages_then_applies_atomically(guided_browser, guided_artifact, tmp_path):
     from playwright.sync_api import expect
 
-    context, page, errors = _open(guided_browser, guided_report, pip=False, helper=False)
+    context, page, errors = _open(guided_browser, guided_artifact, pip=False, helper=False)
     try:
-        revision = page.evaluate("obsReport.revision")
+        revision = page.evaluate("obsArtifact.revision")
         _action(page).click()
         card = page.locator("[data-guided-card]")
         expect(card).to_be_visible()
@@ -186,7 +186,7 @@ def test_inline_fallback_stages_then_applies_atomically(guided_browser, guided_r
         assert choosers, "Enter on Choose file must open the file chooser"
         choosers[0].set_files({"name": "new.txt", "mimeType": "text/plain", "buffer": b"new bytes"})
         expect(card.locator("[data-guided-card-staged]")).to_contain_text("new.txt")
-        assert page.evaluate("obsReport.revision") == revision
+        assert page.evaluate("obsArtifact.revision") == revision
         assert _model_note(page)["payload"] == "old bytes"
 
         text.fill("   ")
@@ -198,7 +198,7 @@ def test_inline_fallback_stages_then_applies_atomically(guided_browser, guided_r
         expect(card.locator("[data-guided-card-submit]")).to_be_focused()
         page.keyboard.press("Enter")
         expect(card).to_have_count(0)
-        assert page.evaluate("obsReport.revision") == revision + 1
+        assert page.evaluate("obsArtifact.revision") == revision + 1
         note = _model_note(page)
         assert (note["description"], note["payload"]) == ("New description", "new bytes")
         assert page.evaluate("globalThis.guidedCalls") == [{
@@ -207,20 +207,20 @@ def test_inline_fallback_stages_then_applies_atomically(guided_browser, guided_r
         table = page.locator("[data-active-chapter] table")
         expect(table).to_contain_text("New description")
         expect(table).to_contain_text("new bytes")
-        expect(page.locator("[data-document-warning]")).to_be_visible()
+        expect(page.locator("[data-artifact-warning]")).to_be_visible()
         expect(_action(page)).to_be_focused()
         assert errors == []
     finally:
         context.close()
 
 
-def test_failure_keeps_previous_state_and_card_open(guided_browser, guided_report):
+def test_failure_keeps_previous_state_and_card_open(guided_browser, guided_artifact):
     from playwright.sync_api import expect
 
-    context, page, errors = _open(guided_browser, guided_report, pip=False, helper=False)
+    context, page, errors = _open(guided_browser, guided_artifact, pip=False, helper=False)
     try:
         page.evaluate("globalThis.failNextApply = true")
-        revision = page.evaluate("obsReport.revision")
+        revision = page.evaluate("obsArtifact.revision")
         _action(page).click()
         card = page.locator("[data-guided-card]")
         choose_files(page, card.locator("[data-guided-card-choose]").click,
@@ -229,7 +229,7 @@ def test_failure_keeps_previous_state_and_card_open(guided_browser, guided_repor
         card.locator("[data-guided-card-submit]").click()
         expect(card.locator("[data-guided-card-error]")).to_contain_text("Synthetic validation failure")
         expect(card.locator("[data-guided-card-error]")).to_contain_text("previous state is unchanged")
-        assert page.evaluate("obsReport.revision") == revision
+        assert page.evaluate("obsArtifact.revision") == revision
         assert _model_note(page)["description"] == "Old description"
         expect(card.locator("[data-guided-card-submit]")).to_be_enabled()
         # A retry after fixing the cause applies the still-staged file.
@@ -243,10 +243,10 @@ def test_failure_keeps_previous_state_and_card_open(guided_browser, guided_repor
 
 
 @pytest.mark.e2e
-def test_helper_fallback_drop_close_and_source_tab(guided_browser, guided_report):
+def test_helper_fallback_drop_close_and_source_tab(guided_browser, guided_artifact):
     from playwright.sync_api import expect
 
-    context, page, errors = _open(guided_browser, guided_report, pip=False)
+    context, page, errors = _open(guided_browser, guided_artifact, pip=False)
     try:
         with context.expect_page() as opened:
             _action(page).click()
@@ -309,10 +309,10 @@ def test_helper_fallback_drop_close_and_source_tab(guided_browser, guided_report
 
 
 @pytest.mark.e2e
-def test_picture_in_picture_preferred_as_the_only_card(guided_browser, guided_report):
+def test_picture_in_picture_preferred_as_the_only_card(guided_browser, guided_artifact):
     from playwright.sync_api import expect
 
-    context, page, errors = _open(guided_browser, guided_report)
+    context, page, errors = _open(guided_browser, guided_artifact)
     try:
         if not page.evaluate("typeof window.documentPictureInPicture?.requestWindow === 'function'"):
             pytest.skip("This browser build exposes no Document Picture-in-Picture API.")
@@ -358,11 +358,11 @@ def test_picture_in_picture_preferred_as_the_only_card(guided_browser, guided_re
         context.close()
 
 
-def test_mocked_floating_window_is_the_only_card(guided_browser, guided_report):
+def test_mocked_floating_window_is_the_only_card(guided_browser, guided_artifact):
     """A refused floating window falls back inline; once it opens, the page shows no card."""
     from playwright.sync_api import expect
 
-    context, page, errors = _open(guided_browser, guided_report, pip=False)
+    context, page, errors = _open(guided_browser, guided_artifact, pip=False)
     try:
         # Stand in for Document Picture-in-Picture with an ordinary popup the test can drive;
         # with no helper either, a refused request can only fall back inline.
@@ -408,10 +408,10 @@ def test_mocked_floating_window_is_the_only_card(guided_browser, guided_report):
         context.close()
 
 
-def test_card_is_transient_and_hidden_in_print(guided_browser, guided_report, tmp_path):
+def test_card_is_transient_and_hidden_in_print(guided_browser, guided_artifact, tmp_path):
     from playwright.sync_api import expect
 
-    context, page, errors = _open(guided_browser, guided_report, pip=False, helper=False)
+    context, page, errors = _open(guided_browser, guided_artifact, pip=False, helper=False)
     try:
         _action(page).click()
         card = page.locator("[data-guided-card]")
@@ -428,10 +428,10 @@ def test_card_is_transient_and_hidden_in_print(guided_browser, guided_report, tm
         context.close()
 
 
-def test_row_without_source_link_gets_disabled_action_and_no_card(guided_browser, guided_report):
+def test_row_without_source_link_gets_disabled_action_and_no_card(guided_browser, guided_artifact):
     from playwright.sync_api import expect
 
-    context, page, errors = _open(guided_browser, guided_report, pip=False, helper=False)
+    context, page, errors = _open(guided_browser, guided_artifact, pip=False, helper=False)
     try:
         actions = page.locator("[data-active-chapter] table .data-table-icon-action")
         expect(actions).to_have_count(2)
@@ -440,7 +440,7 @@ def test_row_without_source_link_gets_disabled_action_and_no_card(guided_browser
         expect(unavailable).to_be_disabled()
         expect(unavailable).to_have_attribute("title", f"Collect evidence: {UNAVAILABLE}")
         expect(unavailable).to_have_attribute("data-unavailable", "")
-        assert unavailable.get_attribute("data-report-action") is None
+        assert unavailable.get_attribute("data-artifact-action") is None
         assert unavailable.locator("[data-icon]").get_attribute("data-icon-state") == "inactive"
         expect(_action(page)).to_be_enabled()
         assert _action(page).locator("[data-icon]").get_attribute("data-icon-state") == "active"
@@ -452,12 +452,12 @@ def test_row_without_source_link_gets_disabled_action_and_no_card(guided_browser
         context.close()
 
 
-def test_apply_records_change_time_in_saved_html(guided_browser, guided_report, tmp_path):
+def test_apply_records_change_time_in_saved_html(guided_browser, guided_artifact, tmp_path):
     from playwright.sync_api import expect
 
-    context, page, errors = _open(guided_browser, guided_report, pip=False, helper=False)
+    context, page, errors = _open(guided_browser, guided_artifact, pip=False, helper=False)
     try:
-        timestamp = "JSON.parse(obsReport.serializeModel()).document.generation.timestamp"
+        timestamp = "JSON.parse(obsArtifact.serializeModel()).document.generation.timestamp"
         built = page.evaluate(timestamp)
         page.clock.set_fixed_time("2031-02-03T04:05:06Z")
         _action(page).click()
@@ -492,4 +492,4 @@ def test_invalid_card_declaration_is_rejected(tmp_path, old, new, match):
     assert old in source
     chapter.write_text(source.replace(old, new), encoding="utf-8")
     with pytest.raises(ContentError, match=match):
-        render_report(manifest, parse_manifest(manifest))
+        render_artifact(manifest, parse_manifest(manifest))

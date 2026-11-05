@@ -89,12 +89,12 @@ def remembered_generator_provenance():
 
 
 @pytest.fixture(autouse=True, scope="session")
-def remembered_written_documents():
-    """Serve a just-built document from memory while its file is unchanged.
+def remembered_written_artifacts():
+    """Serve a just-built artifact from memory while its file is unchanged.
 
     On the managed Windows machines the first read of each freshly written HTML file is
     held for an on-access antivirus scan of the embedded scripts (about 0.75 s for a small
-    document). Tests read the document they just built, so the bytes are already known.
+    artifact). Tests read the artifact they just built, so the bytes are already known.
     The file stays the source of truth: any change in size or mtime falls back to disk.
     """
     import io
@@ -149,8 +149,8 @@ def remembered_written_documents():
 
 
 @pytest.fixture(autouse=True)
-def native_report_readiness(monkeypatch):
-    """The native navigation adapter includes the report's async startup boundary."""
+def native_artifact_readiness(monkeypatch):
+    """The native navigation adapter includes the artifact's async startup boundary."""
     if not os.environ.get("OBS_HTML_TEST_NATIVE_BROWSER"):
         return
     from playwright.sync_api import Page
@@ -160,7 +160,7 @@ def native_report_readiness(monkeypatch):
             response = navigate(page, *args, **kwargs)
             if page.evaluate("Boolean(globalThis.obsHtmlReady)"):
                 page.wait_for_function(
-                    "['ready', 'error'].includes(document.documentElement.dataset.reportStatus)",
+                    "['ready', 'error'].includes(document.documentElement.dataset.artifactStatus)",
                 )
             return response
 

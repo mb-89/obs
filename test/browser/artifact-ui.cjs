@@ -11,7 +11,7 @@ Object.defineProperty(Object.getPrototypeOf(document.createDocumentFragment()), 
 });
 if (document.createElement("a").hash === undefined) {
     Object.defineProperty(window.HTMLAnchorElement.prototype, "hash", {
-        get() { return new URL(this.href, "https://report.invalid/").hash; },
+        get() { return new URL(this.href, "https://artifact.invalid/").hash; },
     });
 }
 window.HTMLCanvasElement.prototype.getContext = () => ({
@@ -30,7 +30,7 @@ Object.defineProperty(window.HTMLElement.prototype, "clientHeight", {
 Object.defineProperty(window.HTMLElement.prototype, "scrollHeight", {
     configurable: true, get() { return 0; },
 });
-window.location = {hash: "", pathname: "/reports/report.html"};
+window.location = {hash: "", pathname: "/artifacts/artifact.html"};
 window.history = {
     pushState(_state, _unused, hash) { window.location.hash = hash; },
     replaceState(_state, _unused, hash) { window.location.hash = hash; },
@@ -107,14 +107,14 @@ const context = vm.createContext({
     clearTimeout: (id) => timers.delete(id),
     requestAnimationFrame: (callback) => callback(),
 });
-for (const id of ["reader-startup-script", "running-header-script", "report-bootstrap-script"]) {
+for (const id of ["reader-startup-script", "running-header-script", "artifact-bootstrap-script"]) {
     vm.runInContext(document.getElementById(id).textContent, context, {filename: id});
 }
 await context.obsHtmlDataReady;
 await context.obsHtmlReady;
 vm.runInContext("globalThis.obsStartup = undefined;", context);
 for (const id of ["query-script", "yaml-script", "base-script", "data-table-script",
-    "assets-script", "canonical-transaction-script", "report-script", "pages-script"]) {
+    "assets-script", "canonical-transaction-script", "artifact-script", "pages-script"]) {
     vm.runInContext(document.getElementById(id).textContent, context, {filename: id});
 }
 const body = document.querySelector("[data-chapter-body]");
@@ -125,8 +125,8 @@ const click = (element) => element.dispatchEvent(new window.Event("click", {
     bubbles: true, cancelable: true,
 }));
 const tables = () => [...body.querySelectorAll(".data-table-shell")];
-const navigate = (slug) => context.obsReport.activateChapter(slug);
-// Report-ui.md "Floating window": a link to a note outside the contents shows it as context; the page stays.
+const navigate = (slug) => context.obsArtifact.activateChapter(slug);
+// Artifact-ui.md "Floating window": a link to a note outside the contents shows it as context; the page stays.
 const followToContext = (link, slug) => {
     const page = current();
     click(link);
@@ -135,7 +135,7 @@ const followToContext = (link, slug) => {
     assert.ok(floating, `${slug} opens in the floating window`);
     assert.equal(floating.querySelector("[data-guided-card-use]").textContent, "Context");
     assert.equal(floating.querySelector(".guided-card-title").textContent,
-        context.obsReport.records.find((record) => record.slug === slug).title);
+        context.obsArtifact.records.find((record) => record.slug === slug).title);
     click(floating.querySelector("[data-guided-card-close]"));
     assert.equal(document.querySelector("[data-guided-card]"), null);
     navigate(slug);
@@ -152,26 +152,26 @@ if (process.argv[7] === "--discovered-query-controls-only") {
         '[data-filter-fields] .filter-field[data-field="status"] [data-filter-value="draft"]');
     assert.ok(draft, "The discovered Filter exposes canonical status facets.");
     click(draft);
-    const applied = context.obsReport.filterSummary().expression;
+    const applied = context.obsArtifact.filterSummary().expression;
     assert.match(applied, /status.*draft/);
-    assert.equal(context.obsReport.filterSummary().chapters, 3);
+    assert.equal(context.obsArtifact.filterSummary().chapters, 3);
     const selection = document.querySelector("[data-filter-selections] button");
     assert.equal(selection.getAttribute("aria-label"), "Remove status: draft");
     assert.equal(selection.firstChild.textContent, "status: draft");
     filter.value = "(";
     filter.dispatchEvent(new window.Event("input"));
     assert.equal(filter.getAttribute("aria-invalid"), "true");
-    assert.equal(context.obsReport.filterSummary().expression, applied);
+    assert.equal(context.obsArtifact.filterSummary().expression, applied);
     search.value = "status: final";
     search.dispatchEvent(new window.Event("input"));
     assert.equal(document.querySelectorAll("[data-search-results] li").length, 3);
-    assert.equal(context.obsReport.filterSummary().expression, applied,
+    assert.equal(context.obsArtifact.filterSummary().expression, applied,
         "Searching does not replace the independently applied Filter.");
     document.dispatchEvent(new window.CustomEvent("obs-bar-change", {
         detail: {bar: "filter", open: false},
     }));
     assert.equal(filter.value, "");
-    assert.equal(context.obsReport.filterSummary().empty, true);
+    assert.equal(context.obsArtifact.filterSummary().empty, true);
     assert.equal(changes, 2);
     return;
 }
@@ -235,7 +235,7 @@ if (process.argv[7] === "--inspect-json") {
     const chapters = {};
     for (const slug of JSON.parse(process.argv[8] || "[]")) {
         navigate(slug);
-        await context.obsReport.whenChapterReady();
+        await context.obsArtifact.whenChapterReady();
         runTimers();
         const ids = [...document.querySelectorAll("[id]")].map(element => element.id);
         chapters[slug] = {
@@ -244,7 +244,7 @@ if (process.argv[7] === "--inspect-json") {
             duplicateIds: [...new Set(ids.filter((id, index) => ids.indexOf(id) !== index))],
         };
     }
-    const records = context.obsReport.records.map(record => ({
+    const records = context.obsArtifact.records.map(record => ({
         slug: record.slug, filterAttributes: record.filterAttributes, metadataEntries: record.metadataEntries,
     }));
     console.log(JSON.stringify({records, chapters}));
@@ -254,7 +254,7 @@ if (process.argv[7] === "--comments-only") {
     await verifyCommentExportOnly();
     return;
 }
-if (process.argv[7] === "--document-change-only") {
+if (process.argv[7] === "--artifact-change-only") {
     context.structuredClone = structuredClone;
     context.Node = window.Node;
     context.CSS = {escape: value => value};
@@ -263,31 +263,31 @@ if (process.argv[7] === "--document-change-only") {
     vm.runInContext(fs.readFileSync(process.argv[6], "utf8"), context);
     vm.runInContext(fs.readFileSync(process.argv[4], "utf8"), context);
     vm.runInContext(fs.readFileSync(process.argv[5], "utf8"), context);
-    const warning = document.querySelector("[data-document-warning]");
+    const warning = document.querySelector("[data-artifact-warning]");
     assert.ok(warning, "The existing save owner supplies a persistent HTML change notice.");
     const semanticDirty = () => document.querySelector("[data-review-save-guidance]").dataset.dirty === "true";
-    const documentDirty = () => {
+    const artifactDirty = () => {
         const event = new window.Event("beforeunload", {cancelable: true});
         window.dispatchEvent(event);
         assert.equal(!warning.hidden, event.defaultPrevented);
         return event.defaultPrevented;
     };
-    assert.equal(documentDirty(), false);
-    context.obsReport.commitProperty("one", "explanation", "Original");
-    assert.equal(documentDirty(), false, "No-op canonical editors do not dirty HTML.");
+    assert.equal(artifactDirty(), false);
+    context.obsArtifact.commitProperty("one", "explanation", "Original");
+    assert.equal(artifactDirty(), false, "No-op canonical editors do not dirty HTML.");
     context.obsFilter.setExpression("status:draft");
-    assert.equal(documentDirty(), true);
+    assert.equal(artifactDirty(), true);
     assert.equal(semanticDirty(), false, "Saved reader state is not a semantic review edit.");
     context.obsFilter.setExpression("status: /[");
-    assert.equal(documentDirty(), true, "Invalid drafts preserve the saved applied query.");
+    assert.equal(artifactDirty(), true, "Invalid drafts preserve the saved applied query.");
     click(document.querySelector("[data-filter-warning] button"));
-    assert.equal(documentDirty(), false, "Reverting the serialized query clears document state.");
-    context.obsReport.setViewSelection("proof", ["a"], ["a", "b"]);
-    assert.equal(documentDirty(), true);
+    assert.equal(artifactDirty(), false, "Reverting the serialized query clears document state.");
+    context.obsArtifact.setViewSelection("proof", ["a"], ["a", "b"]);
+    assert.equal(artifactDirty(), true);
     assert.equal(semanticDirty(), false);
-    context.obsReport.commitProperty("one", "explanation", "Changed");
+    context.obsArtifact.commitProperty("one", "explanation", "Changed");
     assert.equal(semanticDirty(), true);
-    assert.equal(documentDirty(), true);
+    assert.equal(artifactDirty(), true);
     let output, closed = false;
     context.showSaveFilePicker = async () => ({createWritable: async () => ({
         write: async contents => {output = contents;},
@@ -295,7 +295,7 @@ if (process.argv[7] === "--document-change-only") {
     })});
     await context.obsComments.saveReviewedCopy();
     assert.equal(closed, true);
-    assert.equal(documentDirty(), false);
+    assert.equal(artifactDirty(), false);
     assert.equal(semanticDirty(), false);
     assert.ok(output.includes("Changed"));
     const saved = parseHTML(output).document;
@@ -303,7 +303,7 @@ if (process.argv[7] === "--document-change-only") {
     context.obsFilter.setExpression("status:draft");
     context.showSaveFilePicker = async () => {throw Object.assign(new Error("cancel"), {name: "AbortError"});};
     await context.obsComments.saveReviewedCopy();
-    assert.equal(documentDirty(), true, "Cancel is not a save.");
+    assert.equal(artifactDirty(), true, "Cancel is not a save.");
     context.Blob = Blob;
     let downloads = 0;
     context.URL = {createObjectURL: () => {downloads++; return "blob:proof";}, revokeObjectURL() {}};
@@ -311,15 +311,15 @@ if (process.argv[7] === "--document-change-only") {
         write: async () => {}, close: async () => {throw new Error("close failed");},
     })});
     await context.obsComments.saveReviewedCopy();
-    assert.equal(documentDirty(), true, "Failed close cannot confirm retention.");
+    assert.equal(artifactDirty(), true, "Failed close cannot confirm retention.");
     assert.equal(downloads, 1);
     delete context.showSaveFilePicker;
     await context.obsComments.saveReviewedCopy();
-    assert.equal(documentDirty(), true, "Fallback download is unconfirmed.");
+    assert.equal(artifactDirty(), true, "Fallback download is unconfirmed.");
     assert.equal(downloads, 2);
-    const writeIsland = context.obsReportTransport.writeIsland;
+    const writeIsland = context.obsArtifactTransport.writeIsland;
     let resume;
-    context.obsReportTransport = {...context.obsReportTransport, writeIsland: async (...args) => {
+    context.obsArtifactTransport = {...context.obsArtifactTransport, writeIsland: async (...args) => {
         await new Promise(resolve => {resume = resolve;});
         return writeIsland(...args);
     }};
@@ -328,18 +328,18 @@ if (process.argv[7] === "--document-change-only") {
     })});
     const pending = context.obsComments.saveReviewedCopy();
     while (!resume) await new Promise(setImmediate);
-    context.obsReport.commitProperty("one", "explanation", "Newer edit");
+    context.obsArtifact.commitProperty("one", "explanation", "Newer edit");
     context.obsFilter.setExpression("");
     resume();
     await pending;
-    assert.equal(documentDirty(), true, "A confirmed capture cannot clean later canonical or reader edits.");
+    assert.equal(artifactDirty(), true, "A confirmed capture cannot clean later canonical or reader edits.");
     assert.equal(semanticDirty(), true);
     assert.ok(!output.includes("Newer edit"));
-    context.obsReport.commitProperty("one", "explanation", "Changed");
-    assert.equal(documentDirty(), true, "Later reader-only edits remain unsaved.");
+    context.obsArtifact.commitProperty("one", "explanation", "Changed");
+    assert.equal(artifactDirty(), true, "Later reader-only edits remain unsaved.");
     assert.equal(semanticDirty(), false);
     context.obsFilter.setExpression("status:draft");
-    assert.equal(documentDirty(), false, "Reverting to the confirmed capture is clean.");
+    assert.equal(artifactDirty(), false, "Reverting to the confirmed capture is clean.");
     console.log("PASS document/review dirty, revert, invalid draft, save/cancel/failure/download/newer edits.");
     return;
 }
@@ -435,7 +435,7 @@ assert.equal(shell.querySelector('tr[data-row-key="child"] [data-table-detail-to
 assert.ok(shell.querySelector('tr[data-row-key="child"] a[href="#child"]'));
 const preview = document.getElementById("hover-card");
 const childLink = shell.querySelector('tr[data-row-key="child"] a[href="#child"]');
-const settings = JSON.parse(document.querySelector("[data-report-data]").textContent).hoverCard;
+const settings = JSON.parse(document.querySelector("[data-artifact-data]").textContent).hoverCard;
 const trigger = (element, type, relatedTarget = null, properties = {}) => {
     const event = new window.Event(type, {bubbles: true});
     Object.assign(event, {relatedTarget, ...properties});
@@ -451,7 +451,7 @@ assert.ok(preview.querySelector("p").textContent.startsWith("Question."));
 assert.ok(preview.querySelector("p").textContent.length <= settings.excerptCharacters);
 assert.equal(current(), "home");
 assert.equal(childLink.getAttribute("aria-describedby"), preview.id);
-// Lifecycle (report-ui.md "Overlays"): leaving the link and the card keeps the card.
+// Lifecycle (artifact-ui.md "Overlays"): leaving the link and the card keeps the card.
 trigger(childLink, "pointerout", preview);
 trigger(preview, "pointerout");
 runTimers();
@@ -509,7 +509,7 @@ assert.equal(preview.hidden, false, "Scrolling keeps the card while its trigger 
 nodeLink.getBoundingClientRect = () => ({top: -60, bottom: -40, left: 0, right: 80, width: 80, height: 20});
 trigger(document.querySelector("[data-chapter-scroll]"), "scroll");
 assert.equal(preview.hidden, true, "The card closes once its trigger scrolls out of view");
-const referenceRecord = context.obsReport.records.find((record) => record.slug === "reference");
+const referenceRecord = context.obsArtifact.records.find((record) => record.slug === "reference");
 assert.ok(referenceRecord, "The linked reference note is in the canonical store");
 navigate("parent");
 const referenceLink = body.querySelector('a[href="#reference"]');
@@ -620,7 +620,7 @@ trigger(glossaryLink, "pointerover");
 runTimers();
 assert.equal(preview.hidden, false);
 assert.equal(preview.querySelector("p").textContent, "The conclusion.");
-// Glossary hover card: term and definition only (report-ui.md "Link hover card").
+// Glossary hover card: term and definition only (artifact-ui.md "Link hover card").
 assert.equal(preview.querySelectorAll("dt").length, 0);
 assert.equal(preview.querySelector(".hover-card-title").getAttribute("href"), "#conclusion");
 assert.equal(preview.querySelector("h1, table, img, script"), null);
@@ -645,8 +645,8 @@ assert.equal(body.querySelector('tr[data-detail-owner="glossary:conclusion"]'), 
 assert.ok(body.querySelector("tbody").textContent.includes("presenting the Conclusion"));
 assert.equal(document.querySelector('[data-toc-link="bluf"]'), null);
 assert.equal(document.querySelector('[data-toc-link="conclusion"]'), null);
-assert.equal(context.obsReport.records.filter((record) => record.slug === "bluf").length, 1);
-assert.equal(context.obsReport.records.some((record) => record.slug === "unreferenced"), false);
+assert.equal(context.obsArtifact.records.filter((record) => record.slug === "bluf").length, 1);
+assert.equal(context.obsArtifact.records.some((record) => record.slug === "unreferenced"), false);
 let entry = body.querySelector('tr[data-row-key="glossary:bluf"]');
 assert.equal(entry.querySelector(".disclosure-toggle").getAttribute("aria-expanded"), "false");
 click(entry.querySelector(".disclosure-toggle"));
@@ -673,16 +673,16 @@ assert.equal(current(), "home");
 assert.equal(window.location.hash, "#home");
 openChildren(["Parent", "Glossary", "Tags", "References"]);
 const tocCount = document.querySelectorAll("[data-toc-link]").length;
-context.obsReport.activateChapter("details/more");
+context.obsArtifact.activateChapter("details/more");
 assert.equal(current(), "details");
 assert.equal(window.location.hash, "#details/more");
 assert.ok(document.getElementById("details--more"));
 assert.equal(document.querySelectorAll("[data-toc-link]").length, tocCount);
 const noteFilter = context.obsQuery.compile("title: Parent");
-assert.equal(context.obsReport.setFilter(noteFilter), 1);
+assert.equal(context.obsArtifact.setFilter(noteFilter), 1);
 click(body.querySelector(".chapter-home-link"));
 assert.equal(current(), "home");
-context.obsReport.setFilter(context.obsQuery.compile(""));
+context.obsArtifact.setFilter(context.obsQuery.compile(""));
 navigate("glossary");
 entry = body.querySelector('tr[data-row-key="glossary:bluf"]');
 click(entry.querySelector("[data-table-detail-toggle]"));
@@ -872,10 +872,10 @@ async function verifyPages() {
     assert.equal(pagedReader.textContent.includes("child_question"), false);
     navigate("node");
     const nodeSource = document.createElement("div");
-    context.obsReport.renderStatic("node", nodeSource);
+    context.obsArtifact.renderStatic("node", nodeSource);
     const normalize = (text) => text.replace(/\s/g, "");
     assert.ok(normalize(pagedReader.textContent).includes(normalize("Long prose for the preview.")));
-    const nodeRecord = context.obsReport.records.find((record) => record.slug === "node");
+    const nodeRecord = context.obsArtifact.records.find((record) => record.slug === "node");
     const originalNodeHtml = nodeRecord.html;
     nodeRecord.html += '<table><thead><tr><th>Repeated header</th></tr></thead><tbody>' +
         Array.from({length: 40}, (_, index) => `<tr><td>Row ${index}</td></tr>`).join("") +
@@ -888,7 +888,7 @@ async function verifyPages() {
     ));
     nodeRecord.html = originalNodeHtml;
 
-    context.obsReport.setFilter(context.obsQuery.compile("title: Child"));
+    context.obsArtifact.setFilter(context.obsQuery.compile("title: Child"));
     assert.equal(pagedReader.querySelectorAll(".chapter-breadcrumbs").length, 1);
     navigate("home");
     assert.equal(pagedReader.querySelectorAll(".page-contents a").length, 2);
@@ -943,7 +943,7 @@ async function verifyPages() {
     assert.equal(printBook.querySelector("#pdf-node, #pdf-conclusion"), null);
     assert.deepEqual([...printBook.querySelectorAll(".page-contents a")].map(link =>
         link.getAttribute("href")), ["#pdf-parent", "#pdf-child"]);
-    assert.equal(printBook.querySelector(".chapter-bluf .content-card-title a").getAttribute("href"), "report.html#bluf");
+    assert.equal(printBook.querySelector(".chapter-bluf .content-card-title a").getAttribute("href"), "artifact.html#bluf");
     assert.equal(printBook.querySelector(".chapter-breadcrumbs, button, input, .data-table-detail-row"), null);
     assert.equal(new Set([...printBook.querySelectorAll("[id]")].map((element) => element.id)).size,
         printBook.querySelectorAll("[id]").length);
@@ -951,17 +951,17 @@ async function verifyPages() {
     assert.equal(printBook.children.length, 0);
     assert.equal(document.documentElement.classList.contains("preparing-print"), false);
     assert.equal(pagedReader.hidden, false);
-    context.obsReport.setFilter(context.obsQuery.compile(""));
+    context.obsArtifact.setFilter(context.obsQuery.compile(""));
     await context.obsPages.exportPDF();
     assert.equal(printBook.querySelectorAll(".page-contents a").length, 6);
     assert.ok(printBook.querySelector("#pdf-node"));
-    const documentPageNumbers = [...printBook.querySelectorAll(".paper-page-number")].map(
+    const artifactPageNumbers = [...printBook.querySelectorAll(".paper-page-number")].map(
         pageNumber,
     );
-    assert.deepEqual(documentPageNumbers, documentPageNumbers.map((_number, index) => index + 1));
+    assert.deepEqual(artifactPageNumbers, artifactPageNumbers.map((_number, index) => index + 1));
     const pdfNodeFirstPage = printBook.querySelector("#pdf-node .paper-page-number").textContent;
     assert.ok(printBook.querySelector('a[href="#pdf-conclusion"]') === null);
-    assert.ok(printBook.querySelector('a[href="report.html#conclusion"]'));
+    assert.ok(printBook.querySelector('a[href="artifact.html#conclusion"]'));
     assert.ok(printBook.querySelector('a[href="#pdf-child"]'));
     assert.ok([...printBook.querySelectorAll('a[href="#pdf-tags"]')].some(
         (link) => link.textContent === "Number of open points",
@@ -1005,7 +1005,7 @@ async function verifyPages() {
     const timedOutExport = context.obsPages.exportPDF();
     await flushPromises();
     const deadline = [...timers.values()].find(
-        ({delay}) => delay === JSON.parse(document.querySelector("[data-report-data]").textContent)
+        ({delay}) => delay === JSON.parse(document.querySelector("[data-artifact-data]").textContent)
             .printReadyTimeoutMilliseconds,
     );
     assert.ok(deadline);
@@ -1018,7 +1018,7 @@ async function verifyPages() {
     const fontTimeoutExport = context.obsPages.exportPDF();
     await flushPromises();
     [...timers.values()].find(({delay}) =>
-        delay === JSON.parse(document.querySelector("[data-report-data]").textContent)
+        delay === JSON.parse(document.querySelector("[data-artifact-data]").textContent)
             .printReadyTimeoutMilliseconds,
     ).callback();
     await assert.rejects(fontTimeoutExport, /Timed out waiting/);
@@ -1056,7 +1056,7 @@ async function verifyTableHelpOnly() {
     };
     navigate("chapter");
     const card = document.getElementById("hover-card");
-    const action = body.querySelector('[data-report-action="replaceEvidence"]');
+    const action = body.querySelector('[data-artifact-action="replaceEvidence"]');
     assert.equal(action.title, "Replace evidence");
     assert.equal(body.querySelector(".data-table-icon-help"), null);
     fire(action, "pointerover");
@@ -1077,7 +1077,7 @@ async function verifyTableHelpOnly() {
     assert.equal(card.hidden, false);
     fire(card, "pointerout");
     runTimers();
-    assert.equal(card.hidden, false, "Leaving the card keeps it (report-ui.md Overlays)");
+    assert.equal(card.hidden, false, "Leaving the card keeps it (artifact-ui.md Overlays)");
     const escape = new window.Event("keydown", {bubbles: true, cancelable: true});
     escape.key = "Escape";
     action.dispatchEvent(escape);
@@ -1123,7 +1123,7 @@ async function verifyComments() {
     navigate("parent");
     assert.equal(body.querySelector('img[alt="Shared image"]').getAttribute("src"), sharedImage);
     const staticParent = document.createElement("div");
-    context.obsReport.renderStatic("parent", staticParent);
+    context.obsArtifact.renderStatic("parent", staticParent);
     assert.equal(staticParent.querySelector('img[alt="Shared image"]').getAttribute("src"), sharedImage);
 
     const storage = new Map([["obs-html.appearance", "dark"]]);
@@ -1169,8 +1169,8 @@ async function verifyComments() {
     assert.equal(document.documentElement.classList.contains("paged-mode"), false);
 
     let staticRenderCalls = 0;
-    const originalRenderStatic = context.obsReport.renderStatic;
-    context.obsReport.renderStatic = function (...args) {
+    const originalRenderStatic = context.obsArtifact.renderStatic;
+    context.obsArtifact.renderStatic = function (...args) {
         staticRenderCalls += 1;
         return originalRenderStatic.apply(this, args);
     };
@@ -1189,7 +1189,7 @@ async function verifyComments() {
     vm.runInContext(fs.readFileSync(process.argv[4], "utf8"), context, {filename: "comments.js"});
     context.obsPages.setPaged(true);
     navigate("glossary");
-    context.obsReport.openBar("comments", "right");
+    context.obsArtifact.openBar("comments", "right");
     let row = body.querySelector('tr[data-row-key="glossary:bluf"]');
     assert.ok(row.dataset.reviewItem.startsWith("row-"));
     const reviewId = row.dataset.reviewItem;
@@ -1204,7 +1204,7 @@ async function verifyComments() {
     targetCloneCalls = 0;
     railMeasureCalls = 0;
     click(row.querySelector("[data-table-detail-toggle]"));
-    assert.equal(staticRenderCalls, 0, "expanding a table detail must not statically render report records");
+    assert.equal(staticRenderCalls, 0, "expanding a table detail must not statically render artifact records");
     assert.equal(targetCloneCalls, 0, "a table refresh must not clone full review-target text");
     assert.equal(
         railMeasureCalls,
@@ -1240,7 +1240,7 @@ async function verifyComments() {
     assert.equal(row.dataset.reviewState, "accepted");
     assert.equal(row.querySelector(".review-action--comment").dataset.count, "1");
     click(document.querySelector(".comment-target"));
-    await context.obsReport.whenChapterReady();
+    await context.obsArtifact.whenChapterReady();
     assert.ok(body.querySelector('tr[data-detail-owner="glossary:bluf"]'));
     row = body.querySelector('tr[data-row-key="glossary:bluf"]');
     assert.equal(row.dataset.reviewItem, reviewId);
@@ -1380,7 +1380,7 @@ async function verifyCommentExportOnly() {
     context.getSelection = () => selection;
     vm.runInContext(fs.readFileSync(process.argv[5], "utf8"), context, {filename: "settings.js"});
     vm.runInContext(fs.readFileSync(process.argv[4], "utf8"), context, {filename: "comments.js"});
-    context.obsReport.openBar("comments", "right");
+    context.obsArtifact.openBar("comments", "right");
 
     const paragraph = body.querySelector("p");
     assert.ok(paragraph);

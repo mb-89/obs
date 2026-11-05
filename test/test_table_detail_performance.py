@@ -3,7 +3,7 @@ import json
 import yaml
 
 from obs_html.content import parse_manifest
-from obs_html.renderer import render_report
+from obs_html.renderer import render_artifact
 from test_reader_controls import _write_reader_fixture, reader_browser
 
 
@@ -63,17 +63,17 @@ def test_native_detail_interactions_are_row_local_and_revision_bound(tmp_path, r
     subject.write_text(subject.read_text(encoding="utf-8").replace(
         "kind: subject\n", "kind: subject\nstatus: initial\n",
     ), encoding="utf-8")
-    report = tmp_path / "detail-interactions.html"
-    report.write_text(instrument_detail_passes(render_report(
+    artifact = tmp_path / "detail-interactions.html"
+    artifact.write_text(instrument_detail_passes(render_artifact(
         manifest, parse_manifest(manifest),
     )), encoding="utf-8")
     page = reader_browser.new_page(viewport={"width": 1280, "height": 900})
     page.add_init_script(COUNTERS)
-    page.goto(report.as_uri())
-    page.evaluate("obsReport.activateChapter('chapter')")
+    page.goto(artifact.as_uri())
+    page.evaluate("obsArtifact.activateChapter('chapter')")
     page.locator("[data-pages-toggle]").check()
     page.evaluate("""() => {
-        obsReport.openBar('comments', 'right');
+        obsArtifact.openBar('comments', 'right');
         document.querySelector('[data-comment-author]').value = 'Performance reviewer';
         document.querySelector('[data-row-key="note:relation-000"] .review-action--accept').click();
         document.querySelector('[data-data-table="chapter-base-1"]').dispatchEvent(
@@ -81,8 +81,8 @@ def test_native_detail_interactions_are_row_local_and_revision_bound(tmp_path, r
         );
     }""")
     page.evaluate("""() => {
-        const renderStatic = obsReport.renderStatic;
-        obsReport.renderStatic = (...args) => {
+        const renderStatic = obsArtifact.renderStatic;
+        obsArtifact.renderStatic = (...args) => {
             detailPasses.staticRenders++;
             return renderStatic(...args);
         };
@@ -143,7 +143,7 @@ def test_native_detail_interactions_are_row_local_and_revision_bound(tmp_path, r
         toggle.click();
     }""")
     assert page.evaluate("savedPanel.isConnected")
-    page.evaluate("""obsReport.commitCanonicalProjection([{
+    page.evaluate("""obsArtifact.commitCanonicalProjection([{
         slug: 'subject', fields: {status: 'Changed canonical subject'}
     }])""")
     assert not page.evaluate("savedPanel.isConnected")
@@ -157,11 +157,11 @@ def test_native_detail_interactions_are_row_local_and_revision_bound(tmp_path, r
 
 def test_native_pagination_renders_only_current_page_cells(tmp_path, reader_browser):
     manifest = _write_reader_fixture(tmp_path)
-    report = tmp_path / "paged-cells.html"
-    report.write_text(render_report(manifest, parse_manifest(manifest)), encoding="utf-8")
+    artifact = tmp_path / "paged-cells.html"
+    artifact.write_text(render_artifact(manifest, parse_manifest(manifest)), encoding="utf-8")
     page = reader_browser.new_page()
     try:
-        page.goto(report.as_uri())
+        page.goto(artifact.as_uri())
         # Column sizing measures every base row once in detached probes (generic-tables.md);
         # only the current page's rows are rendered as table cells.
         assert page.evaluate("""() => {

@@ -6,23 +6,23 @@ from pathlib import Path
 import pytest
 
 from obs_html.content import parse_manifest
-from obs_html.renderer import render_report
-from obs_html.report_data import decode_report_data
+from obs_html.renderer import render_artifact
+from obs_html.artifact_data import decode_artifact_data
 
 
 def test_home_contains_only_authored_tables_and_preserves_placement(tmp_path):
     manifest = tmp_path / "manifest.md"
     (tmp_path / "chapter.md").write_text("---\nproject status: Kept.\n---\n# Chapter\n", encoding="utf-8")
     manifest.write_text("- [[chapter]]\n\nBefore.\n\nAfter.\n", encoding="utf-8")
-    data = decode_report_data(render_report(manifest, parse_manifest(manifest)))
+    data = decode_artifact_data(render_artifact(manifest, parse_manifest(manifest)))
     assert data["notes"][0]["tables"] == []
     fence = '```base\nfilters: \'note["project status"] != null\'\nviews:\n  - type: table\n    order: [chapter, project status]\n```\n'
     manifest.write_text("- [[chapter]]\n\nBefore.\n\n" + fence + "\nAfter.\n", encoding="utf-8")
-    home = decode_report_data(render_report(manifest, parse_manifest(manifest)))["notes"][0]
+    home = decode_artifact_data(render_artifact(manifest, parse_manifest(manifest)))["notes"][0]
     assert len(home["tables"]) == 1
     assert home["html"].index("Before.") < home["html"].index("data-base-table") < home["html"].index("After.")
     manifest.write_text("- [[chapter]]\n\nBefore.\n\nAfter.\n", encoding="utf-8")
-    assert decode_report_data(render_report(manifest, parse_manifest(manifest)))["notes"][0]["tables"] == []
+    assert decode_artifact_data(render_artifact(manifest, parse_manifest(manifest)))["notes"][0]["tables"] == []
 
 
 def test_bases_comparisons_are_typed_and_ignore_case_with_note_prefix():
@@ -110,7 +110,7 @@ def test_expansion_and_metric_series_discover_their_declared_sources(tmp_path):
         encoding="utf-8",
     )
     manifest = tmp_path / "manifest.md"
-    data = decode_report_data(render_report(manifest, parse_manifest(manifest)))
+    data = decode_artifact_data(render_artifact(manifest, parse_manifest(manifest)))
     assert "catalog.md" in {note["sourcePath"] for note in data["notes"]}
 
 
@@ -126,7 +126,7 @@ def test_native_query_closure_traverses_dotted_properties_through_arrays(tmp_pat
     )
     (tmp_path / "missing.md").write_text("---\nruns: [{status: pending}]\n---\n", encoding="utf-8")
     (tmp_path / "absent.md").write_text("---\nstatus: pending\n---\n", encoding="utf-8")
-    data = decode_report_data(render_report(tmp_path / "manifest.md", parse_manifest(tmp_path / "manifest.md")))
+    data = decode_artifact_data(render_artifact(tmp_path / "manifest.md", parse_manifest(tmp_path / "manifest.md")))
     source_paths = {note["sourcePath"] for note in data["notes"]}
     assert "matching.md" in source_paths
     assert "missing.md" in source_paths
@@ -136,7 +136,7 @@ def test_native_query_closure_traverses_dotted_properties_through_arrays(tmp_pat
         "views: [{type: table, order: [file.name, runs.result]}]\n```\n",
         encoding="utf-8",
     )
-    data = decode_report_data(render_report(tmp_path / "manifest.md", parse_manifest(tmp_path / "manifest.md")))
+    data = decode_artifact_data(render_artifact(tmp_path / "manifest.md", parse_manifest(tmp_path / "manifest.md")))
     source_paths = {note["sourcePath"] for note in data["notes"]}
     assert "matching.md" not in source_paths
     assert "missing.md" not in source_paths
@@ -156,7 +156,7 @@ def test_unsupported_standard_namespaces_do_not_silently_match_missing_values(tm
     )
     manifest = tmp_path / "manifest.md"
     with pytest.raises(ContentError, match="Unsupported Bases property"):
-        render_report(manifest, parse_manifest(manifest))
+        render_artifact(manifest, parse_manifest(manifest))
 
 
 def test_unsupported_filter_is_rejected_even_when_an_earlier_operand_is_false(tmp_path):
@@ -169,7 +169,7 @@ def test_unsupported_filter_is_rejected_even_when_an_earlier_operand_is_false(tm
     )
     manifest = tmp_path / "manifest.md"
     with pytest.raises(ContentError, match="Unsupported Bases property"):
-        render_report(manifest, parse_manifest(manifest))
+        render_artifact(manifest, parse_manifest(manifest))
 
 
 def test_native_base_validator_rejects_unsupported_properties_and_empty_expansion():
@@ -215,7 +215,7 @@ def test_archived_empty_cover_title_preserves_native_property(tmp_path):
     (tmp_path / "archive").mkdir()
     (tmp_path / "archive" / "manifest.md").write_text('---\ntitle: ""\n---\n', encoding="utf-8")
     manifest = tmp_path / "manifest.md"
-    data = decode_report_data(render_report(manifest, parse_manifest(manifest)))
+    data = decode_artifact_data(render_artifact(manifest, parse_manifest(manifest)))
     archived = next(note for note in data["notes"] if note["sourcePath"] == "archive/manifest.md")
     assert archived["frontmatter"]["title"] == ""
     assert archived["title"] == "Manifest"
@@ -248,16 +248,16 @@ def test_native_authored_standard_filters_columns_groups_and_multiple_fences(tmp
         "four": {"kind": "datum", "value": 4, "bucket": "A", "excluded": True},
     }.items():
         (tmp_path / f"{name}.md").write_text("---\n" + json.dumps(metadata) + "\n---\n", encoding="utf-8")
-    report = tmp_path / "report.html"
-    report.write_text(render_report(manifest, parse_manifest(manifest)), encoding="utf-8")
+    artifact = tmp_path / "artifact.html"
+    artifact.write_text(render_artifact(manifest, parse_manifest(manifest)), encoding="utf-8")
     with sync_playwright() as playwright:
         browser = playwright.chromium.launch(executable_path=os.environ["OBS_HTML_TEST_NATIVE_BROWSER"])
         page = browser.new_page()
         try:
-            page.goto(report.as_uri())
-            page.wait_for_function("document.documentElement.dataset.reportStatus === 'ready'")
-            page.evaluate("obsPages.setPaged(false); obsReport.activateChapter('chapter')")
-            page.evaluate("obsReport.whenChapterReady()")
+            page.goto(artifact.as_uri())
+            page.wait_for_function("document.documentElement.dataset.artifactStatus === 'ready'")
+            page.evaluate("obsPages.setPaged(false); obsArtifact.activateChapter('chapter')")
+            page.evaluate("obsArtifact.whenChapterReady()")
             tables = page.locator("[data-active-chapter] [data-data-table]")
             expect(tables).to_have_count(2)
             for table in tables.all():
@@ -280,16 +280,16 @@ def test_native_chapter_records_omit_absent_bottom_lines(tmp_path):
         "views:\n  - type: table\n    order: [chapter, bottom line]\nobsHtml: {records: chapter}\n```\n",
         encoding="utf-8",
     )
-    report = tmp_path / "report.html"
-    report.write_text(render_report(manifest, parse_manifest(manifest)), encoding="utf-8")
+    artifact = tmp_path / "artifact.html"
+    artifact.write_text(render_artifact(manifest, parse_manifest(manifest)), encoding="utf-8")
     with sync_playwright() as playwright:
         browser = playwright.chromium.launch(executable_path=os.environ["OBS_HTML_TEST_NATIVE_BROWSER"])
         page = browser.new_page()
         try:
-            page.goto(report.as_uri())
-            page.wait_for_function("document.documentElement.dataset.reportStatus === 'ready'")
-            page.evaluate("obsPages.setPaged(false); obsReport.activateChapter('home')")
-            page.evaluate("obsReport.whenChapterReady()")
+            page.goto(artifact.as_uri())
+            page.wait_for_function("document.documentElement.dataset.artifactStatus === 'ready'")
+            page.evaluate("obsPages.setPaged(false); obsArtifact.activateChapter('home')")
+            page.evaluate("obsArtifact.whenChapterReady()")
             rows = page.locator("[data-active-chapter] [data-data-table] tbody tr[data-row-key]")
             expect(rows).to_have_count(1)
             expect(rows.first).to_contain_text("Summary")
@@ -313,16 +313,16 @@ def test_native_note_filters_keep_explicit_members(tmp_path):
     )
     manifest = tmp_path / "manifest.md"
     manifest.write_text("- [[chapter]]\n", encoding="utf-8")
-    report = tmp_path / "report.html"
-    report.write_text(render_report(manifest, parse_manifest(manifest)), encoding="utf-8")
+    artifact = tmp_path / "artifact.html"
+    artifact.write_text(render_artifact(manifest, parse_manifest(manifest)), encoding="utf-8")
     with sync_playwright() as playwright:
         browser = playwright.chromium.launch(executable_path=os.environ["OBS_HTML_TEST_NATIVE_BROWSER"])
         page = browser.new_page()
         try:
-            page.goto(report.as_uri())
-            page.wait_for_function("document.documentElement.dataset.reportStatus === 'ready'")
-            page.evaluate("obsPages.setPaged(false); obsReport.activateChapter('chapter')")
-            page.evaluate("obsReport.whenChapterReady()")
+            page.goto(artifact.as_uri())
+            page.wait_for_function("document.documentElement.dataset.artifactStatus === 'ready'")
+            page.evaluate("obsPages.setPaged(false); obsArtifact.activateChapter('chapter')")
+            page.evaluate("obsArtifact.whenChapterReady()")
             rows = page.locator("[data-active-chapter] [data-data-table] tbody tr[data-row-key]")
             expect(rows).to_have_count(2)
             expect(rows).to_contain_text(["BTwo", "AOne"])
