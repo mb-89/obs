@@ -8,3 +8,9 @@ authored_content = [
   "adapters/html/AGENTS.md",
 ]
 identity = "mb <mb>"
+
+[tests]
+# The complete suite and its time budget; test/suite.py's docstring says what the suite runs.
+command = ["uv", "run", "python", "test/suite.py", "--durations=10"]
+target_seconds = 60
+limit_seconds = 120

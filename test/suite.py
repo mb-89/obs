@@ -2,6 +2,10 @@
 
 Reader: whoever runs or changes the complete suite, and CI.
 
+It runs the core's default tiers (unit and dom) and every adapter's whole suite. The core's
+browser and e2e tiers are not part of it: they run with `uv run pytest --gate`, which takes the
+same parallel options (`-n auto --dist loadgroup`). Its time budget is `[tests]` in `se.toml`.
+
 Each part tests only itself, with its own `pyproject.toml` settings and `conftest.py`, so each
 runs as its own pytest process from its own folder, its tests spread over one worker process
 per CPU (pytest-xdist, `-n auto --dist loadgroup`: a module's tests share a worker; groups start
