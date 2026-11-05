@@ -54,3 +54,25 @@ def test_exactly_one_note_classifies_resized_widths() -> None:
     assert "session-only view state" in " ".join(rule.split())
     for note in ("input-model.md", "generic-tables.md"):
         assert "[[artifact-ui#What counts as a change" in (design / note).read_text(encoding="utf-8")
+
+
+def _section(text: str, heading: str) -> str:
+    return text.split(f"\n{heading}\n", 1)[1].split("\n## ", 1)[0]
+
+
+def _flat(text: str) -> str:
+    return " ".join(text.split())
+
+
+def test_top_band_is_one_row_of_equal_squares() -> None:
+    artifact_ui = (ROOT / "spec" / "design_input" / "artifact-ui.md").read_text(encoding="utf-8")
+    shell = _flat(_section(artifact_ui, "## Reading shell"))
+
+    assert "The top band is one row and holds every top control: Home, the breadcrumbs, " \
+        "the chapter controls, the notice icons and the menu." in shell
+    assert "The notice icons sit directly left of the menu." in shell
+    assert "Every control in the band is a square of one size." in shell
+    assert "No control takes a row of its own." in shell
+    for replaced in ("A compact menu button floats at the top-right", "Breadcrumbs occupy that same top band"):
+        assert replaced not in _flat(artifact_ui), f"artifact-ui.md: replace '{replaced}' with the one-row top band"
+
