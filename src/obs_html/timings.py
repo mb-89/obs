@@ -1,14 +1,63 @@
 """Exclusive per-stage wall-clock durations for ``--timings``.
 
+``STAGES`` is the one list of build stages; help, output and baselines read it.
 Owners mark their work with ``stage(name)``; it costs nothing unless a ``recording()``
 is active. A nested stage pauses its enclosing stage, so durations never overlap.
 """
 from __future__ import annotations
 
+import json
 from contextlib import contextmanager
 from contextvars import ContextVar
+from pathlib import Path
 from time import perf_counter
 from typing import Iterator
+
+from jsonschema import validate
+
+BASELINES_PATH = Path(__file__).with_name("timing-baselines.json")
+BASELINES_SCHEMA_PATH = Path(__file__).with_name("timing-baselines.schema.json")
+
+STAGES: dict[str, str] = {
+    "parse": "configuration, manifest, notes",
+    "producers": "silent cmd fences, before conversion",
+    "provenance": "git",
+    "render": "HTML projection",
+    "figures": "figure fences",
+    "commands": "cmd fences",
+    "source-archive": "--embed-source",
+    "write": "output file",
+    "open": "--check-rendered loading",
+    "print": "PDF printing",
+    "attach": "PDF source attachment",
+}
+
+
+def load_baselines(path: Path = BASELINES_PATH) -> dict[str, float]:
+    """Read per-stage baseline seconds; every named stage must be registered."""
+    value = json.loads(path.read_text(encoding="utf-8"))
+    schema = json.loads(BASELINES_SCHEMA_PATH.read_text(encoding="utf-8"))
+    validate(instance=value, schema=schema)
+    unknown = sorted(set(value["stages"]) - set(STAGES))
+    if unknown:
+        raise ValueError(f"{path}: unregistered build stages: {', '.join(unknown)}")
+    return value["stages"]
+
+
+def slower_stages(
+    durations: dict[str, float], baselines: dict[str, float], relative: float, absolute_seconds: float,
+) -> list[str]:
+    """Describe each stage that exceeds its baseline by both thresholds."""
+    messages = []
+    for name, seconds in durations.items():
+        baseline = baselines.get(name)
+        if baseline is None:
+            continue
+        increase = seconds - baseline
+        if increase > absolute_seconds and increase > relative * baseline:
+            messages.append(f"stage {name} took {seconds:.3f} s, {increase / baseline:.0%} and "
+                            f"{increase:.3f} s over its baseline of {baseline:.3f} s.")
+    return messages
 
 
 class Timings:
@@ -50,6 +99,8 @@ def recording() -> Iterator[Timings]:
 
 @contextmanager
 def stage(name: str) -> Iterator[None]:
+    if name not in STAGES:
+        raise ValueError(f"Unregistered build stage: {name}")
     timings = _active.get()
     if timings is None:
         yield

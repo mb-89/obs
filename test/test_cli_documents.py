@@ -1,11 +1,15 @@
+import json
 import re
+import subprocess
 from datetime import datetime, timezone
 from pathlib import Path
 
 import pytest
+from jsonschema import ValidationError
 
 from obs_html import timings
-from obs_html.cli import main
+from obs_html.cli import DEFAULT_CONFIG, main
+from obs_html.config import load_config
 
 
 class _FixedClock(datetime):
@@ -144,3 +148,108 @@ def test_stages_outside_a_recording_are_free(monkeypatch) -> None:
     monkeypatch.setattr(timings, "perf_counter", lambda: pytest.fail("clock read without recording"))
     with timings.stage("render"):
         pass
+
+
+def test_unregistered_stage_names_are_rejected() -> None:
+    with pytest.raises(ValueError, match="Unregistered build stage: bogus"):
+        with timings.stage("bogus"):
+            pass
+
+
+def test_help_names_every_registered_stage(capsys) -> None:
+    with pytest.raises(SystemExit):
+        main(["--help"])
+    help_text = " ".join(capsys.readouterr().out.split())
+    for name, description in timings.STAGES.items():
+        assert f"{name} ({description})" in help_text
+
+
+def test_producers_are_their_own_stage_before_conversion(tmp_path, monkeypatch, capsys) -> None:
+    vault = _vault(tmp_path, "alpha", "```cmd silent\nproduce\n```")
+    monkeypatch.setattr(
+        "obs.producers.subprocess.run",
+        lambda command, **_: subprocess.CompletedProcess(command, 0, ""),
+    )
+    output = tmp_path / "a.html"
+    assert main(["--timings", "--execute-commands", "--source", str(vault), "--output", str(output)]) == 0
+    stages = re.findall(r"^Timing: (\S+) \d+\.\d{3} s \(", capsys.readouterr().out, re.MULTILINE)
+    assert stages.index("producers") < stages.index("render")
+
+
+def test_stage_durations_do_not_overlap_and_sum_to_at_most_the_total(tmp_path, capsys) -> None:
+    vault = _vault(tmp_path, "alpha", "Body.", figure=True)
+    assert main(["--timings", "--source", str(vault), "--output", str(tmp_path / "a.html")]) == 0
+    timed = re.findall(r"^Timing: (\S+) (\d+\.\d{3}) s(?: \((.+)\))?$", capsys.readouterr().out, re.MULTILINE)
+    document = {name: float(seconds) for name, seconds, label in timed if label}
+    call = {name: float(seconds) for name, seconds, label in timed if not label}
+    assert set(document) <= set(timings.STAGES)
+    assert {"parse", "render", "figures", "write"} <= set(document)
+    parts = [*document.values(), call["imports"], call["provenance"]]
+    assert sum(parts) <= call["total"] + 0.0005 * (len(parts) + 1)  # three-decimal rounding
+
+
+def test_packaged_baselines_cover_only_registered_stages() -> None:
+    baselines = timings.load_baselines()
+    assert baselines and set(baselines) <= set(timings.STAGES)
+    assert all(seconds > 0 for seconds in baselines.values())
+
+
+@pytest.mark.parametrize(
+    ("stages", "error"),
+    [({"render": -1.0}, ValidationError), ({"render": "fast"}, ValidationError),
+     ({"bogus": 1.0}, ValueError)],
+)
+def test_invalid_baselines_are_rejected(tmp_path, stages, error) -> None:
+    path = tmp_path / "baselines.json"
+    path.write_text(json.dumps({"schemaVersion": 1, "stages": stages}), encoding="utf-8")
+    with pytest.raises(error):
+        timings.load_baselines(path)
+
+
+@pytest.mark.parametrize(
+    ("seconds", "warned"),
+    [(0.04, False),   # +300 % but only +0.03 s: relative threshold alone
+     (10.5, False),   # +0.5 s but only +5 %: absolute threshold alone
+     (16.0, True)],   # +60 % and +6 s: both thresholds
+)
+def test_a_stage_warns_only_above_both_thresholds(seconds, warned) -> None:
+    baselines = {"parse": 0.01, "render": 10.0}
+    stage = "parse" if seconds < 1 else "render"
+    warnings = timings.slower_stages({stage: seconds}, baselines, relative=0.5, absolute_seconds=0.25)
+    assert bool(warnings) == warned
+    if warned:
+        assert warnings == ["stage render took 16.000 s, 60% and 6.000 s over its baseline of 10.000 s."]
+
+
+def test_stages_without_a_baseline_are_not_compared() -> None:
+    assert timings.slower_stages({"figures": 99.0}, {}, relative=0.5, absolute_seconds=0.25) == []
+
+
+@pytest.mark.parametrize("timing", [{"relativeThreshold": 0}, {"absoluteThresholdSeconds": -1},
+                                    {"relativeThreshold": "half"}, {"unknown": 1}])
+def test_invalid_timing_thresholds_are_rejected(tmp_path, timing) -> None:
+    override = tmp_path / "cfg.json"
+    override.write_text(json.dumps({"schemaVersion": 1, "timings": timing}), encoding="utf-8")
+    with pytest.raises(ValidationError):
+        load_config(DEFAULT_CONFIG, override)
+
+
+def test_a_slow_stage_warns_without_failing_the_build(tmp_path, monkeypatch, capsys) -> None:
+    vault = _vault(tmp_path, "alpha", "Body.")
+    (vault / "cfg.json").write_text(json.dumps(
+        {"schemaVersion": 1, "timings": {"relativeThreshold": 0.01, "absoluteThresholdSeconds": 0.000001}},
+    ), encoding="utf-8")
+    monkeypatch.setattr("obs_html.cli.load_baselines", lambda: {"render": 0.0000001})
+    output = tmp_path / "a.html"
+    assert main(["--timings", "--source", str(vault), "--output", str(output)]) == 0
+    captured = capsys.readouterr()
+    assert output.is_file()
+    assert re.search(rf"^Warning: {re.escape(str(output.resolve()))}: stage render took ", captured.err, re.MULTILINE)
+    assert "Warning:" not in captured.out
+
+
+def test_without_timings_no_baseline_warnings(tmp_path, monkeypatch, capsys) -> None:
+    vault = _vault(tmp_path, "alpha", "Body.")
+    monkeypatch.setattr("obs_html.cli.load_baselines", lambda: pytest.fail("baselines read without --timings"))
+    assert main(["--source", str(vault), "--output", str(tmp_path / "a.html")]) == 0
+    assert "baseline" not in capsys.readouterr().err
