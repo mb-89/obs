@@ -767,7 +767,7 @@ Implementation decisions (4 Nov 2026, worker, reversible):
   silently choose or override the user's print destination.
   Put this guidance in concise helper text immediately under the PDF button in its
   existing controls, not a new sidebar section, warning card or modal.
-- Reader-facing filenames omit `obs-html` and do not assume the content is an artifact;
+- Reader-facing filenames omit `obs-html` and do not assume the content is a report;
   use the authored document identity/type or an HTML/document fallback.
 - Links to exported chapters and headings become PDF-internal anchors. Other note links point
   to the companion HTML filename and its original fragment. Keep that HTML beside the PDF;
