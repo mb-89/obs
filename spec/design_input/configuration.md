@@ -20,7 +20,7 @@ configuration design principles.
 - Reusable filter presets may be packaged as defaults; project-specific preset arrays belong
 	in the vault override and replace those defaults.
 - Document decisions belong to the document, not to configuration: paper and margin are the
-	manifest's `obsHtml.print` ([[input-model#Document presentation profile]]).
+	manifest's `obsHtml.print` ([[input-model#Artifact presentation profile]]).
 - Configuration owns only the cross-cutting catalogue such decisions choose from
 	(`artifact.print.paperSizes`) and the physical limits in `cfg.schema.json`.
 - A removed configuration key that moved to the manifest is rejected with a diagnostic naming
