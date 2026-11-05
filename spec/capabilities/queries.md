@@ -20,14 +20,18 @@ selects. The notes a query in an included note selects are included in the Docum
 ## Conditions
 
 A query's `where` holds conditions that a note must all meet. A condition names a property
-the way a Bases filter does and resolves it the same way
-([[generic-tables#Bases filter grammar]]), then tests its text:
+the way a Bases filter does and resolves it by the same rules
+([[generic-tables#Bases filter grammar]], [[capabilities/bases#Comparisons]]), then tests its
+text:
 
 - `equals` holds text. It matches when the property's value, or an item of its list, has
-  exactly that text. The value's text follows [[capabilities/bases#Comparisons]]: it is
-  case-sensitive, a number's text is its shortest form (`1.0` is `1`), and a boolean's text is
-  `true` or `false`. Unlike a Bases comparison, `equals: "1"` therefore matches the number `1`,
-  because a condition always compares text.
+  that text, ignoring case as [[capabilities/bases#Comparisons]] does. A number's text is its
+  shortest form (`1.0` is `1`), and a boolean's text is `true` or `false`. Unlike a Bases
+  comparison, `equals: "1"` therefore matches the number `1`, because a condition always
+  compares text.
+- `matchCase: true` is the flag that makes one `equals` condition case-sensitive, like a
+  regular expression's flag: `{field: status, equals: Open, matchCase: true}` does not match
+  `open`.
 - `exists: true` matches when the value, or an item of its list, has nonblank text.
 - A missing property and `null` have no text: they match neither `equals` nor `exists`.
 

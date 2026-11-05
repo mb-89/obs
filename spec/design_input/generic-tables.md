@@ -197,8 +197,8 @@ view `filters`. Anything outside it is unsupported.
 - A literal is `null`, `true`, `false`, a JSON-style number, or text in double or
   single quotes. Quoted text is taken verbatim; it contains no backslash, line break
   or its own quote character.
-- A property resolves to an exact frontmatter key first. Otherwise its dots walk nested
-  mappings. A numeric segment selects a list item; other segments collect the values of
+- A property resolves to a whole frontmatter key first, its name matched by
+  [[capabilities/bases#Comparisons]]. Otherwise its dots walk nested mappings. A numeric segment selects a list item; other segments collect the values of
   every list item. Segments never read text or list members such as Bases' `.length`.
 - Equality follows [[capabilities/bases#Comparisons]] (case, types, missing properties).
 - Functions, methods, other operators, `formula.*`, `this.*`, other `file.*`
