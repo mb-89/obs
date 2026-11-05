@@ -1273,8 +1273,7 @@ separate from document presentation.
 
   On reopen, rebuild Filter presets and attribute controls once from their canonical data;
   do not append them to copied rendered controls.
-  Reviewed table column visibility/order (resized widths are session-only and never a
-  artifact change) follows the bounded
+  Reviewed table column visibility/order follows the bounded
   table-local presentation contract in [[generic-tables]], independently of the global query.
 - Opening Filter immediately shows its preset and attribute pill panel. Presets come from the
   vault's project configuration; clicking one replaces the text expression and applies it
