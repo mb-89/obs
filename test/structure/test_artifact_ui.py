@@ -1,3 +1,4 @@
+import re
 from pathlib import Path
 
 ROOT = Path(__file__).parents[2]
@@ -28,3 +29,25 @@ def test_width_rule_has_one_owner() -> None:
     assert "never mark the" not in generic_tables
     assert "never show the change notice" not in generic_tables
     assert "[[artifact-ui#What counts as a change" in generic_tables
+
+
+WIDTH_CLASSIFICATION = re.compile(r"widths?\b[^.]*session-only|session-only[^.]*\bwidths?\b", re.IGNORECASE)
+
+
+def test_exactly_one_note_classifies_resized_widths() -> None:
+    notes = sorted(path for path in (ROOT / "spec").rglob("*.md") if "design_output" not in path.parts)
+    classifying = [path.relative_to(ROOT).as_posix() for path in notes
+                   if WIDTH_CLASSIFICATION.search(" ".join(path.read_text(encoding="utf-8").split()))]
+    assert classifying == ["spec/design_input/artifact-ui.md"], (
+        f"{classifying}: state the width classification only in artifact-ui#What counts as a change "
+        "and link [[artifact-ui#What counts as a change]] elsewhere"
+    )
+
+    design = ROOT / "spec" / "design_input"
+    artifact_ui = (design / "artifact-ui.md").read_text(encoding="utf-8")
+    rule = artifact_ui.split("## What counts as a change", 1)[1].split("\n## ", 1)[0]
+    assert "table columns and their widths" not in rule
+    assert " ".join(artifact_ui.split()).count("session-only view state") == 1
+    assert "session-only view state" in " ".join(rule.split())
+    for note in ("input-model.md", "generic-tables.md"):
+        assert "[[artifact-ui#What counts as a change" in (design / note).read_text(encoding="utf-8")
