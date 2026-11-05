@@ -24,7 +24,7 @@ from obs.input import (
     validate_note_profile,
     validate_project_config,
 )
-from obs.selection import base_selects, conditions_select
+from obs.selection import IGNORED, base_selects, conditions_select
 
 
 _MANIFEST_ITEM = re.compile(
@@ -313,6 +313,12 @@ def _split_frontmatter(source: str, path: Path) -> tuple[dict[str, object], str]
         metadata = {}
     if not isinstance(metadata, dict):
         raise VaultError(f"Frontmatter must be a mapping: {path}")
+    if not isinstance(metadata.get(IGNORED, False), bool):
+        raise VaultError(
+            f"Frontmatter field {IGNORED} must be true or false in {path}: "
+            f"{metadata[IGNORED]!r}; write {IGNORED}: true to keep queries and Bases from "
+            f"selecting the note, or remove the field."
+        )
     try:
         profile = metadata.get("obsHtml")
         if profile is not None:
