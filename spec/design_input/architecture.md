@@ -99,8 +99,9 @@ compatibility owner until a later Document-rendering cutover removes it.
 Document chapter content is a recursive node tree with `type`, `attrs`, `children`,
 and optional `text`.
 
-Its fixed structural types are `document`, `section`, `paragraph`, `text`, `list`,
-`list-item`, and `code`. Every other type is a capability identifier.
+Its fixed structural types are the Markdown blocks and inline marks every adapter renders,
+listed by `document.schema.json` (`structuralType`) and described in
+[[capabilities/markdown#Document nodes]]. Every other type is a capability identifier.
 For each recognized input capability, the core emits an in-place, schema-validated
 capability node containing only its authored data; it neither executes commands nor
 creates presentation output.
