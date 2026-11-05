@@ -1,9 +1,12 @@
 import json
+import sys
 from pathlib import Path
 
 from jsonschema import validate
+import pytest
 
 from obs_html.adapter import load_adapter
+from obs_html.document import AdapterError, call_adapter, write_document
 
 ROOT = Path(__file__).parents[1]
 
@@ -49,3 +52,45 @@ def test_adapter_is_discovered_by_name_from_configuration(tmp_path) -> None:
         "contractVersion": 1,
         "capabilities": ["manifest"],
     }
+
+
+def test_core_writes_document_and_calls_adapter(tmp_path) -> None:
+    document = tmp_path / "document.json"
+    write_document(document_fixture(), document)
+    manifest = tmp_path / "adapter.json"
+    manifest.write_text(json.dumps({
+        "name": "fixture",
+        "command": [sys.executable, "-c", "from pathlib import Path; Path(__import__('sys').argv[2]).write_text('ok')"],
+        "contractVersion": 1,
+        "capabilities": ["manifest"],
+    }), encoding="utf-8")
+    configuration = tmp_path / "adapters.json"
+    configuration.write_text(json.dumps({"adapters": {"fixture": "adapter.json"}}), encoding="utf-8")
+    destination = tmp_path / "output.txt"
+
+    call_adapter("fixture", configuration, document, destination)
+
+    assert destination.read_text(encoding="utf-8") == "ok"
+
+
+@pytest.mark.parametrize(
+    ("contract_version", "capabilities", "message"),
+    [(2, ["manifest"], "contract version 2 does not match Document schema version 1"),
+     (1, [], "does not support Document capabilities: manifest")],
+)
+def test_core_rejects_mismatched_adapter_contracts(
+        tmp_path, contract_version, capabilities, message) -> None:
+    document = tmp_path / "document.json"
+    write_document(document_fixture(), document)
+    manifest = tmp_path / "adapter.json"
+    manifest.write_text(json.dumps({
+        "name": "fixture",
+        "command": [sys.executable, "-c", "pass"],
+        "contractVersion": contract_version,
+        "capabilities": capabilities,
+    }), encoding="utf-8")
+    configuration = tmp_path / "adapters.json"
+    configuration.write_text(json.dumps({"adapters": {"fixture": "adapter.json"}}), encoding="utf-8")
+
+    with pytest.raises(AdapterError, match=message):
+        call_adapter("fixture", configuration, document, tmp_path / "output.txt")
