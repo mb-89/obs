@@ -657,7 +657,11 @@ Generation time remains separate from document revision dates.
   A frontmatter `query`, and a cards metric, selects the notes whose record has every
   `where` condition ([[capabilities/queries#Conditions]]), narrowed by its `from` owner's
   selection; the `from` and `secondary` owner notes
-  are included too. Each note is included once, so cycles end.
+  are included too. A metric's `denominator` selects its population the same way, and a
+  card's `obsHtml.metricsFrom.where` the records its series counts. A card's
+  `obsHtml.metricsFrom.sourceNote` and `obsHtml.metricsFrom.link.note`
+  ([[capabilities/cards-metrics#Fields]]) are explicit references, included like links.
+  Each note is included once, so cycles end.
 
   No automatic selection selects an ignored note
   ([[capabilities/markdown-frontmatter#Ignored notes]]), the manifest included when it marks
