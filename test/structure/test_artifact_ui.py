@@ -83,3 +83,13 @@ def test_notice_icons_point_to_the_top_band() -> None:
     assert "The icon row never covers the menu or chapter controls." not in artifact_ui
     assert "The icons sit in the [[#Reading shell|top band]]." in artifact_ui
 
+
+def test_no_text_appears_twice_in_one_view_is_stated_once() -> None:
+    artifact_ui = _flat((ROOT / "spec" / "design_input" / "artifact-ui.md").read_text(encoding="utf-8"))
+    rule = "No text appears twice in one view."
+
+    assert artifact_ui.count(rule) == 1
+    after = artifact_ui.split(rule, 1)[1]
+    assert after.startswith(" The title page shows the document type once, under the title; "
+                            "it has no running header that repeats it. "
+                            "A chapter's running header never repeats its own visible heading.")
