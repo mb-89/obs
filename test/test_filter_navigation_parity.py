@@ -7,9 +7,9 @@ from xml.etree import ElementTree
 import pytest
 import yaml
 
-from obs_html.cli import main
-from obs_html.content import ContentError, parse_manifest, read_chapter_content, read_manifest
-from obs_html.figures import render_figure
+from obs_html_interim.cli import main
+from obs_html_interim.content import ContentError, parse_manifest, read_chapter_content, read_manifest
+from obs_html_interim.figures import render_figure
 
 
 QUERY = {

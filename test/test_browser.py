@@ -8,9 +8,9 @@ from pathlib import Path
 
 import pytest
 
-from obs_html.content import ContentError, validate_base_definition
-from obs_html.content import parse_manifest
-from obs_html.renderer import render_artifact
+from obs_html_interim.content import ContentError, validate_base_definition
+from obs_html_interim.content import parse_manifest
+from obs_html_interim.renderer import render_artifact
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -1107,7 +1107,7 @@ def test_reader_review_decision_updates_canonical_summary(native_reader_page, re
 
 
 def test_reader_waiting_only_batch_review(native_reader_page, native_reader_artifact, tmp_path) -> None:
-    from obs_html.comments import extract_comments
+    from obs_html_interim.comments import extract_comments
 
     page = native_reader_page
     page.evaluate("obsArtifact.openBar('comments')")
@@ -1547,7 +1547,7 @@ const assert = require("node:assert/strict");
 const fs = require("node:fs");
 const path = require("node:path");
 const vm = require("node:vm");
-const root = path.join("src", "obs_html");
+const root = path.join("src", "obs_html_interim");
 const context = vm.createContext({
     document: {querySelector: selector => ({textContent: fs.readFileSync(
         path.join(root, selector.includes("assets.schema.json") ? "assets.schema.json" : "base.schema.json"), "utf8",
@@ -1868,7 +1868,7 @@ def test_comment_export_dom_contract(tmp_path: Path) -> None:
         render_artifact(tmp_path / "manifest.md", parse_manifest(tmp_path / "manifest.md")),
         encoding="utf-8",
     )
-    package = files("obs_html")
+    package = files("obs_html_interim")
     runtimes = [str(package / "bars" / "comments.js"), str(package / "bars" / "settings.js"),
                 str(package / "storage.js")]
     result = subprocess.run(
@@ -2080,7 +2080,7 @@ def test_complete_document_dom_interactions(tmp_path: Path) -> None:
     )
     artifact = tmp_path / "artifact.html"
     artifact.write_text(render_artifact(manifest, parse_manifest(manifest)), encoding="utf-8")
-    package = files("obs_html")
+    package = files("obs_html_interim")
     result = subprocess.run(
         [node, str(ROOT / "test" / "browser" / "artifact-ui.cjs"), str(artifact), module,
          str(package / "bars" / "comments.js"), str(package / "bars" / "settings.js"),

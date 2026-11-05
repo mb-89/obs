@@ -9,7 +9,7 @@ from html.parser import HTMLParser
 from importlib.resources import files
 from zlib import error as ZlibError
 
-from obs_html.content import ContentError
+from obs_html_interim.content import ContentError
 
 
 ARTIFACT_PATTERN = re.compile(r'(<script id="artifact-data"[^>]*>)(.*?)(</script>)', re.DOTALL)
@@ -34,7 +34,7 @@ def serialize_artifact_data(data: dict) -> str:
 
 def encode_artifact_data(data: dict, compression: str | None = None) -> str:
     if compression is None:
-        compression = json.loads(files("obs_html").joinpath("cfg.json").read_text(encoding="utf-8"))["artifact"]["dataCompression"]
+        compression = json.loads(files("obs_html_interim").joinpath("cfg.json").read_text(encoding="utf-8"))["artifact"]["dataCompression"]
     if compression not in {"gzip", "none"}:
         raise ContentError(f"artifact.dataCompression {compression!r} is unsupported; use gzip or none.")
     text = serialize_artifact_data(data)
@@ -170,7 +170,7 @@ def prepare_artifact_scripts(artifact: str) -> str:
 
     artifact = _SCRIPT_PATTERN.sub(prepare, artifact)
     if 'id="artifact-bootstrap-script"' not in artifact:
-        runtime = files("obs_html").joinpath("artifact-data.js").read_text(encoding="utf-8")
+        runtime = files("obs_html_interim").joinpath("artifact-data.js").read_text(encoding="utf-8")
         artifact = artifact.replace('<script id="artifact-data"',
                                 f'<script id="artifact-bootstrap-script">{runtime}</script>\n'
                                 '<script id="artifact-data"', 1)

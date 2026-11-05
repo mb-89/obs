@@ -6,10 +6,10 @@ from pathlib import Path
 from zipfile import ZipFile
 
 import pytest
-from obs_html.artifact_data import decode_artifact_data
+from obs_html_interim.artifact_data import decode_artifact_data
 from producer_commands import python_command
 
-from obs_html.cli import (
+from obs_html_interim.cli import (
     DEFAULT_CONFIG,
     DEFAULT_OUTPUT,
     DEFAULT_SOURCE,
@@ -49,7 +49,7 @@ def test_pdf_rejects_generation_options_in_equals_form(argument, capsys) -> None
 
 def test_pdf_accepts_equals_output(tmp_path, monkeypatch) -> None:
     output = tmp_path / "artifact.pdf"
-    monkeypatch.setattr("obs_html.pdf.export_pdf", lambda _path: b"pdf fixture")
+    monkeypatch.setattr("obs_html_interim.pdf.export_pdf", lambda _path: b"pdf fixture")
     assert main(["--export-pdf=artifact.html", f"--output={output}"]) == 0
     assert output.read_bytes() == b"pdf fixture"
 
@@ -111,8 +111,8 @@ def test_cli_records_generator_and_target_repository_provenance(tmp_path, monkey
             return {"name": "obs-html", "version": "generator-git-description", "commit": "a" * 40}
         return {"name": "reference", "version": "release-7-dirty", "commit": "b" * 40}
 
-    monkeypatch.setattr("obs_html.cli._repository_provenance", provenance)
-    monkeypatch.setattr("obs_html.cli.version", lambda _name: "1.2.3")
+    monkeypatch.setattr("obs_html_interim.cli._repository_provenance", provenance)
+    monkeypatch.setattr("obs_html_interim.cli.version", lambda _name: "1.2.3")
     assert main(["--source", str(vault), "--output", str(output)]) == 0
     generation = decode_artifact_data(output.read_text(encoding="utf-8"))["document"]["generation"]
     assert list(generation) == ["timestamp", "generator", "target"]
@@ -125,17 +125,17 @@ def test_cli_records_generator_and_target_repository_provenance(tmp_path, monkey
 
 
 def test_generator_version_falls_back_to_package_version_outside_git(monkeypatch) -> None:
-    from obs_html.cli import _generator_provenance
+    from obs_html_interim.cli import _generator_provenance
 
-    monkeypatch.setattr("obs_html.cli._repository_provenance",
-                        lambda _path: {"name": "obs_html", "version": "unknown", "commit": "unknown"})
-    monkeypatch.setattr("obs_html.cli.version", lambda _name: "1.2.3")
-    assert _generator_provenance() == {"name": "obs_html", "version": "1.2.3", "commit": "unknown"}
+    monkeypatch.setattr("obs_html_interim.cli._repository_provenance",
+                        lambda _path: {"name": "obs_html_interim", "version": "unknown", "commit": "unknown"})
+    monkeypatch.setattr("obs_html_interim.cli.version", lambda _name: "1.2.3")
+    assert _generator_provenance() == {"name": "obs_html_interim", "version": "1.2.3", "commit": "unknown"}
 
 
 def test_repository_provenance_records_short_commit_hash(tmp_path) -> None:
     import subprocess
-    from obs_html.cli import _repository_provenance
+    from obs_html_interim.cli import _repository_provenance
 
     repository = tmp_path / "target"
     repository.mkdir()
@@ -169,7 +169,7 @@ def test_trusted_runtime_can_be_embedded_without_source_archive(tmp_path) -> Non
     assert 'id="trusted-application-runtime"' in html
     assert 'id="zip-rewrite-script"' in html
     assert 'id="payload-script"' in html
-    from obs_html.reproduction import embedded_archive
+    from obs_html_interim.reproduction import embedded_archive
     assert embedded_archive(html) is None
 
 
@@ -183,7 +183,7 @@ def test_cli_embeds_only_the_explicit_trusted_runtime(tmp_path, monkeypatch) -> 
     archive = BytesIO()
     with ZipFile(archive, "w"):
         pass
-    monkeypatch.setattr("obs_html.cli.source_archive", lambda *_args: archive.getvalue())
+    monkeypatch.setattr("obs_html_interim.cli.source_archive", lambda *_args: archive.getvalue())
     output = tmp_path / "artifact.html"
     assert main([
         "--source", str(vault), "--output", str(output), "--embed-source",
@@ -255,7 +255,7 @@ def test_check_validates_commands_without_execution_or_output(tmp_path, monkeypa
     (vault / "chapter.md").write_text("# Chapter\n\n```cmd\nmust-not-run\n```\n", encoding="utf-8")
     def unexpected_execution(*args, **kwargs):
         pytest.fail("Check mode executed an authored command.")
-    monkeypatch.setattr("obs_html.cli.run_command", unexpected_execution)
+    monkeypatch.setattr("obs_html_interim.cli.run_command", unexpected_execution)
     output = tmp_path / "not-created" / "artifact.html"
     assert main(["--source", str(vault), "--output", str(output), "--check"]) == 0
     assert not output.parent.exists()
@@ -498,8 +498,8 @@ def test_atomic_write_failure_preserves_previous_artifact_and_removes_temporary_
 def test_second_identical_build_writes_no_files(tmp_path, monkeypatch) -> None:
     from datetime import datetime, timezone
 
-    import obs_html.cli as cli
-    import obs_html.renderer as renderer
+    import obs_html_interim.cli as cli
+    import obs_html_interim.renderer as renderer
 
     vault = tmp_path / "vault"
     vault.mkdir()
@@ -928,7 +928,7 @@ def test_old_report_configuration_key_names_the_new_key_and_the_file(tmp_path, c
     old = tmp_path / "cfg.json" if location == "project" else tmp_path.parent / "custom.json"
     configuration = {"report": {"tablePageSize": 5}}
     if location == "--config":
-        configuration = json.loads((Path(__file__).parents[1] / "src/obs_html/cfg.json").read_text(
+        configuration = json.loads((Path(__file__).parents[1] / "src/obs_html_interim/cfg.json").read_text(
             encoding="utf-8"))
         configuration["report"] = configuration.pop("artifact")
     old.write_text(json.dumps(configuration), encoding="utf-8")

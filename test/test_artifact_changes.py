@@ -6,8 +6,8 @@ from zipfile import ZipFile
 
 import pytest
 
-from obs_html.cli import DEFAULT_OUTPUT, build_parser, main
-from obs_html.reproduction import embedded_archive
+from obs_html_interim.cli import DEFAULT_OUTPUT, build_parser, main
+from obs_html_interim.reproduction import embedded_archive
 from test_browser import run_artifact_dom_contract
 
 
@@ -42,7 +42,7 @@ def test_artifact_default_filename_and_explicit_output(tmp_path):
 
 
 def test_artifact_change_owner_controlled_save_boundaries(artifact_html):
-    package = files("obs_html")
+    package = files("obs_html_interim")
     runtimes = [package / "bars" / "filter.js", package / "bars" / "comments.js", package / "storage.js"]
     run_artifact_dom_contract(artifact_html, "--artifact-change-only", *runtimes)
 

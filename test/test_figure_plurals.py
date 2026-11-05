@@ -2,9 +2,9 @@ import json
 
 import pytest
 
-from obs_html.content import ContentError, parse_manifest
-from obs_html.renderer import render_artifact
-from obs_html.artifact_data import ARTIFACT_PATTERN, decode_artifact_data
+from obs_html_interim.content import ContentError, parse_manifest
+from obs_html_interim.renderer import render_artifact
+from obs_html_interim.artifact_data import ARTIFACT_PATTERN, decode_artifact_data
 
 SVG = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10"/>'
 FIGURES = "".join(

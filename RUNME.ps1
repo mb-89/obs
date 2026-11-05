@@ -60,7 +60,7 @@ function Install-Tool($Tool) {
 }
 
 if (($Setup -or $Tools) -and $args.Count) {
-    throw "-Setup and -Tools take no obs-html arguments."
+    throw "-Setup and -Tools take no obs-html-interim arguments."
 }
 
 if ($Tools) {
@@ -100,7 +100,7 @@ if ($Tools) {
 
     Push-Location $PSScriptRoot
     try {
-        Invoke-Native $Uv (@("run", "obs-html") + $args)
+        Invoke-Native $Uv (@("run", "obs-html-interim") + $args)
     } finally {
         Pop-Location
     }

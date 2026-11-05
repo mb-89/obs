@@ -1,10 +1,10 @@
 """Regression guard: per-note Markdown work must not scale with frontmatter fields."""
 from markdown_it import MarkdownIt
 
-import obs_html.content as content
-from obs_html.content import parse_manifest
-from obs_html.renderer import render_artifact
-from obs_html.artifact_data import decode_artifact_data
+import obs_html_interim.content as content
+from obs_html_interim.content import parse_manifest
+from obs_html_interim.renderer import render_artifact
+from obs_html_interim.artifact_data import decode_artifact_data
 
 
 NOTES = 12
@@ -72,8 +72,8 @@ def test_schema_validators_are_built_once_not_per_fence_quantity_or_figure(tmp_p
     import json
     from collections import Counter
 
-    import obs_html.cards as cards
-    import obs_html.figures as figures
+    import obs_html_interim.cards as cards
+    import obs_html_interim.figures as figures
 
     graph = {"version": 1, "nodes": [{"id": "a", "label": "A", "stage": 0},
                                      {"id": "b", "label": "B", "stage": 1}],

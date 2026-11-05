@@ -9,8 +9,8 @@ from zipfile import ZipFile
 import pytest
 import yaml
 
-from obs_html.content import parse_manifest
-from obs_html.renderer import render_artifact
+from obs_html_interim.content import parse_manifest
+from obs_html_interim.renderer import render_artifact
 from pickers import choose_files
 from test_reader_controls import reader_browser
 
@@ -82,7 +82,7 @@ def build_help_fixture_cli(root):
     manifest = write_help_fixture(root / "vault")
     artifact = root / "artifact.html"
     command = [
-        sys.executable, "-c", "from obs_html.cli import main; raise SystemExit(main())",
+        sys.executable, "-c", "from obs_html_interim.cli import main; raise SystemExit(main())",
         "--source", str(manifest), "--embed-source",
         "--trusted-runtime-bundle", f"help-fixture={manifest.parent / 'runtime.js'}",
     ]

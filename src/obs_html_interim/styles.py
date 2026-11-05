@@ -23,7 +23,7 @@ _PAGE_GEOMETRY = re.compile(
 def load_style(directory: Path | None = None) -> Style:
     """Load a style module folder, using the packaged generic module by default."""
     root = Path(directory) if directory is not None else Path(
-        str(files("obs_html").joinpath("styles", "generic"))
+        str(files("obs_html_interim").joinpath("styles", "generic"))
     )
     root = root.resolve()
     stylesheet = root / "style.css"
@@ -38,7 +38,7 @@ def load_style(directory: Path | None = None) -> Style:
     return Style(
         directory=root,
         stylesheet=(
-            files("obs_html").joinpath("base.css").read_text(encoding="utf-8")
+            files("obs_html_interim").joinpath("base.css").read_text(encoding="utf-8")
             + "\n"
             + overlay
         ),

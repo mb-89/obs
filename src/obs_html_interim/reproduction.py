@@ -11,9 +11,9 @@ from importlib.resources import files
 from zipfile import BadZipFile, ZIP_DEFLATED, ZipFile
 from zlib import error as ZlibError
 
-from obs_html.config import Config
-from obs_html.content import ContentError, manifest_presentation
-from obs_html.artifact_data import ARTIFACT_PATTERN, decode_artifact_data, encode_artifact_data, prepare_artifact_scripts
+from obs_html_interim.config import Config
+from obs_html_interim.content import ContentError, manifest_presentation
+from obs_html_interim.artifact_data import ARTIFACT_PATTERN, decode_artifact_data, encode_artifact_data, prepare_artifact_scripts
 
 
 ARCHIVE_NAME = "obs-html-source.zip"
@@ -30,12 +30,12 @@ EXCLUDED_DIRECTORIES = {
 COMPILED_SUFFIXES = {".pyc", ".pyo", ".exe", ".dll", ".so", ".dylib", ".o", ".obj", ".class"}
 # New runtime files and schemas accompany uncommitted development builds.
 RUNTIME_ADDITIONS = (
-    "src/obs_html/payloads.js", "src/obs_html/artifact_data.py", "src/obs_html/artifact-data.js",
-    "src/obs_html/note-profile.schema.json", "src/obs_html/canonical-transaction.js",
-    "src/obs_html/guided-card.js", "src/obs_html/hover-card.js",
-    "src/obs_html/zip-rewrite.js", "src/obs_html/running-header.js",
-    "src/obs_html/semantic_assets.py", "src/obs_html/assets.js", "src/obs_html/assets.json",
-    "src/obs_html/assets.schema.json", "src/obs_html/icons/filter.svg", "src/obs_html/icons/expand.svg",
+    "src/obs_html_interim/payloads.js", "src/obs_html_interim/artifact_data.py", "src/obs_html_interim/artifact-data.js",
+    "src/obs_html_interim/note-profile.schema.json", "src/obs_html_interim/canonical-transaction.js",
+    "src/obs_html_interim/guided-card.js", "src/obs_html_interim/hover-card.js",
+    "src/obs_html_interim/zip-rewrite.js", "src/obs_html_interim/running-header.js",
+    "src/obs_html_interim/semantic_assets.py", "src/obs_html_interim/assets.js", "src/obs_html_interim/assets.json",
+    "src/obs_html_interim/assets.schema.json", "src/obs_html_interim/icons/filter.svg", "src/obs_html_interim/icons/expand.svg",
 )
 
 
@@ -205,9 +205,9 @@ def source_archive(vault: Path, manifest: Path, generator: Path, config: Config,
         snippet = vault / f"{config.css_snippet_folder}/{name}.css"
         if snippet not in vault_paths:
             vault_paths.append(snippet)
-    package_paths = _source_paths(generator / "src" / "obs_html",
-                                  [name.removeprefix("src/obs_html/") for name in inventory["generator"]
-                                   if name.startswith("src/obs_html/")] if inventory else None)
+    package_paths = _source_paths(generator / "src" / "obs_html_interim",
+                                  [name.removeprefix("src/obs_html_interim/") for name in inventory["generator"]
+                                   if name.startswith("src/obs_html_interim/")] if inventory else None)
     generator_paths = package_paths + _source_paths(generator, list(generator_files))
     for name in RUNTIME_ADDITIONS:
         path = generator / name
@@ -264,7 +264,7 @@ def source_archive(vault: Path, manifest: Path, generator: Path, config: Config,
         flags = " --embed-source" + (" --embed-attachments" if embed_attachments else "")
         archive.writestr("reproduce.py", (
             "from pathlib import Path\nimport os\nimport sys\n"
-            "from obs_html.cli import main\n"
+            "from obs_html_interim.cli import main\n"
             "os.chdir(Path(__file__).resolve().parent)\n"
             f"args = ['--source', {('vault/' + manifest.name)!r}, '--output', 'document.html', "
             f"'--config', 'build-config.json', *{flags.split()!r}]\n"
@@ -299,8 +299,8 @@ def embed_payload_runtime(artifact: str) -> str:
         if 'id="payload-script"' in artifact and 'id="zip-rewrite-script"' in artifact:
             return artifact
         raise ContentError("The canonical payload runtime is incomplete.")
-    payload_runtime = files("obs_html").joinpath("payloads.js").read_text(encoding="utf-8")
-    zip_runtime = files("obs_html").joinpath("zip-rewrite.js").read_text(encoding="utf-8")
+    payload_runtime = files("obs_html_interim").joinpath("payloads.js").read_text(encoding="utf-8")
+    zip_runtime = files("obs_html_interim").joinpath("zip-rewrite.js").read_text(encoding="utf-8")
     marker = '<script id="assets-script"' if 'id="assets-script"' in artifact else '<script id="artifact-script"'
     if marker not in artifact:
         raise ContentError("Cannot install the canonical payload runtime.")
@@ -332,9 +332,9 @@ def embed_archive(artifact: str, archive: bytes) -> str:
     serialized = encode_artifact_data(data, compression[1] if compression else "none")
     artifact = artifact[:match.start()] + serialized + artifact[match.end():]
     island = f'<script id="obs-source-archive" type="application/octet-stream">{base64.b64encode(archive).decode("ascii")}</script>'
-    library = files("obs_html").joinpath("vendor", "pdf-lib.min.js").read_text(encoding="utf-8")
-    license_text = files("obs_html").joinpath("vendor", "pdf-lib.LICENSE").read_text(encoding="utf-8")
-    runtime = files("obs_html").joinpath("archive.js").read_text(encoding="utf-8")
+    library = files("obs_html_interim").joinpath("vendor", "pdf-lib.min.js").read_text(encoding="utf-8")
+    license_text = files("obs_html_interim").joinpath("vendor", "pdf-lib.LICENSE").read_text(encoding="utf-8")
+    runtime = files("obs_html_interim").joinpath("archive.js").read_text(encoding="utf-8")
     artifact = artifact.replace('<script id="artifact-script"',
                             island + '<script id="artifact-script"', 1)
     scripts = (

@@ -1,5 +1,5 @@
 from html import escape
-from obs_html.semantic_assets import markup
+from obs_html_interim.semantic_assets import markup
 
 
 QUERY_HELP = (

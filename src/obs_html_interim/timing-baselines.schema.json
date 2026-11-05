@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "title": "obs-html build stage timing baselines",
-  "description": "Recorded seconds per build stage for a build of this repository's spec. Stage names are owned by obs_html.timings.STAGES.",
+  "description": "Recorded seconds per build stage for a build of this repository's spec. Stage names are owned by obs_html_interim.timings.STAGES.",
   "type": "object",
   "additionalProperties": false,
   "required": ["schemaVersion", "stages"],

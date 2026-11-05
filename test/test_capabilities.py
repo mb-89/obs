@@ -7,7 +7,7 @@ import yaml
 
 from obs.capabilities import build_capability_reference
 from obs.figure import validate_figure_descriptor
-from obs_html.content import Chapter, collect_notes, read_chapter_content, read_manifest
+from obs_html_interim.content import Chapter, collect_notes, read_chapter_content, read_manifest
 
 
 ROOT = Path(__file__).parents[1]

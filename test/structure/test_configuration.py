@@ -7,7 +7,7 @@ ROOT = Path(__file__).parents[2]
 
 
 def test_config_references_existing_json_schema() -> None:
-    config_path = ROOT / "src" / "obs_html" / "cfg.json"
+    config_path = ROOT / "src" / "obs_html_interim" / "cfg.json"
     config = json.loads(config_path.read_text(encoding="utf-8"))
     schema_path = config_path.parent / config["$schema"]
 

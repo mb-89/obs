@@ -13,10 +13,10 @@ from typing import Callable, Sequence
 
 from jsonschema import Draft202012Validator
 
-from obs_html.bars import BarDefinition, discover_bars
-from obs_html.config import REMOVED_READING_SETTINGS, FilterPreset
-from obs_html.semantic_assets import SemanticAssets, markup as icon_markup
-from obs_html.content import (
+from obs_html_interim.bars import BarDefinition, discover_bars
+from obs_html_interim.config import REMOVED_READING_SETTINGS, FilterPreset
+from obs_html_interim.semantic_assets import SemanticAssets, markup as icon_markup
+from obs_html_interim.content import (
   Chapter,
   ChapterContent,
   Manifest,
@@ -37,9 +37,9 @@ from obs_html.content import (
   external_link_warnings,
   quantity_label,
 )
-from obs_html.artifact_data import encode_artifact_data, prepare_artifact_scripts, serialize_artifact_data
-from obs_html.styles import load_style
-from obs_html.timings import stage
+from obs_html_interim.artifact_data import encode_artifact_data, prepare_artifact_scripts, serialize_artifact_data
+from obs_html_interim.styles import load_style
+from obs_html_interim.timings import stage
 
 
 DOCK_DIRECTIONS = (
@@ -147,15 +147,15 @@ def render_artifact(
     style = load_style(style_folder)
     assets = SemanticAssets(vault_root, asset_index or style.asset_index)
     stylesheet = style.stylesheet
-    query_script = files("obs_html").joinpath("query.js").read_text(encoding="utf-8")
-    table_script = files("obs_html").joinpath("table.js").read_text(encoding="utf-8")
-    transaction_script = files("obs_html").joinpath("canonical-transaction.js").read_text(encoding="utf-8")
-    script = files("obs_html").joinpath("artifact.js").read_text(encoding="utf-8")
+    query_script = files("obs_html_interim").joinpath("query.js").read_text(encoding="utf-8")
+    table_script = files("obs_html_interim").joinpath("table.js").read_text(encoding="utf-8")
+    transaction_script = files("obs_html_interim").joinpath("canonical-transaction.js").read_text(encoding="utf-8")
+    script = files("obs_html_interim").joinpath("artifact.js").read_text(encoding="utf-8")
     manifest = manifest or read_manifest(manifest_path)
     title = _document_title(manifest, manifest_path)
     if css_snippet_folder is None:
       css_snippet_folder = json.loads(
-        files("obs_html").joinpath("cfg.json").read_text(encoding="utf-8")
+        files("obs_html_interim").joinpath("cfg.json").read_text(encoding="utf-8")
       )["input"]["cssSnippetFolder"]
     # Author snippets follow the packaged styles so they win at equal specificity, as in Obsidian.
     author_styles = "".join(
@@ -196,20 +196,20 @@ def render_artifact(
     )
     card_assets = ""
     if "data-record-cards" in artifact_data:
-        card_js = files("obs_html").joinpath("cards.js").read_text(encoding="utf-8")
+        card_js = files("obs_html_interim").joinpath("cards.js").read_text(encoding="utf-8")
         card_assets = f'<script id="cards-script">{card_js}</script>'
     property_assets = ""
     if "data-property-editor" in artifact_data:
-        property_js = files("obs_html").joinpath("properties.js").read_text(encoding="utf-8")
+        property_js = files("obs_html_interim").joinpath("properties.js").read_text(encoding="utf-8")
         property_assets = f'<script id="property-editor-script">{property_js}</script>'
     figure_assets = ""
     if "data-artifact-figure" in artifact_data or "data-engineering-figure" in artifact_data:
-        figure_css = files("obs_html").joinpath("figures.css").read_text(encoding="utf-8")
-        figure_js = files("obs_html").joinpath("figures.js").read_text(encoding="utf-8")
+        figure_css = files("obs_html_interim").joinpath("figures.css").read_text(encoding="utf-8")
+        figure_js = files("obs_html_interim").joinpath("figures.js").read_text(encoding="utf-8")
         plotly = ""
         if 'data-figure-kind=\\"plot\\"' in artifact_data:
             figure_settings = json.loads(
-                files("obs_html").joinpath("cfg.json").read_text(encoding="utf-8")
+                files("obs_html_interim").joinpath("cfg.json").read_text(encoding="utf-8")
             )["artifact"]["figures"] | (figures or {})
             if figure_settings["plotlyDelivery"] == "cdn":
                 plotly = (
@@ -220,11 +220,11 @@ def render_artifact(
             else:
                 plotly = (
                     '<script id="plotly-script">/* '
-                    + files("obs_html").joinpath("vendor", "plotly.LICENSE").read_text(encoding="utf-8")
+                    + files("obs_html_interim").joinpath("vendor", "plotly.LICENSE").read_text(encoding="utf-8")
                     + " */\n"
-                    + files("obs_html").joinpath("vendor", "plotly-basic.min.js.LICENSE.txt").read_text(encoding="utf-8")
+                    + files("obs_html_interim").joinpath("vendor", "plotly-basic.min.js.LICENSE.txt").read_text(encoding="utf-8")
                     + "\n"
-                    + files("obs_html").joinpath("vendor", "plotly-basic.min.js").read_text(encoding="utf-8").replace("</script", "<\\/script")
+                    + files("obs_html_interim").joinpath("vendor", "plotly-basic.min.js").read_text(encoding="utf-8").replace("</script", "<\\/script")
                     + "</script>"
                 )
         figure_assets = f'<style id="figure-styles">{figure_css}</style>{plotly}<script id="figure-script">{figure_js}</script>'
@@ -232,7 +232,7 @@ def render_artifact(
     model = json.loads(artifact_data)
     startup = model["reading"]
     reader_startup = "".join(
-      f"    {line}\n" for line in files("obs_html").joinpath("reader-startup.js").read_text(encoding="utf-8")
+      f"    {line}\n" for line in files("obs_html_interim").joinpath("reader-startup.js").read_text(encoding="utf-8")
       .replace("READER_THEME", json.dumps(startup["theme"]))
       .replace("READER_PAGED", json.dumps(startup["paged"])).splitlines()
     )
@@ -302,7 +302,7 @@ def render_artifact(
   </div>
 
   <script id="running-header-script" data-header-metadata="{escape(serialize_artifact_data(model['document']['metadata']), quote=True)}">
-{files("obs_html").joinpath("running-header.js").read_text(encoding="utf-8")}
+{files("obs_html_interim").joinpath("running-header.js").read_text(encoding="utf-8")}
   </script>
   <button class="icon-button menu-button" type="button" data-menu-button
           aria-label="Open bars menu" aria-expanded="false" title="Bars" disabled>{icon_markup("menu")}</button>
@@ -319,39 +319,39 @@ def render_artifact(
   <script id="query-script">
 {query_script}
   </script>
-  <script id="base-schema" type="application/json">{files("obs_html").joinpath("base.schema.json").read_text(encoding="utf-8")}</script>
-  <script type="application/json" data-json-schema="assets.schema.json">{files("obs_html").joinpath("assets.schema.json").read_text(encoding="utf-8")}</script>
-  <script id="property-editor-schema" type="application/json">{files("obs_html").joinpath("property-editor.schema.json").read_text(encoding="utf-8")}</script>
+  <script id="base-schema" type="application/json">{files("obs_html_interim").joinpath("base.schema.json").read_text(encoding="utf-8")}</script>
+  <script type="application/json" data-json-schema="assets.schema.json">{files("obs_html_interim").joinpath("assets.schema.json").read_text(encoding="utf-8")}</script>
+  <script id="property-editor-schema" type="application/json">{files("obs_html_interim").joinpath("property-editor.schema.json").read_text(encoding="utf-8")}</script>
   <script id="yaml-script">
-/* {files("obs_html").joinpath("vendor", "js-yaml.LICENSE").read_text(encoding="utf-8")} */
-{files("obs_html").joinpath("vendor", "js-yaml.min.js").read_text(encoding="utf-8")}
+/* {files("obs_html_interim").joinpath("vendor", "js-yaml.LICENSE").read_text(encoding="utf-8")} */
+{files("obs_html_interim").joinpath("vendor", "js-yaml.min.js").read_text(encoding="utf-8")}
   </script>
   <script id="base-script">
-{files("obs_html").joinpath("base.js").read_text(encoding="utf-8")}
+{files("obs_html_interim").joinpath("base.js").read_text(encoding="utf-8")}
   </script>
   <script id="data-table-script">
 {table_script}
   </script>
-  <script id="zip-rewrite-script">{files("obs_html").joinpath("zip-rewrite.js").read_text(encoding="utf-8")}</script>
-  <script id="payload-script">{files("obs_html").joinpath("payloads.js").read_text(encoding="utf-8")}</script>
-  <script id="assets-script">{files("obs_html").joinpath("assets.js").read_text(encoding="utf-8")}</script>
+  <script id="zip-rewrite-script">{files("obs_html_interim").joinpath("zip-rewrite.js").read_text(encoding="utf-8")}</script>
+  <script id="payload-script">{files("obs_html_interim").joinpath("payloads.js").read_text(encoding="utf-8")}</script>
+  <script id="assets-script">{files("obs_html_interim").joinpath("assets.js").read_text(encoding="utf-8")}</script>
   <script id="canonical-transaction-script">
 {transaction_script}
   </script>
   <script id="artifact-script">
-{files("obs_html").joinpath("hover-card.js").read_text(encoding="utf-8")}
-{files("obs_html").joinpath("guided-card.js").read_text(encoding="utf-8")}
+{files("obs_html_interim").joinpath("hover-card.js").read_text(encoding="utf-8")}
+{files("obs_html_interim").joinpath("guided-card.js").read_text(encoding="utf-8")}
 {script}
   </script>
   {figure_assets}
   {card_assets}
   {property_assets}
   <script id="pages-script">
-{files("obs_html").joinpath("pages.js").read_text(encoding="utf-8")}
+{files("obs_html_interim").joinpath("pages.js").read_text(encoding="utf-8")}
   </script>
   <script id="storage-script">
 
-{files("obs_html").joinpath("storage.js").read_text(encoding="utf-8")}
+{files("obs_html_interim").joinpath("storage.js").read_text(encoding="utf-8")}
   </script>
   <script id="bar-scripts">
 {bar_scripts}
@@ -371,7 +371,7 @@ def _paper(choice: dict[str, str], print_setup: dict[str, object]) -> dict[str, 
     )
   margin = float(choice["margin"].removesuffix("mm"))
   paper = {**sizes[choice["paper"]], "marginMillimeters": int(margin) if margin.is_integer() else margin}
-  limits = json.loads(files("obs_html").joinpath("cfg.schema.json").read_text(encoding="utf-8"))
+  limits = json.loads(files("obs_html_interim").joinpath("cfg.schema.json").read_text(encoding="utf-8"))
   error = next(Draft202012Validator(limits["$defs"]["paper"]).iter_errors(paper), None)
   if error is not None:
     raise ContentError(f"Manifest obsHtml.print.margin {choice['margin']} is out of range: {error.message}.")
@@ -439,7 +439,7 @@ def _serialize_artifact_data(
     for table in document.tables:
       assets.normalize_definition(table.definition)
   artifact_defaults = json.loads(
-    files("obs_html").joinpath("cfg.json").read_text(encoding="utf-8")
+    files("obs_html_interim").joinpath("cfg.json").read_text(encoding="utf-8")
   )["artifact"]
   reading_settings = artifact_defaults["reading"] | (reading or {})
   for key, replacement in REMOVED_READING_SETTINGS.items():

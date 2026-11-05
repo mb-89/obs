@@ -1,8 +1,8 @@
 # Configuration
 
-Cross-project defaults are owned by `src/obs_html/cfg.json`, with accepted
+Cross-project defaults are owned by `src/obs_html_interim/cfg.json`, with accepted
 structure and limits in its adjacent `cfg.schema.json`.
-The optional vault override is described by `src/obs_html/project.schema.json`.
+The optional vault override is described by `src/obs_html_interim/project.schema.json`.
 These are repository-relative owner locations, not vault attachments. This note owns only
 configuration design principles.
 

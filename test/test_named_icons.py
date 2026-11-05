@@ -9,12 +9,12 @@ from zipfile import ZipFile
 
 import pytest
 
-from obs_html.cli import main
-from obs_html.config import load_config
-from obs_html.content import parse_manifest
-from obs_html.renderer import render_artifact
-from obs_html.artifact_data import decode_artifact_data
-from obs_html.reproduction import embedded_archive
+from obs_html_interim.cli import main
+from obs_html_interim.config import load_config
+from obs_html_interim.content import parse_manifest
+from obs_html_interim.renderer import render_artifact
+from obs_html_interim.artifact_data import decode_artifact_data
+from obs_html_interim.reproduction import embedded_archive
 
 
 ROOT = Path(__file__).parents[1]
@@ -121,7 +121,7 @@ def test_local_asset_and_catalog_survive_actual_cli_extraction_and_rebuild(tmp_p
     (source / "cfg.json").write_text(
         '{"artifact":{"assetIndex":"assets.json","inactiveIconOpacity":0.3}}', encoding="utf-8",
     )
-    config = load_config(ROOT / "src" / "obs_html" / "cfg.json", source / "cfg.json")
+    config = load_config(ROOT / "src" / "obs_html_interim" / "cfg.json", source / "cfg.json")
     assert config.asset_index == "assets.json"
     output = tmp_path / "artifact.html"
     assert main(["--source", str(source), "--output", str(output), "--embed-source"]) == 0
@@ -138,8 +138,8 @@ def test_local_asset_and_catalog_survive_actual_cli_extraction_and_rebuild(tmp_p
         assert json.loads(archive.read("build-config.json"))["artifact"]["assetIndex"] == "assets.json"
         assert json.loads(archive.read("build-config.json"))["artifact"]["inactiveIconOpacity"] == 0.3
         assert archive.read("vault/pixel.png") == PIXEL
-        assert "generator/src/obs_html/icons/filter.svg" in archive.namelist()
-        assert "generator/src/obs_html/running-header.js" in archive.namelist()
+        assert "generator/src/obs_html_interim/icons/filter.svg" in archive.namelist()
+        assert "generator/src/obs_html_interim/running-header.js" in archive.namelist()
         archive.extractall(extracted)
     environment = os.environ | {"PYTHONPATH": str(extracted / "generator" / "src"), "PYTHONUTF8": "1"}
     rebuilt = subprocess.run(

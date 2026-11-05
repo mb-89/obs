@@ -14,9 +14,9 @@ from pypdf import PdfReader, PdfWriter
 from pypdf.errors import PdfReadError
 from pypdf.generic import create_string_object, NameObject
 
-from obs_html.content import ContentError
-from obs_html.reproduction import ARCHIVE_NAME, embedded_archive
-from obs_html.timings import stage
+from obs_html_interim.content import ContentError
+from obs_html_interim.reproduction import ARCHIVE_NAME, embedded_archive
+from obs_html_interim.timings import stage
 
 
 @stage("attach")

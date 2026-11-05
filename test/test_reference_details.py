@@ -7,10 +7,10 @@ from pathlib import Path
 import pytest
 import yaml
 
-from obs_html.content import ContentError, parse_manifest, validate_base_definition
-from obs_html.config import load_config
-from obs_html.cli import main
-from obs_html.renderer import render_artifact
+from obs_html_interim.content import ContentError, parse_manifest, validate_base_definition
+from obs_html_interim.config import load_config
+from obs_html_interim.cli import main
+from obs_html_interim.renderer import render_artifact
 from test_browser import run_browser_script
 
 
@@ -97,7 +97,7 @@ def test_reference_detail_and_icon_schema_matches_browser():
 def test_icon_width_has_one_configured_owner(tmp_path):
     from jsonschema import ValidationError
 
-    config = Path(__file__).parents[1] / "src" / "obs_html" / "cfg.json"
+    config = Path(__file__).parents[1] / "src" / "obs_html_interim" / "cfg.json"
     override = tmp_path / "cfg.json"
     override.write_text('{"artifact":{"tableIconWidthPixels":40}}', encoding="utf-8")
     assert load_config(config, override).table_icon_width_pixels == 40

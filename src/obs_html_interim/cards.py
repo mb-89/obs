@@ -6,12 +6,12 @@ import json
 
 from jsonschema import Draft202012Validator
 import yaml
-from obs_html.markdown import shared_authoring_markdown
+from obs_html_interim.markdown import shared_authoring_markdown
 
 
 @cache
 def _schema():
-    return json.loads(files("obs_html").joinpath("cards.schema.json").read_text(encoding="utf-8"))
+    return json.loads(files("obs_html_interim").joinpath("cards.schema.json").read_text(encoding="utf-8"))
 
 
 @cache
@@ -26,7 +26,7 @@ def _count_query_validator():
 
 def parse_card_spec(text, source_path, place="cards fence"):
     from obs.input import input_error, schema_error
-    from obs_html.content import ContentError
+    from obs_html_interim.content import ContentError
 
     try:
         spec = yaml.safe_load(text)
@@ -51,7 +51,7 @@ def parse_card_spec(text, source_path, place="cards fence"):
 
 def validate_count_query(query, source_path, field="query"):
     from obs.input import schema_error
-    from obs_html.content import ContentError
+    from obs_html_interim.content import ContentError
 
     error = schema_error(list(_count_query_validator().iter_errors(query)), source_path,
                          "capabilities/queries", field=field)
@@ -60,7 +60,7 @@ def validate_count_query(query, source_path, field="query"):
 
 
 def render_cards(text, render_body, source_path, source_metadata=None):
-    from obs_html.content import ContentError
+    from obs_html_interim.content import ContentError
 
     spec = parse_card_spec(text, source_path)
     cards = []

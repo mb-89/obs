@@ -1,5 +1,5 @@
-from obs_html.bars import BarDefinition
-from obs_html.content import Chapter
+from obs_html_interim.bars import BarDefinition
+from obs_html_interim.content import Chapter
 
 
 def render(_chapters: list[Chapter]) -> str:

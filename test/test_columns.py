@@ -3,11 +3,11 @@ import json
 
 import pytest
 
-from obs_html.content import (
+from obs_html_interim.content import (
     Chapter, ContentError, paragraph_warnings, parse_manifest, read_chapter_content, render_chapter,
 )
-from obs_html.renderer import render_artifact
-from obs_html.artifact_data import decode_artifact_data
+from obs_html_interim.renderer import render_artifact
+from obs_html_interim.artifact_data import decode_artifact_data
 
 
 def test_columns_preserve_canonical_cards_queries_links_and_source_lines(tmp_path):
@@ -119,7 +119,7 @@ def test_standalone_delimiter_ends_an_ordinary_markdown_table_without_blank_line
 
 
 def test_cli_check_reports_malformed_columns_without_writing(tmp_path, capsys):
-    from obs_html.cli import main
+    from obs_html_interim.cli import main
 
     manifest = tmp_path / "manifest.md"
     manifest.write_text("- [[chapter]]\n", encoding="utf-8")

@@ -6,10 +6,10 @@ from pathlib import Path
 import pytest
 from jsonschema import ValidationError
 
-from obs_html.config import load_config
-from obs_html.content import ContentError, parse_manifest
-from obs_html.renderer import render_artifact
-from obs_html.artifact_data import ARTIFACT_PATTERN, decode_artifact_data, encode_artifact_data
+from obs_html_interim.config import load_config
+from obs_html_interim.content import ContentError, parse_manifest
+from obs_html_interim.renderer import render_artifact
+from obs_html_interim.artifact_data import ARTIFACT_PATTERN, decode_artifact_data, encode_artifact_data
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -70,7 +70,7 @@ def test_real_artifact_data_size_budget() -> None:
 
 
 def test_default_config_and_explicit_transport(tmp_path: Path) -> None:
-    config_path = ROOT / "src" / "obs_html" / "cfg.json"
+    config_path = ROOT / "src" / "obs_html_interim" / "cfg.json"
     assert load_config(config_path).data_compression == "gzip"
     override = tmp_path / "cfg.json"
     override.write_text('{"artifact":{"dataCompression":"none"}}')

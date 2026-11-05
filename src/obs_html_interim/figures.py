@@ -27,7 +27,7 @@ class FigureError(ValueError):
 
 @cache
 def _schema():
-    return json.loads(files("obs_html").joinpath("figure.schema.json").read_text(encoding="utf-8"))
+    return json.loads(files("obs_html_interim").joinpath("figure.schema.json").read_text(encoding="utf-8"))
 
 
 @cache

@@ -14,13 +14,13 @@ from pypdf import PdfReader, PdfWriter
 
 from pickers import choose_files
 from producer_commands import python_command
-from obs_html.cli import DEFAULT_CONFIG, PROJECT_ROOT, main
-from obs_html.config import load_config
-from obs_html.content import ContentError, read_manifest
-from obs_html.pdf import attach_archive
-from obs_html.pdf import export_pdf
-from obs_html.reproduction import ARCHIVE_NAME, embedded_archive, source_archive
-from obs_html.artifact_data import ARTIFACT_PATTERN, decode_artifact_data, encode_artifact_data
+from obs_html_interim.cli import DEFAULT_CONFIG, PROJECT_ROOT, main
+from obs_html_interim.config import load_config
+from obs_html_interim.content import ContentError, read_manifest
+from obs_html_interim.pdf import attach_archive
+from obs_html_interim.pdf import export_pdf
+from obs_html_interim.reproduction import ARCHIVE_NAME, embedded_archive, source_archive
+from obs_html_interim.artifact_data import ARTIFACT_PATTERN, decode_artifact_data, encode_artifact_data
 
 HISTORY_FENCE = (
     "\n## History\n\n```base\nproperties:\n  version: {displayName: Version}\n  change: {displayName: Change}\n"
@@ -77,12 +77,12 @@ def test_source_selection_excludes_poison_and_preserves_no_git_rebuild(tmp_path:
     subprocess.run(["git", "-C", str(generator), "add", "."], check=True)
     subprocess.run(
         ["git", "-C", str(generator), "rm", "--cached", "--quiet", "--",
-         "src/obs_html/note-profile.schema.json"],
+         "src/obs_html_interim/note-profile.schema.json"],
         check=True,
     )
     for name in ("build/poison.py", "node_modules/poison.js", "cache/poison.dat",
                  "BUILD/poison.py", "compiled.dll"):
-        path = generator / "src" / "obs_html" / name
+        path = generator / "src" / "obs_html_interim" / name
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text("must not ship", encoding="utf-8")
     (vault / "compiled.dll").write_text("must not ship", encoding="utf-8")
@@ -90,14 +90,14 @@ def test_source_selection_excludes_poison_and_preserves_no_git_rebuild(tmp_path:
     environment.mkdir()
     (environment / "pyvenv.cfg").write_text("home = python", encoding="utf-8")
     (environment / "installed.py").write_text("must not ship", encoding="utf-8")
-    (generator / "src" / "obs_html" / "untracked.py").write_text("must not ship", encoding="utf-8")
+    (generator / "src" / "obs_html_interim" / "untracked.py").write_text("must not ship", encoding="utf-8")
     config = load_config(DEFAULT_CONFIG)
     archive = source_archive(vault, vault / "manifest.md", generator, config, False)
     extracted = tmp_path / "extracted"
     with ZipFile(BytesIO(archive)) as contents:
         assert contents.read("vault/helper.ps1") == b"Write-Output source"
-        assert contents.read("generator/src/obs_html/note-profile.schema.json") == (
-            (generator / "src" / "obs_html" / "note-profile.schema.json").read_bytes()
+        assert contents.read("generator/src/obs_html_interim/note-profile.schema.json") == (
+            (generator / "src" / "obs_html_interim" / "note-profile.schema.json").read_bytes()
         )
         assert not any("poison" in name or name.endswith(("untracked.py", ".dll"))
                        for name in contents.namelist())
@@ -108,8 +108,8 @@ def test_source_selection_excludes_poison_and_preserves_no_git_rebuild(tmp_path:
                              extracted / "generator", config, False)
     with ZipFile(BytesIO(rebuilt)) as contents:
         assert contents.read("vault/helper.ps1") == b"Write-Output source"
-        assert "generator/src/obs_html/archive.js" in contents.namelist()
-        assert "generator/src/obs_html/note-profile.schema.json" in contents.namelist()
+        assert "generator/src/obs_html_interim/archive.js" in contents.namelist()
+        assert "generator/src/obs_html_interim/note-profile.schema.json" in contents.namelist()
 
 
 def test_malformed_shared_asset_is_explicit_error(tmp_path: Path) -> None:
@@ -149,7 +149,7 @@ def test_source_snapshot_preserves_authored_output_directories(tmp_path: Path) -
                     reason="Set OBS_HTML_TEST_NATIVE_BROWSER for native shared payload checks.")
 def test_native_shared_assets_download_print_review_and_reproduce(tmp_path: Path) -> None:
     from playwright.sync_api import sync_playwright
-    from obs_html.comments import extract_comments
+    from obs_html_interim.comments import extract_comments
 
     vault = vault_at(tmp_path)
     original = b"exact original evidence\n" * 1000
@@ -343,7 +343,7 @@ def test_archive_opt_in_includes_sources_and_roundtrips_pdf(tmp_path: Path) -> N
         for name in ("README.md", "RUNME.ps1", "RUNME.sh"):
             assert contents.read(f"generator/{name}") == (PROJECT_ROOT / name).read_bytes()
         assert "--config ../build-config.json" in contents.read("REPRODUCE.txt").decode()
-        assert "generator/src/obs_html/archive.js" in contents.namelist()
+        assert "generator/src/obs_html_interim/archive.js" in contents.namelist()
         assert "--execute-commands" in contents.read("reproduce.py").decode()
         assert json.loads(contents.read("build-config.json"))["artifact"]["print"]["paperSizes"]["A4"] == {
             "widthMillimeters": 210, "heightMillimeters": 297}

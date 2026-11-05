@@ -9,9 +9,9 @@ from zipfile import ZipFile
 
 import pytest
 
-from obs_html.content import ContentError, parse_manifest
-from obs_html.renderer import render_artifact
-from obs_html.artifact_data import decode_artifact_data
+from obs_html_interim.content import ContentError, parse_manifest
+from obs_html_interim.renderer import render_artifact
+from obs_html_interim.artifact_data import decode_artifact_data
 
 SNIPPET = ".brand-note h1 { color: rgb(1, 2, 3); }\n"
 
@@ -74,14 +74,14 @@ def test_a_snippet_cannot_close_its_style_element(tmp_path):
 
 
 def test_source_archive_carries_listed_snippets_but_no_other_dotfiles(tmp_path):
-    from obs_html.cli import PROJECT_ROOT
-    from obs_html.config import load_config
-    from obs_html.reproduction import source_archive
+    from obs_html_interim.cli import PROJECT_ROOT
+    from obs_html_interim.config import load_config
+    from obs_html_interim.reproduction import source_archive
 
     vault = tmp_path / "vault"
     vault.mkdir()
     manifest = _styled_vault(vault)
-    config = load_config(files("obs_html").joinpath("cfg.json"))
+    config = load_config(files("obs_html_interim").joinpath("cfg.json"))
     with ZipFile(BytesIO(source_archive(vault, manifest, PROJECT_ROOT, config, False))) as archive:
         names = set(archive.namelist())
         inventory = json.loads(archive.read("source-inventory.json"))["vault"]

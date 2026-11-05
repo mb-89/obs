@@ -4,8 +4,8 @@ from pathlib import Path
 
 import pytest
 
-from obs_html.content import parse_manifest
-from obs_html.renderer import render_artifact
+from obs_html_interim.content import parse_manifest
+from obs_html_interim.renderer import render_artifact
 
 
 @pytest.mark.skipif(

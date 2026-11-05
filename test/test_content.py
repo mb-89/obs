@@ -3,9 +3,9 @@ from pathlib import Path
 
 import pytest
 
-import obs_html.content as content
-from obs_html.cli import main
-from obs_html.content import (
+import obs_html_interim.content as content
+from obs_html_interim.cli import main
+from obs_html_interim.content import (
     Chapter,
     ContentError,
     collect_notes,
@@ -15,7 +15,7 @@ from obs_html.content import (
     read_manifest,
     render_chapter,
 )
-from obs_html.artifact_data import decode_artifact_data
+from obs_html_interim.artifact_data import decode_artifact_data
 
 
 def test_alias_frontmatter_is_not_reparsed_for_each_reference(tmp_path, monkeypatch) -> None:
@@ -102,7 +102,7 @@ def test_manifest_abstract_authoring_comments_are_inert(tmp_path) -> None:
         "<!--\n```base\ninvalid\n```\n-->\n", encoding="utf-8",
     )
     parsed = read_manifest(manifest)
-    from obs_html.renderer import render_artifact
+    from obs_html_interim.renderer import render_artifact
     html = render_artifact(manifest, parsed.chapters)
     content = json.dumps(decode_artifact_data(html))
     assert "Visible  abstract." in content

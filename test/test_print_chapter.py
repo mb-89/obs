@@ -2,7 +2,7 @@ from pathlib import Path
 
 import pytest
 
-from obs_html.cli import main
+from obs_html_interim.cli import main
 
 
 @pytest.fixture(scope="module")

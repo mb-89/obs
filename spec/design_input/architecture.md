@@ -41,14 +41,14 @@ costs rather than treating all conversion as one opaque phase.
 
 ### Build stage timings
 
-The named build stages are registered once, in `src/obs_html/timings.py`; the
+The named build stages are registered once, in `src/obs_html_interim/timings.py`; the
 `--timings` help, the timing output and the baseline file read that registry, and an
 unregistered stage name is an error. Stages are non-overlapping: a nested stage
 pauses its enclosing one, so a build's stage durations sum to at most its total.
 Producers (silent `cmd` fences) are their own stage, timed before conversion.
 
 Per-stage baselines live in one committed data file,
-`src/obs_html/timing-baselines.json`, validated by its adjacent
+`src/obs_html_interim/timing-baselines.json`, validated by its adjacent
 `timing-baselines.schema.json`: an object of stage name to baseline seconds for a
 build of this repository's own spec. A stage without a baseline is not compared.
 
@@ -201,7 +201,7 @@ Figures resolve declared canonical graph owners from live records, not a second 
 graph. Cover, authored source links and Settings use one current-archive
 download action; activation resolves bytes from the existing payload owner.
 
-Dockable bars are extension modules discovered from the `obs_html.bars` package. Each
+Dockable bars are extension modules discovered from the `obs_html_interim.bars` package. Each
 module exports one definition containing its key, label, icon, help text, and content
 factory. The renderer derives both menu entries and parked bar markup from those
 definitions; it never keeps a second list. See [[quality]].

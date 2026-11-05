@@ -7,7 +7,7 @@ from pkgutil import iter_modules
 from types import ModuleType
 from typing import Callable
 
-from obs_html.content import Chapter
+from obs_html_interim.content import Chapter
 
 
 @dataclass(frozen=True)

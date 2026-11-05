@@ -6,7 +6,7 @@ import os
 
 import pytest
 
-from obs_html.cli import main
+from obs_html_interim.cli import main
 from test_reader_controls import _write_reader_artifact, reader_browser  # noqa: F401
 
 

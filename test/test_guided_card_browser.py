@@ -5,8 +5,8 @@ import re
 import pytest
 import yaml
 
-from obs_html.content import parse_manifest
-from obs_html.renderer import render_artifact
+from obs_html_interim.content import parse_manifest
+from obs_html_interim.renderer import render_artifact
 from pickers import choose_files
 
 
@@ -484,7 +484,7 @@ def test_apply_records_change_time_in_saved_html(guided_browser, guided_artifact
     ("unavailable: No source link", "help: No source link", "collect"),
 ])
 def test_invalid_card_declaration_is_rejected(tmp_path, old, new, match):
-    from obs_html.content import ContentError
+    from obs_html_interim.content import ContentError
 
     manifest = _write_fixture(tmp_path)
     chapter = tmp_path / "chapter.md"

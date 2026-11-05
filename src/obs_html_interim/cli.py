@@ -16,16 +16,16 @@ from typing import Callable, NamedTuple, Sequence
 from jsonschema import SchemaError, ValidationError
 
 from obs.producers import run_producers
-from obs_html.comments import CommentError, extract_comments
-from obs_html.config import Config, load_config
-from obs_html.content import ContentError, read_manifest
-from obs_html.commands import run_command
-from obs_html.renderer import render_artifact
-from obs_html.artifact_data import chapter_html, html_text, same_artifact_content
-from obs_html.reproduction import (
+from obs_html_interim.comments import CommentError, extract_comments
+from obs_html_interim.config import Config, load_config
+from obs_html_interim.content import ContentError, read_manifest
+from obs_html_interim.commands import run_command
+from obs_html_interim.renderer import render_artifact
+from obs_html_interim.artifact_data import chapter_html, html_text, same_artifact_content
+from obs_html_interim.reproduction import (
     embed_archive, embed_payload_runtime, embedded_archive, source_archive,
 )
-from obs_html.timings import STAGES, load_baselines, recording, slower_stages, stage
+from obs_html_interim.timings import STAGES, load_baselines, recording, slower_stages, stage
 
 
 _IMPORTED = perf_counter()
@@ -84,7 +84,7 @@ def _stage_help() -> str:
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
-        prog="obs-html",
+        prog="obs-html-interim",
         description="Generate HTML artifacts from an Obsidian-compatible Markdown vault.",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog=f"""Generation:
@@ -170,15 +170,15 @@ Comment extraction:
   Generation settings are unused. Cannot combine with --check or --embed-source.
 
 Examples:
-  obs-html --source vault --output document.html
-  obs-html --source a --output a.html --source b --output b.html --timings
-  obs-html --source vault --check
-  obs-html --source vault --output document.html --embed-source
-  obs-html --export-pdf document.html --output document.pdf
-  obs-html --check-rendered document.html
-  obs-html --print-chapter document.html intro --chapter-format text
-  obs-html --attach-source-to-pdf document.pdf --source-artifact document.html --output with-source.pdf
-  obs-html --extract-comments reviewed.html
+  obs-html-interim --source vault --output document.html
+  obs-html-interim --source a --output a.html --source b --output b.html --timings
+  obs-html-interim --source vault --check
+  obs-html-interim --source vault --output document.html --embed-source
+  obs-html-interim --export-pdf document.html --output document.pdf
+  obs-html-interim --check-rendered document.html
+  obs-html-interim --print-chapter document.html intro --chapter-format text
+  obs-html-interim --attach-source-to-pdf document.pdf --source-artifact document.html --output with-source.pdf
+  obs-html-interim --extract-comments reviewed.html
 
 Exit status:
   0: success (including --help); 2: invalid options, input or operation failure.
@@ -302,7 +302,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                     or options.source or options.output):
                 parser.error("--check-rendered cannot be combined with generation, PDF or extraction options.")
             config = load_config(options.config)
-            from obs_html.pdf import check_rendered
+            from obs_html_interim.pdf import check_rendered
             _print_timings(options, {"imports": _IMPORTED - _STARTED})
             with recording() as recorded:
                 result = check_rendered(options.check_rendered, config.rendered_check_timeout_seconds)
@@ -327,7 +327,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             if not options.output or len(options.output) > 1 or options.output[0].suffix.lower() != ".pdf":
                 parser.error("PDF operations require one explicit --output file.pdf.")
             output = options.output[0]
-            from obs_html.pdf import attach_archive, export_pdf
+            from obs_html_interim.pdf import attach_archive, export_pdf
             if options.export_pdf:
                 if options.source_artifact:
                     parser.error("--source-artifact is only used with --attach-source-to-pdf.")

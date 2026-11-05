@@ -60,7 +60,7 @@ def authoring_markdown() -> MarkdownIt:
     markdown.core.ruler.before("block", "authoring_comments", comments)
 
     def column_delimiter(state, start_line, _end_line, silent):
-        from obs_html.content import ContentError
+        from obs_html_interim.content import ContentError
 
         if state.sCount[start_line] - state.blkIndent >= 4:
             return False
@@ -82,7 +82,7 @@ def authoring_markdown() -> MarkdownIt:
         return True
 
     def columns(state):
-        from obs_html.content import ContentError
+        from obs_html_interim.content import ContentError
 
         delimiters = [
             index for index, token in enumerate(state.tokens)
