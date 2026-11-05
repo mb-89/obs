@@ -76,3 +76,10 @@ def test_top_band_is_one_row_of_equal_squares() -> None:
     for replaced in ("A compact menu button floats at the top-right", "Breadcrumbs occupy that same top band"):
         assert replaced not in _flat(artifact_ui), f"artifact-ui.md: replace '{replaced}' with the one-row top band"
 
+
+def test_notice_icons_point_to_the_top_band() -> None:
+    artifact_ui = _flat((ROOT / "spec" / "design_input" / "artifact-ui.md").read_text(encoding="utf-8"))
+
+    assert "The icon row never covers the menu or chapter controls." not in artifact_ui
+    assert "The icons sit in the [[#Reading shell|top band]]." in artifact_ui
+
