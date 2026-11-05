@@ -206,12 +206,12 @@ view `filters`. Anything outside it is unsupported.
 - Functions, methods, other operators, `formula.*`, `this.*`, other `file.*`
   properties and frontmatter names starting with `file.` are unsupported.
 
-Two evaluators use this grammar. Python decides at generation time which notes a
-Base includes, because the generator runs without a JavaScript engine. The browser
-evaluates again because readers can edit Base definitions and canonical values in the
-open HTML.
+Python evaluators decide at generation time which notes a Base includes, because the
+generator runs without a JavaScript engine: the core's `src/obs/selection.py` for the
+Document, and the interim adapter's until its cutover. The browser evaluates again because
+readers can edit Base definitions and canonical values in the open HTML.
 
-Both evaluators run the shared conformance fixture
+Every evaluator runs the shared conformance fixture
 `test/fixtures/bases-filter-conformance.json`, which lists records, filters, expected
 record ids and unsupported filters. A grammar change updates this subsection, the schema
 pattern and that fixture together.
