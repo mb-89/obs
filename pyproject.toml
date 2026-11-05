@@ -1,5 +1,5 @@
 [project]
-name = "obs-html"
+name = "obs"
 version = "0.2.3"
 description = "Generate portable HTML documents from Obsidian-compatible Markdown vaults."
 requires-python = ">=3.11"
@@ -21,8 +21,15 @@ obs-document = "obs.document:main"
 
 [dependency-groups]
 dev = [
+    "obs-html",
     "pytest>=8.0",
 ]
+
+[tool.uv.workspace]
+members = ["adapters/html"]
+
+[tool.uv.sources]
+obs-html = { workspace = true }
 
 [build-system]
 requires = ["hatchling"]
