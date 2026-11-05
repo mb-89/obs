@@ -5,6 +5,8 @@ from pathlib import Path
 
 import pytest
 from PIL import Image, ImageChops
+from pypdf import PdfWriter
+from pypdf.generic import ArrayObject, DictionaryObject, NameObject, NumberObject, StreamObject
 
 from conftest import FIXTURE
 from obs_html import cli, pdf_inspect
@@ -175,3 +177,24 @@ def test_paths_are_explicit_and_checked(printed, tmp_path, capsys, arguments, pr
     assert error.startswith(f"obs-html-inspect {arguments[0]}: {fill(problem)}") and "Remedy:" in error
     assert sorted(path.name for path in tmp_path.iterdir()) == []
     assert printed.stat().st_size > 0
+
+
+def test_paths_include_paths_inside_form_xobjects(tmp_path, capsys) -> None:
+    """Chromium prints no forms today; a hand-built page draws a square through one, moved 100 pt."""
+    writer = PdfWriter()
+    page = writer.add_blank_page(200, 200)
+    form = StreamObject()
+    form.set_data(b"0 0 m 10 0 l 10 10 l 0 10 l h f")
+    form.update({NameObject("/Type"): NameObject("/XObject"), NameObject("/Subtype"): NameObject("/Form"),
+                 NameObject("/BBox"): ArrayObject([NumberObject(0), NumberObject(0), NumberObject(10),
+                                                   NumberObject(10)])})
+    page[NameObject("/Resources")] = DictionaryObject(
+        {NameObject("/XObject"): DictionaryObject({NameObject("/Fm0"): writer._add_object(form)})})
+    content = StreamObject()
+    content.set_data(b"q 1 0 0 1 100 50 cm /Fm0 Do Q")
+    page[NameObject("/Contents")] = writer._add_object(content)
+    pdf = tmp_path / "form.pdf"
+    writer.write(pdf)
+    pdf_inspect.main(["paths", str(pdf), "--page", "1"])
+    [square] = json.loads(capsys.readouterr().out)["paths"]
+    assert square["bounds"] == [100, 140, 110, 150]  # 50 pt up from the bottom of a 200 pt page.
