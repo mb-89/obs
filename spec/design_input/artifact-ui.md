@@ -1273,8 +1273,7 @@ separate from document presentation.
 
   On reopen, rebuild Filter presets and attribute controls once from their canonical data;
   do not append them to copied rendered controls.
-  Reviewed table column visibility/order (resized widths are session-only and never a
-  artifact change) follows the bounded
+  Reviewed table column visibility/order follows the bounded
   table-local presentation contract in [[generic-tables]], independently of the global query.
 - Opening Filter immediately shows its preset and attribute pill panel. Presets come from the
   vault's project configuration; clicking one replaces the text expression and applies it
@@ -1381,10 +1380,12 @@ change since it was opened or last saved.
   committed property edit. Only content edits move the document's generation `timestamp`.
 - A review edit is a change: a comment, a reply or a review decision. It is not a content
   edit and leaves the `timestamp` unchanged.
-- Reader state is never a change: filters, view selections, table columns and their widths,
+- Reader state is never a change: filters, view selections, table columns,
   sorting, grouping, pagination, open or closed panels and bars, navigation, scrolling and
   appearance. It raises neither the changed-HTML entry nor the unload warning, also where a
   saved copy persists it; the applied filter has its own information entry.
+- A resized column width is session-only view state: it is never saved, never a change and
+  not reader state.
 - Returning every change to its state when opened or last saved leaves no change.
 
 ## Content sections
