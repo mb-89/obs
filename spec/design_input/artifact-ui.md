@@ -338,8 +338,8 @@ central stylesheet embedded into the generated HTML.
   From a note outside the TOC, the Home icon always navigates Home; the note's current crumb
   neither invents a TOC path nor intercepts the Home link.
 - No table of contents, filter, toolbar, or navigation bar is open initially.
-- The top band is one row and holds every top control: Home, the breadcrumbs, the chapter
-  controls, the notice icons and the menu. The notice icons sit directly left of the menu.
+- The top band is one row and holds every top control: Home, the breadcrumbs, the
+  frontmatter chevron, the notice icons and the menu. The notice icons sit directly left of the menu.
   Every control in the band is a square of one size. No control takes a row of its own.
 - Each table-options icon shows a small, top-right funnel bubble while its interactive
   filter is active, even if it matches every record. Its label/tooltip expose that state.
