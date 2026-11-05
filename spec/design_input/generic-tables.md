@@ -468,12 +468,11 @@ Counts are not Bases filters: they use the record-metric conditions owned by
 
   All state stays table-local.
 - Reviewed copies retain the ordered visible-column keys and the selected view name for each
-  stable table key; never serialize result rows or widths.
+  stable table key; never serialize result rows.
 
-  Reader-resized widths are session-only view state: they
-  survive chapter navigation in that session and are not saved. Legacy saved `widths`
-  mappings are accepted and ignored. Whether resizing is a change is owned by
-  [[artifact-ui#What counts as a change]].
+  Reader-resized widths survive chapter navigation in that session. Legacy saved `widths`
+  mappings are accepted and ignored. Whether a resized width is saved, a change or reader
+  state is owned by [[artifact-ui#What counts as a change]].
 - No column width is hard-coded. At startup each displayed column is sized from its rendered
   content across ALL base rows (not just the current page), unwrapped, plus header label,
   cell chrome, tree controls and editor chrome.

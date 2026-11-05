@@ -1480,8 +1480,8 @@ selections retain their loaded baseline. Initialization must not rebase genuine
 reader or canonical edits made while other startup work is still finishing.
 
 Reviewed reader state also retains visible column keys in display order, keyed by the
-table's stable identity. Resized column widths are session-only view state, never reader
-state.
+table's stable identity. How resized column widths are classified is owned by
+[[artifact-ui#What counts as a change]].
 
 The table owner validates and rebuilds these settings against its current column catalog;
 saved rows or rendered DOM
