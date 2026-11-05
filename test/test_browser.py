@@ -1544,15 +1544,16 @@ def run_browser_script(script: str, payload: object = None) -> None:
     bootstrap = r"""
 const assert = require("node:assert/strict");
 const fs = require("node:fs");
+const path = require("node:path");
 const vm = require("node:vm");
-const root = "src\\obs_html\\";
+const root = path.join("src", "obs_html");
 const context = vm.createContext({
     document: {querySelector: selector => ({textContent: fs.readFileSync(
-        root + (selector.includes("assets.schema.json") ? "assets.schema.json" : "base.schema.json"), "utf8",
+        path.join(root, selector.includes("assets.schema.json") ? "assets.schema.json" : "base.schema.json"), "utf8",
     )})},
 });
-for (const file of ["vendor\\js-yaml.min.js", "base.js", "query.js"]) {
-    vm.runInContext(fs.readFileSync(root + file, "utf8"), context);
+for (const file of [path.join("vendor", "js-yaml.min.js"), "base.js", "query.js"]) {
+    vm.runInContext(fs.readFileSync(path.join(root, file), "utf8"), context);
 }
 const payload = JSON.parse(fs.readFileSync(0, "utf8"));
 """
