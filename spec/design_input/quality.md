@@ -1,0 +1,126 @@
+# Quality
+
+The system favors local reasoning and local changes. A feature owner should be able to
+change one cohesive module while generic infrastructure discovers and integrates the
+result.
+
+## Knowledge ownership
+
+SPOT, single point of truth, everywhere: code, configuration, design, process and agent
+definitions alike. Keeping the same fact in two places is an anti-pattern (user, 4 Nov 2026).
+
+- State a fact or contract only in the artifact that owns and controls it.
+- When another document or agent needs that fact, refer to its owner with a link, embed,
+  schema reference, generated output, or other derived view instead of paraphrasing it.
+- Do not narrate implementation behavior in prose that cannot enforce that behavior.
+- User-facing reference material should be generated from the implementation owner when
+  practical; CLI documentation, for example, embeds live `--help` output.
+- Agent responses identify the owner when discussing facts outside the current task's
+  ownership boundary.
+- Generated and collected views are disposable. Owners remain the single source of truth.
+- A note with only frontmatter is valid. Never repeat frontmatter fields as body prose merely
+  to make links or table details readable; render the owning metadata correctly instead.
+  Bodies contain only additional discussion, not a second transcription of the row.
+- A report overview derives chapter conclusions from their canonical bottom lines, rather than
+  maintaining a parallel abstract synopsis. Keep each conclusion concise; move supporting detail
+  to its owning chapter without discarding qualifications or changing the strength of evidence.
+- Generated-report data ownership is defined by [[architecture]]; views must consume that
+  owner rather than serializing parallel copies.
+
+## Change locality
+
+- Every behavior or extension has one clear owning file or narrowly scoped package.
+- Generic consumers discover implementations through conventions and small contracts;
+  they do not maintain parallel lists, switch statements, or duplicated metadata.
+- A local extension carries the information required by its generic contract. Shared
+  infrastructure infers integration from it.
+- Shared styling uses semantic primitives in the central stylesheet. Extensions compose
+  those primitives instead of adding local color or layout values.
+- Reuse existing UI primitives for equivalent content, including untitled information cards;
+  do not introduce a parallel implementation merely because a heading is absent.
+- Tests verify public contracts and discovery behavior so extensions inherit coverage
+  from generic tests.
+- Find the owning local module before editing, and change the owner rather than synchronizing
+  several derived representations.
+- Treat a reported instance as evidence of an error class. Fix its shared cause at the owning
+  mechanism, with regression coverage for representative variants; do not special-case the
+  shown report, record, heading or screenshot.
+- When a change appears to require edits across many files, first improve the ownership
+  boundary or derive repeated data from one source of truth.
+- Keep generated output derived; never hand-edit it.
+
+## Testing boundaries
+
+- Treat filesystem access, subprocesses, clocks, browser printing/storage, and network assets as
+  explicit adapters ("doors"). Exercise each adapter's real functionality once at its boundary;
+  test callers against controlled fakes rather than repeating external work in every test.
+- Keep transformations and query evaluation pure where practical. Inject inputs/results at
+  the boundary, not arbitrary internal implementation details.
+- Reuse small, intention-revealing fixtures. Keep one end-to-end smoke path alongside focused
+  tests of failure, cancellation, timeout, and retry behavior.
+- Assert observable results and explicit expected outcomes, not source-code substrings or
+  agreement between two implementations that might share the same bug.
+- DOM tests use a controlled browser adapter for deterministic interactions. Native browser
+  printing and layout remain separate integration checks; a mocked print call does not verify
+  a PDF's visual output.
+- Write a focused regression test before implementing a feature. Select tests by owning module
+  or feature with pytest paths and `-k`; do not run unrelated integration scenarios on each edit.
+  Reserve the full test suite for a requested commit.
+- Give browser features independently selectable tests and small fixtures. Share expensive
+  adapter startup within a selected module; do not require the end-to-end scenario to test a
+  local interaction. Prefer extracting pure transformations only when they have a cohesive owner.
+- Tier names and meanings are owned by the pytest markers in `pyproject.toml`; assignment from
+  dependency evidence is owned by `test/tiers.py`.
+- Unit, dom and browser tiers run without a paired checkout: representative data comes from
+  small vendored fixtures under `test/fixtures`.
+- Tests that call a paired application are e2e, including data it reads through
+  `REFERENCE_EXAMPLE_SNAPSHOT`; tests that read hand-supplied data
+  such as that snapshot themselves are external.
+
+### Test feedback time
+
+Table detail expansion must not re-render the whole report or recompute all review items.
+Profile the actual Node report in a native browser and measure expansion latency before and
+after changes. Keep embedded assets and large payloads single-owned; measure report byte
+composition before optimizing size, without dropping source material or weakening portability.
+
+#mark/open_point/test_feedback_time
+
+Measure test durations and separate fast module checks from expensive integration checks.
+What feedback-time budgets should we enforce for each, and which setup or scenario costs
+should be reduced first? Use measured timings rather than treating a passing test as waste.
+
+## Diagnostics and review hygiene
+
+- Review a coherent change before declaring it complete. Trace each changed public behavior
+  through its owner, callers and focused tests; inspect real layout for visual requirements.
+- Audit knowledge ownership during review: CLI usage belongs to executable help, configuration
+  defaults and limits to configuration/schema, reference values to their manifest, source syntax
+  to the input contract, and presentation requirements to the UI/table design owners.
+  Consumers link to or derive from those owners, rather than maintaining copied explanations.
+- Audit duplicated processing across languages. For each input, list every place that
+  parses, validates, filters or flattens it, in Python, JavaScript, PowerShell or any other
+  language; more than one place needs a stated reason. Then ask which code should not exist
+  in the user's picture of the system, and check whether it does.
+
+  Code reviews and retros answer both questions in a section of their own. Known cases to
+  check against are the two Bases filter evaluators (`filter-evaluator-conformance`) and
+  metadata flattened twice (`metadata-flatten-once`) in `spec/backlog/`.
+- Distinguish normative design decisions from current implementation descriptions. Keep review
+  findings in generated design output with evidence, impact, disposition and remaining questions;
+  do not turn an implementation snapshot into a second authoritative specification.
+- Put repeatable source checks in the existing CLI's `--check` path and regression tests,
+  not disposable inspection scripts. Check mode never executes authored commands or writes
+  generated output; unsupported syntax and broken references are errors, not silent omissions.
+- A clean valid input must not produce system-generated warnings. Fix mechanical causes in
+  code or trivial formatting, but never change content intent merely to silence a diagnostic.
+  Surface genuine runtime failures explicitly; do not hide warnings or return success-shaped
+  empty data after invalid input.
+- Review the review itself: separate fixed defects, verified limitations, and judgment-dependent
+  content decisions. Do not claim native browser/PDF verification from mocks or invent a
+  migration when its source is unavailable.
+
+This quality requirement applies across parsing, configuration, rendering, controls,
+documentation, and future frontmatter behavior.
+
+See [[architecture]] for current ownership boundaries and [[report-ui]] for UI intent.

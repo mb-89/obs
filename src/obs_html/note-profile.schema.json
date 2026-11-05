@@ -1,0 +1,132 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "obs-html canonical note presentation profile",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "document": {
+      "type": "boolean",
+      "default": true,
+      "description": "False retains canonical query/reference data without exposing a standalone document."
+    },
+    "layout": {
+      "enum": ["paged", "scrolling"],
+      "default": "paged",
+      "description": "Manifest only: the view every opening starts in. Readers may switch during the session."
+    },
+    "heading": {
+      "enum": ["cover", "compact"],
+      "default": "cover",
+      "description": "Manifest only: the document heading on Home. cover: the title box (and the cover sheet when pages lists it); compact: one line of organization, product, document type and title that opens the first front page."
+    },
+    "pages": {
+      "type": "array",
+      "maxItems": 3,
+      "default": [
+        {"page": "cover"},
+        {"page": "abstract", "title": "Abstract"},
+        {"page": "contents", "title": "Contents"}
+      ],
+      "description": "Manifest only: ordered generated front pages of the paged and PDF projections; each kind at most once.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["page"],
+        "properties": {
+          "page": {"enum": ["cover", "abstract", "contents"]},
+          "title": {"type": "string", "pattern": "\\S", "description": "Plain-text page heading; the cover uses the document title instead."}
+        },
+        "if": {"properties": {"page": {"const": "cover"}}},
+        "then": {"not": {"required": ["title"]}}
+      }
+    },
+    "bottomLine": {
+      "type": "object",
+      "additionalProperties": false,
+      "default": {"title": "Bottom line upfront", "position": "beforeTitle"},
+      "description": "Manifest only: the chapter bottom-line card. Omitted keys use the defaults.",
+      "properties": {
+        "title": {"type": "string", "pattern": "^$|\\S", "description": "Inline Markdown card title; empty omits the heading."},
+        "position": {"enum": ["beforeTitle", "afterTitle"], "description": "Above or below the chapter's first first-level heading."}
+      }
+    },
+    "figures": {
+      "type": "object",
+      "additionalProperties": false,
+      "default": {"numbering": "none", "label": "Figure", "labelPlural": "Figures"},
+      "description": "Manifest only: numbering of captioned figure fences. Omitted keys use the defaults; the default none keeps existing documents unchanged.",
+      "properties": {
+        "numbering": {"enum": ["document", "chapter", "none"], "description": "document: 1, 2, ...; chapter: <top-level contents position>.<n>; none: no numbers."},
+        "label": {"type": "string", "pattern": "\\S", "maxLength": 64, "description": "Plain-text word before the number, in captions and unlabelled figure references."},
+        "labelPlural": {"type": "string", "pattern": "\\S", "maxLength": 64, "description": "Plain-text word before the numbers of adjacent unlabelled figure references merged into one."}
+      }
+    },
+    "attachments": {
+      "not": {},
+      "removed": "mark each file to embed with ![label](file) or ![[file]] and build with --embed-attachments; plain links only link."
+    },
+    "print": {
+      "type": "object",
+      "additionalProperties": false,
+      "default": {"paper": "A4", "margin": "20mm"},
+      "description": "Manifest only: paper and margin of the paged and PDF projections. Omitted keys use the defaults.",
+      "properties": {
+        "paper": {"type": "string", "pattern": "^\\S+$", "description": "A paper name from configuration's report.print.paperSizes, portrait."},
+        "margin": {"type": "string", "pattern": "^[0-9]+(\\.[0-9]+)?mm$", "description": "Margin on every side, in millimetres, for example 20mm; limits come from configuration."}
+      }
+    },
+    "cssSnippets": {
+      "type": "array",
+      "uniqueItems": true,
+      "default": [],
+      "description": "Manifest only: CSS snippet names, without .css, loaded in this order from the configured snippet folder (Obsidian's .obsidian/snippets by default).",
+      "items": {"type": "string", "pattern": "^[^./\\\\][^/\\\\]*$"}
+    },
+    "query": {
+      "default": {"scope": "chapters"},
+      "description": "Manifest: the global Filter's query profile, or one internal note link to a note declaring it (input-model).",
+      "oneOf": [
+        {"$ref": "#/$defs/queryProfile"},
+        {"type": "string", "pattern": "^\\[\\[[^\\]|#]+(?:\\|[^\\]]+)?\\]\\]$"}
+      ]
+    }
+  },
+  "$defs": {
+    "queryProfile": {
+      "type": "object", "additionalProperties": false,
+      "properties": {
+        "scope": {"enum": ["chapters", "records"]},
+        "where": {
+          "type": "array", "minItems": 1, "maxItems": 16,
+          "items": {
+            "type": "object", "additionalProperties": false, "required": ["field"],
+            "properties": {
+              "field": {"type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[A-Za-z][A-Za-z0-9_.-]*$"},
+              "equals": {"type": "string", "minLength": 1, "maxLength": 256},
+              "exists": {"const": true}
+            },
+            "oneOf": [
+              {"required": ["equals"], "not": {"required": ["exists"]}},
+              {"required": ["exists"], "not": {"required": ["equals"]}}
+            ]
+          }
+        },
+        "fields": {
+          "type": "array", "maxItems": 128,
+          "items": {
+            "type": "object", "additionalProperties": false, "required": ["field"],
+            "properties": {
+              "field": {"type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[A-Za-z][A-Za-z0-9_.-]*$"},
+              "label": {"type": "string", "minLength": 1, "maxLength": 128},
+              "source": {"oneOf": [
+                {"type": "string", "minLength": 1, "maxLength": 256},
+                {"type": "array", "minItems": 1, "maxItems": 32, "uniqueItems": true,
+                 "items": {"type": "string", "minLength": 1, "maxLength": 256}}
+              ]}
+            }
+          }
+        }
+      }
+    }
+  }
+}
