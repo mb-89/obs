@@ -17,7 +17,8 @@
     return owners.get(path);
   }
   function select(query, projectionKey = "", visiting = new Set()) {
-    population ||= report.records.filter(record => report.matchesFilter(record));
+    // An ignored note is never counted (report.js, selectable); an explicit owner still resolves.
+    population ||= report.records.filter(record => report.selectable(record) && report.matchesFilter(record));
     const cacheKey = JSON.stringify([projectionKey, query.from || "", query.where]);
     if (selections.has(cacheKey)) return selections.get(cacheKey);
     let upstream = population;
