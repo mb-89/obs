@@ -8,7 +8,8 @@ import pytest
 from jsonschema import ValidationError
 
 from obs_html import timings
-from obs_html.cli import main
+from obs_html.cli import DEFAULT_CONFIG, main
+from obs_html.config import load_config
 
 
 class _FixedClock(datetime):
@@ -203,3 +204,52 @@ def test_invalid_baselines_are_rejected(tmp_path, stages, error) -> None:
     path.write_text(json.dumps({"schemaVersion": 1, "stages": stages}), encoding="utf-8")
     with pytest.raises(error):
         timings.load_baselines(path)
+
+
+@pytest.mark.parametrize(
+    ("seconds", "warned"),
+    [(0.04, False),   # +300 % but only +0.03 s: relative threshold alone
+     (10.5, False),   # +0.5 s but only +5 %: absolute threshold alone
+     (16.0, True)],   # +60 % and +6 s: both thresholds
+)
+def test_a_stage_warns_only_above_both_thresholds(seconds, warned) -> None:
+    baselines = {"parse": 0.01, "render": 10.0}
+    stage = "parse" if seconds < 1 else "render"
+    warnings = timings.slower_stages({stage: seconds}, baselines, relative=0.5, absolute_seconds=0.25)
+    assert bool(warnings) == warned
+    if warned:
+        assert warnings == ["stage render took 16.000 s, 60% and 6.000 s over its baseline of 10.000 s."]
+
+
+def test_stages_without_a_baseline_are_not_compared() -> None:
+    assert timings.slower_stages({"figures": 99.0}, {}, relative=0.5, absolute_seconds=0.25) == []
+
+
+@pytest.mark.parametrize("timing", [{"relativeThreshold": 0}, {"absoluteThresholdSeconds": -1},
+                                    {"relativeThreshold": "half"}, {"unknown": 1}])
+def test_invalid_timing_thresholds_are_rejected(tmp_path, timing) -> None:
+    override = tmp_path / "cfg.json"
+    override.write_text(json.dumps({"schemaVersion": 1, "timings": timing}), encoding="utf-8")
+    with pytest.raises(ValidationError):
+        load_config(DEFAULT_CONFIG, override)
+
+
+def test_a_slow_stage_warns_without_failing_the_build(tmp_path, monkeypatch, capsys) -> None:
+    vault = _vault(tmp_path, "alpha", "Body.")
+    (vault / "cfg.json").write_text(json.dumps(
+        {"schemaVersion": 1, "timings": {"relativeThreshold": 0.01, "absoluteThresholdSeconds": 0.000001}},
+    ), encoding="utf-8")
+    monkeypatch.setattr("obs_html.cli.load_baselines", lambda: {"render": 0.0000001})
+    output = tmp_path / "a.html"
+    assert main(["--timings", "--source", str(vault), "--output", str(output)]) == 0
+    captured = capsys.readouterr()
+    assert output.is_file()
+    assert re.search(rf"^Warning: {re.escape(str(output.resolve()))}: stage render took ", captured.err, re.MULTILINE)
+    assert "Warning:" not in captured.out
+
+
+def test_without_timings_no_baseline_warnings(tmp_path, monkeypatch, capsys) -> None:
+    vault = _vault(tmp_path, "alpha", "Body.")
+    monkeypatch.setattr("obs_html.cli.load_baselines", lambda: pytest.fail("baselines read without --timings"))
+    assert main(["--source", str(vault), "--output", str(tmp_path / "a.html")]) == 0
+    assert "baseline" not in capsys.readouterr().err
