@@ -70,6 +70,14 @@
           }}}
         },
         {
+          "description": "A callout: its canonical type and authored title; its children are the parsed body, the same block and inline nodes as chapter content, including nested callouts.",
+          "if": {"properties": {"type": {"const": "callouts"}}},
+          "then": {"properties": {"attrs": {
+            "type": "object", "additionalProperties": false, "required": ["kind", "title"],
+            "properties": {"kind": {"$ref": "#/$defs/id"}, "title": {"type": "string"}}
+          }}}
+        },
+        {
           "if": {"properties": {"type": {"const": "cards-metrics"}}},
           "then": {"properties": {"attrs": {
             "type": "object", "additionalProperties": false, "required": ["source", "spec"],
