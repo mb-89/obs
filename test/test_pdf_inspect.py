@@ -72,3 +72,17 @@ def test_crop_refuses_a_box_it_cannot_cut(printed, tmp_path, capsys, box, proble
     error = capsys.readouterr().err
     assert "obs-html-inspect crop: --box" in error and problem in error and "Remedy:" in error
     assert not (tmp_path / "x.png").exists()
+
+
+def test_text_prints_the_page_text_in_reading_order(printed, capsys) -> None:
+    pdf_inspect.main(["text", str(printed), "--page", "1"])
+    lines = capsys.readouterr().out.splitlines()
+    assert lines.index("Fixture document") < lines.index("Authors") < lines.index("Ada, Lin")
+    assert not any("\r" in line for line in lines)
+
+
+def test_text_writes_the_named_file(printed, tmp_path, capsys) -> None:
+    output = tmp_path / "page-1.txt"
+    pdf_inspect.main(["text", str(printed), "--page", "1", "--output", str(output)])
+    assert "Fixture document\n" in output.read_text(encoding="utf-8")
+    assert capsys.readouterr().out == f"Wrote {output} (page 1 text).\n"
