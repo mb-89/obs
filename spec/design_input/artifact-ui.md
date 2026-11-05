@@ -1381,10 +1381,12 @@ change since it was opened or last saved.
   committed property edit. Only content edits move the document's generation `timestamp`.
 - A review edit is a change: a comment, a reply or a review decision. It is not a content
   edit and leaves the `timestamp` unchanged.
-- Reader state is never a change: filters, view selections, table columns and their widths,
+- Reader state is never a change: filters, view selections, table columns,
   sorting, grouping, pagination, open or closed panels and bars, navigation, scrolling and
   appearance. It raises neither the changed-HTML entry nor the unload warning, also where a
   saved copy persists it; the applied filter has its own information entry.
+- A resized column width is session-only view state: it is never saved, never a change and
+  not reader state.
 - Returning every change to its state when opened or last saved leaves no change.
 
 ## Content sections
