@@ -37,7 +37,7 @@
       "description": "The node types every adapter renders, whatever capabilities it declares: Markdown's own blocks and inline marks (capabilities/markdown) and frontmatter fields (capabilities/markdown-frontmatter).",
       "enum": [
         "document", "section", "paragraph", "text", "list", "list-item", "code", "quote",
-        "table", "table-row", "table-cell", "emphasis", "strong", "strikethrough", "math", "field"
+        "table", "table-row", "table-cell", "emphasis", "strong", "strikethrough", "math", "field", "rule"
       ]
     },
     "node": {
@@ -53,6 +53,11 @@
           "description": "Containers that carry no attributes: a quotation's blocks, a table's rows, a row's cells, and a mark's inline nodes.",
           "if": {"properties": {"type": {"enum": ["quote", "table", "table-row", "emphasis", "strong", "strikethrough"]}}},
           "then": {"properties": {"attrs": {"maxProperties": 0}}}
+        },
+        {
+          "description": "A thematic break: no attributes and no children.",
+          "if": {"properties": {"type": {"const": "rule"}}},
+          "then": {"properties": {"attrs": {"maxProperties": 0}, "children": {"maxItems": 0}}}
         },
         {
           "description": "A table cell: whether it is a header cell and its authored alignment; its children are inline nodes.",

@@ -668,3 +668,40 @@ def test_every_capability_the_core_emits_has_a_capability_note(tmp_path) -> None
 
     assert "property-editors" in emitted
     assert emitted - notes == set()
+
+
+def test_a_thematic_break_yields_a_rule_node(tmp_path) -> None:
+    vault = tmp_path / "vault"
+    vault.mkdir()
+    (vault / "manifest.md").write_text("- [[chapter]]\n", encoding="utf-8")
+    (vault / "chapter.md").write_text(
+        "Before.\n\n---\n\nBetween.\n\n***\n\n___\n\n> Quoted.\n>\n> ---\n",
+        encoding="utf-8",
+    )
+
+    document = build_document(vault / "manifest.md", capability_reference())
+
+    validate(document, json.loads((ROOT / "src" / "obs" / "document.schema.json").read_text(
+        encoding="utf-8",
+    )))
+    rule = {"type": "rule", "attrs": {}, "children": []}
+    content = document["chapters"][0]["content"][2:]
+    assert [node["type"] for node in content] == [
+        "paragraph", "rule", "paragraph", "rule", "rule", "quote",
+    ]
+    assert content[1] == rule
+    assert content[-1]["children"][-1] == rule
+    assert "rule" in STRUCTURAL_NODE_TYPES
+
+
+def test_a_rule_document_node_has_no_attrs_and_no_children() -> None:
+    schema = json.loads((ROOT / "src" / "obs" / "document.schema.json").read_text(encoding="utf-8"))
+    node_schema = {"$defs": schema["$defs"], "$ref": "#/$defs/node"}
+    validate({"type": "rule", "attrs": {}, "children": []}, node_schema)
+    with pytest.raises(ValidationError):
+        validate({"type": "rule", "attrs": {"style": "dashed"}, "children": []}, node_schema)
+    with pytest.raises(ValidationError):
+        validate({"type": "rule", "attrs": {}, "children": [
+            {"type": "text", "attrs": {}, "children": [], "text": "x"},
+        ]}, node_schema)
+
