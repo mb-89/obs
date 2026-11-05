@@ -58,8 +58,10 @@ def fetch_remote(url: str) -> tuple[bytes, str | None]:
     """The bytes at a URL and the media type its server names; the build's one network read.
 
     Tests replace this function, so no test reaches the network. Raises OSError or ValueError.
+    Some image hosts refuse urllib's default user agent, so the request names the core.
     """
-    with urllib.request.urlopen(url, timeout=FETCH_TIMEOUT_SECONDS) as response:
+    request = urllib.request.Request(url, headers={"User-Agent": "obs-document"})
+    with urllib.request.urlopen(request, timeout=FETCH_TIMEOUT_SECONDS) as response:
         media_type = response.headers.get_content_type() if response.headers.get("Content-Type") else None
         return response.read(), media_type
 
