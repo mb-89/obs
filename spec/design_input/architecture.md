@@ -39,6 +39,24 @@ Measure separate acquisition, parsing/validation, link
 resolution, semantic projection, rendering, serialization/compression and packaging
 costs rather than treating all conversion as one opaque phase.
 
+### Build stage timings
+
+The named build stages are registered once, in `src/obs_html/timings.py`; the
+`--timings` help, the timing output and the baseline file read that registry, and an
+unregistered stage name is an error. Stages are non-overlapping: a nested stage
+pauses its enclosing one, so a build's stage durations sum to at most its total.
+Producers (silent `cmd` fences) are their own stage, timed before conversion.
+
+Per-stage baselines live in one committed data file,
+`src/obs_html/timing-baselines.json`, validated by its adjacent
+`timing-baselines.schema.json`: an object of stage name to baseline seconds for a
+build of this repository's own spec. A stage without a baseline is not compared.
+
+With `--timings`, a document stage that exceeds its baseline by both the relative and
+the absolute threshold of the [[configuration]] `timings` section prints a warning to
+stderr; it never fails the build. Either threshold alone stays silent, so small stages
+and small absolute changes do not cause noise.
+
 ## Core attachment metadata
 
 The core already provides the neutral Document contract, vault and asset resolution,

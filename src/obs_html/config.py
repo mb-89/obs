@@ -35,6 +35,8 @@ class Config:
     style_folder: str | None
     command_timeout_seconds: int
     rendered_check_timeout_seconds: int
+    timing_relative_threshold: float
+    timing_absolute_threshold_seconds: float
     facet_distinct_ratio: float
     filter_presets: tuple[FilterPreset, ...]
     bordered_tags: tuple[str, ...]
@@ -79,6 +81,8 @@ def load_config(config_path: Path, override_path: Path | None = None) -> Config:
         style_folder=config["input"]["styleFolder"],
         command_timeout_seconds=config["execution"]["commandTimeoutSeconds"],
         rendered_check_timeout_seconds=config["execution"]["renderedCheckTimeoutSeconds"],
+        timing_relative_threshold=config["timings"]["relativeThreshold"],
+        timing_absolute_threshold_seconds=config["timings"]["absoluteThresholdSeconds"],
         facet_distinct_ratio=config["report"]["facetDistinctRatio"],
         bordered_tags=tuple(config["report"].get("borderedTags", [])),
         table_page_size=config["report"]["tablePageSize"],
