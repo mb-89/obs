@@ -2,6 +2,12 @@
 
 Obsidian-compatible Markdown is the single point of truth, rendered to HTML and other formats.
 
+This one repository holds the core, which resolves a vault into a JSON Document, and its
+integrated output adapters under `adapters/`; the first is the HTML adapter in
+[adapters/html](adapters/html/README.md), run as `uv run obs-html`. Until the cutover, the
+interim adapter `obs-html-interim` still builds artifacts directly from a vault. The
+[Repository layout](spec/design_input/architecture.md#repository-layout) owns the structure.
+
 ## Install and run
 
 Run the platform wrapper from the project folder:
@@ -20,13 +26,20 @@ Follow [AGENTS.md](AGENTS.md) and the [testing policy](spec/design_input/quality
 
 ```powershell
 uv run pytest test/test_content.py -k paragraph
-uv run obs-html --help
+uv run obs-html-interim --help
 ```
 
 Browser tests use the local DOM adapter:
 
 ```powershell
 npm --prefix test/browser ci
+npm --prefix adapters/html/test/browser ci
+```
+
+The complete suite, the core's and every adapter's, runs with one command:
+
+```powershell
+uv run python test/suite.py
 ```
 
 ## Design and reference
