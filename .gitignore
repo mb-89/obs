@@ -1,0 +1,15 @@
+# Generated reports
+/data/data_output/*
+!/data/data_output/.gitkeep
+/spec/design_output/*
+!/spec/design_output/.gitkeep
+
+# Local Python state
+/.pytest_cache/
+/src/.venv/
+**/__pycache__/
+*.py[cod]
+/test/browser/node_modules/
+
+# Worktree-local worker queues
+/.se/
