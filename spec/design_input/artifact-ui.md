@@ -107,6 +107,13 @@ failures have their form in [[input-model#Chapter content]].
   Choosing an appearance updates every semantic token, including browser-native controls,
   without changing content or individual component rules.
 
+  The root's `color-scheme` is the chosen appearance: `light`, `dark`, or `light dark` for
+  System; no `color-scheme` meta overrides it. `html` and `body` paint an opaque background
+  and a text colour from the semantic tokens in every appearance, so nothing the reader sees
+  inherits a colour from the host, such as Claude's artifact viewer in a dark scheme. Light is
+  a white page with black text; Dark is a near-black page with white headings, light grey body
+  text and thin grey rules. The token values are owned by [[semantic-assets]].
+
   Every opening starts in Light appearance and in the manifest's declared `obsHtml.layout`
   (paged by default), regardless of the operating-system theme or previously selected reader
   appearance. Reader controls may switch appearance and viewing mode during the current
@@ -875,6 +882,11 @@ separate from artifact presentation.
 
   Keep the shell responsive between substantial initialization steps; scheduling
   all expensive work before the browser can paint is not progressive loading.
+  Startup runs in slices: a step yields to the browser once its slice has run as long
+  as a browser long task (50 ms), and only then waits until the browser has painted a
+  frame; steps within a slice do not wait for frames. The first chapter is painted within 1 s of opening the
+  spec artifact on the test machine; `test_startup_browser.py` holds that budget and
+  names the slowest startup steps when it is missed.
   Initialize nonvisible/unused views when needed and reuse existing caches rather
   than moving an unchanged whole-artifact calculation onto the first interaction.
 
@@ -1138,7 +1150,8 @@ separate from artifact presentation.
   second click or Escape closes. The icons sit in the [[#Reading shell|top band]].
 
   Changed HTML and the applied filter are information, each limited capability is a
-  warning, and errors are reserved for real failures. Notices are transient UI, not printed
+  warning, as is each Document node type the artifact shows only as plain text
+  ([[architecture]]), and errors are reserved for real failures. Notices are transient UI, not printed
   content or a dirty warning embedded into a newly reopened saved HTML. The entries, icons
   and layout are owned by obs-html's `notices.js`, not repeated here.
 

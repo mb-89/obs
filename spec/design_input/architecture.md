@@ -92,6 +92,10 @@ JSON capability reference for their definitions and dependencies. Its schema and
 adapter-manifest schema are the executable owners of the exchanged shape.
 Its `records` are owned by [[capabilities/bases#Note records|Note records]].
 
+An adapter never parses Markdown: what the author wrote arrives as nodes, metadata values
+included ([[capabilities/markdown#Document nodes]],
+[[capabilities/markdown-frontmatter#Document node]]).
+
 The boundary has no Python types, package entry points, application names, or
 output-format terms. An implementation may change language without changing either
 JSON contract.
@@ -138,8 +142,9 @@ and optional `text`.
 Its fixed structural types are the Markdown blocks and inline marks every adapter renders,
 listed by `document.schema.json` (`structuralType`) and described in
 [[capabilities/markdown#Document nodes]]. Every other type is a capability identifier.
-An adapter never drops a node whose type it does not know: it shows the node's text and
-warns once per type, naming itself and the remedy, so a newer core's types degrade to text.
+An adapter never drops a node whose type it does not know: it shows the node's text plain and
+raises one warning per type ("limited function", not an error) that names the type, itself and
+the remedy, so a newer core's types degrade to text.
 For each recognized input capability, the core emits an in-place, schema-validated
 capability node containing only its authored data; it neither executes commands nor
 creates presentation output.
