@@ -122,3 +122,21 @@ def test_a_resized_bar_follows_the_pointer(artifact_page, width, side) -> None:
     inner = {"right": edge["x"], "left": edge["x"] + edge["width"], "top": edge["y"] + edge["height"]}[side]
     pointer = x + shift[0] if side != "top" else y + shift[1]
     assert abs(inner - pointer) <= 1, f"test/test_artifact_browser.py: the {side} bar's edge is at {inner}, the pointer at {pointer}"
+
+
+@pytest.mark.parametrize("paged", [False, True])
+def test_review_gutters_stay_clear_of_the_previous_arrow(artifact_page, paged) -> None:
+    """Review mode's gutters (Accept, Reject, Reset) start beyond Previous's pointer area, so
+    neither covers the other wherever an item scrolls."""
+    artifact_page.set_viewport_size({"width": 1100, "height": 800})
+    artifact_page.evaluate(f"obsPages.setPaged({str(paged).lower()}); obsArtifact.openBar('comments', 'right')")
+    artifact_page.wait_for_selector(".review-mode .review-gutter")
+    arrow = artifact_page.locator(".chapter-nav-zone--previous").bounding_box()
+    gutters = artifact_page.eval_on_selector_all(
+        ".review-gutter", "gutters => gutters.filter((gutter) => gutter.checkVisibility())"
+        ".map((gutter) => gutter.getBoundingClientRect().left)")
+    assert gutters, "test/test_artifact_browser.py: the fixture shows no review gutter"
+    reach = arrow["x"] + arrow["width"]
+    assert min(gutters) >= reach - 0.5, (
+        f"test/test_artifact_browser.py: a review gutter starts at {min(gutters)}px, inside "
+        f"Previous's pointer area, which ends at {reach}px")
