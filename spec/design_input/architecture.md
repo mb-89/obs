@@ -138,8 +138,9 @@ and optional `text`.
 Its fixed structural types are the Markdown blocks and inline marks every adapter renders,
 listed by `document.schema.json` (`structuralType`) and described in
 [[capabilities/markdown#Document nodes]]. Every other type is a capability identifier.
-An adapter never drops a node whose type it does not know: it shows the node's text and
-warns once per type, naming itself and the remedy, so a newer core's types degrade to text.
+An adapter never drops a node whose type it does not know: it shows the node's text plain and
+raises one warning per type ("limited function", not an error) that names the type, itself and
+the remedy, so a newer core's types degrade to text.
 For each recognized input capability, the core emits an in-place, schema-validated
 capability node containing only its authored data; it neither executes commands nor
 creates presentation output.
