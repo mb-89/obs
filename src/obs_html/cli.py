@@ -14,6 +14,8 @@ from typing import Sequence
 from obs_html.commands import CommandError, run_command
 from obs_html.comments import CommentError, extract_comments
 from obs_html.config import ConfigError, load_config
+from obs_html.figure_svg import document_figures, figure_svg
+from obs_html.figures import FigureError
 from obs_html.render import RenderError, render
 from obs_html.report_data import same_document_content
 from obs_html.timings import recording, stage
@@ -41,6 +43,12 @@ Trusted runtime:
   bundle (a regular .js file, not a link) and embeds it in the HTML after the report
   runtime. The Document itself can never opt into executable code.
 
+Figures:
+  DOCUMENT --export-figures FOLDER writes each figure of the Document as a standalone SVG,
+  FOLDER/<chapter>--figure-<id>.svg, named like the figure's anchor in the HTML report. The
+  same figure descriptor always gives the same bytes, so exports can be committed, diffed and
+  cached; unchanged files are not rewritten and other files in FOLDER are left alone.
+
 Comments:
   --extract-comments HTML reads the comment JSON island of a returned, reviewed report
   without executing its scripts and prints deterministic comment candidates to stdout.
@@ -65,6 +73,7 @@ Examples:
   obs-html --export-pdf document.html --output document.pdf
   obs-html --check-rendered document.html
   obs-html --extract-comments reviewed.html
+  obs-html document.json --export-figures figures
 
 Exit status:
   0: success (including --help); 2: invalid options, input or operation failure.
@@ -94,6 +103,8 @@ def build_parser() -> argparse.ArgumentParser:
                              "replaces the packaged generic style.")
     parser.add_argument("--trusted-runtime-bundle", metavar="ID=PATH",
                         help="Embed one explicitly trusted local JavaScript bundle.")
+    parser.add_argument("--export-figures", type=Path, metavar="FOLDER",
+                        help="Write each figure of DOCUMENT as a byte-stable SVG into FOLDER.")
     parser.add_argument("--extract-comments", type=Path, metavar="HTML",
                         help="Print comment candidates from a returned, reviewed report.")
     parser.add_argument("--export-pdf", type=Path, metavar="HTML", help="Print existing HTML to PDF.")
@@ -113,6 +124,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         with recording() as recorded:
             if options.extract_comments:
                 _extract(parser, options)
+            elif options.export_figures:
+                _export_figures(parser, options)
             elif options.check_rendered or options.export_pdf:
                 _browser_operation(parser, options, config)
             else:
@@ -222,10 +235,34 @@ def _trusted_runtime(parser: argparse.ArgumentParser, bundle: str | None) -> tup
     return runtime_id, path.read_text(encoding="utf-8")
 
 
+def _export_figures(parser: argparse.ArgumentParser, options: argparse.Namespace) -> None:
+    if (options.document is None or options.destination or options.check or options.execute_commands
+            or options.command_root or options.style or options.trusted_runtime_bundle
+            or options.export_pdf or options.check_rendered or options.output):
+        parser.error("--export-figures takes only DOCUMENT: obs-html DOCUMENT --export-figures FOLDER.")
+    try:
+        document = json.loads(options.document.read_text(encoding="utf-8"))
+    except json.JSONDecodeError as error:
+        raise RenderError(f"Invalid Document {options.document}: {error}") from error
+    folder = options.export_figures.resolve()
+    exported = 0
+    for name, descriptor in document_figures(document):
+        try:
+            svg = figure_svg(descriptor)
+        except FigureError as error:
+            raise RenderError(f"{options.document} ({name}): {error}") from error
+        _write_if_changed(folder / f"{name}.svg", svg.encode("utf-8"))
+        exported += 1
+    if not exported:
+        raise RenderError(f"Document {options.document} has no figure-descriptor node, so there is "
+                          "nothing to export; author a figure fence with a FigureDescriptor.")
+    print(f"Exported {exported} figure{'' if exported == 1 else 's'} to {folder}.")
+
+
 def _extract(parser: argparse.ArgumentParser, options: argparse.Namespace) -> None:
     if any((options.document, options.destination, options.check, options.execute_commands,
             options.command_root, options.style, options.trusted_runtime_bundle,
-            options.export_pdf, options.check_rendered, options.output)):
+            options.export_pdf, options.check_rendered, options.output, options.export_figures)):
         parser.error("--extract-comments is a separate operation without DOCUMENT.")
     print(extract_comments(options.extract_comments.resolve()), end="")
 
