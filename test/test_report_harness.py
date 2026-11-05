@@ -65,3 +65,11 @@ def test_harness_loads_the_report_data(report: Path, tmp_path: Path) -> None:
     assert [note["slug"] for note in data["notes"]][:3] == ["home", "intro", "items"]
     assert data["tables"] == [{"note": "items", "key": TABLE}]
     assert data["paper"] == LETTER
+
+
+def test_harness_activates_a_chapter(report: Path, tmp_path: Path) -> None:
+    [active] = run_harness(report, tmp_path, {"step": "activate", "chapter": "intro"})
+    assert active == {"chapter": "intro", "hash": "#intro", "title": "Intro"}
+    error = run_harness(report, tmp_path, {"step": "activate", "chapter": "missing"}, check=False)
+    assert 'report-harness.cjs: activate: the report has no chapter "missing".' in error
+    assert "Remedy:" in error
