@@ -426,8 +426,7 @@ def test_native_local_filter_warning_clear_is_scoped_and_survives_continuations(
         expect(first.locator('[aria-label="Filter table"]')).to_have_value("")
         page.evaluate("obsFilter.selectExpression('kind: relation'); obsPages.setPaged(true)")
         projections = page.locator('.paged-reader [data-data-table="chapter-base-2"]')
-        # A wide table stays whole on screen, like every table.
-        assert projections.count() == 1
+        assert projections.count() > 1
         assert projections.evaluate_all("""nodes => nodes.every(node =>
             node.dataset.filterActive === 'true' &&
             node.querySelector('[data-table-filter-warning]') &&
@@ -602,7 +601,7 @@ def test_native_continuation_numbering_and_resize_from_last_sheet(tmp_path, read
         page.evaluate("obsReport.whenChapterReady()")
         assert page.locator(".paged-reader .paper-page-number").all_text_contents() == initial_labels
         projections = page.locator('.paged-reader [data-data-table="chapter-base-1"]')
-        assert projections.count() == 1
+        assert projections.count() > 1
         initial_fragments = projections.count()
         handles = projections.last.get_by_role("separator", name="Resize Subject", exact=True)
         handles.scroll_into_view_if_needed()
@@ -691,7 +690,7 @@ def test_native_frozen_table_allocation_survives_detail_growth_and_pdf(tmp_path,
             key: page.locator(f'.paged-reader [data-data-table="{key}"]').count()
             for key in ("chapter-base-1", "chapter-base-2")
         }
-        assert set(fragments.values()) == {1}
+        assert min(fragments.values()) > 1
         row = page.locator(
             '.paged-reader [data-data-table="chapter-base-1"] [data-row-key="note:relation-064"]',
         )
@@ -739,7 +738,7 @@ def test_native_frozen_table_allocation_survives_detail_growth_and_pdf(tmp_path,
         page.pdf(path=str(pdf), prefer_css_page_size=True)
         document = PdfReader(pdf)
         assert len(document.pages) == print_sheets
-        assert {page.mediabox.width > page.mediabox.height for page in document.pages} == {False}
+        assert {page.mediabox.width > page.mediabox.height for page in document.pages} == {True, False}
         assert "Stable detail 23:" in "\n".join(page.extract_text() for page in document.pages)
         page.evaluate("window.dispatchEvent(new Event('afterprint'))")
         assert page.locator(".paged-reader .paper-page-number").all_text_contents() == initial

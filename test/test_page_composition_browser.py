@@ -1,5 +1,4 @@
-"""Small native proofs of explicit columns and constant physical paper boxes."""
-from importlib.resources import files
+"""Small native proofs of explicit columns and mixed physical paper boxes."""
 from io import BytesIO
 import json
 import os
@@ -232,88 +231,113 @@ def test_native_compact_heading_opens_the_only_page_of_a_home_only_document(
     ("{paper: Letter, margin: 14mm}",
      {"widthMillimeters": 215.9, "heightMillimeters": 279.4, "marginMillimeters": 14}, True),
 ])
-def test_native_wide_tables_keep_page_size_and_count_and_use_the_margins(
+def test_native_wide_table_continuations_and_real_mixed_pdf_boxes(
     tmp_path, composition_browser, print_profile, paper, wrapper,
 ):
     from pypdf import PdfReader
 
-    edge = json.loads(files("obs_html").joinpath("cfg.json").read_text(encoding="utf-8"))[
-        "report"]["print"]["wideTableEdgeMillimeters"]
-    points = 72 / 25.4
-    width, height = paper["widthMillimeters"], paper["heightMillimeters"]
     page = composition_browser.new_page(viewport={"width": 1600, "height": 1000})
     errors = []
     page.on("pageerror", lambda error: errors.append(str(error)))
-    printed = {}
     try:
-        for wide in (False, True):
-            folder = tmp_path / ("wide" if wide else "narrow")
-            folder.mkdir()
-            page.goto(_report(folder, wide=wide, print_profile=print_profile, wrapper=wrapper).as_uri()
-                      + "#chapter")
-            screen_widths = page.locator(".paged-reader .paper-sheet").evaluate_all(
-                "nodes => nodes.map(node => Math.round(node.getBoundingClientRect().width))")
-            assert len(set(screen_widths)) == 1
-            if wide:
-                assert page.locator(".paged-reader [data-table-wide='true']").count() == 1
-            page.evaluate("window.print = () => {}; obsPages.exportPDF()")
-            page.emulate_media(media="print")
-            if wide:
-                boxes = page.locator(".print-book [data-table-wide='true']").evaluate_all("""nodes =>
-                    nodes.map(node => {
-                        const sheet = node.closest('.paper-sheet').getBoundingClientRect();
-                        const content = node.closest('.paper-content').getBoundingClientRect();
-                        const cells = [...node.querySelectorAll('th,td')].map(cell => cell.getBoundingClientRect());
-                        return {
-                            sheetLeft: sheet.left, sheetRight: sheet.right, millimetre: sheet.width / %s,
-                            contentWidth: content.width,
-                            left: Math.min(...cells.map(cell => cell.left)),
-                            right: Math.max(...cells.map(cell => cell.right)),
-                            headers: node.querySelectorAll('thead th').length,
-                            rows: node.querySelectorAll('tbody tr').length,
-                        };
-                    })""" % width)
-                assert len(boxes) > 1
-                for box in boxes:
-                    assert box["headers"] == 4 and box["rows"] > 0
-                    assert box["right"] - box["left"] > box["contentWidth"] + 1
-                    assert box["left"] == pytest.approx(box["sheetLeft"] + edge * box["millimetre"], abs=2)
-                    assert box["right"] == pytest.approx(box["sheetRight"] - edge * box["millimetre"], abs=2)
-                assert page.locator(".print-book p").filter(has_text="PORTRAIT-BEFORE").evaluate(
-                    "node => node.closest('.paper-sheet').querySelector('[data-table-wide] tbody tr') !== null",
+        page.goto(_report(tmp_path, wide=True, print_profile=print_profile, wrapper=wrapper).as_uri() + "#chapter")
+        tables = page.locator(".paged-reader [data-table-wide='true']")
+        assert tables.count() > 1
+        assert tables.evaluate_all("""nodes => nodes.every(node =>
+            node.closest('.paper-sheet').dataset.pageOrientation === 'landscape' &&
+            node.querySelectorAll('thead th').length === 4 &&
+            node.querySelector('tbody tr'))""")
+        assert page.locator(".paged-reader p").filter(has_text="PORTRAIT-BEFORE").evaluate(
+            "node => node.closest('.paper-sheet').dataset.pageOrientation",
+        ) == "portrait"
+        assert page.locator(".paged-reader p").filter(has_text="PORTRAIT-AFTER").evaluate(
+            "node => node.closest('.paper-sheet').dataset.pageOrientation",
+        ) == "portrait"
+        page.evaluate("window.print = () => {}; obsPages.exportPDF()")
+        page.emulate_media(media="print")
+        sheets = page.locator(".print-book .paper-sheet").evaluate_all("""nodes => nodes.map(node => ({
+            orientation: node.dataset.pageOrientation,
+            width: node.getBoundingClientRect().width, height: node.getBoundingClientRect().height,
+            fits: node.scrollWidth <= node.clientWidth + 1 &&
+                node.querySelector('.paper-content').scrollHeight <=
+                node.querySelector('.paper-content').clientHeight + 1,
+        }))""")
+        assert all(sheet["fits"] for sheet in sheets)
+        assert page.locator(".print-book [data-table-wide='true']").count() > 1
+        assert page.locator(".print-book [data-table-wide='true']").evaluate_all("""nodes =>
+            nodes.every(node => node.querySelectorAll('thead th').length === 4 &&
+                node.querySelector('tbody tr') &&
+                [...node.querySelectorAll('th,td')].every(cell => {
+                    const box = cell.getBoundingClientRect();
+                    const area = cell.closest('.paper-content').getBoundingClientRect();
+                    return box.left >= area.left - 1 && box.right <= area.right + 1;
+                }))""")
+        assert page.locator(".print-book h2").filter(has_text=re.compile("^Matrix$")).evaluate(
+            "node => node.closest('.paper-sheet').querySelector('[data-table-wide] tbody tr') !== null",
+        )
+        if wrapper:
+            assert page.locator(".print-book .table-caption").evaluate(
+                "node => node.closest('.paper-sheet').querySelector('[data-table-wide] tbody tr') !== null",
+            )
+        pdf_bytes = page.pdf(prefer_css_page_size=True, print_background=True)
+        (tmp_path / "mixed-orientation.pdf").write_bytes(pdf_bytes)
+        pdf = PdfReader(BytesIO(pdf_bytes))
+        assert len(pdf.pages) == len(sheets)
+        width, height = paper["widthMillimeters"], paper["heightMillimeters"]
+        assert page.evaluate("obsPages.printMediaBoxes") == [
+            {"widthMillimeters": height if sheet["orientation"] == "landscape" else width,
+             "heightMillimeters": width if sheet["orientation"] == "landscape" else height}
+            for sheet in sheets
+        ]
+        landscape = []
+        for index, (physical, sheet) in enumerate(zip(pdf.pages, sheets)):
+            expected = (height, width) if sheet["orientation"] == "landscape" else (width, height)
+            assert float(physical.mediabox.width) == pytest.approx(expected[0] * 72 / 25.4, abs=1)
+            assert float(physical.mediabox.height) == pytest.approx(expected[1] * 72 / 25.4, abs=1)
+            if expected[0] > expected[1]:
+                landscape.append(index)
+                assert "ID" in physical.extract_text() and "Title" in physical.extract_text()
+                labels = []
+
+                def position(text, cm, tm, _font, size):
+                    if "ID-" in text or "Visible title" in text:
+                        labels.append((
+                            text, tm[4] * cm[0] + tm[5] * cm[2] + cm[4],
+                            tm[4] * cm[1] + tm[5] * cm[3] + cm[5],
+                            size * abs(cm[0]),
+                        ))
+
+                physical.extract_text(visitor_text=position)
+                margin = paper["marginMillimeters"] * 72 / 25.4
+                assert min(x for text, x, _y, _size in labels if "ID-" in text) == pytest.approx(
+                    margin + 5, abs=2,
                 )
-                if wrapper:
-                    assert page.locator(".print-book .table-caption").evaluate(
-                        "node => node.closest('.paper-sheet').querySelector('[data-table-wide] tbody tr') !== null",
-                    )
-            pdf_bytes = page.pdf(prefer_css_page_size=True, print_background=True)
-            (tmp_path / f"{folder.name}.pdf").write_bytes(pdf_bytes)
-            printed[wide] = PdfReader(BytesIO(pdf_bytes))
-            page.emulate_media(media="screen")
-        assert len(printed[True].pages) == len(printed[False].pages)
-        for physical in printed[True].pages:
-            assert float(physical.mediabox.width) == pytest.approx(width * points, abs=1)
-            assert float(physical.mediabox.height) == pytest.approx(height * points, abs=1)
-            labels = []
+                assert all(
+                    margin <= x <= float(physical.mediabox.width) - margin
+                    and margin <= y <= float(physical.mediabox.height) - margin
+                    and size >= 8.9
+                    for _text, x, y, size in labels
+                )
             glyph_scales = []
 
-            def visit(text, cm, tm, _font, size):
-                if "ID-" in text or "Visible title" in text:
-                    labels.append((text, tm[4] * cm[0] + tm[5] * cm[2] + cm[4], size * abs(cm[0])))
+            def glyph_geometry(text, cm, tm, _font, _size):
                 if text.strip():
-                    x = (cm[0] * tm[0] + cm[2] * tm[1], cm[1] * tm[0] + cm[3] * tm[1])
-                    y = (cm[0] * tm[2] + cm[2] * tm[3], cm[1] * tm[2] + cm[3] * tm[3])
-                    glyph_scales.append((sum(v * v for v in x) / sum(v * v for v in y)) ** 0.5)
+                    x = (cm[0] * tm[0] + cm[2] * tm[1],
+                         cm[1] * tm[0] + cm[3] * tm[1])
+                    y = (cm[0] * tm[2] + cm[2] * tm[3],
+                         cm[1] * tm[2] + cm[3] * tm[3])
+                    glyph_scales.append((sum(v * v for v in x) /
+                                         sum(v * v for v in y)) ** 0.5)
 
-            physical.extract_text(visitor_text=visit)
-            assert glyph_scales and all(scale == pytest.approx(1, abs=0.01) for scale in glyph_scales)
-            if labels:
-                assert min(x for text, x, _size in labels if "ID-" in text) == pytest.approx(
-                    edge * points + 5, abs=2,
-                )
-                assert all(edge * points <= x <= (width - edge) * points and size >= 8.9
-                           for _text, x, size in labels)
-        text = "\n".join(p.extract_text() for p in printed[True].pages)
+            physical.extract_text(visitor_text=glyph_geometry)
+            assert glyph_scales and all(
+                scale == pytest.approx(1, abs=0.01) for scale in glyph_scales
+            ), glyph_scales
+        assert len(landscape) > 1
+        assert landscape == list(range(min(landscape), max(landscape) + 1))
+        assert any("PORTRAIT-BEFORE" in p.extract_text() for p in pdf.pages[:min(landscape)])
+        assert any("PORTRAIT-AFTER" in p.extract_text() for p in pdf.pages[max(landscape) + 1:])
+        text = "\n".join(p.extract_text() for p in pdf.pages)
         assert all(f"ID-{index:03d}" in text and f"Visible title {index:03d}" in text for index in range(90))
         assert errors == []
     finally:
@@ -566,8 +590,7 @@ def test_live_wide_rows_keep_identity_and_recompose_after_owner_mutation(tmp_pat
     page = composition_browser.new_page(viewport={"width": 1600, "height": 1000})
     try:
         page.goto(_report(tmp_path, wide=True).as_uri() + "#chapter")
-        # Like every table, a wide table stays whole on screen; its sheet grows instead.
-        assert page.locator(".paged-reader [data-table-wide='true']").count() == 1
+        assert page.locator(".paged-reader [data-table-wide='true']").count() > 1
         page.evaluate("""() => {
             const table = document.querySelector('.paged-reader [data-table-wide]');
             window.originalTable = table;
@@ -601,8 +624,7 @@ def test_live_wide_rows_keep_identity_and_recompose_after_owner_mutation(tmp_pat
             "node => node.closest('.paper-sheet').querySelector('[data-table-wide] tbody tr') !== null",
         )
         assert page.locator(
-            ".paged-reader .paper-sheet-flexible [data-table-wide='true']",
-        ).count() == 1
-        assert page.locator(".paged-reader [data-page-orientation]").count() == 0
+            ".paged-reader .paper-sheet-flexible[data-page-orientation='landscape']",
+        ).count() >= 1
     finally:
         page.close()
