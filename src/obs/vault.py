@@ -23,6 +23,7 @@ from obs.input import (
     validate_count_query,
     validate_note_profile,
     validate_project_config,
+    validate_quantity,
 )
 from obs.selection import IGNORED, base_selects, conditions_select, note_marks
 
@@ -327,6 +328,8 @@ def _split_frontmatter(source: str, path: Path) -> tuple[dict[str, object], str]
         profile = metadata.get("obsHtml")
         if profile is not None:
             validate_note_profile(profile, path)
+        if metadata.get("kind") == "quantity":
+            validate_quantity(metadata, path)
         if "query" in metadata:
             validate_count_query(metadata["query"])
     except InputError as error:
