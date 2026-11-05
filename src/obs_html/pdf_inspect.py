@@ -2,11 +2,14 @@
 from __future__ import annotations
 
 import argparse
+import ctypes
+import json
 import sys
 from pathlib import Path
 from typing import Sequence
 
 import pypdfium2 as pdfium
+import pypdfium2.raw as pdfium_c
 
 PROG = "obs-html-inspect"
 
@@ -17,6 +20,11 @@ Examples:
   obs-html-inspect render document.pdf --page 1 --output page-1.png
   obs-html-inspect crop document.pdf --page 1 --box 72,72,300,200 --output title.png
   obs-html-inspect text document.pdf --page 2
+  obs-html-inspect paths document.pdf --page 2 --output page-2-paths.json
+
+paths prints JSON: the page size and, per path, its bounds, fill and stroke colour (RGBA
+0-255, null when not painted), stroke width, fill rule and segments (move, line, curve with
+two control points and the end point, close). Paths inside form XObjects are included.
 """
 
 
@@ -76,6 +84,104 @@ def page_text(pdf: Path, number: int) -> str:
     return "\n".join(text.replace("\r\n", "\n").replace("\r", "\n").splitlines()) + "\n"
 
 
+Matrix = tuple[float, float, float, float, float, float]
+SEGMENTS = {pdfium_c.FPDF_SEGMENT_MOVETO: "move", pdfium_c.FPDF_SEGMENT_LINETO: "line",
+            pdfium_c.FPDF_SEGMENT_BEZIERTO: "curve"}
+FILL_RULES = {pdfium_c.FPDF_FILLMODE_ALTERNATE: "evenodd", pdfium_c.FPDF_FILLMODE_WINDING: "nonzero"}
+
+
+def _matrix(handle) -> Matrix:
+    raw = pdfium_c.FS_MATRIX()
+    pdfium_c.FPDFPageObj_GetMatrix(handle, raw)
+    return raw.a, raw.b, raw.c, raw.d, raw.e, raw.f
+
+
+def _then(inner: Matrix, outer: Matrix) -> Matrix:
+    """The matrix that applies INNER, then OUTER."""
+    a, b, c, d, e, f = inner
+    A, B, C, D, E, F = outer
+    return a * A + b * C, a * B + b * D, c * A + d * C, c * B + d * D, e * A + f * C + E, e * B + f * D + F
+
+
+def _colour(getter, handle) -> list[int]:
+    channels = [ctypes.c_uint() for _ in range(4)]
+    getter(handle, *channels)
+    return [channel.value for channel in channels]
+
+
+def _path(handle, matrix: Matrix) -> dict:
+    """One path object; MATRIX maps its points to the inspection's coordinates."""
+    a, b, c, d, e, f = matrix
+
+    def point(segment) -> list[float]:
+        x, y = ctypes.c_float(), ctypes.c_float()
+        pdfium_c.FPDFPathSegment_GetPoint(segment, x, y)
+        return [round(a * x.value + c * y.value + e, 3), round(b * x.value + d * y.value + f, 3)]
+
+    segments: list[dict] = []
+    points: list[list[float]] = []
+    curve: list[list[float]] = []
+    for index in range(pdfium_c.FPDFPath_CountSegments(handle)):
+        segment = pdfium_c.FPDFPath_GetPathSegment(handle, index)
+        kind = SEGMENTS[pdfium_c.FPDFPathSegment_GetType(segment)]
+        points.append(point(segment))
+        if kind == "curve":  # pdfium splits a curve into three segments: two control points, the end.
+            curve.append(points[-1])
+            if len(curve) == 3:
+                segments.append({"type": "curve", "points": curve})
+                curve = []
+        else:
+            segments.append({"type": kind, "point": points[-1]})
+        if pdfium_c.FPDFPathSegment_GetClose(segment):
+            segments.append({"type": "close"})
+    fill_mode, stroked = ctypes.c_int(), ctypes.c_int()
+    pdfium_c.FPDFPath_GetDrawMode(handle, fill_mode, stroked)
+    width = ctypes.c_float()
+    pdfium_c.FPDFPageObj_GetStrokeWidth(handle, width)
+    xs, ys = [x for x, _ in points] or [0.0], [y for _, y in points] or [0.0]
+    return {
+        "bounds": [min(xs), min(ys), max(xs), max(ys)],
+        "fill": _colour(pdfium_c.FPDFPageObj_GetFillColor, handle) if fill_mode.value else None,
+        "stroke": _colour(pdfium_c.FPDFPageObj_GetStrokeColor, handle) if stroked.value else None,
+        "strokeWidth": round(width.value, 3) if stroked.value else None,
+        "fillRule": FILL_RULES.get(fill_mode.value),
+        "segments": segments,
+    }
+
+
+def page_paths(pdf: Path, number: int) -> dict:
+    """The vector paths of page NUMBER in points from its top-left corner, as JSON-ready data."""
+    page = _open_page(pdf, number)
+    width, height = page.get_size()
+    if page.get_rotation():
+        raise InspectError(f"{pdf} page {number} is rotated by {page.get_rotation()} degrees; "
+                           f"paths reads unrotated pages only. Remedy: inspect it with render.")
+    left, bottom, _, top = page.get_cropbox()
+    paths: list[dict] = []
+
+    def walk(handles, outer: Matrix) -> None:
+        for handle in handles:
+            kind = pdfium_c.FPDFPageObj_GetType(handle)
+            matrix = _then(_matrix(handle), outer)
+            if kind == pdfium_c.FPDF_PAGEOBJ_PATH:
+                paths.append(_path(handle, matrix))
+            elif kind == pdfium_c.FPDF_PAGEOBJ_FORM:
+                walk([pdfium_c.FPDFFormObj_GetObject(handle, index)
+                      for index in range(pdfium_c.FPDFFormObj_CountObjects(handle))], matrix)
+
+    top_left = (1, 0, 0, -1, -left, top)  # The crop box's top-left corner becomes the origin, y down.
+    walk([pdfium_c.FPDFPage_GetObject(page.raw, index)
+          for index in range(pdfium_c.FPDFPage_CountObjects(page.raw))], top_left)
+    return {"pdf": str(pdf), "page": number, "size": [width, height], "paths": paths}
+
+
+def _paths_json(report: dict) -> str:
+    """The paths report as JSON with one path per line, so it reads and diffs line by line."""
+    head = json.dumps({key: value for key, value in report.items() if key != "paths"})[:-1]
+    lines = ",\n".join(json.dumps(path) for path in report["paths"])
+    return f'{head}, "paths": [\n{lines}\n]}}\n'
+
+
 def _number_list(values: Sequence[float]) -> str:
     return ",".join(f"{value:g}" for value in values)
 
@@ -104,6 +210,11 @@ def _parser() -> argparse.ArgumentParser:
     text.add_argument("--page", type=int, required=True, help="Page number, from 1.")
     text.add_argument("--output", type=Path, metavar="TEXT",
                       help="UTF-8 text file written; without it the text goes to stdout.")
+    paths = commands.add_parser("paths", help="Extract the vector paths of a page as JSON.")
+    paths.add_argument("pdf", type=Path, metavar="PDF", help="PDF to read.")
+    paths.add_argument("--page", type=int, required=True, help="Page number, from 1.")
+    paths.add_argument("--output", type=Path, metavar="JSON",
+                       help="JSON file written; without it the JSON goes to stdout.")
     return parser
 
 
@@ -131,6 +242,10 @@ def main(argv: Sequence[str] | None = None) -> None:
         elif arguments.command == "text":
             _deliver_text(page_text(arguments.pdf, arguments.page), arguments.output,
                           f"page {arguments.page} text")
+        elif arguments.command == "paths":
+            report = page_paths(arguments.pdf, arguments.page)
+            _deliver_text(_paths_json(report), arguments.output,
+                          f"{len(report['paths'])} paths of page {arguments.page}")
     except InspectError as error:
         print(f"{PROG} {arguments.command}: {error}", file=sys.stderr)
         raise SystemExit(2) from None
