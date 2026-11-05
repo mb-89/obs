@@ -2538,11 +2538,14 @@
         updateDockValue(region);
     };
 
-    const sizeFromPointer = (direction, event) => {
-        if (direction === "left") return event.clientX;
-        if (direction === "right") return window.innerWidth - event.clientX;
-        if (direction === "top") return event.clientY;
-        return window.innerHeight - event.clientY;
+    // Measured from the region's outer edge, which is not the window's where a narrow screen
+    // insets an overlaid bar beside the chapter arrows or the filter header sits above it.
+    const sizeFromPointer = (region, direction, event) => {
+        const bounds = region.getBoundingClientRect();
+        if (direction === "left") return event.clientX - bounds.left;
+        if (direction === "right") return bounds.right - event.clientX;
+        if (direction === "top") return event.clientY - bounds.top;
+        return bounds.bottom - event.clientY;
     };
 
     resizeHandles.forEach((handle) => {
@@ -2555,7 +2558,7 @@
         });
         handle.addEventListener("pointermove", (event) => {
             if (!handle.hasPointerCapture(event.pointerId)) return;
-            setDockSize(region, sizeFromPointer(direction, event));
+            setDockSize(region, sizeFromPointer(region, direction, event));
         });
         const finishResize = (event) => {
             if (handle.hasPointerCapture(event.pointerId)) handle.releasePointerCapture(event.pointerId);
