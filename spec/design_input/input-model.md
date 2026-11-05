@@ -27,7 +27,7 @@ Neither API commits canonical data; removing a projection restores canonical fie
 A trusted runtime may likewise project a table's visible columns from its saved view
 selection by dispatching `obs-table-set-columns` on the table host. That projection is
 derived view state: it becomes the table's current default and is not itself saved table
-presentation or a changed-HTML state.
+presentation.
 
 Only explicit reader column or width changes that differ from the current projection are
 retained as reader state, so reopening and
@@ -226,8 +226,7 @@ records; they never execute artifact-owned algorithms in the converter.
   HTML keeps that time. A change that returns the content to its state when opened or
   when last saved restores that state's timestamp, so reverting an edit is not a change.
 
-  Reader state (filters, view selections, columns) and review
-  comments are not content changes and leave it unchanged.
+  [[artifact-ui#What counts as a change]] owns which edits are content changes.
   Structured values are human text, never JSON: one `key: value` pair per line with the
   values aligned in one column, for example:
 
@@ -1470,10 +1469,11 @@ Filter input and open bar. Empty or closed filters reopen unfiltered with the ba
 Invalid input drafts never replace the last valid expression in saved state.
 If a stored expression cannot compile, show it and its error in the open Filter bar rather
 than silently discarding it. Fresh generation remains unfiltered; appearance always starts
-Light with Pages. Reader state is excluded from semantic review-dirty comparisons.
+Light with Pages. [[artifact-ui#What counts as a change]] owns whether reader state marks
+the artifact changed.
 
 An absent trusted view selection means an empty selection. Registering that empty
-default does not add a persisted override or mark newly opened HTML as changed.
+default does not add a persisted override.
 
 Returning to an implicit empty default removes its override; explicitly saved
 selections retain their loaded baseline. Initialization must not rebase genuine
@@ -1481,7 +1481,7 @@ reader or canonical edits made while other startup work is still finishing.
 
 Reviewed reader state also retains visible column keys in display order, keyed by the
 table's stable identity. Resized column widths are session-only view state, never reader
-state or an artifact change.
+state.
 
 The table owner validates and rebuilds these settings against its current column catalog;
 saved rows or rendered DOM
@@ -1530,16 +1530,11 @@ The browser treats review annotations, per-reviewer decisions, and changes commi
 through these canonical property editors as unsaved reviewed-copy state.
 
 An artifact opened from a generated or reviewed HTML file starts clean. A semantic change marks it dirty;
-reverting all changes to the loaded state clears that state. Viewing, filtering,
-navigation, presentation changes, and edits that do not change a canonical value do not
-make semantic review state dirty.
+reverting all changes to the loaded state clears that state. Edits that do not change a
+canonical value do not make semantic review state dirty. The changed-HTML notice and unload
+confirmation follow [[artifact-ui#What counts as a change]].
 
-Persisted reader-state changes do, however, make the HTML artifact unsaved relative to its captured saved snapshot. The
-shared
-changed-HTML notice and unload confirmation use this artifact-level comparison;
-transient navigation, hover and nonserialized presentation remain excluded.
-
-The comparison also covers the current embedded source archive, when present,
+The artifact-level comparison also covers the current embedded source archive, when present,
 through its existing archive owner rather than a second serialized payload.
 Importing reviewed copies marks it dirty only when the merged comments,
 reviewers, or decisions change.
