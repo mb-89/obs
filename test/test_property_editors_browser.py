@@ -16,8 +16,8 @@ def test_native_canonical_projection_rejects_protected_fields_and_home_atomicall
     from playwright.sync_api import sync_playwright
 
     protected = [
-        "title", "kind", "aliases", "bottom line", "term", "definition",
-        "__proto__", "constructor", "prototype", "Title", "KiNd", "BOTTOM LINE",
+        "title", "kind", "aliases", "term", "definition",
+        "__proto__", "constructor", "prototype", "Title", "KiNd",
     ]
     (tmp_path / "manifest.md").write_text("- [[one]]\n- [[two]]\n", encoding="utf-8")
     for slug in ("one", "two"):

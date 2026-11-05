@@ -24,7 +24,7 @@
     "editableField": {
       "type": "string",
       "not": {
-        "enum": ["title", "kind", "aliases", "bottom line", "term", "definition",
+        "enum": ["title", "kind", "aliases", "term", "definition",
                  "__proto__", "constructor", "prototype"]
       }
     },

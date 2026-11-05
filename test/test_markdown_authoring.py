@@ -12,11 +12,11 @@ from obs_html.report_data import decode_report_data
 
 def test_home_contains_only_authored_tables_and_preserves_placement(tmp_path):
     manifest = tmp_path / "manifest.md"
-    (tmp_path / "chapter.md").write_text("---\nbottom line: Kept.\n---\n# Chapter\n", encoding="utf-8")
+    (tmp_path / "chapter.md").write_text("---\nproject status: Kept.\n---\n# Chapter\n", encoding="utf-8")
     manifest.write_text("- [[chapter]]\n\nBefore.\n\nAfter.\n", encoding="utf-8")
     data = decode_report_data(render_report(manifest, parse_manifest(manifest)))
     assert data["notes"][0]["tables"] == []
-    fence = '```base\nfilters: \'note["bottom line"] != null\'\nviews:\n  - type: table\n    order: [chapter, bottom line]\n```\n'
+    fence = '```base\nfilters: \'note["project status"] != null\'\nviews:\n  - type: table\n    order: [chapter, project status]\n```\n'
     manifest.write_text("- [[chapter]]\n\nBefore.\n\n" + fence + "\nAfter.\n", encoding="utf-8")
     home = decode_report_data(render_report(manifest, parse_manifest(manifest)))["notes"][0]
     assert len(home["tables"]) == 1

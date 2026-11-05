@@ -268,7 +268,7 @@ Counts are not Bases filters: they use the record-metric conditions owned by
 - A node representing a canonical note's own content outside the TOC has a bare disclosure icon.
 
   A source or chapter-reference column does not confer details: tags expand no source chapter,
-  and the Home bottom-line table links chapters without embedding their bodies.
+  and Home tables link chapters without embedding their bodies.
 
   Existing
   source-tree children remain collapsible.

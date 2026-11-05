@@ -448,12 +448,6 @@ def _serialize_report_data(
   presentation = manifest.presentation
   # Light is a product invariant; the opening layout is the author's manifest declaration.
   reading_settings = {"theme": "light", "paged": presentation["layout"] == "paged", **reading_settings}
-  bottom_line = presentation["bottomLine"]
-  bottom_line_card = (
-    render_inline(bottom_line["title"], home, notes, vault_root, embed_pdfs, reference_index)
-    if bottom_line["title"] else "",
-    bottom_line["position"],
-  )
   if warning_handler is not None:
     included_metadata = {note.source_path: document.frontmatter
                          for note, document in zip(notes, documents, strict=True)}
@@ -532,14 +526,6 @@ def _serialize_report_data(
         "frontmatterHtml": _render_frontmatter_html(
           document.frontmatter, chapter, notes, vault_root, embed_pdfs, reference_index,
         ),
-        "bottomLineHtml": render_inline(
-          document.bottom_line,
-          chapter,
-          notes,
-          vault_root,
-          embed_pdfs,
-          reference_index,
-        ) if document.bottom_line else "",
         **({"valueLabel": quantity_label(document.frontmatter)}
            if document.frontmatter.get("kind") == "quantity" and "value" in document.frontmatter else {}),
         "definitionHtml": render_inline(
@@ -579,7 +565,6 @@ def _serialize_report_data(
           embed_pdfs=embed_pdfs,
           include_plot_fallback=(figures or {}).get("plotlyDelivery", "embedded") != "cdn",
           reference_index=reference_index,
-          bottom_line_card=bottom_line_card,
         ),
       }
       for chapter, document in zip(notes, documents, strict=True)

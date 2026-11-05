@@ -1,5 +1,5 @@
 ---
-bottom line: Python owns source semantics and emits one canonical report store; browser views derive from that store.
+summary: Python owns source semantics and emits one canonical report store; browser views derive from that store.
 ---
 
 # Architecture
@@ -230,8 +230,8 @@ or authorization.
   store in their normal order. Decoded data and DOM are disposable in-memory
   projections, not extra serialized owners. Reviewed saving encodes the current
   model and does not retain an inflated copy or stale startup payload alongside it.
-- Python owns one parsed semantic chapter model containing normalized frontmatter, optional
-	bottom-line content, paragraph semantic tags, diagnostics, and authored Markdown. Rendered chapters,
+- Python owns one parsed semantic chapter model containing normalized frontmatter, paragraph
+  semantic tags, diagnostics, and authored Markdown. Rendered chapters,
 	generated projections, query records, and lint output consume that model; browser code does
 	not rediscover source semantics from HTML.
 
