@@ -41,18 +41,70 @@
         "children": {"type": "array", "items": {"$ref": "#/$defs/node"}},
         "text": {"type": "string"}
       },
-      "allOf": [{
-        "if": {"properties": {"type": {"const": "figure-descriptor"}}},
-        "then": {
-          "properties": {
-            "attrs": {
-              "type": "object",
-              "required": ["descriptor"],
-              "properties": {"descriptor": {"$ref": "figure.schema.json"}}
+      "allOf": [
+        {
+          "if": {"properties": {"type": {"const": "figure-descriptor"}}},
+          "then": {
+            "properties": {
+              "attrs": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["descriptor"],
+                "properties": {"descriptor": {"$ref": "figure.schema.json"}}
+              }
             }
           }
+        },
+        {
+          "if": {"properties": {"type": {"const": "attachments"}}},
+          "then": {"properties": {"attrs": {
+            "type": "object", "additionalProperties": false, "required": ["asset", "label"],
+            "properties": {"asset": {"$ref": "#/$defs/id"}, "label": {"type": "string"}}
+          }}}
+        },
+        {
+          "if": {"properties": {"type": {"const": "chapter-inclusion"}}},
+          "then": {"properties": {"attrs": {
+            "type": "object", "additionalProperties": false, "required": ["id"],
+            "properties": {"id": {"$ref": "#/$defs/id"}}
+          }}}
+        },
+        {
+          "if": {"properties": {"type": {"const": "cards-metrics"}}},
+          "then": {"properties": {"attrs": {
+            "type": "object", "additionalProperties": false, "required": ["source", "spec"],
+            "properties": {"source": {"type": "string"}, "spec": {"type": "object"}}
+          }}}
+        },
+        {
+          "if": {"properties": {"type": {"enum": ["bottom-lines", "markdown-frontmatter", "quantities", "references"]}}},
+          "then": {"properties": {"attrs": {
+            "type": "object", "additionalProperties": false, "required": ["metadata"],
+            "properties": {"metadata": {"type": "object"}}
+          }}}
+        },
+        {
+          "if": {"properties": {"type": {"enum": ["queries", "count-query"]}}},
+          "then": {"properties": {"attrs": {
+            "type": "object", "additionalProperties": false, "required": ["query"],
+            "properties": {"query": {"type": "object"}}
+          }}}
+        },
+        {
+          "if": {"properties": {"type": {"const": "profiles"}}},
+          "then": {"properties": {"attrs": {
+            "type": "object", "additionalProperties": false, "required": ["profile"],
+            "properties": {"profile": {"type": "object"}}
+          }}}
+        },
+        {
+          "if": {"properties": {"type": {"const": "registers"}}},
+          "then": {"properties": {"attrs": {
+            "type": "object", "additionalProperties": false, "required": ["target", "heading"],
+            "properties": {"target": {"type": "string"}, "heading": {"type": "string"}}
+          }}}
         }
-      }]
+      ]
     },
     "chapter": {
       "type": "object", "additionalProperties": false, "required": ["id", "title", "content", "children"],
