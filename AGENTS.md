@@ -20,6 +20,10 @@ Preserve authored prose according to se's [work-model rule](../se/.github/skills
 ## Commands
 
 ```powershell
+uv run python ../se/scripts/se_modules.py sync
 uv run obs-html --help
 uv run pytest
 ```
+
+The first command synchronizes the pinned obs module that the tests read; it needs `se` checked
+out next to this repository.
