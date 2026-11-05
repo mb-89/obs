@@ -3,7 +3,7 @@ import subprocess
 import sys
 from pathlib import Path
 
-from jsonschema import validate
+from jsonschema import ValidationError, validate
 import pytest
 
 from obs.adapter import AdapterError, load_adapter
@@ -73,6 +73,8 @@ def capability_node_attrs(identifier: str) -> dict[str, object]:
         "queries": {"query": {}},
         "references": {"metadata": {}},
         "registers": {"target": "register.base", "heading": ""},
+        "wikilinks": {"target": "chapter", "chapter": "chapter", "heading": "", "label": "chapter"},
+        "embeds": {"target": "outside", "chapter": None},
         "figure-descriptor": {"descriptor": figure_descriptor()},
     }
     return attrs.get(identifier, {})
@@ -82,6 +84,19 @@ def test_document_schema_validates_a_core_document() -> None:
     schema = json.loads((ROOT / "src" / "obs" / "document.schema.json").read_text(encoding="utf-8"))
 
     validate(document_fixture(), schema)
+
+
+@pytest.mark.parametrize("node", [
+    {"type": "wikilinks", "attrs": {"target": "chapter", "heading": "", "label": "chapter"}},
+    {"type": "embeds", "attrs": {"target": "chapter", "chapter": "Not An Id"}},
+])
+def test_document_schema_requires_a_resolved_chapter_on_note_links(node) -> None:
+    schema = json.loads((ROOT / "src" / "obs" / "document.schema.json").read_text(encoding="utf-8"))
+    document = document_fixture()
+    document["chapters"][0]["content"] = [{**node, "children": []}]
+
+    with pytest.raises(ValidationError, match="chapter|Not An Id"):
+        validate(document, schema)
 
 
 def test_document_cli_writes_a_vault_document(tmp_path) -> None:

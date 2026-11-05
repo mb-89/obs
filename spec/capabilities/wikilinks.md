@@ -17,3 +17,10 @@ Resolve local Markdown and Obsidian note links.
 ```markdown
 See [[chapter#Details]].
 ```
+
+## Document node
+
+A `wikilinks` node keeps the `target`, `heading` and `label` as authored and adds `chapter`: the
+id of the included chapter the target resolves to, or `null` when the note is outside the
+manifest. Adapters link by `chapter` and never derive it from `target`. The node's attributes
+are defined by `src/obs/document.schema.json`.
