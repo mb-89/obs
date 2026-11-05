@@ -3,7 +3,7 @@ import base64
 from pathlib import Path
 
 import pytest
-from PIL import Image
+from PIL import Image, ImageChops
 
 from conftest import FIXTURE
 from obs_html import cli, pdf_inspect
@@ -40,3 +40,35 @@ def test_render_names_the_pages_a_pdf_has(printed, tmp_path, capsys) -> None:
     assert exit_info.value.code == 2
     error = capsys.readouterr().err
     assert error.startswith(f"obs-html-inspect render: {printed} has ") and "Remedy: pass --page from 1 to" in error
+
+
+def test_crop_renders_a_region_in_points_from_the_top_left(printed, tmp_path, capsys) -> None:
+    page, region = tmp_path / "page.png", tmp_path / "region.png"
+    pdf_inspect.main(["render", str(printed), "--page", "1", "--scale", "2", "--output", str(page)])
+    pdf_inspect.main(["crop", str(printed), "--page", "1", "--box", "100,50,300,250",
+                      "--scale", "2", "--output", str(region)])
+    with Image.open(page) as whole, Image.open(region) as part:
+        assert part.size == (400, 400)
+        aligned = whole.convert("L").crop((200, 100, 600, 500))
+        shifted = whole.convert("L").crop((204, 104, 604, 504))
+        assert _mean_difference(aligned, part) < 0.5 < _mean_difference(shifted, part)
+    assert f"Wrote {region} (400x400 px, page 1, box 100,50,300,250 pt, scale 2)." in capsys.readouterr().out
+
+
+def _mean_difference(first: Image.Image, second: Image.Image) -> float:
+    """Mean grey difference in 0-255; anti-aliasing differs slightly between renders."""
+    histogram = ImageChops.difference(first.convert("L"), second.convert("L")).histogram()
+    return sum(level * count for level, count in enumerate(histogram)) / sum(histogram)
+
+
+@pytest.mark.parametrize("box, problem", [
+    ("1,2,3", "expected X0,Y0,X1,Y1"),
+    ("300,50,100,250", "X0 < X1 and Y0 < Y1"),
+    ("0,0,700,100", "inside the page (0,0,612,792 pt)"),
+])
+def test_crop_refuses_a_box_it_cannot_cut(printed, tmp_path, capsys, box, problem) -> None:
+    with pytest.raises(SystemExit):
+        pdf_inspect.main(["crop", str(printed), "--page", "1", "--box", box, "--output", str(tmp_path / "x.png")])
+    error = capsys.readouterr().err
+    assert "obs-html-inspect crop: --box" in error and problem in error and "Remedy:" in error
+    assert not (tmp_path / "x.png").exists()
