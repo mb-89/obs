@@ -56,6 +56,12 @@ output (stdout and stderr) is embedded, obs-html replaces:
 - every other absolute path, such as temporary and virtual-environment folders, with the
   placeholder `<local-path>`.
 
+Commands run with a minimal environment, so an environment dump carries nothing machine-specific
+beyond the paths replaced above. They inherit only `PATH`, `PATHEXT`, `SYSTEMROOT`, `WINDIR`,
+`COMSPEC` (to find and start programs), `HOME`, `USERPROFILE`, `APPDATA`, `LOCALAPPDATA` (per-user
+tool settings and caches), `TMPDIR`, `TEMP`, `TMP` (temporary folders) and `LANG`, `LC_ALL` (text
+encoding), where they are set; a command that needs more sets it itself.
+
 ## License
 
 [MIT](LICENSE).
