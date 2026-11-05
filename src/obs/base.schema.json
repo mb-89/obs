@@ -7,10 +7,11 @@
   "properties": {
     "filters": {"type": ["object", "array", "string"]},
     "properties": {"type": "object"},
-    "obsHtml": {
-      "$comment": "Adapter namespace; the core reads records to select notes, and rejects members here: they belong to a view (generic-tables).",
+    "obs": {
+      "$comment": "The core's namespace on a Base: records is every view's default; members belong to a view (generic-tables).",
       "type": "object",
-      "additionalProperties": true
+      "additionalProperties": false,
+      "properties": {"records": {"$ref": "#/$defs/records"}}
     },
     "views": {
       "type": "array",
@@ -21,16 +22,19 @@
         "properties": {
           "type": {"const": "table"},
           "order": {"type": "array", "minItems": 1, "items": {"type": "string", "pattern": "\\S"}},
-          "obsHtml": {
-            "$comment": "Adapter namespace; the core reads records and members to select this view's notes (generic-tables).",
+          "obs": {
+            "$comment": "The core's namespace on a view: its record type and its ordered members (generic-tables).",
             "type": "object",
-            "additionalProperties": true,
+            "additionalProperties": false,
             "properties": {
+              "records": {"$ref": "#/$defs/records"},
               "members": {
                 "type": "array",
+                "minItems": 1,
                 "items": {
                   "type": "object",
                   "required": ["path"],
+                  "additionalProperties": false,
                   "properties": {"path": {"type": "string", "minLength": 1}, "label": {"type": "string"}}
                 }
               }
@@ -40,7 +44,17 @@
       }
     }
   },
+  "patternProperties": {
+    "^obs[A-Z][A-Za-z0-9]*$": {
+      "$comment": "An adapter's namespace (capabilities/trusted-actions): the adapter's alone; the core neither reads nor validates it.",
+      "type": "object"
+    }
+  },
   "$defs": {
+    "records": {
+      "$comment": "The record type of a view's rows (capabilities/registers); document.schema.json $defs/record defines each.",
+      "enum": ["note", "chapter", "tag", "glossary", "documentMetadata", "documentHistory"]
+    },
     "comparison": {
       "$comment": "Bases comparison syntax for the core evaluator; groups: name, bracketed name, operator, literal. A test keeps it equal to the interim adapter's pattern.",
       "type": "string",

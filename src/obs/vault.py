@@ -20,6 +20,7 @@ import yaml
 from obs.config import CoreConfig, CoreConfigError, load_core_config
 from obs.figure import FigureDescriptorError, validate_figure_descriptor
 from obs.input import (
+    ADAPTER_NAMESPACE,
     InputError,
     input_error,
     parse_callout,
@@ -302,7 +303,7 @@ def _add_records(vault: _Vault, chapters: list[dict[str, object]], title: str) -
             }, note)
     manifest = vault.notes[vault.manifest][0]
     for key, value in manifest.items():
-        if key not in {"history", "obsHtml"}:
+        if key not in {"history", "obs"} and not ADAPTER_NAMESPACE.fullmatch(str(key)):
             add("documentMetadata", str(key), {"key": str(key), "value": _json_value(value)})
     history = manifest.get("history")
     for index, entry in enumerate(history if isinstance(history, list) else [], 1):
@@ -388,11 +389,11 @@ def _query_selection(query: object, source_path: Path, vault: _Vault, owners: tu
 
 def _card_selection(card: dict[str, object], source_path: Path, vault: _Vault) -> None:
     """Include the notes a card references and the records its metrics count and divide by."""
-    series = card.get("obsHtml", {}).get("metricsFrom")
+    series = card.get("obs", {}).get("metricsFrom")
     if series:
-        references = [("metricsFrom.sourceNote", series["sourceNote"])]
+        references = [("obs.metricsFrom.sourceNote", series["sourceNote"])]
         if "link" in series:
-            references.append(("metricsFrom.link.note", series["link"]["note"]))
+            references.append(("obs.metricsFrom.link.note", series["link"]["note"]))
         for field_name, identity in references:
             path = (vault.root / f"{identity}.md").resolve()
             if path not in vault.notes:
@@ -467,9 +468,7 @@ def _validate_note(path: Path, vault: _Vault) -> None:
     vault.validated.add(path)
     metadata = vault.notes[path][0] if path in vault.notes else _read_note(path)[0]
     try:
-        profile = metadata.get("obsHtml")
-        if profile is not None:
-            validate_note_profile(profile, path)
+        validate_note_profile(metadata, path)
         if metadata.get("kind") == "quantity":
             validate_quantity(metadata, path)
         if "query" in metadata:
@@ -554,8 +553,8 @@ def _frontmatter_nodes(metadata: dict[str, object], context: _Context) -> list[d
 
     if metadata and "markdown-frontmatter" in context.capability_ids:
         add("markdown-frontmatter", {"metadata": _json_value(metadata)}, _field_nodes(metadata, "", context))
-    if "obsHtml" in metadata:
-        add("profiles", {"profile": _json_value(metadata["obsHtml"])})
+    if "obs" in metadata:
+        add("profiles", {"profile": _json_value(metadata["obs"])})
     if metadata.get("kind") == "quantity":
         add("quantities", {"metadata": _json_value(metadata)})
     if "query" in metadata:

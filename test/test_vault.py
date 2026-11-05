@@ -73,7 +73,7 @@ def additional_capability_vault(tmp_path) -> Path:
     (vault / "source.csv").write_text("value\n1\n", encoding="utf-8")
     (vault / "chapter.md").write_text(
         "---\nkind: quantity\naliases: [coverage]\nsource: '[[manifest]]'\nquery: {where: []}\n"
-        "obsHtml: {document: false}\n"
+        "obs: {document: false}\n"
         "reference: https://example.test/source\n---\n"
         "![Source](source.csv)\n\n![[register.base#Open]]\n\n"
         "```cards\nversion: 1\ncards: [{title: Coverage, body: Current state.}]\n```\n\n"
@@ -355,7 +355,7 @@ def register_vault(tmp_path, embed: str = "![[x.base#Open points]]") -> Path:
         "  - type: table\n    name: All points\n    order: [file.name]\n"
         "  - type: table\n    name: Open points\n    filters: 'status == \"open\"'\n"
         "    order: [file.name, status]\n"
-        "  - type: table\n    name: Marked\n    order: [label]\n    obsHtml: {records: tag}\n",
+        "  - type: table\n    name: Marked\n    order: [label]\n    obs: {records: tag}\n",
         encoding="utf-8",
     )
     for name, status in (("a-point", "open"), ("b-point", "closed"), ("c-point", "Open")):
@@ -453,9 +453,9 @@ def test_each_view_selects_its_own_members(tmp_path) -> None:
         "filters: 'kind == \"point\"'\n"
         "views:\n"
         "  - type: table\n    name: First\n    order: [file.name]\n"
-        "    obsHtml:\n      members:\n        - path: b-point.md\n        - path: a-point.md\n"
+        "    obs:\n      members:\n        - path: b-point.md\n        - path: a-point.md\n"
         "  - type: table\n    name: Second\n    order: [file.name]\n"
-        "    obsHtml:\n      members:\n        - path: c-point.md\n"
+        "    obs:\n      members:\n        - path: c-point.md\n"
         "  - type: table\n    name: All\n    order: [file.name]\n",
         encoding="utf-8",
     )
@@ -467,10 +467,10 @@ def test_each_view_selects_its_own_members(tmp_path) -> None:
 
 
 @pytest.mark.parametrize(("note", "text", "field"), [
-    ("chapter.md", "# Chapter\n\n```base\nobsHtml:\n  members:\n    - path: a-point.md\n"
-     "views:\n  - type: table\n    order: [file.name]\n```\n", "base fence 1, obsHtml.members"),
-    ("x.base", "obsHtml:\n  members:\n    - path: a-point.md\n"
-     "views:\n  - type: table\n    order: [file.name]\n", "obsHtml.members"),
+    ("chapter.md", "# Chapter\n\n```base\nobs:\n  members:\n    - path: a-point.md\n"
+     "views:\n  - type: table\n    order: [file.name]\n```\n", "base fence 1, obs.members"),
+    ("x.base", "obs:\n  members:\n    - path: a-point.md\n"
+     "views:\n  - type: table\n    order: [file.name]\n", "obs.members"),
 ])
 def test_base_level_members_fail_naming_the_note_and_the_remedy(tmp_path, note: str, text: str, field: str) -> None:
     vault = register_vault(tmp_path, "![[x.base]]")
@@ -844,7 +844,7 @@ def projection_vault(tmp_path) -> Path:
     }
     (vault / "x.base").write_text("views:\n" + "".join(
         f"  - type: table\n    name: {kind}\n    filters: '{filters[kind].replace(chr(39), chr(39) * 2)}'\n"
-        f"    order: [file.name]\n    obsHtml: {{records: {kind}}}\n"
+        f"    order: [file.name]\n    obs: {{records: {kind}}}\n"
         for kind in RECORD_TYPES
     ), encoding="utf-8")
     return vault
