@@ -750,9 +750,8 @@
         status.textContent = `PDF export failed: ${error.message}`;
         status.hidden = false;
         console.error(status.textContent);
-        // Ctrl+P has no visible control; a limited host's notice carries the reason instead.
-        const notice = document.querySelector("[data-capability-notice] details");
-        if (notice && globalThis.obsCapabilities?.limit("printing")) notice.open = true;
+        // Ctrl+P has no visible control; a limited host's notice entry carries the reason instead.
+        if (globalThis.obsCapabilities?.limit("printing")) globalThis.obsNotices.reveal("capability-printing");
     };
     const restoreLive = () => {
         const tables = new Map([...screen.querySelectorAll(

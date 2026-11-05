@@ -2,7 +2,7 @@
 
 Until obs removes its interim adapter, obs's spec is built both ways: the Document from the
 pinned core (`obs` in se.toml) rendered by this adapter, and the same spec sources rendered by
-the interim adapter (`obs-reference` in se.toml). One interaction script then runs against both
+the interim adapter of that same pinned obs. One interaction script then runs against both
 reports in both preview-like frames (test/preview.py): Home, previous/next by pointer and
 keyboard, the contents menu, the filter, and icon counts per region in every chapter. Any
 difference fails and names the step and both observations.
@@ -18,23 +18,19 @@ Run it alone with `uv run pytest test/test_parity_browser.py`; it needs both mod
 """
 import json
 import os
+import re
 import shutil
 import subprocess
 from pathlib import Path
 
 import pytest
 
-from conftest import CORE_ROOT, README, ROOT, SYNC_SECTION, require_core
+from conftest import CORE_ROOT, require_core
 from obs_html.cli import main as obs_html
 from preview import SANDBOXES, http_origin, open_preview
 
-REFERENCE_ROOT = Path(os.environ.get("OBS_REFERENCE_PATH", ROOT / ".se" / "modules" / "obs-reference"))
-
 # step -> why this adapter may still differ from the interim reference there.
-KNOWN_DIFFERENCES = {
-    "icons in capability-reference": "Base tables from records render no rows yet, so their row icons are missing.",
-    "icons in appendix-references": "Base tables from records render no rows yet, so their row icons are missing.",
-}
+KNOWN_DIFFERENCES: dict[str, str] = {}
 
 FILTER = "file.name == 'nothing'"
 
@@ -43,6 +39,8 @@ ICONS = """() => {
     const region = (element) => {
         const bar = element.closest("[data-bar]");
         if (bar) return `bar ${bar.dataset.bar}`;
+        // The notice center is newer than the interim reference; its own tests own its icons.
+        if (element.closest("[data-header-notices]")) return null;
         if (element.closest("[data-bars-menu]")) return "bars menu";
         if (element.closest(".chapter-nav-zone")) return "chapter arrows";
         if (element.closest(".chapter-breadcrumbs")) return "breadcrumbs";
@@ -60,7 +58,9 @@ ICONS = """() => {
         return image.complete && image.naturalWidth > 0 && masked;
     };
     for (const icon of document.querySelectorAll(".resource-icon")) {
-        const counts = regions[region(icon)] ||= {icons: 0, painted: 0};
+        const name = region(icon);
+        if (!name) continue;
+        const counts = regions[name] ||= {icons: 0, painted: 0};
         counts.icons += 1;
         if (painted(icon)) counts.painted += 1;
     }
@@ -88,22 +88,23 @@ def run(command: list[str], cwd: Path, what: str) -> None:
                     f"{result.stdout[-2000:]}{result.stderr[-2000:]}", pytrace=False)
 
 
-def require_reference(reference_root: Path) -> Path:
-    if not (reference_root / "src" / "obs_html" / "cli.py").is_file():
+def require_reference(core: Path) -> Path:
+    """The pinned obs still carries the interim adapter; once obs removes it, this gate goes too."""
+    if not (core / "src" / "obs_html" / "cli.py").is_file():
         pytest.fail(
             f"test/test_parity_browser.py: interim reference not found, no "
-            f"{reference_root / 'src' / 'obs_html' / 'cli.py'}. Remedy: synchronize the modules as "
-            f'{README.name}, section "{SYNC_SECTION}" says, or set OBS_REFERENCE_PATH to an obs checkout.',
+            f"{core / 'src' / 'obs_html' / 'cli.py'}. The pinned obs no longer carries the interim "
+            "adapter; remedy: remove this parity gate and its line in AGENTS.md.",
             pytrace=False,
         )
-    return reference_root
+    return core
 
 
 @pytest.fixture(scope="session")
 def parity_reports(tmp_path_factory) -> dict[str, str]:
     """obs's spec built by this adapter and by the interim reference."""
     core = require_core(CORE_ROOT)
-    reference = require_reference(REFERENCE_ROOT)
+    reference = require_reference(core)
     uv = shutil.which("uv")
     if not uv:
         pytest.fail("test/test_parity_browser.py: uv not found on PATH. Remedy: install uv "
@@ -149,6 +150,10 @@ def interact(page, frame) -> tuple[list[tuple[str, object]], list[str]]:
 
     def visible(selector: str) -> bool:
         return frame.locator(selector).first.is_visible()
+
+    def changed() -> bool:
+        """The changed-HTML notice, in this adapter's notice center or the reference's banner."""
+        return frame.locator('[data-notice="changed-html"]').count() > 0 or visible("[data-document-warning]")
 
     steps.append(("start", chapter()))
     steps.append(("icons on start", root.evaluate(ICONS)))
@@ -197,16 +202,16 @@ def interact(page, frame) -> tuple[list[tuple[str, object]], list[str]]:
     root.evaluate("() => globalThis.obsReport.openBar('filter')")
     frame.locator("[data-filter-input]").fill(FILTER)
     settle()
-    expect(frame.locator("[data-filter-warning]")).to_be_visible()
+    expect(frame.locator('[data-filter-status]')).not_to_have_text(re.compile(r"^All "))
     steps.append(("filter applied", (
         frame.locator("[data-filter-status]").inner_text(), [
             button.is_disabled() for button in frame.locator("[data-step]").all()])))
-    if visible("[data-document-warning]"):
+    if changed():
         violations.append("applying a filter showed the changed-HTML notice")
-    frame.locator(".filter-warning-clear").click()
+    root.evaluate("() => globalThis.obsFilter.setExpression('')")
     settle()
-    steps.append(("filter cleared", (visible("[data-filter-warning]"), chapter())))
-    if visible("[data-document-warning]"):
+    steps.append(("filter cleared", (frame.locator("[data-filter-status]").inner_text(), chapter())))
+    if changed():
         violations.append("clearing a filter showed the changed-HTML notice")
 
     slugs = root.evaluate("""() => [...document.querySelectorAll("[data-toc-tree] a")]
@@ -248,6 +253,9 @@ def test_the_report_behaves_as_the_interim_reference_in_preview_frames(
     for (step, ours), (_, theirs) in zip(adapter, reference):
         differs = json.dumps(ours, sort_keys=True) != json.dumps(theirs, sort_keys=True)
         if differs and step not in KNOWN_DIFFERENCES:
+            if isinstance(ours, dict) and isinstance(theirs, dict):
+                keys = sorted(key for key in ours.keys() | theirs.keys() if ours.get(key) != theirs.get(key))
+                ours, theirs = ({key: side.get(key) for key in keys} for side in (ours, theirs))
             problems.append(f"{step}: this adapter observed {ours!r}; the interim reference observed {theirs!r}")
         if not differs and step in KNOWN_DIFFERENCES:
             problems.append(f"{step}: no longer differs; remove it from KNOWN_DIFFERENCES")

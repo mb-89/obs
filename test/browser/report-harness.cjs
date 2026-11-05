@@ -15,7 +15,7 @@ const vm = require("node:vm");
 const NAME = "test/browser/report-harness.cjs";
 const STARTUP_SCRIPTS = ["reader-startup-script", "running-header-script", "report-bootstrap-script"];
 const RUNTIME_SCRIPTS = ["query-script", "yaml-script", "base-script", "data-table-script",
-    "assets-script", "canonical-transaction-script", "report-script", "pages-script"];
+    "assets-script", "notices-script", "canonical-transaction-script", "report-script", "pages-script"];
 
 class HarnessError extends Error {
     constructor(step, problem, remedy) {
@@ -208,6 +208,11 @@ const STEPS = {
             paper: report.data.paper,
         };
     },
+    // The filter bar's summary of the active filter: the runtime query's counts.
+    async summary(report) {
+        const {records, totalRecords} = report.context.obsReport.filterSummary();
+        return {records, totalRecords};
+    },
     async activate(report, {chapter}) {
         if (!report.context.obsReport.records.some((record) => record.slug === chapter)) {
             throw new HarnessError("activate", `the report has no chapter "${chapter}".`,
@@ -237,6 +242,8 @@ const STEPS = {
                 key: cell.dataset.columnKey, label: cell.querySelector("span")?.textContent.trim() || "",
             })),
             rows: [...shell.querySelectorAll("tbody tr[data-row-key]")].map((row) => row.dataset.rowKey),
+            cells: [...shell.querySelectorAll("tbody tr[data-row-key]")].map((row) =>
+                [...row.querySelectorAll("td")].map((cell) => cell.textContent.trim())),
             count: shell.querySelector(".data-table-count")?.textContent.trim() || null,
         };
     },

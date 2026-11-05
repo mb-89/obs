@@ -1,7 +1,7 @@
 // Canaries: probe, before any feature runs, what the host lets this HTML do.
 // One registry entry per browser capability; adding a capability is one entry.
-// A probe returns {allowed, observed}: allowed is true, false (refused) or undefined (unknown, which
-// counts as limited); observed says what the canary saw, so a report can show why it is limited.
+// A probe returns {allowed, observation}: allowed is true, false (refused) or undefined (unknown, which
+// counts as limited); observation says what the canary saw, so a report can show why it is limited.
 // A probe that throws is refused, and its error is what it observed.
 (() => {
     const view = globalThis.window || globalThis;
@@ -22,14 +22,14 @@
         return tokens;
     })();
     const sandboxAllows = (token) => {
-        if (sandbox === null) return {allowed: true, observed: "no sandboxed frame up to the top window"};
+        if (sandbox === null) return {allowed: true, observation: "no sandboxed frame up to the top window"};
         if (sandbox === undefined) {
-            return {allowed: undefined, observed: "an enclosing frame hides its sandbox flags (cross-origin host)"};
+            return {allowed: undefined, observation: "an enclosing frame hides its sandbox flags (cross-origin host)"};
         }
         const flags = sandbox.size ? [...sandbox].join(" ") : "no flags";
         return sandbox.has(token)
-            ? {allowed: true, observed: `the frame sandbox (${flags}) grants ${token}`}
-            : {allowed: false, observed: `the frame sandbox (${flags}) lacks ${token}`};
+            ? {allowed: true, observation: `the frame sandbox (${flags}) grants ${token}`}
+            : {allowed: false, observation: `the frame sandbox (${flags}) lacks ${token}`};
     };
     const registry = [
         {
@@ -40,7 +40,7 @@
                 const address = view.location.href;
                 view.history.replaceState(view.history.state, "", "#obs-capability-canary");
                 view.history.replaceState(view.history.state, "", address);
-                return {allowed: true, observed: "history.replaceState changed the address"};
+                return {allowed: true, observation: "history.replaceState changed the address"};
             },
         },
         {
@@ -51,7 +51,7 @@
                 const key = "obs-capability-canary";
                 view.localStorage.setItem(key, "1");
                 view.localStorage.removeItem(key);
-                return {allowed: true, observed: "localStorage.setItem stored a value"};
+                return {allowed: true, observation: "localStorage.setItem stored a value"};
             },
         },
         {
@@ -78,16 +78,16 @@
             remedy: "Open the HTML file directly in a browser to copy comments.",
             probe() {
                 if (typeof view.navigator?.clipboard?.writeText !== "function") {
-                    return {allowed: false, observed: "navigator.clipboard.writeText is missing"};
+                    return {allowed: false, observation: "navigator.clipboard.writeText is missing"};
                 }
                 const policy = view.document.permissionsPolicy || view.document.featurePolicy;
                 if (policy) {
                     const allowed = policy.allowsFeature("clipboard-write");
-                    return {allowed, observed: `the permissions policy ${allowed ? "allows" : "denies"} clipboard-write`};
+                    return {allowed, observation: `the permissions policy ${allowed ? "allows" : "denies"} clipboard-write`};
                 }
                 return view === view.top
-                    ? {allowed: true, observed: "a top-level page with navigator.clipboard"}
-                    : {allowed: undefined, observed: "a frame without a permissions policy API to ask"};
+                    ? {allowed: true, observation: "a top-level page with navigator.clipboard"}
+                    : {allowed: undefined, observation: "a frame without a permissions policy API to ask"};
             },
         },
         {
@@ -104,14 +104,14 @@
             result = probe();
         } catch (error) {
             const message = String(error?.message || error).replace(/\.+$/, "");
-            result = {allowed: false, observed: `it threw ${error?.name || "an error"}: ${message}`};
+            result = {allowed: false, observation: `it threw ${error?.name || "an error"}: ${message}`};
         }
-        const {allowed, observed} = result;
+        const {allowed, observation} = result;
         const reason = allowed === true ? ""
             : allowed === false
                 ? `The page showing this HTML blocks ${blocks}.`
                 : `The page showing this HTML may block ${blocks}; this HTML cannot check.`;
-        return Object.freeze({key, feature, reason, remedy, observed, allowed: allowed === true,
+        return Object.freeze({key, feature, reason, remedy, observation, allowed: allowed === true,
             refused: allowed === false});
     }));
     const limits = results.filter((entry) => !entry.allowed);
@@ -140,35 +140,25 @@
         },
     });
 
-    // The notice joins the shared heading notice area that report.js creates.
+    // Each limit is a warning entry of the notice center: the feature, why, what the canary observed
+    // (where its result records an observation) and the remedy.
     if (!limits.length) return;
-    const mount = () => {
-        const area = view.document.querySelector("[data-header-notices]");
-        if (!area) return;
-        const notice = view.document.createElement("aside");
-        notice.className = "capability-notice";
-        notice.dataset.capabilityNotice = "";
-        notice.setAttribute("aria-label", "Limited functionality");
-        const details = view.document.createElement("details");
-        const summary = view.document.createElement("summary");
-        summary.textContent = `Limited functionality: ${limits.length} ` +
-            `${limits.length === 1 ? "feature" : "features"}`;
-        const list = view.document.createElement("ul");
-        list.replaceChildren(...limits.map((entry) => {
-            const item = view.document.createElement("li");
-            item.dataset.capability = entry.key;
-            const name = view.document.createElement("strong");
-            name.textContent = entry.feature;
-            const canary = view.document.createElement("small");
-            canary.dataset.capabilityObserved = "";
-            canary.textContent = `Canary ${entry.key}: ${entry.observed}.`;
-            item.append(name, ` ${entry.reason} ${entry.remedy} `, canary);
-            return item;
-        }));
-        details.append(summary, list);
-        notice.append(details);
-        area.append(notice);
-    };
+    const mount = () => limits.forEach((entry) => {
+        const details = view.document.createElement("dl");
+        details.dataset.capability = entry.key;
+        [["Feature", entry.feature], ["Why", entry.reason], ["Observed", entry.observation],
+            ["Remedy", entry.remedy]].filter(([, text]) => text).forEach(([term, text]) => {
+            const name = view.document.createElement("dt");
+            name.textContent = term;
+            const value = view.document.createElement("dd");
+            value.textContent = text;
+            details.append(name, value);
+        });
+        globalThis.obsNotices.post({
+            id: `capability-${entry.key}`, severity: "warning",
+            title: `Limited functionality: ${entry.feature}`, details,
+        });
+    });
     // The startup loader announces this once every report script, report.js included, has run.
     view.document.addEventListener("obs-html-interactive", mount, {once: true});
 })();
