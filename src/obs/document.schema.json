@@ -1,0 +1,66 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "document.schema.json",
+  "description": "A neutral Document. Structural node types are document, section, paragraph, text, list, list-item, and code; all other node types are capability identifiers from the supplied capability reference.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "manifest", "chapters", "links", "assets", "records", "semanticResources", "diagnostics", "capabilities"],
+  "properties": {
+    "schemaVersion": {"const": 1},
+    "manifest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["title", "metadata"],
+      "properties": {"title": {"type": "string", "minLength": 1}, "metadata": {"type": "object"}}
+    },
+    "chapters": {"type": "array", "items": {"$ref": "#/$defs/chapter"}},
+    "links": {"type": "array", "items": {"$ref": "#/$defs/link"}},
+    "assets": {"type": "array", "items": {"$ref": "#/$defs/asset"}},
+    "records": {"type": "array", "items": {"$ref": "#/$defs/record"}},
+    "semanticResources": {"type": "array", "items": {"$ref": "#/$defs/resource"}},
+    "diagnostics": {
+      "type": "array",
+      "items": {
+        "type": "object", "additionalProperties": false, "required": ["level", "message"],
+        "properties": {"level": {"enum": ["error", "warning", "info"]}, "message": {"type": "string", "minLength": 1}}
+      }
+    },
+    "capabilities": {"type": "array", "items": {"$ref": "#/$defs/id"}, "uniqueItems": true}
+  },
+  "$defs": {
+    "id": {"type": "string", "pattern": "^[a-z][a-z0-9-]*$"},
+    "node": {
+      "type": "object", "additionalProperties": false, "required": ["type", "attrs", "children"],
+      "properties": {
+        "type": {"$ref": "#/$defs/id"},
+        "attrs": {"type": "object"},
+        "children": {"type": "array", "items": {"$ref": "#/$defs/node"}},
+        "text": {"type": "string"}
+      }
+    },
+    "chapter": {
+      "type": "object", "additionalProperties": false, "required": ["id", "title", "content", "children"],
+      "properties": {
+        "id": {"$ref": "#/$defs/id"}, "title": {"type": "string", "minLength": 1},
+        "content": {"type": "array", "items": {"$ref": "#/$defs/node"}},
+        "children": {"type": "array", "items": {"$ref": "#/$defs/chapter"}}
+      }
+    },
+    "link": {
+      "type": "object", "additionalProperties": false, "required": ["id", "href", "label"],
+      "properties": {"id": {"$ref": "#/$defs/id"}, "href": {"type": "string", "minLength": 1}, "label": {"type": "string", "minLength": 1}}
+    },
+    "asset": {
+      "type": "object", "additionalProperties": false, "required": ["id", "href", "mediaType"],
+      "properties": {"id": {"$ref": "#/$defs/id"}, "href": {"type": "string", "minLength": 1}, "mediaType": {"type": "string", "minLength": 1}}
+    },
+    "record": {
+      "type": "object", "additionalProperties": false, "required": ["id", "type", "fields"],
+      "properties": {"id": {"$ref": "#/$defs/id"}, "type": {"type": "string", "minLength": 1}, "fields": {"type": "object"}}
+    },
+    "resource": {
+      "type": "object", "additionalProperties": false, "required": ["id", "type", "attrs"],
+      "properties": {"id": {"$ref": "#/$defs/id"}, "type": {"$ref": "#/$defs/id"}, "attrs": {"type": "object"}}
+    }
+  }
+}

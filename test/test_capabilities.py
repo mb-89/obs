@@ -5,7 +5,7 @@ from pathlib import Path
 from jsonschema import validate
 import yaml
 
-from obs_html.capabilities import build_capability_reference
+from obs.capabilities import build_capability_reference
 from obs_html.content import Chapter, collect_notes, read_chapter_content, read_manifest
 
 
@@ -96,7 +96,7 @@ def test_specification_registers_capabilities_as_an_authored_base() -> None:
 def test_capability_reference_is_schema_valid_and_covers_the_input_model() -> None:
     coverage = CAPABILITIES / "coverage.json"
     reference = build_capability_reference(CAPABILITIES, coverage)
-    schema = json.loads((ROOT / "src" / "obs_html" / "capabilities.schema.json").read_text(encoding="utf-8-sig"))
+    schema = json.loads((ROOT / "src" / "obs" / "capabilities.schema.json").read_text(encoding="utf-8-sig"))
 
     validate(reference, schema)
 
