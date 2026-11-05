@@ -45,7 +45,8 @@ uv run pytest
 ```
 
 `uv run pytest` runs the core's suite; the complete suite of the core and every adapter is
-`uv run python test/suite.py` (its docstring is its reference).
+`uv run python test/suite.py` (its docstring is its reference); its time budget is `[tests]` in
+`se.toml`, which se's `work_tickets.py suite` measures.
 
 To check what a built artifact shows without a browser script, print a chapter with
 `--print-chapter`; see [Printing a chapter](spec/design_input/cli.md#printing-a-chapter).
