@@ -20,6 +20,8 @@ BaseFilter = Callable[[Callable[[str], object]], bool]
 _MISSING = object()
 _LIST_INDEX = re.compile(r"0|[1-9][0-9]*")
 _FILE_PROPERTIES = {"file.name", "file.path", "file.folder", "file.ext"}
+IGNORED = "ignored"
+"""The frontmatter field that marks a note as ignored; see markdown-frontmatter."""
 
 
 def note_value(fields: dict[str, object], path: str, field: str) -> object:
