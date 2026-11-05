@@ -7,7 +7,7 @@ from jsonschema import validate
 import pytest
 
 from obs_html.adapter import load_adapter
-from obs_html.document import AdapterError, call_adapter, write_document
+from obs_html.document import AdapterError, call_adapter, main, write_document
 
 ROOT = Path(__file__).parents[1]
 
@@ -69,7 +69,12 @@ def test_core_writes_document_and_calls_adapter(tmp_path) -> None:
     configuration.write_text(json.dumps({"adapters": {"fixture": "adapter.json"}}), encoding="utf-8")
     destination = tmp_path / "output.txt"
 
-    call_adapter("fixture", configuration, document, destination)
+    assert main([
+        "--document", str(document),
+        "--adapter", "fixture",
+        "--adapter-config", str(configuration),
+        "--destination", str(destination),
+    ]) == 0
 
     assert destination.read_text(encoding="utf-8") == "ok"
 
