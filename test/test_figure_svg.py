@@ -8,6 +8,7 @@ import xml.etree.ElementTree as ElementTree
 
 import pytest
 
+from obs_html.cli import main
 from obs_html.figure_svg import document_figures, figure_svg
 from obs_html.figures import FigureError
 
@@ -96,3 +97,35 @@ def test_unsupported_descriptor_data_names_the_figure_and_the_remedy(document) -
     descriptor["data"] = {}
     with pytest.raises(FigureError, match="response.*'sankey' or 'traces'"):
         figure_svg(descriptor)
+
+
+def test_cli_exports_every_figure_of_a_document(document, tmp_path, capsys) -> None:
+    source = tmp_path / "document.json"
+    source.write_text(json.dumps(document), encoding="utf-8")
+    folder = tmp_path / "figures"
+    assert main([str(source), "--export-figures", str(folder)]) == 0
+    first = {path.name: path.read_bytes() for path in folder.iterdir()}
+    assert sorted(first) == ["appendix--figure-flow.svg", "appendix--figure-response.svg"]
+    assert first["appendix--figure-response.svg"] == figure_svg(
+        _descriptors(document)["response"]).encode("utf-8")
+    assert "Exported 2 figures" in capsys.readouterr().out
+    assert main([str(source), "--export-figures", str(folder)]) == 0
+    assert {path.name: path.read_bytes() for path in folder.iterdir()} == first
+
+
+def test_cli_reports_a_document_without_figures(document, tmp_path, capsys) -> None:
+    for chapter in document["chapters"]:
+        chapter["content"] = [node for node in chapter["content"] if node["type"] != "figure-descriptor"]
+    source = tmp_path / "document.json"
+    source.write_text(json.dumps(document), encoding="utf-8")
+    with pytest.raises(SystemExit):
+        main([str(source), "--export-figures", str(tmp_path / "figures")])
+    assert "has no figure-descriptor node" in capsys.readouterr().err
+
+
+def test_cli_refuses_export_figures_with_a_destination(document, tmp_path, capsys) -> None:
+    source = tmp_path / "document.json"
+    source.write_text(json.dumps(document), encoding="utf-8")
+    with pytest.raises(SystemExit):
+        main([str(source), str(tmp_path / "out.html"), "--export-figures", str(tmp_path / "f")])
+    assert "--export-figures" in capsys.readouterr().err
