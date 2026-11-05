@@ -1448,6 +1448,10 @@ the rules below describe the current `bottom line` property until that migration
 - A fenced block with the info string `cmd` is derived content rather than prose.
 - When command execution is authorized for a build, the fence body runs from the vault
   root and its captured output replaces the source fence in the report.
+- A `cmd silent` fence is a producer: on an authorized build, all producers run from
+  the vault root in path and source order before the vault is read for conversion.
+  It renders no command output. Its files are ordinary vault inputs, so an unauthorized
+  build and `--check` use only artifacts already on disk.
 - Command output is HTML-escaped and rendered as preformatted content; it cannot inject
   report markup or styles.
 - A timeout or nonzero exit fails generation so stale or partial reference output is not

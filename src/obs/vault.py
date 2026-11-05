@@ -288,7 +288,9 @@ def _nodes(
             )
             result.append(node)
         elif token.type == "fence":
-            language = token.info.strip().split(maxsplit=1)[0]
+            info = token.info.strip().split()
+            language = info[0] if info else ""
+            silent_command = info == ["cmd", "silent"]
             figure_descriptor: dict[str, object] | None = None
             try:
                 if language == "base":
@@ -321,6 +323,8 @@ def _nodes(
                 fence_type = "figure-descriptor" if figure_descriptor is not None else "figures"
             if fence_type in capability_ids:
                 attrs: dict[str, object] = {"source": token.content}
+                if silent_command:
+                    attrs["silent"] = True
                 if language == "figure" and figure_descriptor is not None:
                     attrs = {"descriptor": figure_descriptor}
                 elif language in {"base", "figure"}:

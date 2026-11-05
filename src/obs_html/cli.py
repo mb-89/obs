@@ -14,6 +14,7 @@ from typing import Callable, NamedTuple, Sequence
 
 from jsonschema import SchemaError, ValidationError
 
+from obs.producers import run_producers
 from obs_html.comments import CommentError, extract_comments
 from obs_html.config import load_config
 from obs_html.content import ContentError, read_manifest
@@ -382,6 +383,11 @@ def _build_document(
         manifest_path = resolve_manifest(source, config.manifest_filename).resolve()
         style_folder = options.style or (
             project_root / config.style_folder if config.style_folder is not None else None
+        )
+        run_producers(
+            manifest_path.parent,
+            authorized=options.execute_commands and not options.check,
+            timeout_seconds=config.command_timeout_seconds,
         )
         trusted_runtime_source = None
         if document.runtime:
