@@ -62,7 +62,8 @@ def additional_capability_document(tmp_path) -> dict[str, object]:
     (vault / "register.base").write_text("views: []\n", encoding="utf-8")
     (vault / "source.csv").write_text("value\n1\n", encoding="utf-8")
     (vault / "chapter.md").write_text(
-        "---\nkind: quantity\nquery: {where: []}\nobsHtml: {document: false}\n"
+        "---\nkind: quantity\naliases: [coverage]\nsource: '[[manifest]]'\nquery: {where: []}\n"
+        "obsHtml: {document: false}\n"
         "reference: https://example.test/source\n---\n"
         "![Source](source.csv)\n\n![[register.base#Open]]\n\n"
         "```cards\nversion: 1\ncards: [{title: Coverage, body: Current state.}]\n```\n\n"

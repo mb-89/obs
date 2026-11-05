@@ -238,3 +238,64 @@ def test_cards_capability_note_documents_each_card_field_once() -> None:
     assert {"cards[].metrics[].denominator", "cards[].obsHtml.metricsFrom",
             "cards[].metrics[].obsHtml.projection"} <= set(fields)
     assert sorted(documented) == sorted(fields)
+
+
+VALID_QUANTITY = "kind: quantity\naliases: [maxLoad]\nsource: '[[drawing]]'\nunit: kN\n"
+
+
+@pytest.mark.parametrize(
+    ("frontmatter", "field", "remedy"),
+    [
+        ("kind: quantity\naliases: [maxLoad]\nsource: '[[drawing]]'\n",
+         "value or query", "add value: <number> or query:"),
+        (VALID_QUANTITY + "value: 1\nquery: {where: []}\n", "value or query", "keep exactly one"),
+        (VALID_QUANTITY + "value: 12 kN\n", "value", "put the unit in unit"),
+        (VALID_QUANTITY + "value: .inf\n", "value", "put the unit in unit"),
+        (VALID_QUANTITY + "value: true\n", "value", "put the unit in unit"),
+        (VALID_QUANTITY + "query: {where: invalid}\n", "query", "write query: {where:"),
+        (VALID_QUANTITY.replace("unit: kN", "unit: ' '") + "value: 1\n", "unit",
+         "or remove unit"),
+        (VALID_QUANTITY.replace("aliases: [maxLoad]", "aliases: [maxLoad, peak]") + "value: 1\n",
+         "aliases", "keep one variable-style alias"),
+        (VALID_QUANTITY.replace("aliases: [maxLoad]", "aliases: max load") + "value: 1\n",
+         "aliases", "keep one variable-style alias"),
+        (VALID_QUANTITY.replace("aliases: [maxLoad]\n", "") + "value: 1\n",
+         "aliases", "keep one variable-style alias"),
+        (VALID_QUANTITY.replace("source: '[[drawing]]'\n", "") + "value: 1\n",
+         "source", "link the supporting note"),
+        (VALID_QUANTITY.replace("'[[drawing]]'", "the drawing") + "value: 1\n",
+         "source", "link the supporting note"),
+    ],
+)
+def test_core_rejects_an_invalid_quantity_note_naming_note_field_and_remedy(
+    tmp_path, frontmatter, field, remedy,
+) -> None:
+    (tmp_path / "manifest.md").write_text("- [[chapter]]\n", encoding="utf-8")
+    (tmp_path / "chapter.md").write_text("[[load]]\n", encoding="utf-8")
+    (tmp_path / "drawing.md").write_text("Drawing.\n", encoding="utf-8")
+    (tmp_path / "load.md").write_text(f"---\n{frontmatter}---\nBody.\n", encoding="utf-8")
+
+    message = _error_message(lambda: build_document(tmp_path / "manifest.md", {
+        "capabilities": [], "schemaVersion": 1,
+    }))
+
+    assert message.startswith(f"Quantity note {tmp_path / 'load.md'}: {field} ")
+    assert remedy in message
+
+
+@pytest.mark.parametrize(
+    "fields",
+    ["value: 12.5", "value: -3\nunit: mm", "query: {where: [{field: status, exists: true}]}",
+     "value: 1\naliases: maxLoad\nsource: ['[[drawing]]', 'site visit']"],
+)
+def test_core_accepts_a_valid_quantity_note(tmp_path, fields) -> None:
+    (tmp_path / "manifest.md").write_text("- [[load]]\n", encoding="utf-8")
+    (tmp_path / "drawing.md").write_text("Drawing.\n", encoding="utf-8")
+    frontmatter = "kind: quantity\n" + (
+        fields if "aliases" in fields else f"aliases: [maxLoad]\nsource: '[[drawing]]'\n{fields}"
+    )
+    (tmp_path / "load.md").write_text(f"---\n{frontmatter}\n---\n", encoding="utf-8")
+
+    document = build_document(tmp_path / "manifest.md", {"capabilities": [], "schemaVersion": 1})
+
+    assert document["chapters"][0]["metadata"]["kind"] == "quantity"
