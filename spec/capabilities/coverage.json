@@ -19,7 +19,6 @@
     "Markdown body and frontmatter": "input",
     "Mark tags": "input",
     "Base fences": "input",
-    "Bottom line and glossary": "input",
     "Command-derived content": "input",
     "Reviewed copy": "adapter",
     "One count query": "input",
