@@ -234,7 +234,7 @@ def _metadata_links(metadata: object, source_path: Path, vault: _Vault) -> None:
 
 def _select(selects, vault: _Vault) -> None:
     for path, (fields, _) in vault.notes.items():
-        if path != vault.manifest and selects(fields, vault.relative(path)):
+        if selects(fields, vault.relative(path)):
             vault.reached.append(path)
 
 
