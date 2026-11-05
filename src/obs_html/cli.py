@@ -7,6 +7,7 @@ import re
 import subprocess
 import sys
 import tempfile
+import textwrap
 from functools import partial
 from importlib.metadata import version
 from pathlib import Path
@@ -24,7 +25,7 @@ from obs_html.report_data import same_document_content
 from obs_html.reproduction import (
     embed_archive, embed_payload_runtime, embedded_archive, source_archive,
 )
-from obs_html.timings import recording, stage
+from obs_html.timings import STAGES, recording, stage
 
 
 _IMPORTED = perf_counter()
@@ -76,6 +77,11 @@ def _generator_provenance() -> dict[str, str]:
     return provenance
 
 
+def _stage_help() -> str:
+    names = ", ".join(f"{name} ({description})" for name, description in STAGES.items())
+    return textwrap.fill(f"Stages: {names}.", width=86, initial_indent="  ", subsequent_indent="  ")
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="obs-html",
@@ -105,9 +111,8 @@ Several documents:
 Timings:
   --timings prints "Timing: STAGE SECONDS s (OUTPUT)" after each document, and
   imports, generator provenance and total for the whole call without (OUTPUT).
-  Document stages: parse (configuration, manifest, notes), provenance (git),
-  render, figures, commands (cmd fences), source-archive and write; PDF operations
-  time print and attach. Durations are exclusive; stages without work are omitted.
+{_stage_help()}
+  Durations are exclusive; stages without work are omitted.
 
 Reproduction sources:
   --embed-source discloses non-hidden vault files, including scripts and data not
@@ -384,11 +389,12 @@ def _build_document(
         style_folder = options.style or (
             project_root / config.style_folder if config.style_folder is not None else None
         )
-        run_producers(
-            manifest_path.parent,
-            authorized=options.execute_commands and not options.check,
-            timeout_seconds=config.command_timeout_seconds,
-        )
+        with stage("producers"):
+            run_producers(
+                manifest_path.parent,
+                authorized=options.execute_commands and not options.check,
+                timeout_seconds=config.command_timeout_seconds,
+            )
         trusted_runtime_source = None
         if document.runtime:
             trusted_runtime_id, trusted_runtime_path = document.runtime
