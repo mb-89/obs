@@ -71,3 +71,32 @@ def test_inclusion_uses_the_grammar_for_indexed_and_literal_dotted_paths(tmp_pat
     assert sorted(note["sourcePath"] for note in notes) == [
         "chapter.md", "indexed.md", "literal.md", "manifest.md",
     ]
+
+
+@pytest.mark.parametrize("case", FIXTURE["cases"], ids=lambda case: json.dumps(case["filter"]))
+def test_core_evaluator_matches_fixture(case):
+    from obs.selection import compile_base_filter as core_filter, note_value
+
+    predicate = core_filter(case["filter"])
+    actual = [
+        record["id"] for record in FIXTURE["records"]
+        if predicate(lambda field, record=record: note_value(record["frontmatter"], record["path"], field))
+    ]
+    assert actual == case["expected"]
+
+
+@pytest.mark.parametrize("filters", FIXTURE["unsupported"], ids=json.dumps)
+def test_core_evaluator_rejects_unsupported_filters(filters):
+    from obs.input import InputError
+    from obs.selection import compile_base_filter as core_filter
+
+    with pytest.raises(InputError, match="Unsupported Bases"):
+        core_filter(filters)
+
+
+def test_core_and_interim_schemas_share_the_comparison_pattern():
+    def pattern(package: str) -> str:
+        schema = Path(__file__).parents[1] / "src" / package / "base.schema.json"
+        return json.loads(schema.read_text(encoding="utf-8"))["$defs"]["comparison"]["pattern"]
+
+    assert pattern("obs") == pattern("obs_html")
