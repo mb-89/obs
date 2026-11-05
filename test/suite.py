@@ -2,10 +2,17 @@
 
 Reader: whoever runs or changes the complete suite, and CI.
 
+It runs the core's default tiers (unit and dom) and every adapter's whole suite. The core's
+browser and e2e tiers are not part of it: they run with `uv run pytest --gate`, which takes the
+same parallel options (`-n auto --dist loadgroup`). Its time budget is `[tests]` in `se.toml`.
+
 Each part tests only itself, with its own `pyproject.toml` settings and `conftest.py`, so each
-runs as its own pytest process from its own folder. Every part runs even when an earlier one
-fails; the exit code is non-zero when any part failed. Install the Node test packages once
-first: `npm --prefix test/browser ci` and `npm --prefix adapters/html/test/browser ci`.
+runs as its own pytest process from its own folder, its tests spread over one worker process
+per CPU (pytest-xdist, `-n auto --dist loadgroup`: a module's tests share a worker; groups start
+in collection order, so a part can start its longest tests first). Every part
+runs even when an earlier one fails; the exit code is non-zero when any part failed. Arguments
+are passed on to every part's pytest, for example `--durations=20`. Install the Node test
+packages once first: `npm --prefix test/browser ci` and `npm --prefix adapters/html/test/browser ci`.
 
     uv run python test/suite.py
 """
@@ -16,14 +23,16 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 # The core, then each integrated adapter folder under adapters/.
 PARTS = [ROOT, *sorted(path.parent for path in (ROOT / "adapters").glob("*/pyproject.toml"))]
+PARALLEL = ["-n", "auto", "--dist", "loadgroup", "--no-loadscope-reorder"]
 
 
-def main() -> int:
+def main(arguments: list[str]) -> int:
     failed = []
     for part in PARTS:
         name = part.relative_to(ROOT).as_posix() if part != ROOT else "core"
-        print(f"== {name}: pytest -q in {part}", flush=True)
-        if subprocess.run([sys.executable, "-m", "pytest", "-q"], cwd=part).returncode:
+        command = [sys.executable, "-m", "pytest", "-q", *PARALLEL, *arguments]
+        print(f"== {name}: {' '.join(command[1:])} in {part}", flush=True)
+        if subprocess.run(command, cwd=part).returncode:
             failed.append(name)
     if failed:
         print(f"test/suite.py: failed parts: {', '.join(failed)}. Remedy: rerun `uv run pytest` in each "
@@ -34,4 +43,4 @@ def main() -> int:
 
 
 if __name__ == "__main__":
-    raise SystemExit(main())
+    raise SystemExit(main(sys.argv[1:]))

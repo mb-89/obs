@@ -88,8 +88,8 @@ def test_the_record_of_an_ignored_note_says_so(tmp_path) -> None:
     assert "ignored" not in records["chapter.md"]
 
 
-def test_the_spec_manifest_is_not_selected_by_a_query_or_base_matching_all_notes() -> None:
-    records = build_document(ROOT / "spec" / "manifest.md", capability_reference())["records"]
+def test_the_spec_manifest_is_not_selected_by_a_query_or_base_matching_all_notes(spec_document) -> None:
+    records = spec_document["records"]
     every_query = _selected(records, lambda fields, path: conditions_select([], fields, path))
 
     assert "manifest.md" not in every_query

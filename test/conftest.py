@@ -1,8 +1,11 @@
 import json
 import os
+import re
+import shutil
 from pathlib import Path
 
 import pytest
+from filelock import FileLock
 
 import browser_pool
 import tiers
@@ -19,6 +22,15 @@ def pytest_addoption(parser):
 @pytest.hookimpl(tryfirst=True)
 def pytest_collection_modifyitems(config, items):
     tiers.modify_items(config, items)
+    group_by_module(items)
+
+
+def group_by_module(items) -> None:
+    """Keep a module's tests on one xdist worker (`--dist loadgroup`), so its module fixtures are
+    built once per run; a test with its own ``xdist_group`` mark runs where that group runs."""
+    for item in items:
+        if not item.get_closest_marker("xdist_group"):
+            item.add_marker(pytest.mark.xdist_group(item.nodeid.split("::")[0]))
 
 
 @pytest.hookimpl(wrapper=True)
@@ -34,6 +46,12 @@ def pytest_terminal_summary(terminalreporter, exitstatus, config):
 
 def pytest_sessionfinish(session, exitstatus):
     _close_browser_pool()
+    tiers.worker_finish(session.config)
+
+
+@pytest.hookimpl(optionalhook=True)
+def pytest_testnodedown(node, error):
+    tiers.node_down(node.config, node)
 
 
 @pytest.fixture(autouse=True, scope="session")
@@ -193,3 +211,62 @@ def remote_images(monkeypatch):
 
     monkeypatch.setattr(vault, "fetch_remote", fetch)
     return served, fetched
+
+
+def built_once(tmp_path_factory, name: str, build) -> Path:
+    """The folder ``build(folder)`` fills, built once per run and shared by every xdist worker.
+
+    Workers' temporary folders sit side by side in the run's folder; the first worker to ask
+    builds there under a lock and the others wait for it and read what it built.
+    """
+    root = tmp_path_factory.getbasetemp()
+    if os.environ.get("PYTEST_XDIST_WORKER"):
+        root = root.parent
+    folder = root / name
+    with FileLock(f"{folder}.lock"):
+        if not (folder / ".built").is_file():
+            shutil.rmtree(folder, ignore_errors=True)
+            folder.mkdir()
+            build(folder)
+            (folder / ".built").touch()
+    return folder
+
+
+SPEC_MANIFEST = Path(__file__).parents[1] / "spec" / "manifest.md"
+REMOTE_IMAGE = (b"<svg xmlns='http://www.w3.org/2000/svg'/>", "image/svg+xml")
+
+
+@pytest.fixture(scope="session")
+def spec_document_file(tmp_path_factory) -> Path:
+    """obs's spec as the core's Document JSON, built once per run.
+
+    The remote images its manifest shows are served as a small SVG; any other URL is
+    unreachable, as in every test.
+    """
+    def build(folder: Path) -> None:
+        from obs import vault
+        from obs.capabilities import build_capability_reference
+        from obs.document import build_document
+
+        capabilities = SPEC_MANIFEST.parent / "capabilities"
+        served = dict.fromkeys(re.findall(r"!\[[^\]]*\]\((https://[^)]+)\)",
+                                          SPEC_MANIFEST.read_text(encoding="utf-8")), REMOTE_IMAGE)
+
+        def fetch(url: str) -> tuple[bytes, str | None]:
+            if url not in served:
+                raise UnreachableNetwork(f"no network in tests for {url}")
+            return served[url]
+
+        with pytest.MonkeyPatch.context() as patch:
+            patch.setattr(vault, "fetch_remote", fetch)
+            document = build_document(SPEC_MANIFEST, build_capability_reference(
+                capabilities, capabilities / "coverage.json"))
+        (folder / "spec.json").write_text(json.dumps(document), encoding="utf-8")
+
+    return built_once(tmp_path_factory, "spec-document", build) / "spec.json"
+
+
+@pytest.fixture
+def spec_document(spec_document_file: Path) -> dict:
+    """obs's spec as the core's Document, built once per run; each test gets its own copy."""
+    return json.loads(spec_document_file.read_text(encoding="utf-8"))
