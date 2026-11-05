@@ -1,0 +1,33 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "obs core configuration",
+  "type": "object",
+  "required": ["input", "execution"],
+  "properties": {
+    "input": {
+      "type": "object",
+      "required": ["manifestFilename", "projectConfigFilename"],
+      "properties": {
+        "manifestFilename": {
+          "type": "string",
+          "pattern": "^[^/\\\\]+\\.md$"
+        },
+        "projectConfigFilename": {
+          "type": "string",
+          "pattern": "^[^/\\\\]+\\.json$"
+        }
+      }
+    },
+    "execution": {
+      "type": "object",
+      "required": ["commandTimeoutSeconds"],
+      "properties": {
+        "commandTimeoutSeconds": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 300
+        }
+      }
+    }
+  }
+}
