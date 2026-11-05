@@ -16,6 +16,8 @@ Preserve authored prose according to se's [work-model rule](../se/.github/skills
 - Generated content belongs in `data/data_output` or `spec/design_output` and is ignored.
 - One owner owns each fact; other locations link to it.
 - Do not add compatibility aliases, shims, or fallbacks unless explicitly requested.
+- Commits carry the project identity from `se.toml`; se sets it as its
+  [Project settings](../se/README.md#project-settings) say. Do not set it by hand.
 
 ## Commands
 
