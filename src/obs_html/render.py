@@ -18,7 +18,10 @@ from importlib.metadata import version
 from importlib.resources import files
 from pathlib import Path, PurePosixPath
 from typing import Callable
+from urllib.parse import unquote
 
+import yaml
+from jsonschema import Draft202012Validator
 from markdown_it import MarkdownIt
 
 from obs_html.bars import BarDefinition, discover_bars
@@ -69,6 +72,7 @@ class Context:
     paths: dict[str, str] = field(default_factory=dict)
     aliases: dict[str, str | None] = field(default_factory=dict)
     records: dict[str, dict[str, object]] = field(default_factory=dict)
+    editable: dict[str, dict[str, object]] = field(default_factory=dict)
 
 
 Renderer = Callable[[dict[str, object], Context], str]
@@ -390,6 +394,125 @@ def _figure(node: dict[str, object], context: Context) -> str:
         raise RenderError(f"Chapter {context.chapter or HOME}: {error}") from error
 
 
+def _references(node: dict[str, object], context: Context) -> str:
+    """A glossary or reference note. Its metadata reaches the runtime as the note's frontmatter:
+    hover cards and the glossary register read the definition (``definitionHtml``, see
+    _definition_html) and a reference's ``url`` (obs references.md, input-model Reference notes)."""
+    metadata = node["attrs"]["metadata"]
+    place = f"Chapter {context.chapter or HOME}"
+    if metadata.get("kind") == "glossary" and not isinstance(metadata.get("definition"), str):
+        raise RenderError(f"{place}: glossary note has no text definition. Remedy: add "
+                          "'definition: <text>' to the note's frontmatter.")
+    url = metadata.get("url")
+    if url is not None and not (isinstance(url, str) and re.match(r"https?://\S+$", url, re.IGNORECASE)):
+        raise RenderError(f"{place}: reference url {url!r} is not an http(s) URL. Remedy: give the "
+                          "reference note's url field the external address, such as https://example.org.")
+    return ""
+
+
+def _definition_html(frontmatter: dict[str, object], context: Context) -> str:
+    """A glossary note's definition as inline HTML, for its hover card and register rows."""
+    if frontmatter.get("kind") != "glossary" or "definition" not in frontmatter:
+        return ""
+    return _inline(frontmatter["definition"], context)
+
+
+SYNTAX_EXTENSIONS = {"callout": "callouts"}
+
+
+def _extension(node: dict[str, object], context: Context) -> str:
+    """An Obsidian syntax extension the source used (obs extensions.md). It marks the syntax; the
+    capability that owns the syntax renders its content, so the marker itself shows nothing.
+    Trusted runtime extensions are another thing: report.js's ``obsReport.trustedExtension``."""
+    syntax = node["attrs"].get("syntax")
+    owner = SYNTAX_EXTENSIONS.get(syntax)
+    if owner is None:
+        raise RenderError(f"Chapter {context.chapter or HOME}: syntax extension {syntax!r} is not one obs-html "
+                          f"renders; it renders {', '.join(sorted(SYNTAX_EXTENSIONS))}. Remedy: write the "
+                          "content without that syntax, or extend obs-html's SYNTAX_EXTENSIONS.")
+    if owner not in context.document["capabilities"]:
+        raise RenderError(f"Chapter {context.chapter or HOME}: syntax extension {syntax!r} is used, but the "
+                          f"Document does not use {owner!r}, which renders it; regenerate the Document with "
+                          "the obs core.")
+    return ""
+
+
+PROPERTY_EDITOR_SCHEMA = json.loads(files("obs_html").joinpath("property-editor.schema.json")
+                                    .read_text(encoding="utf-8"))
+PROPERTY_EDITOR = Draft202012Validator(PROPERTY_EDITOR_SCHEMA)
+PROTECTED_FIELDS = frozenset(PROPERTY_EDITOR_SCHEMA["$defs"]["editableField"]["not"]["enum"])
+
+
+def _property_editor(node: dict[str, object], context: Context) -> str:
+    """A ``property-editor`` fence: a text editor for one existing string field of an authored
+    note; properties.js commits edits through report.js (``obsReport.commitProperty``), which
+    checks the same declaration. The core has no capability for the fence (obs input-model,
+    Reviewed copy), so the Document carries it as a code node in that language."""
+    place = f"Chapter {context.chapter or HOME}: property editor"
+    try:
+        spec = yaml.safe_load(node.get("text", ""))
+    except yaml.YAMLError as error:
+        raise RenderError(f"{place} is not valid YAML: {error}. Remedy: fix the property-editor fence.") from error
+    field = spec.get("field") if isinstance(spec, dict) else None
+    if isinstance(field, str) and field.lower() in PROTECTED_FIELDS:
+        raise RenderError(f"{place} cannot change the protected field {field!r}. Remedy: edit another field.")
+    error = next(PROPERTY_EDITOR.iter_errors(spec), None)
+    if error is not None:
+        raise RenderError(f"{place}: {error.message[:180]}. Remedy: declare version: 1, field and label as "
+                          "property-editor.schema.json says.")
+    limit = spec.get("maxLength", PROPERTY_EDITOR_SCHEMA["properties"]["maxLength"]["default"])
+    if not context.chapter or not isinstance(context.frontmatter.get(field), str):
+        raise RenderError(f"{place} needs an existing text field {field!r} on an authored note. Remedy: add "
+                          f"'{field}: <text>' to the note's frontmatter.")
+    if len(context.frontmatter[field]) > limit:
+        raise RenderError(f"{place}: the text of {field!r} is longer than maxLength {limit}. Remedy: shorten "
+                          "it or raise maxLength.")
+    if field in context.editable:
+        raise RenderError(f"{place} declares {field!r} more than once. Remedy: keep one editor per field.")
+    definition: dict[str, object] = {"label": spec["label"], "maxLength": limit}
+    projection = spec.get("projection")
+    if projection is not None:
+        for branch in ("blank", "nonblank"):
+            for name, value in projection[branch].items():
+                if name == field or name.lower() in PROTECTED_FIELDS or name not in context.frontmatter \
+                        or not _projection_matches(context.frontmatter[name], value):
+                    raise RenderError(f"{place}: projection field {name!r} must be another existing, unprotected "
+                                      "field of the same type. Remedy: project onto such a field.")
+        definition["projection"] = projection
+    context.editable[field] = definition
+    label = escape(spec["label"])
+    return ('<label class="property-editor">'
+            f"<span>{label}</span>"
+            f'<textarea data-property-editor data-property-note="{escape(context.chapter, quote=True)}" '
+            f'data-property-field="{escape(field, quote=True)}" maxlength="{limit}" '
+            f'aria-label="{escape(spec["label"], quote=True)}" rows="2"></textarea></label>\n')
+
+
+def _projection_kind(value: object) -> str | None:
+    """The kinds a projection may write, as report.js checks them: one primitive, or a list of one."""
+    if value is None:
+        return "null"
+    if isinstance(value, bool):
+        return "boolean"
+    if isinstance(value, str):
+        return "string"
+    if isinstance(value, (int, float)):
+        return "number" if math.isfinite(value) else None
+    if isinstance(value, list):
+        kinds = {_projection_kind(item) for item in value}
+        return "array" if None not in kinds and len(kinds) <= 1 else None
+    return None
+
+
+def _projection_matches(existing: object, projected: object) -> bool:
+    kind = _projection_kind(projected)
+    if kind is None or _projection_kind(existing) != kind:
+        return False
+    if kind != "array" or not existing or not projected:
+        return True
+    return _projection_kind(existing[0]) == _projection_kind(projected[0])
+
+
 CAPABILITIES: dict[str, Renderer] = {
     "attachments": _attachment,
     "bases": _base,
@@ -400,6 +523,7 @@ CAPABILITIES: dict[str, Renderer] = {
     "count-query": _count_query,
     "document-presentation": _nothing,
     "embeds": _embed,
+    "extensions": _extension,
     "figure-descriptor": _figure,
     "manifest": _nothing,
     "markdown": _nothing,
@@ -409,6 +533,7 @@ CAPABILITIES: dict[str, Renderer] = {
     "profiles": _nothing,
     "quantities": _quantity,
     "queries": _nothing,
+    "references": _references,
     "wikilinks": _wikilink,
 }
 
@@ -441,6 +566,7 @@ def render(document: dict[str, object], config: Config,
                 key = alias.strip().casefold()  # An alias two notes share resolves to neither.
                 context.aliases[key] = record["id"] if key not in context.aliases else None
     _index(document["chapters"], context)
+    _index_headings(HOME, document["manifest"].get("abstract", []), context)
     if HOME in context.chapters:
         raise RenderError(f"Chapter id {HOME!r} is reserved for the document's home page.")
     context.chapters[HOME] = document["manifest"]["title"]  # The core links the manifest as home.
@@ -536,7 +662,7 @@ def _chapter_notes(chapters: list[dict[str, object]], context: Context, depth: i
 
 
 def _note_body(nodes: list[dict[str, object]], chapter: str, context: Context) -> str:
-    context.chapter, context.tables, context.marks = chapter, [], []
+    context.chapter, context.tables, context.marks, context.editable = chapter, [], [], {}
     body = _nodes(nodes, context)
     context.chapter = ""
     return body
@@ -547,9 +673,9 @@ def _note(depth: int, title: str, slug: str, generated: str, frontmatter: dict[s
     return {
         "depth": depth, "title": title, "slug": slug, "sourcePath": f"{slug}.md",
         "generated": generated, "cssClasses": _css_classes(frontmatter, slug),
-        "frontmatter": frontmatter, "editableProperties": {},
+        "frontmatter": frontmatter, "editableProperties": context.editable,
         "frontmatterHtml": _frontmatter_html(frontmatter, context),
-        "definitionHtml": "", "marks": context.marks, "tables": context.tables, "html": html,
+        "definitionHtml": _definition_html(frontmatter, context), "marks": context.marks, "tables": context.tables, "html": html,
     }
 
 
@@ -568,6 +694,7 @@ def _attach_records(records: list[dict[str, object]], notes: list[dict[str, obje
         if note is not None and not note["generated"]:
             note["frontmatter"] = {**fields, **note["frontmatter"]}
             note["frontmatterHtml"] = _frontmatter_html(note["frontmatter"], context)
+            note["definitionHtml"] = _definition_html(note["frontmatter"], context)
             note["sourcePath"] = source_path
             continue
         if note is not None:
@@ -578,7 +705,7 @@ def _attach_records(records: list[dict[str, object]], notes: list[dict[str, obje
             "sourcePath": source_path, "generated": "", "cssClasses": [],
             "frontmatter": fields, "editableProperties": {},
             "frontmatterHtml": _frontmatter_html(fields, context),
-            "definitionHtml": "", "marks": [], "tables": [], "html": "", "record": True,
+            "definitionHtml": _definition_html(fields, context), "marks": [], "tables": [], "html": "", "record": True,
             **({"ignored": True} if record.get("ignored") else {}),
         })
 
@@ -630,6 +757,8 @@ def _node(node: dict[str, object], context: Context) -> str:
         raise RenderError(f"Document node uses a capability this adapter does not render: {kind}.")
     if kind == "text":
         return _text_node(node, context)
+    if kind == "code" and node["attrs"].get("language") == "property-editor":
+        return _property_editor(node, context)
     if kind == "code":
         return _code(node)
     if kind == "paragraph":
@@ -641,7 +770,7 @@ def _node(node: dict[str, object], context: Context) -> str:
     inner = _nodes(node["children"], context)
     if kind == "section":
         level = min(max(int(node["attrs"].get("level", 1)), 1), 6)
-        anchor = context.headings.get(f"{context.chapter}#{_identifier(_plain(node))}", "")
+        anchor = context.headings.get(f"{context.chapter or HOME}#{_identifier(_plain(node))}", "")
         identifier = f' id="{anchor}"' if anchor else ""
         return f"<h{level}{identifier}>{inner}</h{level}>\n"
     if kind == "list":
@@ -740,6 +869,9 @@ def _text_node(node: dict[str, object], context: Context) -> str:
         link = context.links.get(attrs["link"])
         if link is None:
             raise RenderError(f"Text links to an unknown link: {attrs['link']}.")
+        chapter = _note_target(link["href"], context)
+        if chapter is not None:
+            return f'<a class="internal-link" href="#{chapter}">{text}</a>'
         return f'<a href="{escape(link["href"], quote=True)}">{text}</a>'
     if "asset" in attrs:
         asset = context.files.get(attrs["asset"])
@@ -747,6 +879,19 @@ def _text_node(node: dict[str, object], context: Context) -> str:
             raise RenderError(f"Text names an unknown asset: {attrs['asset']}.")
         return f'<img src="{escape(asset["href"], quote=True)}" alt="{escape(node.get("text", ""), quote=True)}">'
     return text
+
+
+def _note_target(href: str, context: Context) -> str | None:
+    """The chapter a Markdown link to a vault note (``[1](reference.md)``) shows, such as a
+    citation of a reference note (obs input-model, Reference notes and link text), or None for
+    an external or unresolved target, which stays an ordinary link."""
+    if re.match(r"[A-Za-z][A-Za-z0-9+.-]*:|#", href):
+        return None
+    path = unquote(href.split("#", 1)[0])
+    if not path.endswith(".md"):
+        return None
+    chapter = context.paths.get(path.removeprefix("./").removesuffix(".md"))
+    return chapter if chapter in context.chapters else None
 
 
 def _shell(model: dict[str, object], stylesheet: str, assets: SemanticAssets, config: Config,
@@ -780,6 +925,9 @@ def _shell(model: dict[str, object], stylesheet: str, assets: SemanticAssets, co
     if "data-record-cards" in data or any(note["frontmatter"].get("kind") == "quantity"
                                           and "query" in note["frontmatter"] for note in model["notes"]):
         card_assets = f'<script id="cards-script">{read("cards.js")}</script>'
+    property_assets = ""
+    if "data-property-editor" in data:
+        property_assets = f'<script id="property-editor-script">{read("properties.js")}</script>'
     startup = model["reading"]
     reader_startup = "".join(
         f"    {line}\n" for line in read("reader-startup.js")
@@ -897,6 +1045,7 @@ def _shell(model: dict[str, object], stylesheet: str, assets: SemanticAssets, co
   </script>
   {figure_assets}
   {card_assets}
+  {property_assets}
   <script id="pages-script">
 {read("pages.js")}
   </script>
@@ -962,14 +1111,20 @@ def _index(chapters: list[dict[str, object]], context: Context) -> None:
     """Record every chapter and heading anchor before rendering, so links can point forward."""
     for chapter in chapters:
         context.chapters[chapter["id"]] = chapter["title"]
-        seen: set[str] = set()
-        for node in chapter["content"]:
-            if node["type"] == "section":
-                slug = _identifier(_plain(node))
-                if slug not in seen:
-                    seen.add(slug)
-                    context.headings[f"{chapter['id']}#{slug}"] = f"{chapter['id']}--{slug}"
+        _index_headings(chapter["id"], chapter["content"], context)
         _index(chapter["children"], context)
+
+
+def _index_headings(chapter: str, nodes: list[dict[str, object]], context: Context) -> None:
+    """A heading's anchor is ``<chapter>--<slug>``; the home page's second-level headings also
+    name its front-page groups (pages.js, the abstract's ``@<slug>`` sections)."""
+    seen: set[str] = set()
+    for node in nodes:
+        if node["type"] == "section":
+            slug = _identifier(_plain(node))
+            if slug not in seen:
+                seen.add(slug)
+                context.headings[f"{chapter}#{slug}"] = f"{chapter}--{slug}"
 
 
 CSS_CLASS = re.compile(r"-?[_A-Za-z][_A-Za-z0-9-]*")
@@ -999,7 +1154,18 @@ def _inline(value: object, context: Context | None = None) -> str:
     if re.fullmatch(r"https?://[^\s<>]+", source, re.IGNORECASE):
         source = f"<{source}>"
     html = INLINE.renderInline(source)
-    return WIKILINK.sub(lambda match: _frontmatter_link(match, context), html) if context else html
+    if context is None:
+        return html
+    html = NOTE_HREF.sub(lambda match: _note_href(match, context), html)
+    return WIKILINK.sub(lambda match: _frontmatter_link(match, context), html)
+
+
+NOTE_HREF = re.compile(r'<a href="([^"]*)">')
+
+
+def _note_href(match: re.Match[str], context: Context) -> str:
+    chapter = _note_target(unescape(match[1]), context)
+    return f'<a class="internal-link" href="#{chapter}">' if chapter is not None else match[0]
 
 
 WIKILINK = re.compile(r"\[\[([^\[\]|#]*)(?:#([^\[\]|]*))?(?:\|([^\[\]]*))?\]\]")

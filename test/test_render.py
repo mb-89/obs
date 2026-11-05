@@ -6,7 +6,7 @@ from obs_html.config import load_config
 from obs_html.render import RenderError, render
 from obs_html.report_data import decode_report_data
 
-from documents import chapter, document as build, node, paragraph
+from documents import chapter, document as build, heading, node, paragraph
 
 
 CONFIG = load_config()
@@ -126,7 +126,7 @@ def test_base_views_become_runtime_tables(document) -> None:
 def test_records_join_the_queryable_population_outside_the_reading_order(document) -> None:
     model = _model(document)
     records = {note["slug"]: note for note in model["notes"] if note["slug"] not in model["toc"]}
-    assert set(records) == {"alpha", "beta", "gamma", "other", "ranked"}  # ranked: an included quantity note.
+    assert set(records) == {"alpha", "beta", "gamma", "other", "ranked", "datum"}  # ranked, datum: included notes.
     assert records["alpha"]["frontmatter"] == {
         "kind": "item", "rank": 1, "item": {"name": "Alpha"}, "obsHtml": {"document": False}}
     assert records["alpha"]["html"] == ""
@@ -356,3 +356,9 @@ def test_a_toc_false_chapter_links_home() -> None:
         node("wikilinks", target="manifest", chapter="home", heading="", label="manifest")))
     html = _notes(document)["reached"]["html"]
     assert '<a class="internal-link" href="#home">Unlisted</a>' in html
+
+
+def test_home_headings_carry_anchors_that_name_the_front_page_groups() -> None:
+    source = build("Doc", chapter("one", "One"), abstract=(heading(2, "Metadata"),))
+    home = _notes(source)["home"]["html"]
+    assert '<h2 id="home--metadata">Metadata</h2>' in home
