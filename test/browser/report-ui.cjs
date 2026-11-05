@@ -151,13 +151,17 @@ if (process.argv[7] === "--document-change-only") {
     vm.runInContext(fs.readFileSync(process.argv[6], "utf8"), context);
     vm.runInContext(fs.readFileSync(process.argv[4], "utf8"), context);
     vm.runInContext(fs.readFileSync(process.argv[5], "utf8"), context);
-    const warning = document.querySelector("[data-document-warning]");
-    assert.ok(warning, "The existing save owner supplies a persistent HTML change notice.");
+    const changed = () => {
+        const entry = document.querySelector('[data-notice-list="information"] [data-notice="changed-html"]');
+        assert.equal(Boolean(entry?.querySelector("[data-document-download]")), Boolean(entry),
+            "The changed-HTML entry carries the existing save owner's download button.");
+        return Boolean(entry);
+    };
     const semanticDirty = () => document.querySelector("[data-review-save-guidance]").dataset.dirty === "true";
     const documentDirty = () => {
         const event = new window.Event("beforeunload", {cancelable: true});
         window.dispatchEvent(event);
-        assert.equal(!warning.hidden, event.defaultPrevented);
+        assert.equal(changed(), event.defaultPrevented);
         return event.defaultPrevented;
     };
     assert.equal(documentDirty(), false);
@@ -168,7 +172,10 @@ if (process.argv[7] === "--document-change-only") {
     assert.equal(semanticDirty(), false, "Saved reader state is not a semantic review edit.");
     context.obsFilter.setExpression("status: /[");
     assert.equal(documentDirty(), true, "Invalid drafts preserve the saved applied query.");
-    click(document.querySelector("[data-filter-warning] button"));
+    assert.ok(document.querySelector('[data-notice-list="information"] [data-notice="applied-filter"]'),
+        "The applied filter is an information entry.");
+    click(document.querySelector('[data-notice="applied-filter"] [data-filter-clear]'));
+    assert.equal(document.querySelector('[data-notice="applied-filter"]'), null);
     assert.equal(documentDirty(), false, "Reverting the serialized query clears document state.");
     context.obsReport.setViewSelection("proof", ["a"], ["a", "b"]);
     assert.equal(documentDirty(), true);
