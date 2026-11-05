@@ -26,6 +26,13 @@ command reference. Run the focused contract check with:
 uv run pytest test/test_adapter_manifest.py
 ```
 
+`uv run obs-html-inspect --help` is the reference of the PDF inspection tools, which read a
+generated PDF without a viewer so print output can be verified automatically:
+
+```powershell
+uv run pytest test/test_pdf_inspect.py
+```
+
 The report runtime's DOM tests run in Node over a test-only DOM adapter; install it once with
 `npm --prefix test/browser ci`, then `uv run pytest -m dom` runs that tier alone.
 
