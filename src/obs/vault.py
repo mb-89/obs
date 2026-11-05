@@ -10,6 +10,7 @@ import json
 from pathlib import Path
 import re
 from urllib.parse import unquote, urlparse
+import urllib.request
 
 from markdown_it import MarkdownIt
 from markdown_it.token import Token
@@ -46,6 +47,23 @@ _SEMANTIC = re.compile(
     r"(?P<embed>!)?\[\[(?P<target>[^\]|#]+)(?:#(?P<heading>[^\]|]+))?"
     r"(?:\|(?P<label>[^\]]+))?\]\]|#mark/(?P<category>[a-z_]+)/(?P<id>[a-z0-9_]+)"
 )
+
+
+REMOTE_SCHEMES = frozenset({"http", "https"})
+"""The URL schemes of a remote image the build fetches; see input-model "Document home and abstract"."""
+FETCH_TIMEOUT_SECONDS = 20
+
+
+def fetch_remote(url: str) -> tuple[bytes, str | None]:
+    """The bytes at a URL and the media type its server names; the build's one network read.
+
+    Tests replace this function, so no test reaches the network. Raises OSError or ValueError.
+    Some image hosts refuse urllib's default user agent, so the request names the core.
+    """
+    request = urllib.request.Request(url, headers={"User-Agent": "obs-document"})
+    with urllib.request.urlopen(request, timeout=FETCH_TIMEOUT_SECONDS) as response:
+        media_type = response.headers.get_content_type() if response.headers.get("Content-Type") else None
+        return response.read(), media_type
 
 
 HOME = "home"
@@ -492,6 +510,7 @@ class _Context:
     capability_ids: set[str]
     capabilities: set[str]
     fences: dict[str, int] = field(default_factory=dict)
+    field_path: str = ""
 
 
 @cache
@@ -783,7 +802,8 @@ def _field_nodes(value: object, name: str, context: _Context) -> list[dict[str, 
     if not isinstance(value, str) or not value.strip():
         return []
     tokens = _parser().parseInline(value)
-    return [{"type": "field", "attrs": {"name": name}, "children": _inline_nodes(tokens[0], context)}]
+    children = _inline_nodes(tokens[0], replace(context, field_path=name))
+    return [{"type": "field", "attrs": {"name": name}, "children": children}]
 
 
 def _semantic_text_nodes(text: str, context: _Context) -> list[dict[str, object]]:
@@ -901,7 +921,8 @@ def _resource(
 def _asset(context: _Context, label: str, href: str, path: Path | None) -> dict[str, str]:
     """The one asset of a referenced file, with its bytes; see architecture "Asset bytes".
 
-    A vault file is one asset however often it is referenced; ``path`` is None for a URL.
+    A vault file is one asset however often it is referenced, and so is a URL; ``path`` is
+    None for a URL. A remote image is fetched once; one it cannot fetch is a warning.
     """
     relative = context.vault.relative(path) if path is not None else None
     existing = next((
@@ -913,11 +934,25 @@ def _asset(context: _Context, label: str, href: str, path: Path | None) -> dict[
     asset = {
         "id": _unique_identifier(label or href, context.asset_ids),
         "href": href,
-        "mediaType": mimetypes.guess_type(relative or href)[0] or "application/octet-stream",
+        "mediaType": mimetypes.guess_type(relative or urlparse(href).path)[0] or "application/octet-stream",
     }
     if path is not None:
         asset["path"] = relative
         asset["data"] = base64.b64encode(path.read_bytes()).decode("ascii")
+    elif urlparse(href).scheme.lower() in REMOTE_SCHEMES:
+        try:
+            data, media_type = fetch_remote(href)
+        except (OSError, ValueError) as error:
+            place = context.vault.relative(context.source_path)
+            if context.field_path:
+                place = f"{place}: {context.field_path}"
+            context.vault.warnings.append(
+                f"{place}: remote image {href} cannot be fetched ({error}). "
+                f"Save the image into the vault and embed it locally: ![{label}](<vault path>)."
+            )
+        else:
+            asset["mediaType"] = media_type or asset["mediaType"]
+            asset["data"] = base64.b64encode(data).decode("ascii")
     context.assets.append(asset)
     return asset
 

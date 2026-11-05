@@ -23,3 +23,11 @@ def test_document_adapter_contract_records_why_assets_carry_their_bytes() -> Non
     assert "base64 `data`" in decision
     assert "asset root" in decision
     assert "[[product#Goals]]" in decision
+
+
+def test_asset_bytes_records_that_a_fetched_remote_image_carries_data_without_a_path() -> None:
+    architecture = (ROOT / "spec" / "design_input" / "architecture.md").read_text(encoding="utf-8")
+    decision = " ".join(architecture.split("### Asset bytes", 1)[1].split("\n## ", 1)[0].split())
+
+    assert "carries neither `path` nor `data`" not in decision
+    assert "A remote image carries the `data` the build fetched" in decision

@@ -44,3 +44,22 @@ def test_chapter_sequence_is_stated_once_in_the_manifest_contract() -> None:
 
 def test_no_heading_or_link_says_document_presentation() -> None:
     assert says_document_presentation("spec/design_input/input-model.md") == []
+
+
+REMOTE_IMAGE_RULE = "A remote image, one whose Markdown image target is an `http` or `https` URL"
+
+
+def test_the_remote_image_rule_is_stated_once_where_assets_are_defined() -> None:
+    model = (ROOT / "spec" / "design_input" / "input-model.md").read_text(encoding="utf-8")
+    flat = " ".join(model.split())
+    assets = " ".join(" ".join(
+        model.split("Images are document content, not linked sources", 1)[1].split("\n\n", 3)[1:3]
+    ).split())
+
+    assert flat.count(REMOTE_IMAGE_RULE) == 1
+    assert assets.startswith(REMOTE_IMAGE_RULE)
+    for clause in ("becomes a Document asset with its bytes and media type",
+                   "is a warning that names the note, the field, the URL and the remedy",
+                   "save the image into the vault and embed it locally",
+                   "its node keeps the alt text and the URL"):
+        assert clause in assets
