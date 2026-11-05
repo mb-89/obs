@@ -43,5 +43,5 @@ def test_installed_tool_generates_from_outside_the_checkout(tmp_path, editable) 
             assert archived.returncode == 2
             assert "--embed-source requires the generator checkout" in archived.stderr
     finally:
-        subprocess.run([uv, "tool", "uninstall", "obs-html"], cwd=tmp_path, env=environment,
+        subprocess.run([uv, "tool", "uninstall", "obs"], cwd=tmp_path, env=environment,
                        capture_output=True, text=True)

@@ -59,7 +59,7 @@ A plain `uv tool install` copies the package instead. It generates artifacts but
 checkout: `--embed-source` refuses, the default source and output point nowhere useful
 and the provenance carries only the package version. Either form resolves dependencies
 from the ranges in `pyproject.toml`, not from `uv.lock`; builds that must match the lock
-run `uv run` in the checkout. Remove the tool with `uv tool uninstall obs-html`.
+run `uv run` in the checkout. Remove the tool with `uv tool uninstall obs`.
 
 ## PDF output
 

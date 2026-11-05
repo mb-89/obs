@@ -73,7 +73,7 @@ def _generator_provenance() -> dict[str, str]:
     """Prefer the checkout's git description; installed copies fall back to the package version."""
     provenance = _repository_provenance(PROJECT_ROOT)
     if provenance["version"] == "unknown":
-        provenance["version"] = version("obs-html")
+        provenance["version"] = version("obs")
     return provenance
 
 

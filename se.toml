@@ -4,4 +4,7 @@ authored_content = [
   "spec/capabilities/**/*.md",
   "README.md",
   "AGENTS.md",
+  "adapters/html/README.md",
+  "adapters/html/AGENTS.md",
 ]
+identity = "mb <mb>"

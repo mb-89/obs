@@ -476,7 +476,7 @@ def _serialize_artifact_data(
       "generation": {
         "timestamp": datetime.now(timezone.utc).isoformat(),
         "generator": generator_provenance or {
-          "name": "obs-html", "version": version("obs-html"), "commit": "unknown",
+          "name": "obs-html", "version": version("obs"), "commit": "unknown",
         },
         "target": target_provenance or {
           "name": vault_root.name, "version": "unknown", "commit": "unknown",
