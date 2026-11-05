@@ -1,4 +1,5 @@
 import json
+import re
 from pathlib import Path
 
 from jsonschema import validate
@@ -128,11 +129,11 @@ def test_core_places_recognized_capabilities_in_content_nodes(tmp_path) -> None:
     ]
     assert content[3]["children"][1] == {
         "type": "wikilinks",
-        "attrs": {"target": "target", "heading": "Heading", "label": "Label"},
+        "attrs": {"target": "target", "chapter": None, "heading": "Heading", "label": "Label"},
         "children": [],
     }
     assert content[3]["children"][3] == {
-        "type": "embeds", "attrs": {"target": "target"}, "children": [],
+        "type": "embeds", "attrs": {"target": "target", "chapter": None}, "children": [],
     }
     assert content[3]["children"][5] == {
         "type": "marks", "attrs": {"category": "risk", "id": "watch"}, "children": [],
@@ -187,6 +188,57 @@ def test_core_emits_data_only_nodes_for_additional_input_capabilities(tmp_path) 
         "markdown-frontmatter", "profiles", "quantities", "queries", "references",
         "registers",
     } <= set(document["capabilities"])
+
+
+def test_core_resolves_link_and_embed_targets_to_chapter_ids(tmp_path) -> None:
+    vault = tmp_path / "vault"
+    (vault / "part").mkdir(parents=True)
+    (vault / "manifest.md").write_text("- [[intro]]\n- [[part/details]]\n", encoding="utf-8")
+    (vault / "outside.md").write_text("Outside.\n", encoding="utf-8")
+    (vault / "part" / "details.md").write_text("Details.\n", encoding="utf-8")
+    (vault / "intro.md").write_text(
+        "[[details#Part|Read]] ![[part/details]] [[outside]] ![[outside]] [[missing]]\n",
+        encoding="utf-8",
+    )
+
+    document = build_document(vault / "manifest.md", capability_reference())
+    nodes = [
+        node for node in document["chapters"][0]["content"][-1]["children"]
+        if node["type"] in {"wikilinks", "embeds"}
+    ]
+
+    assert [(node["type"], node["attrs"]["chapter"]) for node in nodes] == [
+        ("wikilinks", "part-details"), ("embeds", "part-details"),
+        ("wikilinks", None), ("embeds", None), ("wikilinks", None),
+    ]
+
+
+def test_spec_document_wikilinks_name_their_included_chapter() -> None:
+    document = build_document(ROOT / "spec" / "manifest.md", capability_reference())
+    manifest = (ROOT / "spec" / "manifest.md").read_text(encoding="utf-8")
+    chapter_ids = {
+        Path(target).name: re.sub(r"[^a-z0-9]+", "-", target.lower()).strip("-")
+        for target in re.findall(r"^ *- \[\[([^\]|]+)", manifest, re.MULTILINE)
+    }
+
+    def links(nodes: list[dict[str, object]]):
+        for node in nodes:
+            if node["type"] in {"wikilinks", "embeds"}:
+                yield node["attrs"]
+            yield from links(node["children"])
+
+    def chapters(items: list[dict[str, object]]):
+        for chapter in items:
+            yield from links(chapter["content"])
+            yield from chapters(chapter["children"])
+
+    resolved = list(chapters(document["chapters"]))
+    included = [attrs for attrs in resolved if Path(attrs["target"]).name in chapter_ids]
+    assert included
+    assert all(attrs["chapter"] == chapter_ids[Path(attrs["target"]).name] for attrs in included)
+    assert all(
+        attrs["chapter"] is None for attrs in resolved if Path(attrs["target"]).name not in chapter_ids
+    )
 
 
 def test_core_parses_the_spec_vault_as_neutral_document(tmp_path) -> None:

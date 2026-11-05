@@ -5,7 +5,7 @@ import mimetypes
 import json
 from pathlib import Path
 import re
-from typing import Iterator
+from typing import Iterator, NamedTuple
 
 from markdown_it import MarkdownIt
 from markdown_it.token import Token
@@ -38,6 +38,11 @@ _SEMANTIC = re.compile(
     r"(?P<embed>!)?\[\[(?P<target>[^\]|#]+)(?:#(?P<heading>[^\]|]+))?"
     r"(?:\|(?P<label>[^\]]+))?\]\]|#mark/(?P<category>[a-z_]+)/(?P<id>[a-z0-9_]+)"
 )
+
+
+class _Vault(NamedTuple):
+    root: Path
+    chapters: dict[Path, str]
 
 
 class VaultError(ValueError):
@@ -76,6 +81,7 @@ def build_document(
             except (OSError, json.JSONDecodeError, InputError) as error:
                 raise VaultError(str(error)) from error
     chapters, abstract = _parse_manifest(body, manifest_path, vault_root)
+    vault = _Vault(vault_root, _chapter_ids(chapters))
     links: list[dict[str, str]] = []
     assets: list[dict[str, str]] = []
     link_ids: set[str] = set()
@@ -95,7 +101,7 @@ def build_document(
             })
             capabilities.add("chapter-inclusion")
         parsed = _nodes(
-            chapter_body, path, vault_root, links, assets, link_ids, asset_ids,
+            chapter_body, path, vault, links, assets, link_ids, asset_ids,
             capability_ids or set(), capabilities,
         )
         if parsed and "markdown" in (capability_ids or set()):
@@ -109,7 +115,7 @@ def build_document(
     for chapter in chapters:
         parse_chapter(chapter)
     abstract_nodes = _nodes(
-        body[abstract:], manifest_path, vault_root, links, assets, link_ids, asset_ids,
+        body[abstract:], manifest_path, vault, links, assets, link_ids, asset_ids,
         capability_ids or set(), capabilities,
     )
     manifest_nodes = _frontmatter_nodes(metadata, capability_ids or set(), capabilities)
@@ -259,7 +265,7 @@ def _frontmatter_nodes(
 
 
 def _nodes(
-    source: str, source_path: Path, vault_root: Path, links: list[dict[str, str]],
+    source: str, source_path: Path, vault: _Vault, links: list[dict[str, str]],
     assets: list[dict[str, str]], link_ids: set[str], asset_ids: set[str],
     capability_ids: set[str], capabilities: set[str],
 ) -> list[dict[str, object]]:
@@ -271,18 +277,18 @@ def _nodes(
         if token.type == "heading_open" and position + 1 < len(tokens):
             result.append({
                 "type": "section", "attrs": {"level": int(token.tag[1:])},
-                "children": _inline_nodes(tokens[position + 1], source_path, vault_root, links, assets, link_ids, asset_ids, capability_ids, capabilities),
+                "children": _inline_nodes(tokens[position + 1], source_path, vault, links, assets, link_ids, asset_ids, capability_ids, capabilities),
             })
             position += 3
         elif token.type == "paragraph_open" and position + 1 < len(tokens):
             result.append({
                 "type": "paragraph", "attrs": {},
-                "children": _inline_nodes(tokens[position + 1], source_path, vault_root, links, assets, link_ids, asset_ids, capability_ids, capabilities),
+                "children": _inline_nodes(tokens[position + 1], source_path, vault, links, assets, link_ids, asset_ids, capability_ids, capabilities),
             })
             position += 3
         elif token.type in {"bullet_list_open", "ordered_list_open"}:
             node, position = _list_node(
-                tokens, position, source_path, vault_root, links, assets, link_ids, asset_ids, capability_ids, capabilities,
+                tokens, position, source_path, vault, links, assets, link_ids, asset_ids, capability_ids, capabilities,
             )
             result.append(node)
         elif token.type == "fence":
@@ -361,7 +367,7 @@ def _nodes(
                     "type": "callouts",
                     "attrs": {"kind": callout["type"], "title": callout["title"]},
                     "children": [] if not body else [{"type": "paragraph", "attrs": {}, "children": _semantic_text_nodes(
-                        body, source_path, vault_root, links, link_ids, capability_ids, capabilities,
+                        body, source_path, vault, links, link_ids, capability_ids, capabilities,
                     )}],
                 })
                 capabilities.add("callouts")
@@ -374,7 +380,7 @@ def _nodes(
 
 
 def _list_node(
-    tokens: list[Token], position: int, source_path: Path, vault_root: Path,
+    tokens: list[Token], position: int, source_path: Path, vault: _Vault,
     links: list[dict[str, str]], assets: list[dict[str, str]], link_ids: set[str], asset_ids: set[str],
     capability_ids: set[str], capabilities: set[str],
 ) -> tuple[dict[str, object], int]:
@@ -392,12 +398,12 @@ def _list_node(
             if token.type == "paragraph_open" and position + 1 < len(tokens):
                 children.append({
                     "type": "paragraph", "attrs": {},
-                    "children": _inline_nodes(tokens[position + 1], source_path, vault_root, links, assets, link_ids, asset_ids, capability_ids, capabilities),
+                    "children": _inline_nodes(tokens[position + 1], source_path, vault, links, assets, link_ids, asset_ids, capability_ids, capabilities),
                 })
                 position += 3
             elif token.type in {"bullet_list_open", "ordered_list_open"}:
                 child, position = _list_node(
-                    tokens, position, source_path, vault_root, links, assets, link_ids, asset_ids, capability_ids, capabilities,
+                    tokens, position, source_path, vault, links, assets, link_ids, asset_ids, capability_ids, capabilities,
                 )
                 children.append(child)
             else:
@@ -408,7 +414,7 @@ def _list_node(
 
 
 def _inline_nodes(
-    token: Token, source_path: Path, vault_root: Path, links: list[dict[str, str]],
+    token: Token, source_path: Path, vault: _Vault, links: list[dict[str, str]],
     assets: list[dict[str, str]], link_ids: set[str], asset_ids: set[str],
     capability_ids: set[str], capabilities: set[str],
 ) -> list[dict[str, object]]:
@@ -441,13 +447,13 @@ def _inline_nodes(
                 result.append({"type": "text", "attrs": attrs, "children": [], "text": text})
             else:
                 result.extend(_semantic_text_nodes(
-                    text, source_path, vault_root, links, link_ids, capability_ids, capabilities,
+                    text, source_path, vault, links, link_ids, capability_ids, capabilities,
                 ))
     return result
 
 
 def _semantic_text_nodes(
-    text: str, source_path: Path, vault_root: Path, links: list[dict[str, str]],
+    text: str, source_path: Path, vault: _Vault, links: list[dict[str, str]],
     link_ids: set[str], capability_ids: set[str], capabilities: set[str],
 ) -> list[dict[str, object]]:
     nodes: list[dict[str, object]] = []
@@ -466,13 +472,15 @@ def _semantic_text_nodes(
             capabilities.add("registers")
         elif match["embed"] and "embeds" in capability_ids:
             target = match["target"].strip()
-            _resolve_note(target, source_path, vault_root)
-            nodes.append({"type": "embeds", "attrs": {"target": target}, "children": []})
+            chapter = _resolve_note(target, source_path, vault)
+            nodes.append({
+                "type": "embeds", "attrs": {"target": target, "chapter": chapter}, "children": [],
+            })
             capabilities.add("embeds")
         elif value.startswith("[[") and "wikilinks" in capability_ids:
             target = match["target"].strip()
-            _resolve_note(target, source_path, vault_root)
-            attrs = {"target": target, "heading": match["heading"] or "", "label": match["label"] or target}
+            chapter = _resolve_note(target, source_path, vault)
+            attrs = {"target": target, "chapter": chapter, "heading": match["heading"] or "", "label": match["label"] or target}
             nodes.append({"type": "wikilinks", "attrs": attrs, "children": []})
             _resource(links, link_ids, attrs["label"], target)
             capabilities.add("wikilinks")
@@ -523,7 +531,17 @@ def _asset(
     return asset
 
 
-def _resolve_note(target: str, source_path: Path, vault_root: Path) -> None:
+def _chapter_ids(chapters: list[dict[str, object]]) -> dict[Path, str]:
+    identifiers: dict[Path, str] = {}
+    for chapter in chapters:
+        identifiers[chapter["_path"]] = chapter["id"]
+        identifiers.update(_chapter_ids(chapter["children"]))
+    return identifiers
+
+
+def _resolve_note(target: str, source_path: Path, vault: _Vault) -> str | None:
+    """Return the id of the chapter a note link points to, or None outside the manifest."""
+    vault_root = vault.root
     relative = Path(target)
     if relative.is_absolute() or ".." in relative.parts:
         raise VaultError(f"Link escapes the vault in {source_path}: {target}")
@@ -536,6 +554,7 @@ def _resolve_note(target: str, source_path: Path, vault_root: Path) -> None:
             path = matches[0].resolve()
     if not path.is_relative_to(vault_root):
         raise VaultError(f"Link escapes the vault in {source_path}: {target}")
+    return vault.chapters.get(path)
 
 
 def _identifier(value: str) -> str:
