@@ -6,6 +6,7 @@ from jsonschema import validate
 import yaml
 
 from obs.capabilities import build_capability_reference
+from obs.figure import validate_figure_descriptor
 from obs_html.content import Chapter, collect_notes, read_chapter_content, read_manifest
 
 
@@ -108,6 +109,14 @@ def test_capability_reference_is_schema_valid_and_covers_the_input_model() -> No
         heading for heading, classification in json.loads(coverage.read_text(encoding="utf-8"))["sections"].items()
         if classification == "input"
     }
+
+
+def test_figure_descriptor_capability_example_is_schema_valid() -> None:
+    note = (CAPABILITIES / "figure-descriptor.md").read_text(encoding="utf-8")
+    example = re.search(r"```json\n(.*?)\n```", note, flags=re.DOTALL)
+
+    assert example is not None
+    validate_figure_descriptor(json.loads(example.group(1)))
 
 
 def test_adapter_notes_can_depend_on_a_supplied_reference(tmp_path) -> None:
