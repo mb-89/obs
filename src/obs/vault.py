@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import mimetypes
+import json
 from pathlib import Path
 import re
 from typing import Iterator
@@ -20,6 +21,7 @@ from obs.input import (
     validate_command,
     validate_count_query,
     validate_note_profile,
+    validate_project_config,
 )
 
 
@@ -62,6 +64,16 @@ def build_document(
         raise VaultError(
             f"Manifest filename does not match core configuration: {manifest_path.name}"
         )
+    if configuration is not None:
+        project_configuration = vault_root / configuration.project_config_filename
+        if project_configuration.is_file():
+            try:
+                validate_project_config(
+                    json.loads(project_configuration.read_text(encoding="utf-8")),
+                    project_configuration,
+                )
+            except (OSError, json.JSONDecodeError, InputError) as error:
+                raise VaultError(str(error)) from error
     chapters, abstract = _parse_manifest(body, manifest_path, vault_root)
     links: list[dict[str, str]] = []
     assets: list[dict[str, str]] = []
