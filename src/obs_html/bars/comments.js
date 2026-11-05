@@ -66,20 +66,19 @@
         return Object.keys(snapshot).some(key => snapshot[key] !== savedDocumentSnapshot[key]);
     };
 
-    const documentWarning = document.createElement("aside");
-    documentWarning.className = "document-warning";
-    documentWarning.dataset.documentWarning = "";
-    documentWarning.setAttribute("aria-label", "Changed HTML");
-    documentWarning.hidden = true;
-    const documentWarningText = document.createElement("span");
-    documentWarningText.setAttribute("role", "status");
-    documentWarningText.textContent = "This HTML has changed.";
+    // Changed HTML is a warning entry of the notice center; its details download the changed HTML.
     const documentDownload = document.createElement("button");
     documentDownload.type = "button";
     documentDownload.dataset.documentDownload = "";
     documentDownload.textContent = "Download changed HTML";
-    documentWarning.append(documentWarningText, documentDownload);
-    document.querySelector("[data-header-notices]").append(documentWarning);
+    const changedHtmlNotice = {
+        id: "changed-html", severity: "warning", title: "This HTML has changed",
+        details: [
+            "Comments, edits or reader settings changed since this HTML was last saved. " +
+                "Download the changed HTML to keep them; leaving the page asks first.",
+            documentDownload,
+        ],
+    };
 
     const updateSaveGuidance = () => {
         const dirty = isDirty();
@@ -89,7 +88,9 @@
             : "No unsaved review changes. Download HTML to keep review comments, decisions, and property edits.";
         const documentDirty = isDocumentDirty();
         saveGuidance.dataset.documentDirty = String(documentDirty);
-        documentWarning.hidden = !documentDirty;
+        if (documentDirty) {
+            if (!globalThis.obsNotices.has(changedHtmlNotice.id)) globalThis.obsNotices.post(changedHtmlNotice);
+        } else globalThis.obsNotices.remove(changedHtmlNotice.id);
         document.dispatchEvent(new CustomEvent("obs-document-state-change", {
             detail: {dirty: documentDirty},
         }));

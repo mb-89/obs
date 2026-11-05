@@ -1,4 +1,5 @@
 """The notice center: at most three severity icons with count pills, each opening its list."""
+import re
 from pathlib import Path
 
 import pytest
@@ -112,3 +113,38 @@ def test_an_unknown_severity_names_the_post_and_the_choices(tmp_path: Path, read
         catch (error) { return error.message; }
     }""")
     assert message == 'obsNotices.post(x): unknown severity "fatal"; use one of error, warning, information.'
+
+
+def test_changed_html_and_the_applied_filter_are_entries_that_keep_their_behaviour(
+        tmp_path: Path, reader_browser) -> None:
+    from playwright.sync_api import expect
+
+    errors: list[str] = []
+    page = open_report(tmp_path, reader_browser, errors)
+    unload_prevented = """() => {
+        const event = new Event("beforeunload", {cancelable: true});
+        window.dispatchEvent(event);
+        return event.defaultPrevented;
+    }"""
+    assert page.evaluate(unload_prevented) is False
+    page.evaluate("globalThis.obsFilter.setExpression(\"file.name == 'One'\")")
+    changed = page.locator('[data-notice-list="warning"] [data-notice="changed-html"]')
+    applied = page.locator('[data-notice-list="information"] [data-notice="applied-filter"]')
+    expect(changed).to_have_count(1)
+    expect(applied).to_have_count(1)
+    expect(applied.locator("[data-notice-title]")).to_have_text(re.compile(r"^Filtered view · \d+/2 chapters$"))
+    assert page.evaluate(unload_prevented) is True
+    page.locator('[data-notice-icon="warning"]').click()
+    changed.locator("[data-notice-title]").click()
+    expect(changed.locator("[data-document-download]")).to_be_visible()
+    page.locator('[data-notice-icon="information"]').click()
+    expect(changed.locator("[data-document-download]")).to_be_hidden()
+    applied.locator("[data-notice-title]").click()
+    expect(applied).to_contain_text("Filter: file.name == 'One'")
+    applied.locator("[data-filter-clear]").click()
+    expect(applied).to_have_count(0)
+    expect(page.locator('[data-notice-icon="information"]')).to_be_hidden()
+    assert page.evaluate("globalThis.obsReport.filterSummary().empty") is True
+    expect(changed).to_have_count(0)
+    assert page.evaluate(unload_prevented) is False
+    assert errors == []
