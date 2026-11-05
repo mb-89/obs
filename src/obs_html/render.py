@@ -586,6 +586,7 @@ def _shell(model: dict[str, object], stylesheet: str, assets: SemanticAssets, co
   <script id="assets-script">{read("assets.js")}</script>
   <script id="canonical-transaction-script">
 {read("canonical-transaction.js")}
+{read("attachment-replacement.js")}
   </script>
   <script id="report-script">
 {read("hover-card.js")}
