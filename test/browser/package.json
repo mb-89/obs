@@ -1,0 +1,7 @@
+{
+  "private": true,
+  "description": "Test-only DOM adapter for the embedded report runtime.",
+  "devDependencies": {
+    "linkedom": "0.18.12"
+  }
+}

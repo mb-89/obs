@@ -7,6 +7,7 @@ import pytest
 
 from conftest import FIXTURE, ROOT
 from obs_html import cli
+from obs_html.report_data import decode_report_data
 
 
 def _run(*arguments: str) -> None:
@@ -33,8 +34,8 @@ def test_installed_command_renders_through_the_adapter_contract(tmp_path) -> Non
     assert completed.returncode == 0, completed.stderr
     assert "Warning: Fixture diagnostic." in completed.stderr
     assert completed.stdout == f"Generated {destination.resolve()}.\n"
-    html = destination.read_text(encoding="utf-8")
-    assert '<pre class="command-output">derived' in html
+    notes = decode_report_data(destination.read_text(encoding="utf-8"))["notes"]
+    assert any('<pre class="command-output">derived' in note["html"] for note in notes)
     assert not (tmp_path / "produced.txt").exists()  # Silent producers run in the core, before conversion.
 
 
@@ -76,7 +77,8 @@ def test_settings_override_merges_over_the_packaged_settings(tmp_path, capsys) -
         "Letter": {"widthMillimeters": 200, "heightMillimeters": 250}}}}}), encoding="utf-8")
     destination = tmp_path / "document.html"
     _run(FIXTURE, destination, "--config", settings, "--execute-commands", "--command-root", tmp_path)
-    assert "@page{size:200mm 250mm;margin:15mm}" in destination.read_text(encoding="utf-8")
+    paper = decode_report_data(destination.read_text(encoding="utf-8"))["paper"]
+    assert paper == {"widthMillimeters": 200, "heightMillimeters": 250, "marginMillimeters": 15.0}
 
 
 @pytest.mark.parametrize("override, message", [
@@ -125,4 +127,42 @@ def test_failed_write_preserves_the_previous_output(tmp_path, monkeypatch) -> No
 def test_timings_print_one_line_per_stage(tmp_path, capsys) -> None:
     _run(FIXTURE, tmp_path / "document.html", "--execute-commands", "--command-root", tmp_path, "--timings")
     stages = [line.split()[1] for line in capsys.readouterr().out.splitlines() if line.startswith("Timing:")]
-    assert stages == ["render", "commands", "write", "total"]
+    assert stages == ["render", "commands", "figures", "write", "total"]
+
+
+def test_trusted_runtime_is_embedded_only_when_named(tmp_path) -> None:
+    runtime = tmp_path / "runtime.js"
+    runtime.write_text("globalThis.trustedFixture = '</script>';", encoding="utf-8")
+    plain, trusted = tmp_path / "plain.html", tmp_path / "trusted.html"
+    _run(FIXTURE, plain, "--execute-commands", "--command-root", tmp_path)
+    _run(FIXTURE, trusted, "--execute-commands", "--command-root", tmp_path,
+         "--trusted-runtime-bundle", f"fixture-v1={runtime}")
+    assert "trusted-application-runtime" not in plain.read_text(encoding="utf-8")
+    html = trusted.read_text(encoding="utf-8")
+    assert '<meta name="obs-trusted-runtime" content="fixture-v1">' in html
+    assert "globalThis.trustedFixture = '<\\/script>';" in html
+
+
+@pytest.mark.parametrize("bundle, message", [
+    ("no-separator", "ID=PATH"), ("Bad=runtime.js", "ID=PATH"),
+    ("fixture-v1=runtime.txt", "regular .js file"), ("fixture-v1=missing.js", "regular .js file"),
+])
+def test_trusted_runtime_bundles_are_validated(tmp_path, monkeypatch, capsys, bundle, message) -> None:
+    monkeypatch.chdir(tmp_path)
+    (tmp_path / "runtime.txt").write_text("x", encoding="utf-8")
+    with pytest.raises(SystemExit):
+        _run(FIXTURE, tmp_path / "out.html", "--execute-commands", "--command-root", tmp_path,
+             "--trusted-runtime-bundle", bundle)
+    assert message in capsys.readouterr().err
+
+
+def test_extract_comments_reads_a_returned_report(tmp_path, capsys) -> None:
+    report = tmp_path / "reviewed.html"
+    island = {"version": 2, "annotations": [
+        {"id": "c1", "target": {"chapter": "intro"}, "text": "Tighten this.", "author": "Ada"}]}
+    report.write_text('<!doctype html><script id="obs-comments" type="application/json">'
+                      f"{json.dumps(island)}</script>", encoding="utf-8")
+    _run("--extract-comments", report)
+    assert "Tighten this." in capsys.readouterr().out
+    with pytest.raises(SystemExit):
+        _run(FIXTURE, "--extract-comments", report)

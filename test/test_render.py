@@ -4,6 +4,7 @@ import pytest
 
 from obs_html.config import load_config
 from obs_html.render import RenderError, render
+from obs_html.report_data import decode_report_data
 
 
 CONFIG = load_config()
@@ -13,80 +14,127 @@ def _render(document, runner=lambda command: f"ran {command}") -> str:
     return render(document, CONFIG, runner)
 
 
-def test_front_pages_follow_the_profile_order(document) -> None:
+def _model(document, runner=lambda command: f"ran {command}") -> dict:
+    return decode_report_data(_render(document, runner))
+
+
+def _notes(document, runner=lambda command: f"ran {command}") -> dict:
+    return {note["slug"]: note for note in _model(document, runner)["notes"]}
+
+
+def test_the_report_shell_carries_the_runtime_and_the_island(document) -> None:
     html = _render(document)
-    assert html.index('class="front-page cover"') < html.index('class="front-page contents"') \
-        < html.index('class="front-page abstract"') < html.index('id="intro"')
     assert "<title>Fixture document</title>" in html
-    assert '<p class="cover-product">Widget 2</p>' in html
-    assert '<p class="cover-organization">Example org</p>' in html
-    assert '<p class="cover-type">Specification</p>' in html
-    assert "<dt>Authors</dt><dd>Ada, Lin</dd>" in html
-    assert "<p>A short &lt;abstract&gt;.</p>" in html
+    for script in ("report-bootstrap-script", "report-data", "obs-comments", "query-script",
+                   "base-script", "data-table-script", "report-script", "pages-script",
+                   "storage-script", "bar-scripts"):
+        assert f'id="{script}"' in html
+    assert html.count('class="dock-bar ') == 5  # comments, filter, search, settings, toc
+    assert 'data-report-data' in html
 
 
-def test_profile_print_choice_sets_the_page_geometry(document) -> None:
-    assert "@page{size:215.9mm 279.4mm;margin:15mm}" in _render(document)
+def test_front_pages_follow_the_profile_order(document) -> None:
+    model = _model(document)
+    assert model["document"]["pages"] == [
+        {"page": "cover"}, {"page": "contents", "title": "Contents"}, {"page": "abstract", "title": "Abstract"}]
+    assert model["reading"]["paged"] is True
+    home = model["notes"][0]
+    assert (home["slug"], home["generated"], home["depth"]) == ("home", "home", 0)
+    assert '<div class="cover-product"><div>Widget</div><div>2</div></div>' in home["html"]
+    assert '<span class="cover-organization">Example org</span>' in home["html"]
+    assert '<p class="cover-type">Specification</p>' in home["html"]
+    assert "<dt>Authors</dt><dd>Ada, Lin</dd>" in home["html"]
+    assert "<p>A short &lt;abstract&gt;.</p>" in home["html"]
+    assert "obsHtml" not in model["document"]["metadata"]
+
+
+def test_defaults_apply_without_a_profile(document) -> None:
     del document["manifest"]["abstract"][1]
-    assert "@page{size:210mm 297mm;margin:20mm}" in _render(document)
+    model = _model(document)
+    assert [page["page"] for page in model["document"]["pages"]] == ["cover", "abstract", "contents"]
+    assert model["paper"] == {"widthMillimeters": 210, "heightMillimeters": 297, "marginMillimeters": 20.0}
 
 
-def test_contents_nest_the_chapter_tree(document) -> None:
-    assert ('<ol><li><a href="#intro">Intro</a><ol><li><a href="#guide-usage">Usage</a></li></ol></li>'
-            '<li><a href="#appendix">Appendix</a></li></ol>') in _render(document)
+def test_profile_print_choice_sets_the_paper(document) -> None:
+    assert _model(document)["paper"] == {
+        "widthMillimeters": 215.9, "heightMillimeters": 279.4, "marginMillimeters": 15.0}
 
 
-def test_chapters_nest_and_headings_carry_anchors(document) -> None:
-    html = _render(document)
-    assert '<section class="chapter" id="intro">' in html
-    assert '<h3 id="guide-usage--details">Details</h3>' in html
-    assert "<h1>Appendix</h1>" in html  # A chapter without a heading gets its title.
+def test_chapters_become_notes_in_reading_order_with_depth(document) -> None:
+    model = _model(document)
+    assert model["toc"] == ["home", "intro", "guide-usage", "appendix"]
+    depths = {note["slug"]: note["depth"] for note in model["notes"] if note["slug"] in model["toc"]}
+    assert depths == {"home": 0, "intro": 0, "guide-usage": 1, "appendix": 0}
+
+
+def test_headings_carry_anchors_and_untitled_chapters_stay_as_authored(document) -> None:
+    notes = _notes(document)
+    assert '<h3 id="guide-usage--details">Details</h3>' in notes["guide-usage"]["html"]
+    assert notes["appendix"]["html"].startswith("<p>")  # As the interim: the reader names it.
 
 
 def test_structural_nodes_render_escaped(document) -> None:
-    html = _render(document)
+    html = "".join(note["html"] for note in _model(document)["notes"])
     assert "<code>x &lt; y</code>" in html
-    assert "<ol>\n<li><p>one</p>\n</li>\n<li><p>two</p>\n</li>\n</ol>" in html
+    assert "<ol>\n<li>one</li>\n<li>two</li>\n</ol>" in html
     assert '<a href="https://example.org/?a=1&amp;b=2">the site</a>' in html
     assert '<img src="images/logo.png" alt="a logo">' in html
 
 
-def test_wikilinks_resolve_to_chapters_and_headings(document) -> None:
-    html = _render(document)
-    assert '<a class="internal-link" href="#guide-usage--details">the details</a>' in html
+def test_wikilinks_resolve_to_chapter_routes(document) -> None:
+    html = "".join(note["html"] for note in _model(document)["notes"])
+    assert '<a class="internal-link" href="#guide-usage/details">the details</a>' in html
     assert '<span class="unresolved" title="missing">gone</span>' in html
 
 
-def test_chapter_frontmatter_renders_as_properties_but_the_cover_owns_the_manifest(document) -> None:
+def test_chapter_frontmatter_feeds_the_note_not_its_body(document) -> None:
+    intro = _notes(document)["intro"]
+    assert intro["frontmatter"] == {"owner": "Ada", "tags": ["a", "b"]}
+    assert intro["frontmatterHtml"] == {"owner": "Ada", "tags": "a, b"}
+    assert "owner" not in intro["html"]
+
+
+def test_marks_render_a_semantic_paragraph_with_a_named_icon_rail(document) -> None:
     html = _render(document)
-    assert '<dl class="properties"><dt>owner</dt><dd>Ada</dd><dt>tags</dt><dd>a, b</dd></dl>' in html
-    assert "obsHtml" not in html
+    intro = decode_report_data(html)["notes"][1]
+    assert intro["marks"][0]["kind"] == "risk" and intro["marks"][0]["label"] == "limit"
+    assert intro["marks"][0]["anchor"] == "mark-intro-risk-limit"
+    assert 'class="semantic-mark semantic-mark--risk" data-mark-kind="risk"' in intro["html"]
+    assert '<span class="resource-icon" data-icon="mark.risk" aria-hidden="true">!</span>' in intro["html"]
+    assert "#mark/" not in intro["html"]
 
 
-def test_marks_render_their_category_and_identity(document) -> None:
-    assert ('<span class="mark" data-mark-category="risk" data-mark-id="limit">#mark/risk/limit</span>'
-            in _render(document))
-
-
-def test_base_views_filter_and_sort_document_records(document) -> None:
-    table = re.search(r'<table class="base">.*?</table>', _render(document)).group(0)
-    assert "<caption>Items</caption>" in table
-    assert "<th>file.name</th><th>Name</th><th>rank</th>" in table
-    assert re.findall(r"<tr><td>(\w+)</td>", table) == ["beta", "alpha"]
-
-
-def test_unsupported_base_filters_fail(document) -> None:
-    base = next(node for node in document["chapters"][0]["content"] if node["type"] == "bases")
-    base["attrs"]["spec"]["filters"] = "kind.contains('x')"
-    with pytest.raises(RenderError, match="Unsupported Base filter"):
+def test_unknown_mark_kinds_fail(document) -> None:
+    for node in document["chapters"][0]["content"]:
+        for child in node["children"]:
+            if child["type"] == "marks":
+                child["attrs"]["category"] = "nonsense"
+    with pytest.raises(RenderError, match="mark kind 'nonsense'"):
         _render(document)
+
+
+def test_base_views_become_runtime_tables(document) -> None:
+    intro = _notes(document)["intro"]
+    assert '<div class="data-table-placeholder" data-base-table="intro-base-1"></div>' in intro["html"]
+    table = intro["tables"][0]
+    assert table["key"] == "intro-base-1"
+    assert table["definition"]["views"][0]["name"] == "Items"
+
+
+def test_records_join_the_queryable_population_outside_the_reading_order(document) -> None:
+    model = _model(document)
+    records = {note["slug"]: note for note in model["notes"] if note["slug"] not in model["toc"]}
+    assert set(records) == {"alpha", "beta", "gamma", "other"}
+    assert records["alpha"]["frontmatter"] == {
+        "kind": "item", "rank": 1, "item": {"name": "Alpha"}, "obsHtml": {"document": False}}
+    assert records["alpha"]["html"] == ""
 
 
 def test_command_fences_render_escaped_output_and_skip_silent_producers(document) -> None:
     commands = []
-    html = _render(document, lambda command: commands.append(command) or "<b>derived</b>\n")
+    notes = _notes(document, lambda command: commands.append(command) or "<b>derived</b>\n")
     assert commands == ["echo derived"]
-    assert '<pre class="command-output">&lt;b&gt;derived&lt;/b&gt;\n</pre>' in html
+    assert '<pre class="command-output">&lt;b&gt;derived&lt;/b&gt;\n</pre>' in notes["intro"]["html"]
 
 
 def test_command_fences_require_authorization(document) -> None:
@@ -104,10 +152,65 @@ def test_unsupported_capabilities_are_refused(document) -> None:
         _render(document)
 
 
+def test_the_home_slug_is_reserved(document) -> None:
+    document["chapters"][1]["id"] = "home"
+    with pytest.raises(RenderError, match="reserved"):
+        _render(document)
+
+
 def test_a_minimal_document_renders(document) -> None:
     minimal = {"schemaVersion": 1, "manifest": {"title": "Only", "metadata": {}}, "chapters": [],
                "links": [], "assets": [], "records": [], "semanticResources": [], "diagnostics": [],
                "capabilities": []}
-    html = render(minimal, CONFIG)
-    assert '<h1 class="document-title">Only</h1>' in html
-    assert 'data-report-status="ready"' in html
+    model = decode_report_data(render(minimal, CONFIG))
+    assert '<h1 class="document-title">Only</h1>' in model["notes"][0]["html"]
+    assert model["toc"] == ["home"]
+
+
+def test_island_compression_follows_the_settings(document, tmp_path) -> None:
+    import json
+    settings = tmp_path / "settings.json"
+    settings.write_text(json.dumps({"report": {"dataCompression": "none"}}), encoding="utf-8")
+    html = render(document, load_config(settings), lambda command: "")
+    assert re.search(r'<script id="report-data" type="application/json"[^>]*data-compression="none"', html)
+
+
+def test_metadata_markdown_renders_inline_on_the_cover_and_in_the_frontmatter_panel(document) -> None:
+    metadata = document["manifest"]["metadata"]
+    metadata["subtitle"] = ("Bridge **subtitle** ![Obsidian](https://example.invalid/obsidian.svg) → "
+                            "![HTML](https://example.invalid/html.svg) <b>raw</b>")
+    document["chapters"][0]["metadata"]["source"] = "https://example.org/a?b=1&c=2"
+    document["chapters"][0]["content"][0]["attrs"]["metadata"]["source"] = "https://example.org/a?b=1&c=2"
+    notes = _notes(document)
+    home = notes["home"]["html"]
+    assert ('<div class="document-subtitle">Bridge <strong>subtitle</strong> '
+            '<img src="https://example.invalid/obsidian.svg" alt="Obsidian" /> → '
+            '<img src="https://example.invalid/html.svg" alt="HTML" /> &lt;b&gt;raw&lt;/b&gt;</div>') in home
+    panel = notes["intro"]["frontmatterHtml"]
+    assert panel["source"] == '<a href="https://example.org/a?b=1&amp;c=2">https://example.org/a?b=1&amp;c=2</a>'
+    assert panel["tags"] == "a, b"
+
+
+def test_fenced_code_renders_as_a_block_and_inline_code_breaks_between_words(document) -> None:
+    appendix = next(chapter for chapter in document["chapters"] if chapter["id"] == "appendix")
+    appendix["content"].append({"type": "code", "attrs": {"language": "text"}, "children": [],
+                                "text": "CODE <here>\n"})
+    appendix["content"].append({"type": "code", "attrs": {"language": ""}, "children": [], "text": "plain\n"})
+    appendix["content"].append({"type": "paragraph", "attrs": {}, "children": [
+        {"type": "code", "attrs": {}, "children": [], "text": "src/obs_html/cfg.json --timings"}]})
+    html = _notes(document)["appendix"]["html"]
+    assert '<pre><code class="language-text">CODE &lt;here&gt;\n</code></pre>\n' in html
+    assert "<pre><code>plain\n</code></pre>\n" in html
+    assert "<code>src/<wbr>obs_<wbr>html/<wbr>cfg.<wbr>json --timings</code>" in html
+
+
+def test_lists_of_single_paragraph_items_render_tight(document) -> None:
+    html = _notes(document)["intro"]["html"]
+    assert "<ol>\n<li>one</li>\n<li>two</li>\n</ol>" in html
+
+
+def test_unaliased_wikilinks_show_the_chapter_title(document) -> None:
+    document["chapters"][1]["content"].append({"type": "paragraph", "attrs": {}, "children": [
+        {"type": "wikilinks", "attrs": {"target": "intro", "heading": "", "label": "intro"}, "children": []}]})
+    html = _notes(document)["appendix"]["html"]
+    assert '<a class="internal-link" href="#intro">Intro</a>' in html

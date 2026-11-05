@@ -5,3 +5,4 @@ __pycache__/
 *.py[cod]
 data/data_output/
 spec/design_output/
+/test/browser/node_modules/

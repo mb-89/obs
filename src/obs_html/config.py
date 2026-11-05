@@ -23,6 +23,7 @@ class Config:
     rendered_check_timeout_seconds: int
     print_default: dict[str, str]
     paper_sizes: dict[str, dict[str, float]]
+    report: dict[str, object]
 
 
 def load_config(override_path: Path | None = None) -> Config:
@@ -45,6 +46,7 @@ def load_config(override_path: Path | None = None) -> Config:
         rendered_check_timeout_seconds=config["execution"]["renderedCheckTimeoutSeconds"],
         print_default=report["print"]["default"],
         paper_sizes=report["print"]["paperSizes"],
+        report={key: value for key, value in report.items() if key != "print"},
     )
 
 
