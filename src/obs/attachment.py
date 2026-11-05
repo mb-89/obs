@@ -8,8 +8,8 @@ _EXPORTED_NAMES = {"exported", "exporteddate"}
 _LAST_CHANGED_NAMES = {"lastchanged", "lastchangeddate"}
 
 
-def extract_attachment_date(source: bytes) -> date | None:
-    """Return the exported or last-changed date encoded in XML metadata."""
+def extract_attachment_date(source: bytes, modified: datetime | None = None) -> date | None:
+    """Return an XML metadata date or the supplied modification instant's date."""
     if not isinstance(source, bytes):
         return None
     try:
@@ -28,7 +28,7 @@ def extract_attachment_date(source: bytes) -> date | None:
     for name in ("exported", "last-changed"):
         if values[name]:
             return _parse_date(values[name][0])
-    return None
+    return modified.date() if isinstance(modified, datetime) else None
 
 
 def _metadata_name(value: str) -> str | None:

@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import date, datetime, timezone
 
 import pytest
 
@@ -48,3 +48,14 @@ def test_extract_attachment_date_reads_utf16_xml() -> None:
 )
 def test_extract_attachment_date_returns_none_for_invalid_xml_or_dates(source) -> None:
     assert extract_attachment_date(source) is None
+
+
+def test_extract_attachment_date_uses_supplied_modification_instant_without_metadata() -> None:
+    modified = datetime(2026, 3, 5, 0, 30, tzinfo=timezone.utc)
+
+    assert extract_attachment_date(b"<metadata/>", modified) == date(2026, 3, 5)
+
+
+@pytest.mark.parametrize("modified", [None, "2026-03-05", date(2026, 3, 5)])
+def test_extract_attachment_date_rejects_unsupported_modification_values(modified) -> None:
+    assert extract_attachment_date(b"<metadata/>", modified) is None
