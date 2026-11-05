@@ -48,7 +48,7 @@ application names, or output-format terms.
 
 An adapter is any executable that declares the capability identifiers it supports in a
 JSON manifest. The declaration is data, not a runtime registration mechanism. The
-capability reference owns the supported identifiers and their semantics; adapters use
+[[capability-reference|capability reference]] owns the supported identifiers and their semantics; adapters use
 that reference rather than duplicating capability definitions.
 
 Domain adapters own their evidence parsing, calculations, and report content;
