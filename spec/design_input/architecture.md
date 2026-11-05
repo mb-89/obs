@@ -79,6 +79,23 @@ The boundary has no Python types, package entry points, application names, or
 output-format terms. An implementation may change language without changing either
 JSON contract.
 
+### Asset bytes
+
+The Document embeds the bytes of every vault file it references as an image or a
+marked attachment ([[capabilities/attachments#Document node]],
+[[capabilities/embeds#Document node]]), so an adapter renders from the Document alone
+and never reads the vault. Each such file is one `assets` entry, however often it is
+referenced, carrying its vault-relative `path` and its bytes as base64 `data`.
+
+Embedding was chosen over an asset root the adapter may read: an asset root ties the
+adapter to the source machine's vault, while the artifact must open on another
+machine without it ([[product#Goals]]). The Document therefore stays one
+self-contained file.
+
+An asset whose `href` has a URL scheme is not a vault file and
+carries neither `path` nor `data`. Whether an artifact embeds a marked attachment
+stays the adapter's per-build decision ([[input-model]], `--embed-attachments`).
+
 ## Input contracts
 
 The core owns data-only input contracts for command fences, callouts, cards, editable
