@@ -17,6 +17,7 @@ dependencies = [
 
 [project.scripts]
 obs-html = "obs_html.cli:main"
+obs-document = "obs_html.document:main"
 
 [dependency-groups]
 dev = [

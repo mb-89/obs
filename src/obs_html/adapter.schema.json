@@ -11,7 +11,7 @@
       "minItems": 1,
       "items": {"type": "string", "minLength": 1}
     },
-    "contractVersion": {"const": 1},
+    "contractVersion": {"type": "integer", "minimum": 1},
     "capabilities": {
       "type": "array",
       "items": {"type": "string", "pattern": "^[a-z][a-z0-9-]*$"},
