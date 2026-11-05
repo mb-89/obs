@@ -36,7 +36,7 @@ npm --prefix test/browser ci
 npm --prefix adapters/html/test/browser ci
 ```
 
-The complete suite, the core's and every adapter's, runs with one command:
+The complete suite, the core's and every adapter's, runs in parallel with one command:
 
 ```powershell
 uv run python test/suite.py
