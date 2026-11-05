@@ -9,6 +9,7 @@ from pathlib import Path
 from typing import Sequence
 
 import pypdfium2 as pdfium
+from PIL import Image, ImageColor, ImageDraw, ImageFont, UnidentifiedImageError
 import pypdfium2.raw as pdfium_c
 
 PROG = "obs-html-inspect"
@@ -21,6 +22,7 @@ Examples:
   obs-html-inspect crop document.pdf --page 1 --box 72,72,300,200 --output title.png
   obs-html-inspect text document.pdf --page 2
   obs-html-inspect paths document.pdf --page 2 --output page-2-paths.json
+  obs-html-inspect annotate page-1.png --box 72,72,300,200=title --scale 2 --output marked.png
 
 paths prints JSON: the page size and, per path, its bounds, fill and stroke colour (RGBA
 0-255, null when not painted), stroke width, fill rule and segments (move, line, curve with
@@ -182,6 +184,44 @@ def _paths_json(report: dict) -> str:
     return f'{head}, "paths": [\n{lines}\n]}}\n'
 
 
+def annotate(raster: Path, marks: Sequence[tuple[Box, str]], scale: float, colour: str,
+             line_width: int, output: Path) -> None:
+    """Write RASTER with each mark's box drawn in COLOUR and its label above it.
+
+    A box is in raster pixels divided by SCALE, so boxes from text or paths, in points, land on a
+    page rendered at that scale."""
+    try:
+        ink = ImageColor.getrgb(colour)
+    except ValueError:
+        raise InspectError(f"--colour {colour!r} is not a colour. "
+                           f"Remedy: pass a CSS colour name or #rrggbb, for example red.") from None
+    try:
+        image = Image.open(raster).convert("RGB")
+    except (OSError, UnidentifiedImageError) as error:
+        raise InspectError(f"cannot read {raster} as a raster image ({error}). "
+                           f"Remedy: pass a PNG written by render or crop.") from None
+    draw = ImageDraw.Draw(image)
+    font = ImageFont.load_default(size=max(12, 8 * scale))
+    for box, label in marks:
+        x0, y0, x1, y1 = (round(value * scale) for value in box)
+        if x0 < 0 or y0 < 0 or x1 > image.width or y1 > image.height:
+            raise InspectError(f"--box {_number_list(box)} at scale {scale:g} is not inside the raster "
+                               f"(0,0,{image.width},{image.height} px). "
+                               f"Remedy: pass boxes within the raster, in pixels divided by --scale.")
+        draw.rectangle((x0, y0, x1 - 1, y1 - 1), outline=ink, width=line_width)
+        if label:  # Above the box, or below it where the raster's top edge leaves no room.
+            above = y0 - 2 >= font.size
+            draw.text((x0, y0 - 2 if above else y1 + 2), label, fill=ink, font=font,
+                      anchor="ld" if above else "lt")
+    image.save(output)
+
+
+def parse_mark(text: str) -> tuple[Box, str]:
+    """X0,Y0,X1,Y1 with an optional =LABEL."""
+    box, _, label = text.partition("=")
+    return parse_box(box, "--box"), label
+
+
 def _number_list(values: Sequence[float]) -> str:
     return ",".join(f"{value:g}" for value in values)
 
@@ -215,6 +255,16 @@ def _parser() -> argparse.ArgumentParser:
     paths.add_argument("--page", type=int, required=True, help="Page number, from 1.")
     paths.add_argument("--output", type=Path, metavar="JSON",
                        help="JSON file written; without it the JSON goes to stdout.")
+    marks = commands.add_parser("annotate", help="Draw labelled boxes onto a raster image.")
+    marks.add_argument("raster", type=Path, metavar="IMAGE", help="Raster to read, from render or crop.")
+    marks.add_argument("--box", action="append", required=True, metavar="X0,Y0,X1,Y1[=LABEL]",
+                       help="A box to draw, with an optional label; repeat for more.")
+    marks.add_argument("--scale", type=float, default=1.0,
+                       help="Raster pixels per box unit: the render's --scale for boxes in points "
+                            "(default 1, boxes in pixels).")
+    marks.add_argument("--colour", default="red", help="CSS colour of the marks (default red).")
+    marks.add_argument("--line-width", type=int, default=3, help="Box outline in pixels (default 3).")
+    marks.add_argument("--output", type=Path, required=True, metavar="IMAGE", help="Raster written.")
     return parser
 
 
@@ -246,6 +296,11 @@ def main(argv: Sequence[str] | None = None) -> None:
             report = page_paths(arguments.pdf, arguments.page)
             _deliver_text(_paths_json(report), arguments.output,
                           f"{len(report['paths'])} paths of page {arguments.page}")
+        elif arguments.command == "annotate":
+            marks = [parse_mark(text) for text in arguments.box]
+            annotate(arguments.raster, marks, arguments.scale, arguments.colour, arguments.line_width,
+                     arguments.output)
+            print(f"Wrote {arguments.output} ({len(marks)} marks on {arguments.raster}).")
     except InspectError as error:
         print(f"{PROG} {arguments.command}: {error}", file=sys.stderr)
         raise SystemExit(2) from None

@@ -104,3 +104,35 @@ def test_paths_lists_the_vector_paths_in_points_from_the_top_left(printed, capsy
              and path["bounds"][2] - path["bounds"][0] > 400]
     assert any(path["bounds"][1] < 72 for path in rules)
     assert rules[0]["segments"][0] == {"type": "move", "point": rules[0]["bounds"][:2]}
+
+
+def test_annotate_draws_labelled_boxes_onto_a_raster(printed, tmp_path, capsys) -> None:
+    page, marked = tmp_path / "page.png", tmp_path / "marked.png"
+    pdf_inspect.main(["render", str(printed), "--page", "1", "--scale", "2", "--output", str(page)])
+    pdf_inspect.main(["annotate", str(page), "--box", "100,100,200,150=rule", "--box", "50,300,80,330",
+                      "--scale", "2", "--colour", "#0000ff", "--output", str(marked)])
+    with Image.open(page) as before, Image.open(marked) as after:
+        before, after = before.convert("RGB"), after.convert("RGB")
+        assert after.size == before.size
+        assert after.getpixel((200, 250)) == after.getpixel((399, 299)) == (0, 0, 255)  # Box edges, in pixels.
+        assert after.getpixel((100, 600)) == (0, 0, 255)  # The second box's left edge.
+        inside = (210, 210, 390, 290)
+        assert ImageChops.difference(after.crop(inside), before.crop(inside)).getbbox() is None
+        above = (200, 170, 400, 198)
+        assert ImageChops.difference(after.crop(above), before.crop(above)).getbbox()  # The label.
+    assert f"Wrote {marked} (2 marks on {page})." in capsys.readouterr().out
+
+
+@pytest.mark.parametrize("option, value, problem", [
+    ("--colour", "reddish", "--colour 'reddish' is not a colour"),
+    ("--box", "0,0,9999,10", "is not inside the raster (0,0,1224,1584 px)"),
+])
+def test_annotate_refuses_marks_it_cannot_draw(printed, tmp_path, capsys, option, value, problem) -> None:
+    page = tmp_path / "page.png"
+    pdf_inspect.main(["render", str(printed), "--page", "1", "--output", str(page)])
+    arguments = {"--box": "1,1,2,2", "--colour": "red", option: value}
+    with pytest.raises(SystemExit):
+        pdf_inspect.main(["annotate", str(page), "--box", arguments["--box"], "--colour", arguments["--colour"],
+                          "--output", str(tmp_path / "marked.png")])
+    error = capsys.readouterr().err
+    assert error.startswith("obs-html-inspect annotate: ") and problem in error and "Remedy:" in error
