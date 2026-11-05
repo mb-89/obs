@@ -237,6 +237,14 @@
               "children": []
             },
             {
+              "type": "embeds",
+              "attrs": {
+                "target": "guide/usage",
+                "chapter": "guide-usage"
+              },
+              "children": []
+            },
+            {
               "type": "code",
               "attrs": {},
               "children": [],
@@ -661,6 +669,7 @@
     "chapter-inclusion",
     "command-fences",
     "document-presentation",
+    "embeds",
     "figure-descriptor",
     "manifest",
     "markdown",
