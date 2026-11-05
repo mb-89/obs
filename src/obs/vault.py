@@ -528,11 +528,6 @@ def _nodes(
             )
             if callout and "callouts" in capability_ids:
                 body = "\n".join(lines[1:]).strip()
-                if "extensions" in capability_ids:
-                    result.append({
-                        "type": "extensions", "attrs": {"syntax": "callout"}, "children": [],
-                    })
-                    capabilities.add("extensions")
                 result.append({
                     "type": "callouts",
                     "attrs": {"kind": callout["type"], "title": callout["title"]},

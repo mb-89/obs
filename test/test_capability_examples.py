@@ -6,7 +6,7 @@ import pytest
 import yaml
 
 from obs.document import DocumentError, build_document
-from test_vault import capability_reference
+from test_vault import INPUT_CAPABILITY_GAPS, capability_reference
 
 
 ROOT = Path(__file__).parents[1]
@@ -51,6 +51,12 @@ def test_every_capability_example_is_input_the_core_reads_as_its_capability(
     except DocumentError as error:
         pytest.fail(f"Authoring example at {place} is not valid input: {error}")
 
+    if capability in INPUT_CAPABILITY_GAPS:
+        assert capability not in document["capabilities"], (
+            f"Authoring example at {place} is a counter-example, yet the core reads it as "
+            f"{capability}; give the capability its input contract or correct the example."
+        )
+        return
     assert capability in document["capabilities"], (
         f"Authoring example at {place} does not use capability {capability}; "
         f"the core reads it as {sorted(document['capabilities'])}."
