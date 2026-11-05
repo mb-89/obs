@@ -1,5 +1,6 @@
 """The PDF inspection tools, run on the fixture Document's printed PDF."""
 import base64
+import json
 from pathlib import Path
 
 import pytest
@@ -86,3 +87,20 @@ def test_text_writes_the_named_file(printed, tmp_path, capsys) -> None:
     pdf_inspect.main(["text", str(printed), "--page", "1", "--output", str(output)])
     assert "Fixture document\n" in output.read_text(encoding="utf-8")
     assert capsys.readouterr().out == f"Wrote {output} (page 1 text).\n"
+
+
+def test_paths_lists_the_vector_paths_in_points_from_the_top_left(printed, capsys) -> None:
+    pdf_inspect.main(["paths", str(printed), "--page", "1"])
+    report = json.loads(capsys.readouterr().out)
+    assert (report["page"], report["size"]) == (1, list(LETTER))
+    paths = report["paths"]
+    assert paths and all(segment["type"] in {"move", "line", "curve", "close"}
+                         for path in paths for segment in path["segments"])
+    for path in paths:
+        x0, y0, x1, y1 = path["bounds"]
+        assert 0 <= x0 <= x1 <= LETTER[0] and 0 <= y0 <= y1 <= LETTER[1]
+    # The running header's rule: a thin filled bar across the top margin, not at the bottom.
+    rules = [path for path in paths if path["fill"] and path["bounds"][3] - path["bounds"][1] < 1
+             and path["bounds"][2] - path["bounds"][0] > 400]
+    assert any(path["bounds"][1] < 72 for path in rules)
+    assert rules[0]["segments"][0] == {"type": "move", "point": rules[0]["bounds"][:2]}
