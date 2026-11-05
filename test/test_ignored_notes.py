@@ -13,8 +13,17 @@ ROOT = Path(__file__).parents[1]
 MATCH_ALL_BASE = {"views": [{"type": "table"}]}
 
 
+def _notes(records):
+    return [record for record in records if record["type"] == "note"]
+
+
 def _selected(records, selects) -> list[str]:
-    return [record["path"] for record in records if selects(record["fields"], record["path"])]
+    return [record["path"] for record in _notes(records) if selects(record["fields"], record["path"])]
+
+
+def _base_selected(records, definition) -> list[str]:
+    selects = base_selects(definition)
+    return [record["path"] for record in _notes(records) if selects(record, record)]
 
 
 def test_a_non_boolean_ignored_field_names_the_note_the_field_and_the_remedy(tmp_path) -> None:
@@ -48,7 +57,7 @@ def test_a_query_or_base_never_selects_an_ignored_note_and_its_count_excludes_it
 
     assert [chapter["id"] for chapter in document["chapters"]] == ["count", "register", "finding", "visible"]
     assert count == 2
-    assert _selected(document["records"], base_selects({"filters": 'kind == "finding"', **MATCH_ALL_BASE})) == [
+    assert _base_selected(document["records"], {"filters": 'kind == "finding"', **MATCH_ALL_BASE}) == [
         "finding.md", "visible.md",
     ]
 
@@ -73,7 +82,7 @@ def test_the_record_of_an_ignored_note_says_so(tmp_path) -> None:
         "chapter.md": "Chapter.\n",
     })
 
-    records = {record["path"]: record for record in build_document(manifest, capability_reference())["records"]}
+    records = {record["path"]: record for record in _notes(build_document(manifest, capability_reference())["records"])}
 
     assert records["manifest.md"]["ignored"] is True
     assert "ignored" not in records["chapter.md"]
@@ -84,8 +93,8 @@ def test_the_spec_manifest_is_not_selected_by_a_query_or_base_matching_all_notes
     every_query = _selected(records, lambda fields, path: conditions_select([], fields, path))
 
     assert "manifest.md" not in every_query
-    assert "manifest.md" not in _selected(records, base_selects(MATCH_ALL_BASE))
-    assert len(every_query) == len(records) - 1
+    assert "manifest.md" not in _base_selected(records, MATCH_ALL_BASE)
+    assert len(every_query) == len(_notes(records)) - 1
 
 
 def test_an_ignored_note_is_not_a_member_of_a_base_members_projection_that_would_select_it(tmp_path) -> None:
@@ -103,4 +112,4 @@ def test_an_ignored_note_is_not_a_member_of_a_base_members_projection_that_would
     document = build_document(manifest, capability_reference())
 
     assert [chapter["id"] for chapter in document["chapters"]] == ["register", "finding"]
-    assert _selected(document["records"], base_selects(members)) == ["finding.md"]
+    assert _base_selected(document["records"], members) == ["finding.md"]

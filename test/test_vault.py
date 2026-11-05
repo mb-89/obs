@@ -389,7 +389,7 @@ def test_a_register_embed_carries_the_base_definition_and_its_view_rows(tmp_path
     ]
     assert register["attrs"]["view"] == 1
     assert register["attrs"]["rows"] == [
-        ["a-point", "b-point", "c-point"], ["a-point", "c-point"], None,
+        ["a-point", "b-point", "c-point"], ["a-point", "c-point"], [],
     ]
     records = {record["id"] for record in document["records"]}
     assert {identifier for rows in register["attrs"]["rows"] if rows for identifier in rows} <= records
@@ -728,3 +728,83 @@ def test_an_untitled_callout_is_titled_by_its_capitalized_keyword(tmp_path) -> N
         {"kind": "important", "title": ""},
         {"kind": "tip", "title": "Tip"},
     ]
+
+
+RECORD_TYPES = json.loads((ROOT / "src" / "obs" / "document.schema.json").read_text(encoding="utf-8"))[
+    "$defs"]["record"]["properties"]["type"]["enum"]
+"""The record types a Base view can select (capabilities/registers, Document node)."""
+
+
+def projection_vault(tmp_path) -> Path:
+    vault = tmp_path / "projections"
+    vault.mkdir()
+    (vault / "manifest.md").write_text(
+        "---\ntitle: Projections\nstatus: draft\n"
+        "history:\n  - {version: '1', author: Ann, change: First}\n---\n"
+        "- [[registers]]\n  - [[part|Part one]]\n",
+        encoding="utf-8",
+    )
+    (vault / "registers.md").write_text("# Registers\n\n![[x.base]]\n", encoding="utf-8")
+    (vault / "part.md").write_text(
+        "---\nowner: Ann\n---\n# Part\n\nCheck it. #mark/risk/check_it\n", encoding="utf-8",
+    )
+    (vault / "term.md").write_text(
+        "---\nkind: glossary\nterm: Datum\ndefinition: A reference.\nowner: Ann\n---\n", encoding="utf-8",
+    )
+    (vault / "hidden-term.md").write_text(
+        "---\nkind: glossary\nterm: Hidden\ndefinition: Never.\nowner: Ann\nignored: true\n---\n",
+        encoding="utf-8",
+    )
+    filters = {
+        "note": 'file.name == "term"', "chapter": 'owner == "Ann"', "tag": 'type == "risk"',
+        "glossary": 'owner == "Ann"', "documentMetadata": 'key == "status"',
+        "documentHistory": 'author == "Ann"',
+    }
+    (vault / "x.base").write_text("views:\n" + "".join(
+        f"  - type: table\n    name: {kind}\n    filters: '{filters[kind].replace(chr(39), chr(39) * 2)}'\n"
+        f"    order: [file.name]\n    obsHtml: {{records: {kind}}}\n"
+        for kind in RECORD_TYPES
+    ), encoding="utf-8")
+    return vault
+
+
+def test_every_record_type_yields_records_and_rows_of_its_type(tmp_path) -> None:
+    document = build_document(projection_vault(tmp_path) / "manifest.md", capability_reference())
+
+    records = {record["id"]: record for record in document["records"]}
+    [register] = [
+        node for chapter in document["chapters"] for block in chapter["content"]
+        for node in block["children"] if node["type"] == "registers"
+    ]
+    rows = dict(zip((view["name"] for view in register["attrs"]["base"]["views"]), register["attrs"]["rows"]))
+    assert list(rows) == RECORD_TYPES
+    for kind, selected in rows.items():
+        assert selected, kind
+        assert {records[identifier]["type"] for identifier in selected} == {kind}
+    assert [records[identifier]["fields"] for identifier in rows["chapter"]] == [
+        {"chapter": "Part one", "title": "Part one", "depth": "1", "slug": "part", "sourcePath": "part.md"},
+    ]
+    assert [records[identifier]["fields"] for identifier in rows["tag"]] == [
+        {"sourcePath": "part.md", "type": "risk", "label": "check_it", "text": "Check it.", "source": "Part one"},
+    ]
+    assert [records[identifier]["fields"]["term"] for identifier in rows["glossary"]] == ["Datum"]
+    assert [records[identifier]["fields"] for identifier in rows["documentMetadata"]] == [
+        {"key": "status", "value": "draft"},
+    ]
+    assert [records[identifier]["fields"] for identifier in rows["documentHistory"]] == [
+        {"version": "1", "author": "Ann", "change": "First", "date": ""},
+    ]
+
+
+def test_a_glossary_row_a_view_selects_includes_its_note_and_ids_are_stable(tmp_path) -> None:
+    manifest = projection_vault(tmp_path) / "manifest.md"
+    document = build_document(manifest, capability_reference())
+
+    assert "term" in [chapter["id"] for chapter in document["chapters"]]
+    assert "hidden-term" not in [chapter["id"] for chapter in document["chapters"]]
+    assert [record["id"] for record in document["records"]] == [
+        record["id"] for record in build_document(manifest, capability_reference())["records"]
+    ]
+    assert {record["note"]: record["id"] for record in document["records"] if record["type"] == "glossary"} == {
+        "hidden-term": "glossary-hidden-term", "term": "glossary-term",
+    }

@@ -232,8 +232,14 @@ and path as above. A tag row has no other properties. Displayed cells, such as f
 frontmatter text or tag backlinks, are never filter values.
 
 Document metadata rows (`recordType` `documentMetadata`: `key`, `value`) and history rows
-(`documentHistory`: `version`, `date`, `author`, `change`) exist only in the browser, since
-they never include a note; all their fields are own fields. [[input-model]] owns their content.
+(`documentHistory`: `version`, `date`, `author`, `change`) never include a note; all their
+fields are own fields. [[input-model]] owns their content. The core emits a manifest metadata
+row per frontmatter key other than `history` and `obsHtml`, with its value as authored; the
+adapter adds the rows of its own generation provenance.
+
+The core emits every projection as records of its type in the Document's `records`, a
+tag row for each mark of a marked paragraph; `src/obs/document.schema.json` (`$defs/record`)
+defines each record type and its fields.
 
 Inclusion, table rows and tag navigation to the table holding a row use the grammar above.
 Counts are not Bases filters: they use the record-metric conditions owned by

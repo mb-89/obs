@@ -15,11 +15,16 @@ MANIFEST = ROOT / "spec" / "manifest.md"
 
 
 @pytest.fixture(scope="module")
-def spec_records() -> list[dict[str, object]]:
+def spec_document_records() -> list[dict[str, object]]:
     reference = build_capability_reference(
         ROOT / "spec" / "capabilities", ROOT / "spec" / "capabilities" / "coverage.json",
     )
     return build_document(MANIFEST, reference)["records"]
+
+
+@pytest.fixture(scope="module")
+def spec_records(spec_document_records) -> list[dict[str, object]]:
+    return [record for record in spec_document_records if record["type"] == "note"]
 
 
 def _authored_base_filters() -> list[object]:
@@ -33,13 +38,12 @@ def _authored_base_filters() -> list[object]:
     return filters
 
 
-def test_spec_document_has_a_note_record_per_capability(spec_records) -> None:
+def test_spec_document_has_a_note_record_per_capability(spec_records, spec_document_records) -> None:
     capabilities = {
         record["path"] for record in spec_records if record["fields"].get("kind") == "capability"
     }
     assert "capabilities/bases.md" in capabilities
-    assert all(record["type"] == "note" for record in spec_records)
-    assert len({record["id"] for record in spec_records}) == len(spec_records)
+    assert len({record["id"] for record in spec_document_records}) == len(spec_document_records)
     bases = next(record for record in spec_records if record["path"] == "capabilities/bases.md")
     assert bases["id"] == "capabilities-bases"
     assert bases["fields"]["capability"]["id"] == "bases"

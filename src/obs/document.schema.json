@@ -188,8 +188,8 @@
               "base": {"description": "The embedded Base definition; base.schema.json validates it.", "type": "object", "required": ["views"]},
               "view": {"description": "The index in base.views of the view heading names; null embeds all views.", "oneOf": [{"type": "integer", "minimum": 0}, {"type": "null"}]},
               "rows": {
-                "description": "Per view of base.views, in order: the ids of the note records it selects, or null for a view whose rows are not note records.",
-                "type": "array", "items": {"oneOf": [{"type": "array", "items": {"$ref": "#/$defs/id"}}, {"type": "null"}]}
+                "description": "Per view of base.views, in order: the ids of the records it selects, of the record type its obsHtml.records names.",
+                "type": "array", "items": {"type": "array", "items": {"$ref": "#/$defs/id"}}
               }
             }
           }}}
@@ -229,16 +229,66 @@
       "then": {"properties": {"href": {"pattern": "^[Hh][Tt][Tt][Pp][Ss]?://"}}}
     },
     "record": {
-      "description": "A selectable row for Bases and queries. A note record (type note) is one vault note: its vault-relative POSIX path and its frontmatter as fields.",
+      "description": "A selectable row for Bases and queries, of one record type; a Base view selects one type with obsHtml.records (capabilities/registers). The fields of a row other than a note are its own fields (generic-tables, Bases filter grammar).",
       "type": "object", "additionalProperties": false, "required": ["id", "type", "fields"],
       "properties": {
-        "id": {"$ref": "#/$defs/id"}, "type": {"type": "string", "minLength": 1},
+        "id": {"$ref": "#/$defs/id"},
+        "type": {"enum": ["note", "chapter", "tag", "glossary", "documentMetadata", "documentHistory"]},
         "path": {"type": "string", "pattern": "^(?!/)(?!.*(^|/)\\.\\.?(/|$)).+\\.md$"},
+        "note": {"description": "The id of the note record the row comes from; a chapter or glossary row's other properties resolve on its frontmatter and path.", "$ref": "#/$defs/id"},
         "fields": {"type": "object"},
-        "ignored": {"const": true, "description": "Present on an ignored note: queries and Bases never select it (markdown-frontmatter, Ignored notes)."}
+        "ignored": {"const": true, "description": "Present on an ignored note: queries and Bases never select it or a row it owns (markdown-frontmatter, Ignored notes)."}
       },
-      "if": {"properties": {"type": {"const": "note"}}},
-      "then": {"required": ["path"]}
+      "allOf": [
+        {
+          "description": "A note: one vault note, its vault-relative POSIX path and its frontmatter as fields.",
+          "if": {"properties": {"type": {"const": "note"}}},
+          "then": {"required": ["path"], "not": {"required": ["note"]}},
+          "else": {"not": {"anyOf": [{"required": ["path"]}, {"required": ["ignored"]}]}}
+        },
+        {
+          "description": "A chapter: one manifest TOC chapter, in TOC order; depth 0 at the top level and slug its chapter id.",
+          "if": {"properties": {"type": {"const": "chapter"}}},
+          "then": {"required": ["note"], "properties": {"fields": {
+            "additionalProperties": false, "required": ["chapter", "title", "depth", "slug", "sourcePath"],
+            "properties": {
+              "chapter": {"type": "string"}, "title": {"type": "string"}, "depth": {"type": "string", "pattern": "^(0|[1-9][0-9]*)$"},
+              "slug": {"$ref": "#/$defs/id"}, "sourcePath": {"type": "string"}
+            }
+          }}}
+        },
+        {
+          "description": "A tag: one mark of a marked paragraph (capabilities/marks); text is the paragraph without its marks, source its note's title.",
+          "if": {"properties": {"type": {"const": "tag"}}},
+          "then": {"required": ["note"], "properties": {"fields": {
+            "additionalProperties": false, "required": ["sourcePath", "type", "label", "text", "source"],
+            "properties": {
+              "sourcePath": {"type": "string"}, "type": {"type": "string"}, "label": {"type": "string"},
+              "text": {"type": "string"}, "source": {"type": "string"}
+            }
+          }}}
+        },
+        {
+          "description": "A glossary term: one note with kind glossary (input-model, Glossary).",
+          "if": {"properties": {"type": {"const": "glossary"}}},
+          "then": {"required": ["note"], "properties": {"fields": {
+            "additionalProperties": false, "required": ["sourcePath", "term", "definition", "aliases"],
+            "properties": {"sourcePath": {"type": "string"}, "term": {}, "definition": {}, "aliases": {"type": "array"}}
+          }}}
+        },
+        {
+          "description": "A document metadata entry: one manifest frontmatter key other than history and obsHtml, its value as authored.",
+          "if": {"properties": {"type": {"const": "documentMetadata"}}},
+          "then": {"not": {"required": ["note"]}, "properties": {"fields": {
+            "additionalProperties": false, "required": ["key", "value"], "properties": {"key": {"type": "string"}, "value": {}}
+          }}}
+        },
+        {
+          "description": "A document history entry: one item of the manifest's history, its keys as authored and date empty when it has none.",
+          "if": {"properties": {"type": {"const": "documentHistory"}}},
+          "then": {"not": {"required": ["note"]}, "properties": {"fields": {"required": ["date"]}}}
+        }
+      ]
     },
     "resource": {
       "type": "object", "additionalProperties": false, "required": ["id", "type", "attrs"],
