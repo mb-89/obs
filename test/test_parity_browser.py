@@ -262,3 +262,91 @@ def test_the_report_behaves_as_the_interim_reference_in_preview_frames(
     problems += [f"design notes: {violation}" for violation in violations]
     problems += [f"page error: {error}" for error in errors]
     assert not problems, f"Parity gate, {frame_kind} frame:\n" + "\n".join(problems)
+
+
+COVERAGE = Path(__file__).parent / "browser" / "control-coverage.js"
+WIDTHS = (360, 700, 1100, 1600)
+VIEWS = ("pages", "continuous")
+
+
+@pytest.fixture(scope="module")
+def coverage_browser():
+    """Chromium with overlay scrollbars, as on touch devices and macOS: scrollbars take no room,
+    so the reader's clearance for the chapter arrows is at its narrowest."""
+    from obs_html.pdf import _executable
+    from playwright.sync_api import sync_playwright
+
+    with sync_playwright() as playwright:
+        browser = playwright.chromium.launch(executable_path=_executable(),
+                                             args=["--enable-features=OverlayScrollbar"])
+        try:
+            yield browser
+        finally:
+            browser.close()
+
+
+def layout_name(layout: list[str] | None) -> str:
+    return f"the {layout[0]} bar docked {layout[1]}" if layout else "no bar open"
+
+
+def covered_controls(tmp_path: Path, browser, report: str, frame_kind: str, name: str) -> dict[str, list[str]]:
+    """Every covered control at every width, view and bar layout, in one preview frame.
+
+    Each fault ("<control> is covered by <element> at <width>px in the <view> view with <layout>")
+    maps to the chapters it occurs in; a page error is a fault too.
+    """
+    errors: list[str] = []
+    folder = tmp_path / name
+    folder.mkdir()
+    faults: dict[str, list[str]] = {}
+    with http_origin(folder) as origin:
+        page, frame = open_preview(folder, browser, errors, report, frame_kind,
+                                   origin if frame_kind == "same-origin" else None)
+        try:
+            page.set_viewport_size({"width": max(WIDTHS) + 100, "height": 800})
+            root = frame.locator("html")
+            bars = root.evaluate("""() => [...new Set([...document.querySelectorAll("[data-dock-bar]")]
+                .map((button) => button.dataset.dockBar))]""")
+            # On every chapter: no bar, the Filter bar in each dock direction (bars of one side
+            # shape the reader alike) and the Comments bar, whose review mode reshapes the reader.
+            # Every other bar on its default side, on the first chapter.
+            docked = "filter" if "filter" in bars else bars[0]
+            layouts = [None, *([docked, side] for side in ("right", "left", "top", "bottom")),
+                       *([bar, "right"] for bar in bars if bar == "comments")]
+            first = [[bar, "right"] for bar in bars if [bar, "right"] not in layouts]
+            for width in WIDTHS:
+                page.evaluate("width => document.getElementById('report').style.width = width", f"{width}px")
+                results = root.evaluate(COVERAGE.read_text(encoding="utf-8"),
+                                        {"views": list(VIEWS), "layouts": layouts, "firstChapterLayouts": first})
+                for result in results:
+                    for fault in result["faults"]:
+                        key = (f"{fault['control']} is covered by {fault['covering']} at {width}px in the "
+                               f"{result['view']} view with {layout_name(result['layout'])}")
+                        faults.setdefault(key, []).append(result["chapter"])
+        finally:
+            page.close()
+    for error in errors:
+        faults.setdefault(f"page error: {error}", [])
+    return faults
+
+
+@pytest.mark.browser
+@pytest.mark.parametrize("frame_kind", SANDBOXES)
+def test_no_control_is_covered_in_preview_frames(
+        tmp_path: Path, coverage_browser, parity_reports: dict[str, str], frame_kind: str) -> None:
+    """No visible control lies under another element's pointer area (test/browser/control-coverage.js).
+
+    The interim reference is swept in the same frames. Its faults are not parity differences:
+    where this adapter shares one, the failure says so.
+    """
+    ours = covered_controls(tmp_path, coverage_browser, parity_reports["adapter"], frame_kind, "adapter")
+    theirs = covered_controls(tmp_path, coverage_browser, parity_reports["reference"], frame_kind, "reference")
+    problems = [
+        f"{fault} (in {', '.join(chapters)})"
+        + ("; the interim reference has the same fault" if fault in theirs else "")
+        for fault, chapters in ours.items()
+    ]
+    assert not problems, (
+        f"test/test_parity_browser.py: controls covered by another element's pointer area, {frame_kind} "
+        "frame. Remedy: give the control clearance from what covers it (obs report-ui.md, chapter "
+        "controls):\n" + "\n".join(problems))
