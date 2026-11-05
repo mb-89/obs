@@ -925,6 +925,13 @@ math {
     width: var(--sheet-width);
     font-size: 11pt;
     line-height: 1.5;
+    page: report-portrait;
+}
+
+.paper-sheet[data-page-orientation="landscape"] {
+    --sheet-width: var(--paper-height);
+    --sheet-height: var(--paper-width);
+    page: report-landscape;
 }
 
 .paper-content {
@@ -973,13 +980,10 @@ math {
     object-fit: contain;
 }
 
-/* A wide table keeps the page size and extends into the inline margins, up to the configured
-   distance from the paper edge; inside a card or column it stays within that container. */
-.paper-content [data-table-wide="true"]:not(:is([data-table-wide="true"], .content-card, .markdown-column) *) {
-    --wide-table-extension: max(0mm, var(--paper-margin) - var(--wide-table-edge));
-    margin-inline: calc(-1 * var(--wide-table-extension));
-    max-width: none;
-    width: calc(100% + 2 * var(--wide-table-extension));
+.paper-content [data-table-wide="true"] {
+    margin-inline: 0;
+    max-width: 100%;
+    width: 100%;
 }
 
 .paper-content pre {

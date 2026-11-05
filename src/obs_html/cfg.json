@@ -25,7 +25,6 @@
     "figures": {"proseWidthMultiplier": 1.5, "viewportGutterRem": 1, "viewportHeightRatio": 0.8, "plotlyDelivery": "embedded", "plotlyCdnUrl": "https://cdn.plot.ly/plotly-basic-2.35.3.min.js", "plotlyCdnIntegrity": "sha384-1kloN2RA6UbO83t0fSTtvwbovK00vzWzCE4WE0bLlnh07IC3ftBV/0Q5xhUpwDQq"},
     "printReadyTimeoutMilliseconds": 15000,
     "print": {
-      "wideTableEdgeMillimeters": 10,
       "paperSizes": {
         "A3": {"widthMillimeters": 297, "heightMillimeters": 420},
         "A4": {"widthMillimeters": 210, "heightMillimeters": 297},
