@@ -1,5 +1,5 @@
 ---
-bottom line: Python owns source semantics and emits one canonical report store; browser views derive from that store.
+summary: Python owns source semantics and emits one canonical report store; browser views derive from that store.
 ---
 
 # Architecture

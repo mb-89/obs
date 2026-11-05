@@ -21,9 +21,6 @@ definitions alike. Keeping the same fact in two places is an anti-pattern (user,
 - A note with only frontmatter is valid. Never repeat frontmatter fields as body prose merely
   to make links or table details readable; render the owning metadata correctly instead.
   Bodies contain only additional discussion, not a second transcription of the row.
-- A report overview derives chapter conclusions from their canonical bottom lines, rather than
-  maintaining a parallel abstract synopsis. Keep each conclusion concise; move supporting detail
-  to its owning chapter without discarding qualifications or changing the strength of evidence.
 - Generated-report data ownership is defined by [[architecture]]; views must consume that
   owner rather than serializing parallel copies.
 

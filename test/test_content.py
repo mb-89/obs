@@ -618,7 +618,6 @@ def test_alias_ambiguity_is_explicit_and_exact_note_path_wins(tmp_path: Path) ->
 
 @pytest.mark.parametrize("metadata", [
     "aliases: [good, 42]", "aliases: ''", "aliases: {}", "aliases: null",
-    "bottom line: []", "bottom line: ''", "bottom line: null", "bluf: obsolete", "bottom_line: obsolete",
     "kind: glossary\nterm: BLUF", "kind: glossary\nterm: ''\ndefinition: Content",
 ])
 def test_invalid_semantic_metadata_reports_errors(tmp_path: Path, metadata: str) -> None:
@@ -629,57 +628,18 @@ def test_invalid_semantic_metadata_reports_errors(tmp_path: Path, metadata: str)
         read_chapter_content(parse_manifest(manifest)[0])
 
 
-def test_bottom_line_card_uses_the_default_plain_title_before_the_note_title(tmp_path: Path) -> None:
-    (tmp_path / "one.md").write_text("---\nbottom line: Result.\n---\n# One", encoding="utf-8")
-    (tmp_path / "principle.md").write_text(
-        "---\nkind: glossary\nterm: BLUF\naliases: [Bottom line upfront]\n"
-        "definition: Put the conclusion first.\n---\n# BLUF", encoding="utf-8",
-    )
-    manifest = tmp_path / "manifest.md"
-    manifest.write_text("- [[one]]\n- [[principle]]\n", encoding="utf-8")
-    chapters = parse_manifest(manifest)
-    rendered = render_chapter(chapters[0], chapters, tmp_path)
-    assert '<header class="content-card-title">Bottom line upfront</header>' in rendered
-    assert "<a" not in rendered.split("</header>")[0]
-    assert rendered.index("data-chapter-bluf") < rendered.index("<h1")
-    assert rendered.count("Result.") == 1
-
-
-@pytest.mark.parametrize(("card", "header", "after_title"), [
-    (('<a href="#principle">BLUF</a>', "afterTitle"), '<a href="#principle">BLUF</a>', True),
-    (("", "beforeTitle"), None, False),
-])
-def test_bottom_line_card_title_and_position_come_from_the_caller(
-    tmp_path: Path, card, header, after_title,
-) -> None:
-    (tmp_path / "one.md").write_text("---\nbottom line: Result.\n---\n# One\n\nBody.", encoding="utf-8")
-    manifest = tmp_path / "manifest.md"
-    manifest.write_text("- [[one]]\n", encoding="utf-8")
-    chapters = parse_manifest(manifest)
-    rendered = render_chapter(chapters[0], chapters, tmp_path, bottom_line_card=card)
-    if header is None:
-        assert "content-card-title" not in rendered
-    else:
-        assert f'<header class="content-card-title">{header}</header>' in rendered
-    assert (rendered.index("</h1>") < rendered.index("data-chapter-bluf")) is after_title
-    assert rendered.index("data-chapter-bluf") < rendered.index("Body.")
-    assert rendered.count("Result.") == 1
-
-
 @pytest.mark.parametrize(("profile", "expected"), [
     ("", {"layout": "paged", "heading": "cover",
           "pages": [{"page": "cover"}, {"page": "abstract", "title": "Abstract"},
                     {"page": "contents", "title": "Contents"}],
-          "bottomLine": {"title": "Bottom line upfront", "position": "beforeTitle"},
           "figures": {"numbering": "none", "label": "Figure", "labelPlural": "Figures"},
           "print": {"paper": "A4", "margin": "20mm"}, "cssSnippets": [],
           "query": {"scope": "chapters"}}),
     ("obsHtml:\n  layout: scrolling\n  pages: [{page: contents, title: Inhalt}, {page: cover}]\n"
-     "  bottomLine: {position: afterTitle}\n  print: {paper: Letter}\n"
+     "  print: {paper: Letter}\n"
      "  cssSnippets: [house]\n",
      {"layout": "scrolling", "heading": "cover",
       "pages": [{"page": "contents", "title": "Inhalt"}, {"page": "cover"}],
-      "bottomLine": {"title": "Bottom line upfront", "position": "afterTitle"},
       "figures": {"numbering": "none", "label": "Figure", "labelPlural": "Figures"},
       "print": {"paper": "Letter", "margin": "20mm"}, "cssSnippets": ["house"],
       "query": {"scope": "chapters"}}),
@@ -699,8 +659,6 @@ def test_manifest_presentation_profile_resolves_over_schema_defaults(
     ("pages: [{page: cover, title: Cover}]", "", "obsHtml"),
     ("pages: [{page: appendix}]", "", "obsHtml"),
     ("layout: book", "", "obsHtml"),
-    ("bottomLine: {position: below}", "", "obsHtml"),
-    ("bottomLine: {title: ' '}", "", "obsHtml"),
     ("heading: line", "", "obsHtml"),
     ("heading: compact", "", "no cover"),
     ("heading: compact, pages: []", "", "at least one page"),
@@ -1048,7 +1006,7 @@ def test_base_view_rejects_malformed_group_and_sort(tmp_path: Path, directive: s
         read_chapter_content(chapter)
 
 
-def test_bottom_line_and_paragraph_markers_are_parsed_and_rendered_once(tmp_path: Path) -> None:
+def test_removed_property_is_ordinary_frontmatter_and_marks_render_once(tmp_path: Path) -> None:
     note = tmp_path / "chapter.md"
     note.write_text(
         "---\nbottom line: The **canonical** result.\n---\n"
@@ -1065,17 +1023,13 @@ def test_bottom_line_and_paragraph_markers_are_parsed_and_rendered_once(tmp_path
     document = read_chapter_content(chapter)
     rendered = render_chapter(chapter, [chapter], tmp_path)
 
-    assert document.bottom_line == "The **canonical** result."
+    assert document.frontmatter["bottom line"] == "The **canonical** result."
     assert [(mark.kind, mark.label, mark.text) for mark in document.marks] == [
         ("open_point", "tolerance_scope", "Which **tolerance** applies?"),
         ("decision", "review_tolerance", "Which **tolerance** applies?"),
         ("risk", "supplier_delay", "The supplier may be [late](https://example.com)."),
     ]
-    assert '<section class="content-card chapter-bluf" data-chapter-bluf>' in rendered
-    assert '<header class="content-card-title">' in rendered
-    assert '>Bottom line upfront</header>' in rendered
-    assert 'href="#glossary-bluf"' not in rendered
-    assert "The <strong>canonical</strong> result." in rendered
+    assert "data-chapter-bluf" not in rendered
     assert 'data-mark-kind="open_point decision"' in rendered
     assert 'id="mark-chapter-open-point-tolerance-scope"' in rendered
     assert rendered.count('class="semantic-mark-icon ') == 3
@@ -1104,24 +1058,6 @@ def test_marker_inside_inline_code_does_not_mark_paragraph(tmp_path: Path) -> No
 
     assert document.marks == ()
     assert "<code>#mark/<wbr>risk/<wbr>example</code>" in rendered
-
-
-def test_bottom_line_uses_authored_links_without_generated_navigation(tmp_path: Path) -> None:
-    (tmp_path / "one.md").write_text(
-        "---\nbottom line: 'Read [[two|the details]].'\n"
-        "bluf_links:\n  - label: Unwanted automatic link\n    target: two\n---\n"
-        "# One\n", encoding="utf-8",
-    )
-    (tmp_path / "two.md").write_text("# Two\n", encoding="utf-8")
-    manifest = tmp_path / "manifest.md"
-    manifest.write_text("- [[one]]\n- [[two]]\n", encoding="utf-8")
-    chapters = parse_manifest(manifest)
-
-    rendered = render_chapter(chapters[0], chapters, tmp_path)
-
-    assert '<a href="#two">the details</a>' in rendered
-    assert "Unwanted automatic link" not in rendered
-    assert "<nav" not in rendered
 
 
 @pytest.mark.parametrize(

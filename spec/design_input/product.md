@@ -1,5 +1,5 @@
 ---
-bottom line: obs-html turns an ordered Obsidian Markdown vault into one portable, reviewable HTML report. To use it, download the source archive and follow the README's Install and Run instructions.
+summary: obs-html turns an ordered Obsidian Markdown vault into one portable, reviewable HTML report. To use it, download the source archive and follow the README's Install and Run instructions.
 ---
 
 # obs-html

@@ -244,25 +244,18 @@ records; they never execute report-owned algorithms in the converter.
   metadata but is not a document-metadata table row.
 
   Structured values retain their complete content rather than being silently omitted.
-- Home retains authored abstract order, including any bottom-line, History and Metadata
+- Home retains authored abstract order, including History and Metadata
   declarations. Removing or moving a fence removes or moves its view, including on Home;
   no renderer supplies missing tables or sections. Which front pages exist, their order and
   titles are declared by the document presentation profile below; their paged rendering and
   Contents are owned by [[report-ui]].
 
   The abstract is the manifest Markdown following the TOC.
-- The bottom-line table is a normal, query-backed generic table over canonical authored chapter
-  records, not a special renderer or a separately serialized summary dataset. Its columns are
-  Chapter (linked to that chapter/subchapter) and Bottom line (rendered semantic content).
-- The table selects chapters with a nonempty `bottom line` and retains their ancestors as
-  collapsible structural rows. An ancestor without a bottom line has an empty value cell;
-  unrelated branches are omitted. Manifest order and hierarchy remain authoritative.
 - Home has a stable navigation identity and participates in previous/next navigation
   before authored chapters. Home is the home-icon root of the breadcrumb path; generated pages
   do not recursively enter the authored-chapter summary query.
   Home itself is not a Contents chapter entry; the Home button and previous/next
   sequence still reach it.
-- The source key is `bottom line`; obsolete `bluf` metadata is rejected with a migration diagnostic.
 
 ### Profiles
 
@@ -296,7 +289,6 @@ obsHtml:
     - {page: cover}
     - {page: abstract, title: Abstract}
     - {page: contents, title: Contents}
-  bottomLine: {title: Bottom line upfront, position: beforeTitle}
   figures: {numbering: none, label: Figure}
   print: {paper: A4, margin: 20mm}
   cssSnippets: [house-style] # .obsidian/snippets/house-style.css
@@ -324,14 +316,6 @@ obsHtml:
     plain-text `title` is its heading.
   - An omitted kind produces no page. `pages: []` is valid for a manifest without abstract
     Markdown.
-- `bottomLine` controls the card that presents a chapter's `bottom line` value. `title` is
-  inline Markdown rendered in the manifest's context, so the author links the BLUF principle
-  explicitly (for example `"[[bluf|Bottom line upfront]]"`); there is no lookup by label.
-
-  An empty `title` renders the card without a heading. `position` is `beforeTitle` (above the
-  chapter's first first-level heading, the current treatment) or `afterTitle` (directly below
-  it; a chapter without a first-level heading keeps the card at the top). Omitted keys use their
-  defaults.
 - `figures` numbers captioned `figure` fences. `numbering` is `none` (default), `document`
   (`Figure 1`, `Figure 2`, … in contents order) or `chapter` (`Figure <n>.<m>`, where `<n>` is the
   top-level contents position of the chapter, its subchapters included, and `<m>` counts within
@@ -353,10 +337,9 @@ obsHtml:
 
   A listed snippet that is missing, or that contains `</style`, is an input error. The
   default is none.
-- Generated abstract sections are [register](#registers) embeds in the abstract Markdown, for
-  example `![[registers.base#Bottom lines]]`.
+- Generated abstract sections are [register](#registers) embeds in the abstract Markdown.
 - Vaults that declare none of these keys keep the packaged defaults shown above, which reproduce
-  the established cover, "Abstract", "Contents", paged opening and "Bottom line upfront" card.
+  the established cover, "Abstract", "Contents", and paged opening.
 
   The default is compatibility: an existing vault keeps its document unchanged until its author
   decides otherwise. Attachments are not a profile key; see the attachment rule under
@@ -394,7 +377,7 @@ Optional authored introduction.
   with the mark tag, notes with `kind: glossary`, notes with a `url`, numeric-value notes.
 - Filters, columns, titles and grouping are authored in the view. obs_html owns no default
   columns or filters for registers; the spec vault's `.base` file is the documented starter.
-- Rows that are not notes (marked paragraphs, glossary terms, chapters with a bottom line,
+- Rows that are not notes (marked paragraphs, glossary terms, chapters with a callout,
   document metadata) come from the shared record projections, selected by the view's
   `obsHtml.records`; a base-level `obsHtml.records` is the default for all its views.
   There is no second dataset.
@@ -727,8 +710,6 @@ callouts are the one system for marked content.
 - Mark kinds (open point, risk, assumption, issue, decision, warning, question, idea) become
   callout types: `> [!open-point] Label`. The callout's content is the marked item; a callout
   nested under a list item marks that item. `#mark/...` tags are removed.
-- The bottom line is the `> [!bluf]` callout of a chapter; the `bottom line` property is removed.
-  The bottom-line card and overview are projections of that callout.
 - Each type declares its HTML presentation (rail icon as today's marks, box, collapsed box or
   inline badge); nothing is inferred from content. In Markdown a callout is always a block.
 - Registers, cards, hover cards and profiles select callouts by type from the shared record
@@ -865,7 +846,7 @@ millimetres and no change to physical meaning. Other dimensions keep appropriate
 units. Do not merge unrelated quantities merely to normalize units.
 
 The Node side-by-side migration applies this ownership across current report prose, tables,
-bottom lines and captions. Preserve relations, ranges, signs, datums and engineering
+callouts and captions. Preserve relations, ranges, signs, datums and engineering
 qualifications; move value-specific provenance and discussion to the corresponding note.
 
 Identifiers (drawing, reference, chapter, figure, open-point and model names), dates,
@@ -1219,16 +1200,8 @@ executable expressions. See [[report-ui]] for diagram interaction and print beha
   lists (see [Document presentation profile](#document-presentation-profile)); obs-html gives the
   classes no meaning of its own.
 
-  The reserved
-  optional `bottom line` string (a literal YAML key containing a space) is semantic chapter content:
-  it is rendered once in the chapter's bottom-line card, positioned by the document presentation
-  profile, and displayed as "Bottom line" in metadata.
-
-  This replaces the `bluf` source key; `bottom_line` is not an additional supported spelling.
-
-  Its presentation is owned by [[report-ui]]; the Home summary derives from the same value.
 - Every frontmatter field is available to the shared query language. Nested mapping fields
-  use dotted names, quoted field names address spaces (for example `"bottom line": result`),
+  use dotted names, quoted field names address spaces,
   and bare queries search both field names and values. Within quoted query values, `\"`
   and `\\` escape a literal quote and backslash.
 - The reader may expose frontmatter as derived metadata outside the Markdown body.
@@ -1418,25 +1391,10 @@ the per-kind register is the `marks` [register](#registers).
 - Notes containing base fences remain ordinary manifest chapters: authored prose before and after a
   fence renders normally, and manifest position alone determines chapter hierarchy and navigation.
 
-### Bottom line and glossary
+### Glossary
 
-The bottom line moves to the `> [!bluf]` callout (user, 4 Nov 2026; see [Callouts](#callouts));
-the rules below describe the current `bottom line` property until that migration lands.
-
-- Bottom-line content supports ordinary inline Markdown and wikilinks. No frontmatter navigation
-  list or first-chapter link generation is interpreted.
 - Glossary tables consume canonical glossary records rather than inferring definitions from rendered
-  prose. `Bottom line` is the canonical content concept and names the metadata field. `BLUF` is
-  the distinct presentation principle of placing that content up front, not an alias for the
-  content itself.
-
-  The BLUF principle note may declare `Bottom line upfront` and
-  `Bottom Line Up Front` as Obsidian aliases; its definition refers to the Bottom line concept.
-
-  The card heading refers to that presentation principle, while metadata refers to the content
-  concept.
-
-  Each concept has one canonical glossary record regardless of its aliases.
+  prose. Each concept has one canonical glossary record regardless of its aliases.
 
   Glossary-note discovery supplies these records rather than maintaining hardcoded definitions.
 - Glossary notes declare `kind: glossary`, a nonempty `term`, and a nonempty inline
