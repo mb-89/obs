@@ -14,8 +14,8 @@ Author data-only cards and query-backed document metrics.
 
 ## Authoring example
 
-```markdown
+````markdown
 ```cards
 {"version": 1, "cards": [{"title": "Coverage", "body": "Current state."}]}
 ```
-```
+````

@@ -14,8 +14,8 @@ Request authorized command-derived document content.
 
 ## Authoring example
 
-```markdown
+````markdown
 ```cmd
 Write-Output "Derived content"
 ```
-```
+````

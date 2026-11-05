@@ -44,6 +44,14 @@ def test_capability_notes_own_their_authored_contract() -> None:
         assert "## What it does" in body
         assert "## Authoring example" in body
         assert "```markdown" in body
+        fences = re.findall(r"^(`{3,})", body, flags=re.MULTILINE)
+        open_fences = []
+        for fence in fences:
+            if open_fences and fence == open_fences[-1]:
+                open_fences.pop()
+            else:
+                open_fences.append(fence)
+        assert open_fences == []
 
         identifiers.add(capability["id"])
 

@@ -1,4 +1,4 @@
-﻿"""Generate a capability reference from independently authored capability notes."""
+"""Generate a capability reference from independently authored capability notes."""
 import argparse
 import json
 import re

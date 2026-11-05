@@ -14,11 +14,11 @@ Define declarative Base views over canonical note records.
 
 ## Authoring example
 
-```markdown
+````markdown
 ```base
 filters: 'kind == "item"'
 views:
   - type: table
     order: [file.name]
 ```
-```
+````
