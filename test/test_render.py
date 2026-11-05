@@ -173,3 +173,19 @@ def test_island_compression_follows_the_settings(document, tmp_path) -> None:
     settings.write_text(json.dumps({"report": {"dataCompression": "none"}}), encoding="utf-8")
     html = render(document, load_config(settings), lambda command: "")
     assert re.search(r'<script id="report-data" type="application/json"[^>]*data-compression="none"', html)
+
+
+def test_metadata_markdown_renders_inline_on_the_cover_and_in_the_frontmatter_panel(document) -> None:
+    metadata = document["manifest"]["metadata"]
+    metadata["subtitle"] = ("Bridge **subtitle** ![Obsidian](https://example.invalid/obsidian.svg) → "
+                            "![HTML](https://example.invalid/html.svg) <b>raw</b>")
+    document["chapters"][0]["metadata"]["source"] = "https://example.org/a?b=1&c=2"
+    document["chapters"][0]["content"][0]["attrs"]["metadata"]["source"] = "https://example.org/a?b=1&c=2"
+    notes = _notes(document)
+    home = notes["home"]["html"]
+    assert ('<div class="document-subtitle">Bridge <strong>subtitle</strong> '
+            '<img src="https://example.invalid/obsidian.svg" alt="Obsidian" /> → '
+            '<img src="https://example.invalid/html.svg" alt="HTML" /> &lt;b&gt;raw&lt;/b&gt;</div>') in home
+    panel = notes["intro"]["frontmatterHtml"]
+    assert panel["source"] == '<a href="https://example.org/a?b=1&amp;c=2">https://example.org/a?b=1&amp;c=2</a>'
+    assert panel["tags"] == "a, b"

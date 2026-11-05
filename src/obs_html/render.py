@@ -17,6 +17,8 @@ from importlib.resources import files
 from pathlib import Path
 from typing import Callable
 
+from markdown_it import MarkdownIt
+
 from obs_html.bars import BarDefinition, discover_bars
 from obs_html.config import Config, paper
 from obs_html.figures import FigureError, render_descriptor
@@ -259,7 +261,7 @@ def _note(depth: int, title: str, slug: str, generated: str, frontmatter: dict[s
         "depth": depth, "title": title, "slug": slug, "sourcePath": f"{slug}.md",
         "generated": generated, "cssClasses": _css_classes(frontmatter, slug),
         "frontmatter": frontmatter, "editableProperties": {},
-        "frontmatterHtml": {key: escape(value) for key, value in _flatten(frontmatter)},
+        "frontmatterHtml": _frontmatter_html(frontmatter),
         "definitionHtml": "", "marks": context.marks, "tables": context.tables, "html": html,
     }
 
@@ -273,7 +275,7 @@ def _attach_records(records: list[dict[str, object]], notes: list[dict[str, obje
         note = by_slug.get(record["id"])
         if note is not None and not note["generated"]:
             note["frontmatter"] = {**fields, **note["frontmatter"]}
-            note["frontmatterHtml"] = {key: escape(value) for key, value in _flatten(note["frontmatter"])}
+            note["frontmatterHtml"] = _frontmatter_html(note["frontmatter"])
             continue
         if note is not None:
             raise RenderError(f"Record id {record['id']!r} is reserved for the document's home page.")
@@ -282,7 +284,7 @@ def _attach_records(records: list[dict[str, object]], notes: list[dict[str, obje
             "depth": 0, "title": str(fields.get("title") or record["id"]), "slug": record["id"],
             "sourcePath": f"{record['id']}.md", "generated": "", "cssClasses": [],
             "frontmatter": fields, "editableProperties": {},
-            "frontmatterHtml": {key: escape(value) for key, value in _flatten(fields)},
+            "frontmatterHtml": _frontmatter_html(fields),
             "definitionHtml": "", "marks": [], "tables": [], "html": "", "record": True,
         })
 
@@ -292,7 +294,7 @@ def _cover(title: str, metadata: dict[str, object], compact: bool) -> str:
         return escape(_text(item))
 
     product = metadata.get("product") if isinstance(metadata.get("product"), dict) else {}
-    subtitle = value(metadata["subtitle"]) if metadata.get("subtitle") else ""
+    subtitle = _inline(metadata["subtitle"]) if metadata.get("subtitle") else ""
     if compact:
         product_text = " ".join(value(product[key]) for key in ("name", "version") if product.get(key))
         parts = [("cover-organization", value(metadata.get("organization", ""))),
@@ -642,6 +644,47 @@ def _css_classes(frontmatter: dict[str, object], slug: str) -> list[str]:
             isinstance(name, str) and CSS_CLASS.fullmatch(name) for name in classes):
         raise RenderError(f"cssclasses must be one CSS class name or a list of them in {slug}: {value!r}")
     return list(dict.fromkeys(classes))
+
+
+INLINE = MarkdownIt("commonmark", {"html": False})
+
+
+def _inline(value: object) -> str:
+    """Inline Markdown of a metadata string (bold, links, images such as badges); raw HTML stays text.
+
+    The Document carries metadata values as authored strings, so their inline Markdown is
+    rendered here, as the interim adapter did, until the core carries them as nodes.
+    """
+    source = _text(value)
+    if re.fullmatch(r"https?://[^\s<>]+", source, re.IGNORECASE):
+        source = f"<{source}>"
+    return INLINE.renderInline(source)
+
+
+def _frontmatter_html(metadata: dict[str, object]) -> dict[str, str]:
+    """Each flattened frontmatter field's display HTML, as the frontmatter panel shows it."""
+    rendered: dict[str, str] = {}
+
+    def add(name: str, value: object) -> None:
+        if isinstance(value, dict):
+            if value:
+                for key, item in value.items():
+                    add(f"{name}.{key}" if name else key, item)
+            elif name:
+                rendered[name] = "{}"
+        elif isinstance(value, list):
+            if not value:
+                rendered[name] = "[]"
+            elif all(not isinstance(item, (dict, list)) for item in value):
+                rendered[name] = ", ".join(_inline("null" if item is None else item) for item in value)
+            else:
+                for index, item in enumerate(value):
+                    add(f"{name}.{index}", item)
+        elif name:
+            rendered[name] = _inline("null" if value is None else value)
+
+    add("", metadata)
+    return rendered
 
 
 def _flatten(value: object, prefix: str = ""):
