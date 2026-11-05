@@ -170,6 +170,8 @@ async function open(reportPath, linkedomPath) {
     return {window, document, context, parseHTML, TextRange, timers, runTimers};
 }
 
+const activeChapter = (report) => report.document.querySelector("[data-active-chapter]");
+
 const STEPS = {
     // The report's embedded data as the runtime parsed it.
     async data(report) {
@@ -181,6 +183,20 @@ const STEPS = {
             toc: report.data.toc.length,
             tables: report.data.notes.flatMap((note) => (note.tables || []).map(({key}) => ({note: note.slug, key}))),
             paper: report.data.paper,
+        };
+    },
+    async activate(report, {chapter}) {
+        if (!report.context.obsReport.records.some((record) => record.slug === chapter)) {
+            throw new HarnessError("activate", `the report has no chapter "${chapter}".`,
+                "name a slug the data step lists under notes.");
+        }
+        report.context.obsReport.activateChapter(chapter);
+        await report.context.obsReport.whenChapterReady();
+        const active = activeChapter(report);
+        return {
+            chapter: active.dataset.chapter,
+            hash: report.window.location.hash,
+            title: active.querySelector("h1")?.textContent.trim() || null,
         };
     },
 };
