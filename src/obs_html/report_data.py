@@ -63,6 +63,65 @@ def decode_report_data(report: str) -> dict:
         raise ContentError(f"Invalid document data: {error}") from error
 
 
+def chapter_html(report: str, chapter_id: str) -> str:
+    """The stored HTML of the chapter whose slug is chapter_id."""
+    notes = decode_report_data(report).get("notes", [])
+    for note in notes:
+        if note.get("slug") == chapter_id:
+            return note.get("html", "")
+    available = ", ".join(note.get("slug", "") for note in notes) or "none"
+    raise ContentError(f"No chapter with id '{chapter_id}'. Available chapter ids: {available}.")
+
+
+_BLOCKS = {"address", "article", "aside", "blockquote", "br", "dd", "details", "div", "dl", "dt",
+           "figcaption", "figure", "footer", "h1", "h2", "h3", "h4", "h5", "h6", "header", "hr",
+           "li", "main", "nav", "ol", "p", "pre", "section", "summary", "table", "td", "th", "tr",
+           "ul"}
+
+
+class _Text(HTMLParser):
+    def __init__(self) -> None:
+        super().__init__(convert_charrefs=True)
+        self.lines: list[str] = []
+        self.current: list[str] = []
+        self.pre = 0
+
+    def _end_line(self) -> None:
+        line = "".join(self.current)
+        if not self.pre:
+            line = " ".join(line.split())
+        if line.strip():
+            self.lines.append(line)
+        self.current = []
+
+    def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
+        if tag in _BLOCKS:
+            self._end_line()
+        if tag == "pre":
+            self.pre += 1
+
+    def handle_endtag(self, tag: str) -> None:
+        if tag in _BLOCKS:
+            self._end_line()
+        if tag == "pre" and self.pre:
+            self.pre -= 1
+
+    def handle_data(self, data: str) -> None:
+        if self.pre:
+            self.lines.extend(data.strip("\n").splitlines())
+        else:
+            self.current.append(data)
+
+
+def html_text(html: str) -> str:
+    """Plain text of HTML: one line per block, inline markup dropped."""
+    parser = _Text()
+    parser.feed(html)
+    parser.close()
+    parser._end_line()
+    return "".join(f"{line}\n" for line in parser.lines)
+
+
 def _island_text(match: re.Match[str]) -> str:
     attrs = _attributes(match[1])
     encoding = attrs.get("data-encoding")

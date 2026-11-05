@@ -31,3 +31,6 @@ Do not copy the shared process guidance into this repository.
 uv run obs-html --help
 uv run pytest
 ```
+
+To check what a built report shows without a browser script, print a chapter with
+`--print-chapter`; see [Printing a chapter](spec/design_input/cli.md#printing-a-chapter).
