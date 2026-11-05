@@ -72,7 +72,6 @@ def test_report_is_one_self_contained_semantic_document(tmp_path: Path) -> None:
 
 def test_report_serializes_semantics_and_chapter_owned_tables(tmp_path: Path) -> None:
     (tmp_path / "one.md").write_text(
-        "---\nbottom line: '**Choose** the narrow option.'\n---\n"
         "# One\n\nResolve this soon. #mark/open_point/which_option\n\n"
         "```base\n"
         "obsHtml: {records: tag}\n"
@@ -108,7 +107,6 @@ def test_report_serializes_semantics_and_chapter_owned_tables(tmp_path: Path) ->
             "views": [{"type": "table", "name": "Tags", "order": ["label"]}],
         },
     }]
-    assert chapter["bottomLineHtml"] == "<strong>Choose</strong> the narrow option."
     assert chapter["marks"] == [{
         "kind": "open_point",
         "label": "which_option",
@@ -249,9 +247,9 @@ def test_document_pages_use_manifest_metadata_and_ordinary_base_definitions(tmp_
         "---\ntitle: '<img src=x onerror=bad()>'\n"
         "owners: [Ada, Lin]\nsettings: {review: true}\ngeneration: {timestamp: authored}\n"
         "---\n- [[one]]\n\nAbstract **prose** with [[one|a link]].\n"
-        "```base\nfilters: 'note[\"bottom line\"] != null'\n"
-        "properties:\n  chapter: {displayName: Chapter}\n  bottom line: {displayName: Bottom line}\n"
-        "views:\n  - type: table\n    name: Bottom lines\n    order: [chapter, bottom line]\n"
+        "```base\nfilters: 'owners != null'\n"
+        "properties:\n  chapter: {displayName: Chapter}\n"
+        "views:\n  - type: table\n    name: Chapters\n    order: [chapter]\n"
         "obsHtml: {records: chapter}\n```\n"
         "```base\nviews:\n  - type: table\n    order: [key, value]\n"
         "obsHtml: {records: documentMetadata}\n```\n",
@@ -275,9 +273,9 @@ def test_document_pages_use_manifest_metadata_and_ordinary_base_definitions(tmp_
     assert "<h1>Abstract</h1>" not in home["html"]
     assert 'Abstract <strong>prose</strong> with <a href="#one">a link</a>.' in home["html"]
     assert home["tables"][0]["definition"] == {
-        "filters": 'note["bottom line"] != null',
-        "properties": {"chapter": {"displayName": "Chapter"}, "bottom line": {"displayName": "Bottom line"}},
-        "views": [{"type": "table", "name": "Bottom lines", "order": ["chapter", "bottom line"]}],
+        "filters": "owners != null",
+        "properties": {"chapter": {"displayName": "Chapter"}},
+        "views": [{"type": "table", "name": "Chapters", "order": ["chapter"]}],
         "obsHtml": {"records": "chapter"},
     }
     assert home["html"].index("Abstract <strong>prose") < home["html"].index('data-base-table="home-base-1"')

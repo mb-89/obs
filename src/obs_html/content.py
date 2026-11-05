@@ -92,7 +92,7 @@ class Manifest:
         return document_presentation(self.metadata)
 
 
-DOCUMENT_PROFILE_KEYS = ("layout", "heading", "pages", "bottomLine", "figures", "print", "cssSnippets", "query")
+DOCUMENT_PROFILE_KEYS = ("layout", "heading", "pages", "figures", "print", "cssSnippets", "query")
 
 
 def document_presentation(metadata: dict[str, object]) -> dict[str, object]:
@@ -101,7 +101,6 @@ def document_presentation(metadata: dict[str, object]) -> dict[str, object]:
     defaults = {key: deepcopy(NOTE_PROFILE_SCHEMA["properties"][key]["default"])
                 for key in DOCUMENT_PROFILE_KEYS}
     resolved = {key: deepcopy(profile.get(key, defaults[key])) for key in DOCUMENT_PROFILE_KEYS}
-    resolved["bottomLine"] = defaults["bottomLine"] | resolved["bottomLine"]
     resolved["figures"] = defaults["figures"] | resolved["figures"]
     resolved["print"] = defaults["print"] | resolved["print"]
     return resolved
@@ -176,7 +175,6 @@ class _NoteSource:
 class ChapterContent:
     frontmatter: dict[str, object]
     body: str
-    bottom_line: str | None
     marks: tuple[Mark, ...]
     tables: tuple[BaseTable, ...]
     source_notes: tuple[str, ...] = ()
@@ -926,9 +924,8 @@ def render_chapter(
     embed_pdfs: bool = True,
     include_plot_fallback: bool = True,
     reference_index: NoteReferenceIndex | None = None,
-    bottom_line_card: tuple[str, str] | None = None,
 ) -> str:
-    """Render one note; ``bottom_line_card`` is the manifest's (title HTML, position)."""
+    """Render one note."""
     document = document or read_chapter_content(chapter)
     markdown = _markdown(
         chapter, chapters, vault_root, embed_pdfs=embed_pdfs, reference_index=reference_index,
@@ -1069,29 +1066,6 @@ def render_chapter(
             if cell:
                 opening.attrSet("data-source-cell", str(cell))
     rendered = markdown.renderer.render(tokens, markdown.options, {})
-    if document.bottom_line:
-        bottom_line = render_inline(
-            document.bottom_line, chapter, chapters, vault_root, embed_pdfs, reference_index,
-        )
-        if bottom_line_card is None:
-            defaults = document_presentation({})["bottomLine"]
-            bottom_line_card = (escape(defaults["title"]), defaults["position"])
-        title, position = bottom_line_card
-        header = f'<header class="content-card-title">{title}</header>' if title else ""
-        card = (
-            '<section class="content-card chapter-bluf" data-chapter-bluf>'
-            f'{header}'
-            f'<p>{bottom_line}</p>'
-            '</section>\n'
-        )
-        first_title = rendered.find("</h1>") if position == "afterTitle" else -1
-        if first_title >= 0:
-            split = first_title + len("</h1>")
-            if rendered[split:split + 1] == "\n":
-                split += 1
-            rendered = rendered[:split] + card + rendered[split:]
-        else:
-            rendered = card + rendered
     _assert_portable_references(rendered, chapter.source_path)
     return rendered
 
@@ -1952,14 +1926,6 @@ def _chapter_content(chapter: Chapter, source: _NoteSource) -> ChapterContent:
     _note_aliases(frontmatter, chapter.source_path)
     if frontmatter.get("kind") == "quantity":
         _validate_quantity_metadata(frontmatter, chapter.source_path)
-    if "bluf" in frontmatter or "bottom_line" in frontmatter:
-        raise ContentError(f"Use the frontmatter key 'bottom line' instead of bluf/bottom_line: {chapter.source_path}")
-    raw_bottom_line = frontmatter.get("bottom line")
-    if "bottom line" in frontmatter and (
-        not isinstance(raw_bottom_line, str) or not raw_bottom_line.strip()
-    ):
-        raise ContentError(f"Frontmatter bottom line must be a non-empty string: {chapter.source_path}")
-    bottom_line = raw_bottom_line.strip() if isinstance(raw_bottom_line, str) else None
     if frontmatter.get("kind") == "glossary":
         for key in ("term", "definition"):
             if not isinstance(frontmatter.get(key), str) or not frontmatter[key].strip():
@@ -2014,7 +1980,7 @@ def _chapter_content(chapter: Chapter, source: _NoteSource) -> ChapterContent:
             seen.add(identity)
             marks.append(Mark(kind=kind, label=label, text=visible, anchor=anchor))
     return ChapterContent(
-        frontmatter, body, bottom_line, tuple(marks), tables,
+        frontmatter, body, tuple(marks), tables,
         source_notes=tuple(dict.fromkeys(source_notes)),
         editable_properties=editors,
         _body_line_offset=source.line_offset,

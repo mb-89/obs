@@ -6,7 +6,7 @@ QUERY_HELP = (
     'Bare terms search all fields. Use name:value, "quoted text", val*, /regex/, '
     'and, or, not, -, and parentheses. Matching ignores case. Fields include title, '
     'text, slug, depth, and every frontmatter field. Quote field names containing spaces: '
-    '"bottom line": result.'
+    '"project status": result.'
 )
 
 

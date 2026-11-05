@@ -22,9 +22,6 @@ obsHtml:
       title: Abstract
     - page: contents
       title: Contents
-  bottomLine:
-    title: Bottom line upfront
-    position: beforeTitle
 ---
 
 - [[overview|Overview]]
