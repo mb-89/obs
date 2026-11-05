@@ -921,6 +921,26 @@ def test_paragraph_warnings_measure_prose_not_tables_math_or_link_payloads(tmp_p
     assert capsys.readouterr().err == ""
 
 
+@pytest.mark.parametrize("location", ["project", "--config"])
+def test_old_report_configuration_key_names_the_new_key_and_the_file(tmp_path, capsys, location) -> None:
+    (tmp_path / "chapter.md").write_text("# Chapter", encoding="utf-8")
+    (tmp_path / "manifest.md").write_text("- [[chapter]]\n", encoding="utf-8")
+    old = tmp_path / "cfg.json" if location == "project" else tmp_path.parent / "custom.json"
+    configuration = {"report": {"tablePageSize": 5}}
+    if location == "--config":
+        configuration = json.loads((Path(__file__).parents[1] / "src/obs_html/cfg.json").read_text(
+            encoding="utf-8"))
+        configuration["report"] = configuration.pop("artifact")
+    old.write_text(json.dumps(configuration), encoding="utf-8")
+    arguments = ["--source", str(tmp_path), "--output", str(tmp_path.parent / "out.html")]
+    with pytest.raises(SystemExit, match="2"):
+        main(arguments + (["--config", str(old)] if location == "--config" else []))
+    error = capsys.readouterr().err
+    assert f"{old}: configuration key 'report' was renamed to 'artifact'" in error
+    assert "rename the key in that file" in error
+    assert not (tmp_path.parent / "out.html").exists()
+
+
 def test_project_paper_setting_is_rejected_with_manifest_migration(tmp_path, capsys) -> None:
     (tmp_path / "chapter.md").write_text("# Chapter", encoding="utf-8")
     (tmp_path / "manifest.md").write_text("- [[chapter]]\n", encoding="utf-8")
