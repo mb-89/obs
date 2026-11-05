@@ -12,7 +12,7 @@ import pytest
 
 from obs_html.config import load_config
 from obs_html.render import RenderError, render
-from obs_html.report_data import decode_report_data
+from obs_html.artifact_data import decode_artifact_data
 
 from documents import chapter, document as build, heading, node, paragraph
 
@@ -22,7 +22,7 @@ CONFIG = load_config()
 
 def _notes(source: dict) -> dict[str, dict]:
     html = render(source, CONFIG)
-    return {note["slug"]: note for note in decode_report_data(html)["notes"]} | {"": {"html": html}}
+    return {note["slug"]: note for note in decode_artifact_data(html)["notes"]} | {"": {"html": html}}
 
 
 def _editor(fence: dict, metadata: dict) -> dict:
@@ -95,7 +95,7 @@ def test_property_editor_is_explicit_and_canonical() -> None:
     assert 'id="property-editor-script"' in notes[""]["html"]
 
 
-def test_a_report_without_editors_carries_no_editor_script() -> None:
+def test_a_artifact_without_editors_carries_no_editor_script() -> None:
     assert "property-editor-script" not in render(build("Doc", chapter("one", "One")), CONFIG)
 
 

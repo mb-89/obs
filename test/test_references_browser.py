@@ -38,17 +38,17 @@ def test_hover_card_shows_the_reference_link_and_the_glossary_definition(tmp_pat
     )
     for item in source["chapters"][1:]:
         item["toc"] = False
-    report = tmp_path / "references.html"
-    report.write_text(render(source, CONFIG), encoding="utf-8")
+    artifact = tmp_path / "references.html"
+    artifact.write_text(render(source, CONFIG), encoding="utf-8")
     context = reader_browser.new_context(viewport={"width": 1200, "height": 800})
     context.add_init_script("window.open = () => null;")
     page = context.new_page()
     errors = []
     page.on("pageerror", lambda error: errors.append(str(error)))
     try:
-        page.goto(report.as_uri() + "#chapter")
-        page.wait_for_function("document.documentElement.dataset.reportStatus === 'ready'")
-        page.evaluate("obsPages.setPaged(false); obsReport.activateChapter('chapter')")
+        page.goto(artifact.as_uri() + "#chapter")
+        page.wait_for_function("document.documentElement.dataset.artifactStatus === 'ready'")
+        page.evaluate("obsPages.setPaged(false); obsArtifact.activateChapter('chapter')")
         card = page.locator("#hover-card")
         assert page.locator("[data-chapter-body] a[href^='http']").count() == 0
         page.locator("[data-chapter-body] p a[href='#iec']").hover()

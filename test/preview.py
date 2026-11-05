@@ -1,4 +1,4 @@
-"""Claude-preview-like frames for the browser tier: a report as srcdoc of a sandboxed frame."""
+"""Claude-preview-like frames for the browser tier: an artifact as srcdoc of a sandboxed frame."""
 import contextlib
 import functools
 import html
@@ -16,11 +16,11 @@ SANDBOXES = {
 }
 
 
-def preview_wrapper(report: str, sandbox: str, width: int = 1100, height: int = 700) -> str:
+def preview_wrapper(artifact: str, sandbox: str, width: int = 1100, height: int = 700) -> str:
     return (
         '<!doctype html><meta charset="utf-8"><link rel="icon" href="data:,"><body style="margin:0">'
-        f'<iframe id="report" sandbox="{sandbox}" style="width:{width}px;height:{height}px;border:0" '
-        f'srcdoc="{html.escape(report, quote=True)}"></iframe>'
+        f'<iframe id="artifact" sandbox="{sandbox}" style="width:{width}px;height:{height}px;border:0" '
+        f'srcdoc="{html.escape(artifact, quote=True)}"></iframe>'
     )
 
 
@@ -43,19 +43,19 @@ class QuietHandler(http.server.SimpleHTTPRequestHandler):
         pass
 
 
-def open_preview(tmp_path: Path, reader_browser, errors: list[str], report: str, frame_kind: str,
+def open_preview(tmp_path: Path, reader_browser, errors: list[str], artifact: str, frame_kind: str,
                  origin: str | None = None):
-    """Open a report in one of the preview-like frames; same-origin frames need an http origin."""
+    """Open an artifact in one of the preview-like frames; same-origin frames need an http origin."""
     from playwright.sync_api import expect
 
     wrapper = tmp_path / f"preview-{frame_kind}.html"
-    wrapper.write_text(preview_wrapper(report, SANDBOXES[frame_kind]), encoding="utf-8")
+    wrapper.write_text(preview_wrapper(artifact, SANDBOXES[frame_kind]), encoding="utf-8")
     page = reader_browser.new_page(viewport={"width": 1200, "height": 800})
     page.on("pageerror", lambda error: errors.append(str(error)))
     page.on("console", lambda message: errors.append(message.text) if message.type == "error" else None)
     page.goto(f"{origin}/{wrapper.name}" if origin else wrapper.as_uri())
-    frame = page.frame_locator("#report")
-    expect(frame.locator("html")).to_have_attribute("data-report-status", "ready")
+    frame = page.frame_locator("#artifact")
+    expect(frame.locator("html")).to_have_attribute("data-artifact-status", "ready")
     return page, frame
 
 

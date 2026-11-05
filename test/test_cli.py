@@ -7,7 +7,7 @@ import pytest
 
 from conftest import FIXTURE, ROOT
 from obs_html import cli
-from obs_html.report_data import decode_report_data
+from obs_html.artifact_data import decode_artifact_data
 
 
 def _run(*arguments: str) -> None:
@@ -34,17 +34,17 @@ def test_installed_command_renders_through_the_adapter_contract(tmp_path) -> Non
     assert completed.returncode == 0, completed.stderr
     assert "Warning: Fixture diagnostic." in completed.stderr
     assert completed.stdout == f"Generated {destination.resolve()}.\n"
-    notes = decode_report_data(destination.read_text(encoding="utf-8"))["notes"]
+    notes = decode_artifact_data(destination.read_text(encoding="utf-8"))["notes"]
     assert any('<pre class="command-output">derived' in note["html"] for note in notes)
     assert not (tmp_path / "produced.txt").exists()  # Silent producers run in the core, before conversion.
 
 
 def test_unauthorized_command_fences_fail_without_output(tmp_path, capsys) -> None:
     with pytest.raises(SystemExit) as exit_info:
-        _run(FIXTURE, tmp_path / "document.html")
+        _run(FIXTURE, tmp_path / "artifact.html")
     assert exit_info.value.code == 2
     assert "--execute-commands" in capsys.readouterr().err
-    assert not (tmp_path / "document.html").exists()
+    assert not (tmp_path / "artifact.html").exists()
 
 
 def test_check_renders_without_output_or_execution(tmp_path, monkeypatch, capsys) -> None:
@@ -73,19 +73,19 @@ def test_invalid_option_combinations_fail(arguments, message, capsys) -> None:
 
 def test_settings_override_merges_over_the_packaged_settings(tmp_path, capsys) -> None:
     settings = tmp_path / "settings.json"
-    settings.write_text(json.dumps({"report": {"print": {"paperSizes": {
+    settings.write_text(json.dumps({"artifact": {"print": {"paperSizes": {
         "Letter": {"widthMillimeters": 200, "heightMillimeters": 250}}}}}), encoding="utf-8")
-    destination = tmp_path / "document.html"
+    destination = tmp_path / "artifact.html"
     _run(FIXTURE, destination, "--config", settings, "--execute-commands", "--command-root", tmp_path)
-    paper = decode_report_data(destination.read_text(encoding="utf-8"))["paper"]
+    paper = decode_artifact_data(destination.read_text(encoding="utf-8"))["paper"]
     assert paper == {"widthMillimeters": 200, "heightMillimeters": 250, "marginMillimeters": 15.0}
 
 
 @pytest.mark.parametrize("override, message", [
     ({"execution": {"commandTimeoutSeconds": 0}}, "execution.commandTimeoutSeconds"),
-    ({"report": {"theme": "dark"}}, "Additional properties"),
-    ({"report": {"print": {"default": {"paper": "A4", "margin": "2mm"}}}}, "out of range"),
-    ({"report": {"print": {"default": {"paper": "B5", "margin": "20mm"}}}}, "must be one of"),
+    ({"artifact": {"theme": "dark"}}, "Additional properties"),
+    ({"artifact": {"print": {"default": {"paper": "A4", "margin": "2mm"}}}}, "out of range"),
+    ({"artifact": {"print": {"default": {"paper": "B5", "margin": "20mm"}}}}, "must be one of"),
 ])
 def test_invalid_settings_fail(tmp_path, override, message, capsys) -> None:
     settings = tmp_path / "settings.json"
@@ -156,13 +156,13 @@ def test_trusted_runtime_bundles_are_validated(tmp_path, monkeypatch, capsys, bu
     assert message in capsys.readouterr().err
 
 
-def test_extract_comments_reads_a_returned_report(tmp_path, capsys) -> None:
-    report = tmp_path / "reviewed.html"
+def test_extract_comments_reads_a_returned_artifact(tmp_path, capsys) -> None:
+    artifact = tmp_path / "reviewed.html"
     island = {"version": 2, "annotations": [
         {"id": "c1", "target": {"chapter": "intro"}, "text": "Tighten this.", "author": "Ada"}]}
-    report.write_text('<!doctype html><script id="obs-comments" type="application/json">'
+    artifact.write_text('<!doctype html><script id="obs-comments" type="application/json">'
                       f"{json.dumps(island)}</script>", encoding="utf-8")
-    _run("--extract-comments", report)
+    _run("--extract-comments", artifact)
     assert "Tighten this." in capsys.readouterr().out
     with pytest.raises(SystemExit):
-        _run(FIXTURE, "--extract-comments", report)
+        _run(FIXTURE, "--extract-comments", artifact)

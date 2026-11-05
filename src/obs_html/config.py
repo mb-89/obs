@@ -1,4 +1,4 @@
-"""Report settings: the packaged cfg.json, optionally merged with one override file."""
+"""Artifact settings: the packaged cfg.json, optionally merged with one override file."""
 from __future__ import annotations
 
 import json
@@ -23,7 +23,7 @@ class Config:
     rendered_check_timeout_seconds: int
     print_default: dict[str, str]
     paper_sizes: dict[str, dict[str, float]]
-    report: dict[str, object]
+    artifact: dict[str, object]
 
 
 def load_config(override_path: Path | None = None) -> Config:

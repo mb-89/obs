@@ -1,5 +1,5 @@
 // The control-coverage sweep: a function expression that Playwright evaluates inside an opened
-// report (this adapter's or the interim reference's), used by test/test_parity_browser.py.
+// artifact (this adapter's or the interim reference's), used by test/test_parity_browser.py.
 //
 // For the given views and bar layouts it opens every chapter and finds every visible
 // interactive control (links, buttons, inputs, selects, summaries and ARIA buttons, links,
@@ -10,7 +10,7 @@
 // over it. A control covered where it stands but uncovered once scrolled is not a fault: the
 // reader reaches it, as with any scrolled content.
 //
-// One exception, from obs's report-ui.md: on narrow screens an open bar overlays the reader on
+// One exception, from obs's artifact-ui.md: on narrow screens an open bar overlays the reader on
 // purpose, so a reader control the bar overlays, even in part, is hidden, not covered. The
 // chapter controls (previous and next) are not exempt: they stay reachable.
 //
@@ -101,8 +101,8 @@ async (_, {views, layouts, firstChapterLayouts}) => {
 
     const frame = () => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
     const open = async (slug) => {
-        await obsReport.activateChapter(slug);
-        await obsReport.whenChapterReady();
+        await obsArtifact.activateChapter(slug);
+        await obsArtifact.whenChapterReady();
         for (let wait = 0; wait < 200 && document.querySelector(".reader-pending"); wait++) {
             await new Promise((resolve) => setTimeout(resolve, 25));
         }
@@ -115,10 +115,10 @@ async (_, {views, layouts, firstChapterLayouts}) => {
         for (const [index, chapter] of chapters.entries()) {
             await open(chapter);
             for (const layout of index ? layouts : [...layouts, ...firstChapterLayouts]) {
-                if (layout) obsReport.openBar(...layout);
+                if (layout) obsArtifact.openBar(...layout);
                 await frame();
                 results.push({view, layout, chapter, ...check()});
-                if (layout) obsReport.closeBar(layout[0]);
+                if (layout) obsArtifact.closeBar(layout[0]);
             }
         }
     }

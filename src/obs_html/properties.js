@@ -2,7 +2,7 @@
     "use strict";
     const editors = () => document.querySelectorAll("[data-property-editor]");
     const refresh = () => editors().forEach(editor => {
-        const note = globalThis.obsReport.records.find(record => record.slug === editor.dataset.propertyNote);
+        const note = globalThis.obsArtifact.records.find(record => record.slug === editor.dataset.propertyNote);
         if (note && note.editableProperties?.[editor.dataset.propertyField]) {
             editor.value = note.frontmatter[editor.dataset.propertyField];
             if (editor.hasAttribute("data-property-single-line")) {
@@ -16,7 +16,7 @@
         if (editor.hasAttribute("data-property-single-line") &&
                 editor.value === editor.dataset.propertyOriginalDisplay) return;
         try {
-            globalThis.obsReport.commitProperty(editor.dataset.propertyNote, editor.dataset.propertyField, editor.value);
+            globalThis.obsArtifact.commitProperty(editor.dataset.propertyNote, editor.dataset.propertyField, editor.value);
             editor.setCustomValidity("");
         } catch (error) {
             editor.setCustomValidity(error.message);

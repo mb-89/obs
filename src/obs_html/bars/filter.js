@@ -6,7 +6,7 @@
     const selectionSection = document.querySelector("[data-filter-selections-section]");
     const selectionList = document.querySelector("[data-filter-selections]");
     const fieldList = document.querySelector("[data-filter-fields]");
-    const { filterPresets, facetDistinctRatio, queryProfile } = globalThis.obsReport;
+    const { filterPresets, facetDistinctRatio, queryProfile } = globalThis.obsArtifact;
     let selectionBase = "";
     const selections = new Map();
 
@@ -18,7 +18,7 @@
 
     const syncStatus = () => {
         if (input.getAttribute("aria-invalid") === "true") return;
-        const summary = globalThis.obsReport.filterSummary();
+        const summary = globalThis.obsArtifact.filterSummary();
         status.textContent = summary.empty
             ? queryProfile.scope === "records" ? "All records." : "All chapters."
             : queryProfile.scope === "records"
@@ -36,7 +36,7 @@
             return;
         }
         input.removeAttribute("aria-invalid");
-        globalThis.obsReport.setFilter(query);
+        globalThis.obsArtifact.setFilter(query);
         syncStatus();
         syncPresets();
         document.dispatchEvent(new CustomEvent("obs-filter-change", {detail: {query}}));
@@ -56,7 +56,7 @@
 
     const selectExpression = (expression) => {
         setExpression(expression);
-        globalThis.obsReport.openBar("filter");
+        globalThis.obsArtifact.openBar("filter");
     };
     const exactClause = globalThis.obsQuery.exactClause;
 
@@ -86,7 +86,7 @@
     };
 
     const toggleSelection = (field, value) => {
-        if (!selections.size) selectionBase = globalThis.obsReport.filterSummary().expression.trim();
+        if (!selections.size) selectionBase = globalThis.obsArtifact.filterSummary().expression.trim();
         const selectedValues = selections.get(field) || [];
         const index = selectedValues.indexOf(value);
         if (index >= 0) selectedValues.splice(index, 1);
@@ -123,8 +123,8 @@
     const renderFields = () => {
         globalThis.obsDataTable.renderFilterFields({
             container: fieldList,
-            facets: globalThis.obsReport.facetFields(
-                globalThis.obsReport.filterRecords(), queryProfile.fields),
+            facets: globalThis.obsArtifact.facetFields(
+                globalThis.obsArtifact.filterRecords(), queryProfile.fields),
             onSelect: toggleSelection,
             isSelected: (field, value) => (selections.get(field) || []).includes(value),
         });
@@ -132,7 +132,7 @@
     };
     renderFields();
     document.addEventListener("obs-canonical-property-change", renderFields);
-    document.addEventListener("obs-report-filter", syncStatus);
+    document.addEventListener("obs-artifact-filter", syncStatus);
 
     input.addEventListener("input", () => {
         selectionBase = "";
@@ -152,9 +152,9 @@
     });
 
     globalThis.obsFilter = {setExpression, selectExpression, refresh: apply};
-    const expression = globalThis.obsReport.initialFilterExpression;
+    const expression = globalThis.obsArtifact.initialFilterExpression;
     if (expression.trim()) {
         setExpression(expression);
-        globalThis.obsReport.openBar("filter");
+        globalThis.obsArtifact.openBar("filter");
     }
 })();

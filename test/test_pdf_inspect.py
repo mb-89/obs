@@ -93,9 +93,9 @@ def test_text_writes_the_named_file(printed, tmp_path, capsys) -> None:
 
 def test_paths_lists_the_vector_paths_in_points_from_the_top_left(printed, capsys) -> None:
     pdf_inspect.main(["paths", str(printed), "--page", "1"])
-    report = json.loads(capsys.readouterr().out)
-    assert (report["page"], report["size"]) == (1, list(LETTER))
-    paths = report["paths"]
+    inspection = json.loads(capsys.readouterr().out)
+    assert (inspection["page"], inspection["size"]) == (1, list(LETTER))
+    paths = inspection["paths"]
     assert paths and all(segment["type"] in {"move", "line", "curve", "close"}
                          for path in paths for segment in path["segments"])
     for path in paths:

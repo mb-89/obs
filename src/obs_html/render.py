@@ -1,9 +1,9 @@
-"""Render a JSON Document as one portable, interactive HTML report.
+"""Render a JSON Document as one portable, interactive HTML artifact.
 
 The Document is the only input: no vault, no core package. Each capability this adapter
 renders registers one node renderer in ``CAPABILITIES``; ``adapter.json`` declares the same
-identifiers. Chapters become the notes of the report-data island, which the embedded
-runtime (report.js and its companions) reads to build the reader, the bars and the pages.
+identifiers. Chapters become the notes of the artifact-data island, which the embedded
+runtime (artifact.js and its companions) reads to build the reader, the bars and the pages.
 """
 from __future__ import annotations
 
@@ -27,7 +27,7 @@ from markdown_it import MarkdownIt
 from obs_html.bars import BarDefinition, discover_bars
 from obs_html.config import Config, paper
 from obs_html.figures import FigureError, render_descriptor
-from obs_html.report_data import encode_report_data, prepare_report_scripts, serialize_report_data
+from obs_html.artifact_data import encode_artifact_data, prepare_artifact_scripts, serialize_artifact_data
 from obs_html.semantic_assets import SemanticAssets, markup
 from obs_html.styles import load_style
 from obs_html.timings import stage
@@ -286,7 +286,7 @@ def _file(href: str, label: str, media_type: str, what: str, context: Context) -
             f' ({_code({"attrs": {}, "text": href})})')
 
 
-# Canonical callout kind: its tone, the shared semantic card colour (obs report-ui.md).
+# Canonical callout kind: its tone, the shared semantic card colour (obs artifact-ui.md).
 CALLOUT_TONES = {
     "note": "accent", "abstract": "accent", "info": "accent", "todo": "accent", "tip": "accent",
     "success": "success", "question": "warning", "warning": "warning", "failure": "failure",
@@ -423,7 +423,7 @@ SYNTAX_EXTENSIONS = {"callout": "callouts"}
 def _extension(node: dict[str, object], context: Context) -> str:
     """An Obsidian syntax extension the source used (obs extensions.md). It marks the syntax; the
     capability that owns the syntax renders its content, so the marker itself shows nothing.
-    Trusted runtime extensions are another thing: report.js's ``obsReport.trustedExtension``."""
+    Trusted runtime extensions are another thing: artifact.js's ``obsArtifact.trustedExtension``."""
     syntax = node["attrs"].get("syntax")
     owner = SYNTAX_EXTENSIONS.get(syntax)
     if owner is None:
@@ -445,7 +445,7 @@ PROTECTED_FIELDS = frozenset(PROPERTY_EDITOR_SCHEMA["$defs"]["editableField"]["n
 
 def _property_editor(node: dict[str, object], context: Context) -> str:
     """A ``property-editor`` fence: a text editor for one existing string field of an authored
-    note; properties.js commits edits through report.js (``obsReport.commitProperty``), which
+    note; properties.js commits edits through artifact.js (``obsArtifact.commitProperty``), which
     checks the same declaration. The core has no capability for the fence (obs input-model,
     Reviewed copy), so the Document carries it as a code node in that language."""
     place = f"Chapter {context.chapter or HOME}: property editor"
@@ -489,7 +489,7 @@ def _property_editor(node: dict[str, object], context: Context) -> str:
 
 
 def _projection_kind(value: object) -> str | None:
-    """The kinds a projection may write, as report.js checks them: one primitive, or a list of one."""
+    """The kinds a projection may write, as artifact.js checks them: one primitive, or a list of one."""
     if value is None:
         return "null"
     if isinstance(value, bool):
@@ -568,10 +568,10 @@ def render(document: dict[str, object], config: Config,
     _index(document["chapters"], context)
     _index_headings(HOME, document["manifest"].get("abstract", []), context)
     if HOME in context.chapters:
-        raise RenderError(f"Chapter id {HOME!r} is reserved for the document's home page.")
+        raise RenderError(f"Chapter id {HOME!r} is reserved for the artifact's home page.")
     context.chapters[HOME] = document["manifest"]["title"]  # The core links the manifest as home.
     model = _resolve_icons(_model(document, config, context), assets)
-    return prepare_report_scripts(assets.resolve_markup(
+    return prepare_artifact_scripts(assets.resolve_markup(
         _shell(model, style.stylesheet, assets, config, trusted_runtime)))
 
 
@@ -596,10 +596,10 @@ def _profile(manifest: dict[str, object]) -> dict[str, object]:
 
 
 def _model(document: dict[str, object], config: Config, context: Context) -> dict[str, object]:
-    """The report-data island: the runtime's only model of the document."""
+    """The artifact-data island: the runtime's only model of the artifact."""
     manifest = document["manifest"]
     profile = _profile(manifest)
-    settings = config.report
+    settings = config.artifact
     title = manifest["title"]
     metadata = {key: value for key, value in manifest["metadata"].items() if key != "obsHtml"}
     home_html = _cover(title, metadata, profile["heading"] == "compact") + _note_body(
@@ -690,7 +690,7 @@ def _attach_records(records: list[dict[str, object]], notes: list[dict[str, obje
         note = by_slug.get(record["id"])
         source_path = record.get("path") or f"{record['id']}.md"
         if note is not None and record.get("ignored"):
-            note["ignored"] = True  # Runtime selections skip it (report.js, selectable).
+            note["ignored"] = True  # Runtime selections skip it (artifact.js, selectable).
         if note is not None and not note["generated"]:
             note["frontmatter"] = {**fields, **note["frontmatter"]}
             note["frontmatterHtml"] = _frontmatter_html(note["frontmatter"], context)
@@ -903,13 +903,13 @@ def _shell(model: dict[str, object], stylesheet: str, assets: SemanticAssets, co
 
     bars = discover_bars()
     bar_scripts = "\n".join(f"\n{bar.script}" for bar in bars if bar.script)
-    data = serialize_report_data(model)
+    data = serialize_artifact_data(model)
     title = model["document"]["title"]
     figure_assets = ""
-    if "data-report-figure" in data:
+    if "data-artifact-figure" in data:
         plotly = ""
         if 'data-figure-kind=\\"plot\\"' in data:
-            figures = config.report["figures"]
+            figures = config.artifact["figures"]
             if figures["plotlyDelivery"] == "cdn":
                 plotly = (f'<script id="plotly-script" src="{figures["plotlyCdnUrl"]}" '
                           f'integrity="{figures["plotlyCdnIntegrity"]}" crossorigin="anonymous" '
@@ -942,7 +942,7 @@ def _shell(model: dict[str, object], stylesheet: str, assets: SemanticAssets, co
                           f'data-runtime-bundle="{escape(runtime_id, quote=True)}">'
                           + re.sub(r"</script", r"<\\/script", runtime_source, flags=re.IGNORECASE)
                           + "</script>")
-    header_metadata = escape(serialize_report_data(model["document"]["metadata"]), quote=True)
+    header_metadata = escape(serialize_artifact_data(model["document"]["metadata"]), quote=True)
     return f"""<!doctype html>
 <html lang="en" data-theme="{escape(startup['theme'])}">
 <head>
@@ -953,7 +953,7 @@ def _shell(model: dict[str, object], stylesheet: str, assets: SemanticAssets, co
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="color-scheme" content="light dark">
   <title>{escape(title)}</title>
-  <style id="report-styles">
+  <style id="artifact-styles">
 {stylesheet}
   </style>
   <style id="semantic-asset-styles">{assets.css()}</style>
@@ -1009,7 +1009,7 @@ def _shell(model: dict[str, object], stylesheet: str, assets: SemanticAssets, co
     {''.join(_bar(bar) for bar in bars)}
   </div>
 
-  {encode_report_data(model, config.report["dataCompression"])}
+  {encode_artifact_data(model, config.artifact["dataCompression"])}
   <script id="obs-comments" type="application/json" data-comment-island>{_empty_comment_island()}</script>
   <script id="capabilities-script">
 {read("capabilities.js")}
@@ -1038,10 +1038,10 @@ def _shell(model: dict[str, object], stylesheet: str, assets: SemanticAssets, co
 {read("canonical-transaction.js")}
 {read("attachment-replacement.js")}
   </script>
-  <script id="report-script">
+  <script id="artifact-script">
 {read("hover-card.js")}
 {read("guided-card.js")}
-{read("report.js")}
+{read("artifact.js")}
   </script>
   {figure_assets}
   {card_assets}

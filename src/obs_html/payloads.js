@@ -5,9 +5,9 @@
     const decoded = new Map();
     const urls = new Map();
     const resolved = new Map();
-    const reportDataIsland = document.querySelector("[data-report-data]");
-    const reportData = JSON.parse(reportDataIsland.textContent);
-    let assets = reportData.embeddedAssets || {};
+    const artifactDataIsland = document.querySelector("[data-artifact-data]");
+    const artifactData = JSON.parse(artifactDataIsland.textContent);
+    let assets = artifactData.embeddedAssets || {};
     const failures = [];
     const fail = (error) => {
         failures.push(error);
@@ -228,7 +228,7 @@
         }
         await ready();
         index();
-        const complete = Boolean(archive) && reportData.sourceArchiveComplete !== false;
+        const complete = Boolean(archive) && artifactData.sourceArchiveComplete !== false;
         const replacements = [];
         const removeKeys = new Set();
         const removePaths = new Set();
@@ -367,8 +367,8 @@
         members = undefined;
         decoded.clear();
         assets = staged.assets;
-        reportData.embeddedAssets = staged.assets;
-        reportData.sourceArchiveComplete = staged.complete;
+        artifactData.embeddedAssets = staged.assets;
+        artifactData.sourceArchiveComplete = staged.complete;
         let island = document.getElementById("obs-source-archive");
         if (!island) {
             island = document.createElement("script");

@@ -1,6 +1,6 @@
 (() => {
   "use strict";
-  const report = globalThis.obsReport;
+  const artifact = globalThis.obsArtifact;
   const projections = new Map();
   const selections = new Map();
   const counts = new Map();
@@ -13,12 +13,12 @@
     return (Array.isArray(value) ? value : [value]).filter(item => item !== undefined && item !== null);
   };
   function owner(path) {
-    owners ||= new Map(report.records.map(record => [record.sourcePath, record]));
+    owners ||= new Map(artifact.records.map(record => [record.sourcePath, record]));
     return owners.get(path);
   }
   function select(query, projectionKey = "", visiting = new Set()) {
-    // An ignored note is never counted (report.js, selectable); an explicit owner still resolves.
-    population ||= report.records.filter(record => report.selectable(record) && report.matchesFilter(record));
+    // An ignored note is never counted (artifact.js, selectable); an explicit owner still resolves.
+    population ||= artifact.records.filter(record => artifact.selectable(record) && artifact.matchesFilter(record));
     const cacheKey = JSON.stringify([projectionKey, query.from || "", query.where]);
     if (selections.has(cacheKey)) return selections.get(cacheKey);
     let upstream = population;
@@ -29,7 +29,7 @@
       upstream = select(source, projectionKey, new Set([...visiting, query.from]));
     }
     const projection = projections.get(projectionKey);
-    // Conditions match as every other report selection does (query.js, compileConditions),
+    // Conditions match as every other artifact selection does (query.js, compileConditions),
     // which reads a record's lower-cased fields.
     const conditions = globalThis.obsQuery.compileConditions(query.where);
     const result = upstream.filter(record => {
@@ -157,7 +157,7 @@
     pending = true;
     queueMicrotask(() => {pending = false; update();});
   }
-  document.addEventListener("obs-report-filter", invalidate);
+  document.addEventListener("obs-artifact-filter", invalidate);
   document.addEventListener("obs-canonical-property-change", invalidate);
   document.addEventListener("obs-chapter-change", () => update());
   document.addEventListener("obs-pages-layout", () => update());
