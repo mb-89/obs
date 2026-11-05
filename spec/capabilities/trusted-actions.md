@@ -20,3 +20,6 @@ not list adapter extensions.
 The extension's namespace is the adapter's own option namespace, the camelCase form of the
 adapter's name (`obsHtml` for obs-html), followed by a dot and the extension's area, for example
 `obsHtml.attachments`.
+
+obs-html's [[obs-html-attachment-replacement|attachment replacement]] note is the example to
+follow.
