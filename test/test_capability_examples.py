@@ -43,6 +43,7 @@ def _note(example: str) -> str:
 
 def _read(tmp_path: Path, example: str, companions: dict[str, str] | None = None) -> dict[str, object]:
     for name, body in (companions or {}).items():
+        (tmp_path / name).parent.mkdir(parents=True, exist_ok=True)
         (tmp_path / name).write_text(body, encoding="utf-8")
     (tmp_path / "example.md").write_text(_note(example), encoding="utf-8")
     (tmp_path / "manifest.md").write_text("- [[example]]\n", encoding="utf-8")
