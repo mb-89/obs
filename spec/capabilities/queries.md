@@ -35,8 +35,8 @@ text:
 - `exists: true` matches when the value, or an item of its list, has nonblank text.
 - A missing property and `null` have no text: they match neither `equals` nor `exists`.
 
-The core evaluates conditions to decide inclusion, the browser for counts, query populations
-and figures; both run the `conditions` cases of the shared conformance fixture
+The core evaluates conditions to decide inclusion, the browser for counts, query populations,
+figures and drill-downs; both run the `conditions` cases of the shared conformance fixture
 `test/fixtures/bases-filter-conformance.json`.
 
 ## Authoring example
