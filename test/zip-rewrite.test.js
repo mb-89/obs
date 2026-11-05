@@ -1,7 +1,7 @@
 "use strict";
 
 const assert = require("node:assert/strict");
-const { empty, inspect, rewrite, readStoredMember } = require("../src/obs_html/zip-rewrite.js");
+const { empty, inspect, rewrite, readStoredMember } = require("../src/obs_html_interim/zip-rewrite.js");
 
 const crc32 = bytes => {
     let crc = 0xffffffff;

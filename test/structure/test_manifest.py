@@ -2,7 +2,7 @@ from pathlib import Path
 
 import yaml
 
-from obs_html.content import (
+from obs_html_interim.content import (
     Chapter,
     collect_notes,
     read_chapter_content,

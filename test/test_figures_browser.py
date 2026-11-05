@@ -5,8 +5,8 @@ import os
 import pytest
 import yaml
 
-from obs_html.content import parse_manifest
-from obs_html.renderer import render_artifact
+from obs_html_interim.content import parse_manifest
+from obs_html_interim.renderer import render_artifact
 from test_reader_controls import _write_reader_fixture, reader_browser  # noqa: F401
 
 
@@ -15,7 +15,7 @@ def test_cdn_unavailable_reports_missing_interaction_without_static_payload(tmp_
     if not executable:
         pytest.skip("Set OBS_HTML_TEST_NATIVE_BROWSER for native figure checks.")
     from importlib.resources import files
-    from obs_html.config import load_config
+    from obs_html_interim.config import load_config
     from playwright.sync_api import sync_playwright
     manifest = tmp_path / "manifest.md"
     manifest.write_text("- [[one]]\n")
@@ -30,7 +30,7 @@ def test_cdn_unavailable_reports_missing_interaction_without_static_payload(tmp_
     )
     override = tmp_path / "cfg.json"
     override.write_text('{"schemaVersion":1,"artifact":{"figures":{"plotlyDelivery":"cdn"}}}')
-    config = load_config(files("obs_html").joinpath("cfg.json"), override)
+    config = load_config(files("obs_html_interim").joinpath("cfg.json"), override)
     output = tmp_path / "artifact.html"
     output.write_text(render_artifact(manifest, parse_manifest(manifest), figures=config.figures), encoding="utf-8")
     with sync_playwright() as playwright:
@@ -44,7 +44,7 @@ def test_cdn_unavailable_reports_missing_interaction_without_static_payload(tmp_
         assert "Plotly could not load" in figure.inner_text()
         assert figure.locator("img:not([data-icon-asset])").count() == 0
         assert figure.locator(".figure-chart").count() == 0
-        page.add_script_tag(content=files("obs_html").joinpath(
+        page.add_script_tag(content=files("obs_html_interim").joinpath(
             "vendor", "plotly-basic.min.js",
         ).read_text(encoding="utf-8"))
         page.evaluate("obsFigures.preparePrint(document.querySelector('[data-active-chapter]'))")

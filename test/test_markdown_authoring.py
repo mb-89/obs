@@ -5,9 +5,9 @@ from pathlib import Path
 
 import pytest
 
-from obs_html.content import parse_manifest
-from obs_html.renderer import render_artifact
-from obs_html.artifact_data import decode_artifact_data
+from obs_html_interim.content import parse_manifest
+from obs_html_interim.renderer import render_artifact
+from obs_html_interim.artifact_data import decode_artifact_data
 
 
 def test_home_contains_only_authored_tables_and_preserves_placement(tmp_path):
@@ -29,8 +29,8 @@ def test_bases_comparisons_are_typed_and_ignore_case_with_note_prefix():
     root = Path(__file__).resolve().parents[1]
     script = r"""
 const fs = require("node:fs"), vm = require("node:vm");
-globalThis.document = {querySelector: () => ({textContent: fs.readFileSync("src/obs_html/base.schema.json", "utf8")})};
-for (const name of ["query.js", "base.js"]) vm.runInThisContext(fs.readFileSync(`src/obs_html/${name}`, "utf8"));
+globalThis.document = {querySelector: () => ({textContent: fs.readFileSync("src/obs_html_interim/base.schema.json", "utf8")})};
+for (const name of ["query.js", "base.js"]) vm.runInThisContext(fs.readFileSync(`src/obs_html_interim/${name}`, "utf8"));
 const rows = [
   {frontmatter: {kind: "Item", empty: ""}},
   {frontmatter: {kind: "item", empty: null}},
@@ -48,7 +48,7 @@ console.log(JSON.stringify({
 
 
 def test_standard_not_means_none_and_grouping_is_one_property(tmp_path):
-    from obs_html.content import ContentError, compile_base_filter, read_chapter_content, Chapter
+    from obs_html_interim.content import ContentError, compile_base_filter, read_chapter_content, Chapter
     predicates = compile_base_filter({"not": ['left == true', 'right == true']})
     assert [predicates(row.get) for row in [
         {"left": False, "right": False}, {"left": True, "right": False},
@@ -64,7 +64,7 @@ def test_standard_not_means_none_and_grouping_is_one_property(tmp_path):
 
 
 def test_yaml_frontmatter_preserves_safe_types_and_rejects_python_tags(tmp_path):
-    from obs_html.content import ContentError, _split_frontmatter
+    from obs_html_interim.content import ContentError, _split_frontmatter
     metadata, body = _split_frontmatter(
         '---\ntext: "true"\nflag: true\nnumber: 12.5\nempty: null\n'
         'day: 2026-10-28\nnested: {values: [0, false, ""]}\n---\nKept.\n', tmp_path / "note.md",
@@ -78,7 +78,7 @@ def test_yaml_frontmatter_preserves_safe_types_and_rejects_python_tags(tmp_path)
 
 
 def test_inline_rendering_reuses_note_context_without_reusing_tokens(tmp_path, monkeypatch):
-    from obs_html import content
+    from obs_html_interim import content
     chapter = content.Chapter(0, "Chapter", "chapter", tmp_path / "chapter.md", "chapter")
     index = content.NoteReferenceIndex({}, {})
     create = content._markdown
@@ -148,7 +148,7 @@ def test_native_query_closure_traverses_dotted_properties_through_arrays(tmp_pat
     'note.file.name == null', 'note["file.name"] == null',
 ])
 def test_unsupported_standard_namespaces_do_not_silently_match_missing_values(tmp_path, expression):
-    from obs_html.content import ContentError
+    from obs_html_interim.content import ContentError
     (tmp_path / "manifest.md").write_text("- [[chapter]]\n", encoding="utf-8")
     (tmp_path / "chapter.md").write_text(
         "```base\nfilters: '" + expression + "'\nviews: [{type: table, order: [file.name]}]\n```\n",
@@ -160,7 +160,7 @@ def test_unsupported_standard_namespaces_do_not_silently_match_missing_values(tm
 
 
 def test_unsupported_filter_is_rejected_even_when_an_earlier_operand_is_false(tmp_path):
-    from obs_html.content import ContentError
+    from obs_html_interim.content import ContentError
     (tmp_path / "manifest.md").write_text("- [[chapter]]\n", encoding="utf-8")
     (tmp_path / "chapter.md").write_text(
         '```base\nfilters:\n  and: [\'status == "not-present"\', "formula.total == null"]\n'
@@ -185,8 +185,8 @@ def test_native_base_validator_rejects_unsupported_properties_and_empty_expansio
         const root = process.argv[1];
         const path = require('path');
         global.document = {querySelector: () => ({textContent:
-            fs.readFileSync(path.join(root, 'src', 'obs_html', 'base.schema.json'), 'utf8')})};
-        eval(fs.readFileSync(path.join(root, 'src', 'obs_html', 'base.js'), 'utf8'));
+            fs.readFileSync(path.join(root, 'src', 'obs_html_interim', 'base.schema.json'), 'utf8')})};
+        eval(fs.readFileSync(path.join(root, 'src', 'obs_html_interim', 'base.js'), 'utf8'));
         const cases = [
             {filters: 'file.mtime == null', views: [{type: 'table', order: ['file.name']}]},
             {filters: 'formula.total == null', views: [{type: 'table', order: ['file.name']}]},

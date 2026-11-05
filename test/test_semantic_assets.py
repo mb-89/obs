@@ -13,12 +13,12 @@ import zlib
 import pytest
 import yaml
 
-from obs_html.content import parse_manifest
-from obs_html.cli import main
-from obs_html.renderer import render_artifact
-from obs_html.artifact_data import decode_artifact_data
-from obs_html.reproduction import embedded_archive
-from obs_html.semantic_assets import SemanticAssets
+from obs_html_interim.content import parse_manifest
+from obs_html_interim.cli import main
+from obs_html_interim.renderer import render_artifact
+from obs_html_interim.artifact_data import decode_artifact_data
+from obs_html_interim.reproduction import embedded_archive
+from obs_html_interim.semantic_assets import SemanticAssets
 from test_named_icons import PIXEL, icon_fixture, write_index
 from test_semantic_identifier_exactness import LONG_NAME
 

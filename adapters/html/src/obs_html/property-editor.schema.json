@@ -1,0 +1,52 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object", "additionalProperties": false,
+  "required": ["version", "field", "label"],
+  "properties": {
+    "version": {"const": 1},
+    "field": {
+      "$ref": "#/$defs/editableField",
+      "pattern": "^[A-Za-z][A-Za-z0-9 _-]*$", "maxLength": 128
+    },
+    "label": {"type": "string", "minLength": 1, "maxLength": 256},
+    "maxLength": {"type": "integer", "minimum": 1, "maximum": 100000, "default": 4096},
+    "projection": {
+      "type": "object",
+      "required": ["blank", "nonblank"],
+      "additionalProperties": false,
+      "properties": {
+        "blank": {"$ref": "#/$defs/projectionFields"},
+        "nonblank": {"$ref": "#/$defs/projectionFields"}
+      }
+    }
+  },
+  "$defs": {
+    "editableField": {
+      "type": "string",
+      "not": {
+        "enum": ["title", "kind", "aliases", "term", "definition",
+                 "__proto__", "constructor", "prototype"]
+      }
+    },
+    "projectionPrimitive": {
+      "oneOf": [
+        {"type": "string"},
+        {"type": "number"},
+        {"type": "boolean"},
+        {"type": "null"}
+      ]
+    },
+    "projectionValue": {
+      "oneOf": [
+        {"$ref": "#/$defs/projectionPrimitive"},
+        {"type": "array", "items": {"$ref": "#/$defs/projectionPrimitive"}}
+      ]
+    },
+    "projectionFields": {
+      "type": "object",
+      "minProperties": 1,
+      "propertyNames": {"$ref": "#/$defs/editableField", "minLength": 1, "maxLength": 128},
+      "additionalProperties": {"$ref": "#/$defs/projectionValue"}
+    }
+  }
+}

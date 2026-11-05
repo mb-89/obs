@@ -7,7 +7,7 @@ import pytest
 
 TEST_ROOT = Path(__file__).resolve().parent
 NODE_TESTS = sorted(TEST_ROOT.glob("*.test.js"))
-PACKAGE_ROOT = TEST_ROOT.parent / "src" / "obs_html"
+PACKAGE_ROOT = TEST_ROOT.parent / "src" / "obs_html_interim"
 RUNTIME_SCRIPTS = sorted(PACKAGE_ROOT.rglob("*.js"))
 
 

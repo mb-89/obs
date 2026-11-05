@@ -5,9 +5,9 @@ from zipfile import ZipFile
 
 import pytest
 
-from obs_html.cli import main
-from obs_html.artifact_data import decode_artifact_data
-from obs_html.reproduction import embedded_archive
+from obs_html_interim.cli import main
+from obs_html_interim.artifact_data import decode_artifact_data
+from obs_html_interim.reproduction import embedded_archive
 
 
 def _vault(root: Path, body: str, frontmatter: str = "", manifest: str = "") -> Path:

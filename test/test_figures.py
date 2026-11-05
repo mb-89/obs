@@ -4,7 +4,7 @@ from xml.etree import ElementTree
 
 import pytest
 
-from obs_html.figures import FigureError, compile_plot, render_figure
+from obs_html_interim.figures import FigureError, compile_plot, render_figure
 
 
 def spec(**extra):
@@ -184,9 +184,9 @@ def test_sankey_placed_sink_accepts_same_stage_and_shared_sources(tmp_path, plac
 
 
 def test_sankey_source_note_is_included_as_an_exact_canonical_dependency(tmp_path):
-    from obs_html.content import ContentError, parse_manifest
-    from obs_html.renderer import render_artifact
-    from obs_html.artifact_data import ARTIFACT_PATTERN, decode_artifact_data
+    from obs_html_interim.content import ContentError, parse_manifest
+    from obs_html_interim.renderer import render_artifact
+    from obs_html_interim.artifact_data import ARTIFACT_PATTERN, decode_artifact_data
 
     graph = {
         "version": 1,
@@ -222,9 +222,9 @@ def test_sankey_source_note_is_included_as_an_exact_canonical_dependency(tmp_pat
 
 
 def test_manifest_canonical_notes_include_unlinked_runtime_records(tmp_path):
-    from obs_html.content import ContentError, parse_manifest
-    from obs_html.renderer import render_artifact
-    from obs_html.artifact_data import ARTIFACT_PATTERN, decode_artifact_data
+    from obs_html_interim.content import ContentError, parse_manifest
+    from obs_html_interim.renderer import render_artifact
+    from obs_html_interim.artifact_data import ARTIFACT_PATTERN, decode_artifact_data
 
     manifest = tmp_path / "manifest.md"
     manifest.write_text(
@@ -248,8 +248,8 @@ def test_manifest_canonical_notes_include_unlinked_runtime_records(tmp_path):
 
 @pytest.mark.parametrize("canonical_notes", ['"configuration"', '["../outside"]', '["configuration", "configuration"]'])
 def test_manifest_canonical_notes_reject_invalid_dependencies(tmp_path, canonical_notes):
-    from obs_html.content import ContentError, parse_manifest
-    from obs_html.renderer import render_artifact
+    from obs_html_interim.content import ContentError, parse_manifest
+    from obs_html_interim.renderer import render_artifact
 
     manifest = tmp_path / "manifest.md"
     manifest.write_text(f"---\ncanonicalNotes: {canonical_notes}\n---\n- [[chapter]]\n", encoding="utf-8")
@@ -354,8 +354,8 @@ def test_sampler_rejects_invalid_parameter_bindings(parameters):
 
 
 def test_renderer_has_no_figure_cost_for_plain_artifacts(tmp_path):
-    from obs_html.content import parse_manifest
-    from obs_html.renderer import render_artifact
+    from obs_html_interim.content import parse_manifest
+    from obs_html_interim.renderer import render_artifact
     manifest = tmp_path / "manifest.md"
     manifest.write_text("- [[chapter]]\n")
     (tmp_path / "chapter.md").write_text("# Plain chapter\n\nNo figures.")
@@ -365,11 +365,11 @@ def test_renderer_has_no_figure_cost_for_plain_artifacts(tmp_path):
 
 
 def test_plotly_cdn_is_pinned_integrity_checked_without_duplicate_fallback(tmp_path):
-    from obs_html.content import parse_manifest
-    from obs_html.renderer import render_artifact
-    from obs_html.config import load_config
+    from obs_html_interim.content import parse_manifest
+    from obs_html_interim.renderer import render_artifact
+    from obs_html_interim.config import load_config
     from importlib.resources import files
-    from obs_html.artifact_data import decode_artifact_data
+    from obs_html_interim.artifact_data import decode_artifact_data
     manifest = tmp_path / "manifest.md"
     manifest.write_text("- [[chapter]]\n")
     (tmp_path / "default.svg").write_text('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"/>')
@@ -381,7 +381,7 @@ def test_plotly_cdn_is_pinned_integrity_checked_without_duplicate_fallback(tmp_p
     )
     override = tmp_path / "cfg.json"
     override.write_text('{"schemaVersion":1,"artifact":{"figures":{"plotlyDelivery":"cdn"}}}')
-    config = load_config(files("obs_html").joinpath("cfg.json"), override)
+    config = load_config(files("obs_html_interim").joinpath("cfg.json"), override)
     result = render_artifact(manifest, parse_manifest(manifest), figures=config.figures)
     assert 'src="https://cdn.plot.ly/plotly-basic-2.35.3.min.js"' in result
     assert 'integrity="sha384-' in result
@@ -391,7 +391,7 @@ def test_plotly_cdn_is_pinned_integrity_checked_without_duplicate_fallback(tmp_p
     plotly_scripts = re.findall(r'<script\b[^>]*id="plotly-script"[^>]*>(.*?)</script>',
                                result, re.S)
     assert plotly_scripts == [""]
-    assert files("obs_html").joinpath("vendor", "plotly-basic.min.js").read_text(
+    assert files("obs_html_interim").joinpath("vendor", "plotly-basic.min.js").read_text(
         encoding="utf-8") not in result
     model = decode_artifact_data(result)
     chapter = next(note for note in model["notes"] if note["slug"] == "chapter")
@@ -415,7 +415,7 @@ def test_fence_schema_rejects_unsupported_contract_values(tmp_path, override):
 
 
 def test_cli_checks_figure_assets_without_executing_or_writing(tmp_path, capsys):
-    from obs_html.cli import main
+    from obs_html_interim.cli import main
     (tmp_path / "manifest.md").write_text("- [[figure]]\n")
     (tmp_path / "scene.json").write_text(
         '{"version":1,"panels":[{"id":"a","title":"A","box":[0,0,100,50]}]}'
@@ -434,7 +434,7 @@ def test_cli_checks_figure_assets_without_executing_or_writing(tmp_path, capsys)
 
 
 def test_cli_check_reports_invalid_sankey_graph_without_writing(tmp_path, capsys):
-    from obs_html.cli import main
+    from obs_html_interim.cli import main
     (tmp_path / "manifest.md").write_text("- [[flow]]\n", encoding="utf-8")
     (tmp_path / "flow.json").write_text(json.dumps({
         "version": 1,

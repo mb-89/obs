@@ -7,9 +7,9 @@ from pathlib import Path
 import pytest
 from jsonschema import ValidationError
 
-from obs_html import timings
-from obs_html.cli import DEFAULT_CONFIG, main
-from obs_html.config import load_config
+from obs_html_interim import timings
+from obs_html_interim.cli import DEFAULT_CONFIG, main
+from obs_html_interim.config import load_config
 
 
 class _FixedClock(datetime):
@@ -37,7 +37,7 @@ def _vault(root: Path, name: str, body: str, figure: bool = False) -> Path:
 
 
 def test_one_call_builds_several_artifacts_equal_to_separate_calls(tmp_path, monkeypatch, capsys) -> None:
-    monkeypatch.setattr("obs_html.renderer.datetime", _FixedClock)
+    monkeypatch.setattr("obs_html_interim.renderer.datetime", _FixedClock)
     first = _vault(tmp_path, "alpha", "First body.", figure=True)
     second = _vault(tmp_path, "beta", "Second body with a [[chapter]] link.")
     combined = tmp_path / "combined"
@@ -91,7 +91,7 @@ def test_generation_refuses_a_pdf_output_and_names_the_export_remedy(tmp_path, c
     with pytest.raises(SystemExit, match="2"):
         main(["--source", str(vault), "--output", str(output)])
     err = capsys.readouterr().err
-    assert "obs-html: error: --output " in err
+    assert "obs-html-interim: error: --output " in err
     assert "generation writes HTML, not PDF" in err
     assert f"--export-pdf {output.with_suffix('.html')} --output {output}" in err
     assert not output.exists()
@@ -252,7 +252,7 @@ def test_a_slow_stage_warns_without_failing_the_build(tmp_path, monkeypatch, cap
     (vault / "cfg.json").write_text(json.dumps(
         {"schemaVersion": 1, "timings": {"relativeThreshold": 0.01, "absoluteThresholdSeconds": 0.000001}},
     ), encoding="utf-8")
-    monkeypatch.setattr("obs_html.cli.load_baselines", lambda: {"render": 0.0000001})
+    monkeypatch.setattr("obs_html_interim.cli.load_baselines", lambda: {"render": 0.0000001})
     output = tmp_path / "a.html"
     assert main(["--timings", "--source", str(vault), "--output", str(output)]) == 0
     captured = capsys.readouterr()
@@ -263,6 +263,6 @@ def test_a_slow_stage_warns_without_failing_the_build(tmp_path, monkeypatch, cap
 
 def test_without_timings_no_baseline_warnings(tmp_path, monkeypatch, capsys) -> None:
     vault = _vault(tmp_path, "alpha", "Body.")
-    monkeypatch.setattr("obs_html.cli.load_baselines", lambda: pytest.fail("baselines read without --timings"))
+    monkeypatch.setattr("obs_html_interim.cli.load_baselines", lambda: pytest.fail("baselines read without --timings"))
     assert main(["--source", str(vault), "--output", str(tmp_path / "a.html")]) == 0
     assert "baseline" not in capsys.readouterr().err

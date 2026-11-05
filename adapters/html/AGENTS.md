@@ -1,0 +1,17 @@
+# Agent guide
+
+This folder is the HTML adapter of the obs repository. The repository's
+[AGENTS.md](../../AGENTS.md) applies here in full: its public safety policy, authored-prose rule,
+invariants and commit identity. This file adds only what is specific to the adapter.
+
+## Commands
+
+Run from this folder:
+
+```powershell
+uv run obs-html --help
+uv run pytest
+```
+
+Integrations also run the parity gate against the interim reference; its module docstring is
+its reference: `uv run pytest test/test_parity_browser.py`.

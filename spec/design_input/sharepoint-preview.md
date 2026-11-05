@@ -39,8 +39,8 @@ renders the graph in SharePoint. Storage access remains denied.
 No generator or delivered artifact was changed by these probe revisions.
 
 Storage implications: current application-level localStorage use is remembered
-appearance (`src/obs_html/bars/settings.js`) and reviewer name
-(`src/obs_html/bars/comments.js`), both already catch access failures. Review data
+appearance (`src/obs_html_interim/bars/settings.js`) and reviewer name
+(`src/obs_html_interim/bars/comments.js`), both already catch access failures. Review data
 is saved in downloaded HTML, not localStorage. In-memory state can support editing
 for the lifetime of the open preview but cannot survive reload. Download/save
 permission in the actual sandbox is not established by Blob URL creation alone;
@@ -48,7 +48,7 @@ test it independently before promising review persistence there.
 
 The current generator emits an empty chapter container and stores chapter HTML in
 a JSON script island; JavaScript populates the visible artifact
-(`src/obs_html/renderer.py:213-214,240`). This affects the entire artifact, not
+(`src/obs_html_interim/renderer.py:213-214,240`). This affects the entire artifact, not
 only Plotly or CDN-backed diagrams.
 
 In Chrome with JavaScript disabled, the current `leaves.html` and `obs-html.html`

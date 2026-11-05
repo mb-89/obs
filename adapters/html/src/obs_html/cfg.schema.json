@@ -1,0 +1,393 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "cfg.schema.json",
+  "title": "obs-html artifact settings",
+  "description": "Adapter settings: command execution limits, print geometry and artifact presentation. A --config file merges over the packaged cfg.json.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "execution",
+    "artifact"
+  ],
+  "properties": {
+    "$schema": {
+      "type": "string"
+    },
+    "schemaVersion": {
+      "const": 1
+    },
+    "execution": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "commandTimeoutSeconds",
+        "renderedCheckTimeoutSeconds"
+      ],
+      "properties": {
+        "commandTimeoutSeconds": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 300,
+          "description": "Maximum runtime for one authorized command fence."
+        },
+        "renderedCheckTimeoutSeconds": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 600,
+          "description": "Maximum time --check-rendered waits for the opened HTML to report ready or error."
+        }
+      }
+    },
+    "artifact": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "inactiveIconOpacity",
+        "guidedCard",
+        "dataCompression",
+        "reading",
+        "figures",
+        "printReadyTimeoutMilliseconds",
+        "print",
+        "hoverCard",
+        "tablePageSize",
+        "tableColumnMinimumPixels",
+        "tableCompactColumnMinimumPixels",
+        "tableIconWidthPixels",
+        "tableDetailFontSizePoints",
+        "dockPaneMinimumPixels",
+        "facetDistinctRatio",
+        "filterPresets"
+      ],
+      "properties": {
+        "inactiveIconOpacity": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "exclusiveMaximum": 1,
+          "description": "Shared inactive icon opacity; explanatory text and active icons remain unchanged."
+        },
+        "guidedCard": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "widthPixels",
+            "heightPixels"
+          ],
+          "properties": {
+            "widthPixels": {
+              "type": "integer",
+              "minimum": 240,
+              "maximum": 1600
+            },
+            "heightPixels": {
+              "type": "integer",
+              "minimum": 240,
+              "maximum": 1600
+            }
+          },
+          "description": "Requested size of a guided action card's floating or helper window; browsers may clamp it."
+        },
+        "dataCompression": {
+          "type": "string",
+          "enum": [
+            "gzip",
+            "none"
+          ],
+          "description": "Canonical artifact-data transport. Gzip embeds base64 compressed JSON, with plain fallback when smaller; none embeds plain JSON."
+        },
+        "reading": {
+          "$ref": "#/$defs/reading",
+          "required": [
+            "codeFontPoints",
+            "headingSpaceBeforeEm",
+            "headingSpaceAfterEm",
+            "paragraphMinimumLines",
+            "pingPeriodMilliseconds",
+            "pingCount",
+            "pingScale"
+          ]
+        },
+        "figures": {
+          "$ref": "#/$defs/figures",
+          "required": [
+            "proseWidthMultiplier",
+            "viewportGutterRem",
+            "viewportHeightRatio"
+          ]
+        },
+        "printReadyTimeoutMilliseconds": {
+          "type": "integer",
+          "minimum": 100,
+          "maximum": 120000
+        },
+        "print": {
+          "$ref": "#/$defs/print"
+        },
+        "hoverCard": {
+          "$ref": "#/$defs/hoverCard",
+          "required": [
+            "showDelayMilliseconds",
+            "excerptCharacters",
+            "metadataEntries",
+            "metadataValueCharacters"
+          ]
+        },
+        "dockPaneMinimumPixels": {
+          "type": "integer",
+          "minimum": 32,
+          "maximum": 320
+        },
+        "tableColumnMinimumPixels": {
+          "type": "integer",
+          "minimum": 24,
+          "maximum": 320
+        },
+        "tableCompactColumnMinimumPixels": {
+          "type": "integer",
+          "minimum": 24,
+          "maximum": 96
+        },
+        "tablePageSize": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Initial items per page in generic tables; readers may choose any positive integer."
+        },
+        "tableIconWidthPixels": {
+          "type": "integer",
+          "minimum": 32,
+          "maximum": 96,
+          "description": "Fixed width of compact table icon slots, in CSS pixels."
+        },
+        "tableDetailFontSizePoints": {
+          "type": "integer",
+          "minimum": 8,
+          "maximum": 14,
+          "description": "Default font size for expanded table subject details, in points."
+        },
+        "facetDistinctRatio": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "maximum": 1,
+          "description": "Largest distinct-value/populated-record ratio offered as a Filter facet."
+        },
+        "filterPresets": {
+          "$ref": "#/$defs/filterPresets"
+        }
+      }
+    }
+  },
+  "$defs": {
+    "choice": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "paper",
+        "margin"
+      ],
+      "description": "A paper name from paperSizes and a margin such as 20mm.",
+      "properties": {
+        "paper": {
+          "type": "string",
+          "pattern": "^\\S+$"
+        },
+        "margin": {
+          "type": "string",
+          "pattern": "^[0-9]+(\\.[0-9]+)?mm$"
+        }
+      }
+    },
+    "print": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "default",
+        "paperSizes"
+      ],
+      "description": "Print catalogue; a Document chooses its paper and margin in its profile's print mapping.",
+      "properties": {
+        "default": {
+          "$ref": "#/$defs/choice"
+        },
+        "paperSizes": {
+          "type": "object",
+          "minProperties": 1,
+          "propertyNames": {
+            "pattern": "^\\S+$"
+          },
+          "description": "Paper names a Document may choose, with their portrait dimensions.",
+          "additionalProperties": {
+            "$ref": "#/$defs/paper",
+            "required": [
+              "widthMillimeters",
+              "heightMillimeters"
+            ],
+            "not": {
+              "required": [
+                "marginMillimeters"
+              ]
+            }
+          }
+        }
+      }
+    },
+    "paper": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Physical paper geometry; a Document's print choice resolves to it and must stay within these limits.",
+      "properties": {
+        "widthMillimeters": {
+          "type": "number",
+          "minimum": 150,
+          "maximum": 420
+        },
+        "heightMillimeters": {
+          "type": "number",
+          "minimum": 150,
+          "maximum": 594
+        },
+        "marginMillimeters": {
+          "type": "number",
+          "minimum": 5,
+          "maximum": 40
+        }
+      }
+    },
+    "reading": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "codeFontPoints": {
+          "type": "number",
+          "minimum": 5,
+          "maximum": 12,
+          "description": "Base code-fence font size on paper, before PDF long-line fitting."
+        },
+        "headingSpaceBeforeEm": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 2,
+          "description": "Shared section-heading leading space in body em units."
+        },
+        "headingSpaceAfterEm": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1,
+          "description": "Shared heading-to-content space in body em units."
+        },
+        "paragraphMinimumLines": {
+          "type": "integer",
+          "minimum": 2,
+          "maximum": 4,
+          "description": "Minimum paragraph lines on each side of a feasible PDF split."
+        },
+        "pingPeriodMilliseconds": {
+          "type": "integer",
+          "minimum": 250,
+          "maximum": 2000,
+          "description": "Duration of one outward attention ring; 250ms produces four pulses per second."
+        },
+        "pingCount": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 8,
+          "description": "Number of attention rings in one finite burst."
+        },
+        "pingScale": {
+          "type": "number",
+          "exclusiveMinimum": 1,
+          "maximum": 10,
+          "description": "Terminal scale of the fading attention border relative to its target."
+        }
+      }
+    },
+    "figures": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "plotlyDelivery": {
+          "type": "string",
+          "enum": [
+            "embedded",
+            "cdn"
+          ],
+          "description": "Embed Plotly for offline interaction, or load the pinned integrity-checked CDN asset."
+        },
+        "plotlyCdnUrl": {
+          "const": "https://cdn.plot.ly/plotly-basic-2.35.3.min.js"
+        },
+        "plotlyCdnIntegrity": {
+          "const": "sha384-1kloN2RA6UbO83t0fSTtvwbovK00vzWzCE4WE0bLlnh07IC3ftBV/0Q5xhUpwDQq"
+        },
+        "proseWidthMultiplier": {
+          "type": "number",
+          "minimum": 1,
+          "maximum": 2.5,
+          "description": "Maximum ordinary figure width as a multiple of the prose column."
+        },
+        "viewportGutterRem": {
+          "type": "number",
+          "minimum": 0.25,
+          "maximum": 4,
+          "description": "Minimum space on each side of a figure at the reader viewport edges."
+        },
+        "viewportHeightRatio": {
+          "type": "number",
+          "minimum": 0.25,
+          "maximum": 1,
+          "description": "Maximum ordinary image height as a fraction of the reading viewport height; enlargement and print retain their own sizing."
+        }
+      }
+    },
+    "hoverCard": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "showDelayMilliseconds": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 2000
+        },
+        "excerptCharacters": {
+          "type": "integer",
+          "minimum": 40,
+          "maximum": 2000
+        },
+        "metadataEntries": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 10
+        },
+        "metadataValueCharacters": {
+          "type": "integer",
+          "minimum": 10,
+          "maximum": 300
+        }
+      }
+    },
+    "filterPresets": {
+      "type": "array",
+      "maxItems": 20,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "label",
+          "expression"
+        ],
+        "properties": {
+          "label": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 60
+          },
+          "expression": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 500
+          }
+        }
+      }
+    }
+  }
+}

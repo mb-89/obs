@@ -1,0 +1,32 @@
+{
+  "name": "html",
+  "command": [
+    "uv",
+    "run",
+    "obs-html"
+  ],
+  "contractVersion": 1,
+  "capabilities": [
+    "artifact-presentation",
+    "attachments",
+    "bases",
+    "callouts",
+    "cards-metrics",
+    "chapter-inclusion",
+    "command-fences",
+    "count-query",
+    "embeds",
+    "extensions",
+    "figure-descriptor",
+    "manifest",
+    "markdown",
+    "markdown-frontmatter",
+    "marks",
+    "named-icons",
+    "profiles",
+    "quantities",
+    "queries",
+    "references",
+    "wikilinks"
+  ]
+}
