@@ -77,7 +77,10 @@ def test_descriptor_rejects_non_positive_panel_bounds() -> None:
     try:
         validate_figure_descriptor(descriptor)
     except ValueError as error:
-        assert "Invalid FigureDescriptor" in str(error)
+        assert str(error) == (
+            "FigureDescriptor: panels[0].bounds.width: must be more than 0, not 0. "
+            "Write a number more than 0; see capabilities/figure-descriptor."
+        )
     else:
         raise AssertionError("Expected an invalid descriptor to be rejected.")
 

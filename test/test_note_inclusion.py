@@ -219,8 +219,8 @@ def test_an_invalid_quantity_note_an_included_note_links_fails_with_its_message(
         build_document(manifest, capability_reference())
 
     assert str(error.value) == (
-        f"Quantity note {tmp_path / 'stray.md'}: value must be a finite number, not '12 kN'; "
-        "write the bare number and put the unit in unit."
+        f"{tmp_path / 'stray.md'}: value: must be a finite number, not '12 kN'. "
+        "Write the bare number and put the unit in unit; see capabilities/quantities."
     )
 
 

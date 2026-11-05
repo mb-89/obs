@@ -650,6 +650,17 @@ Generation time remains separate from document revision dates.
   the Document includes the note (decided 5 Nov 2026). Reading the vault's metadata
   index still requires every note's frontmatter to parse as a YAML mapping.
 
+  A contract failure names where it comes from and its remedy, in one form:
+  `<note path>: <field path>: <what is wrong>. <remedy>`. The field path is the frontmatter
+  field (`obsHtml.document`, `query.where[0].field`), or the fence, numbered by kind within
+  the note, followed by the field inside it (`cards fence 1, cards[0].title`); a file's own
+  top level is `top level`. The remedy says what to write and names the note that owns the
+  contract. One formatter in the core turns every schema validation failure, of
+  frontmatter, fences, `.base` files and project configuration, into this message; the
+  interim adapter uses it too, so no JSON Schema library text reaches the person (the
+  person's rule that every error names its origin and, where possible, a remedy; decided
+  5 Nov 2026).
+
   Links are wikilinks and embeds in body text (not in code) and in frontmatter string
   values. A `base` fence (also inside a `cards` body) or an embedded `.base` file selects
   the notes whose record matches its `filters` and any view's `filters`.

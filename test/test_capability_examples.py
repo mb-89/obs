@@ -71,7 +71,7 @@ def test_every_capability_example_is_input_the_core_reads_as_its_capability(
 
 
 def test_a_frontmatter_fragment_is_read_as_frontmatter_and_its_schema_error_is_reported(tmp_path: Path) -> None:
-    with pytest.raises(DocumentError, match="'count' was unexpected"):
+    with pytest.raises(DocumentError, match=r"query\.count: is not a known field\. Remove it"):
         _read(tmp_path, "query:\n  count: true\n  where: [{field: status, equals: open}]\n")
 
 

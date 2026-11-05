@@ -8,6 +8,8 @@ import math
 from jsonschema import Draft202012Validator
 import yaml
 
+from obs.input import input_error, schema_error
+
 
 def _projection_kind(value):
     if value is None:
@@ -52,13 +54,18 @@ def property_editors(tokens, chapter, frontmatter):
         if token.type != "fence" or token.info.strip() != "property-editor":
             continue
         schema, validator, protected_fields = _schema()
+        place = "property-editor fence"
         try:
             spec = yaml.safe_load(token.content)
         except yaml.YAMLError as error:
-            raise ContentError(f"Property editor: invalid YAML in {chapter.source_path}: {error}") from error
-        errors = list(validator.iter_errors(spec))
-        if errors:
-            raise ContentError(f"Property editor in {chapter.source_path}: {errors[0].message[:180]}")
+            raise ContentError(str(input_error(
+                chapter.source_path, place, f"is not valid YAML: {error}",
+                "Write YAML; see capabilities/property-editors",
+            ))) from error
+        error = schema_error(list(validator.iter_errors(spec)), chapter.source_path,
+                             "capabilities/property-editors", place=place)
+        if error:
+            raise ContentError(str(error))
         field = spec["field"]
         limit = spec.get("maxLength", schema["properties"]["maxLength"]["default"])
         if field.lower() in protected_fields:
