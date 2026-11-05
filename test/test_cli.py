@@ -265,6 +265,32 @@ def test_check_validates_commands_without_execution_or_output(tmp_path, monkeypa
     assert "Unresolved note reference" in capsys.readouterr().err
 
 
+def test_authorized_silent_producers_create_inputs_before_conversion(tmp_path) -> None:
+    vault = tmp_path / "vault"
+    vault.mkdir()
+    (vault / "manifest.md").write_text("- [[producer]]\n- [[generated]]\n", encoding="utf-8")
+    (vault / "producer.md").write_text(
+        "# Producer\n\n```cmd silent\n"
+        "copy /Y template.svg generated.svg > NUL & copy /Y template.md generated.md > NUL\n"
+        "```\n",
+        encoding="utf-8",
+    )
+    (vault / "template.svg").write_text("<svg/>", encoding="utf-8")
+    (vault / "template.md").write_text(
+        "# Generated\n\nGenerated note.\n\n![Producer figure](generated.svg)\n", encoding="utf-8",
+    )
+    output = tmp_path / "report.html"
+
+    assert main(["--source", str(vault), "--output", str(output), "--execute-commands"]) == 0
+
+    report = output.read_text(encoding="utf-8")
+    data = decode_report_data(report)
+    generated = next(note for note in data["notes"] if note["slug"] == "generated")
+    assert "Generated note." in generated["html"]
+    assert 'src="data:image/svg+xml;base64,PHN2Zy8+" alt="Producer figure" />' in generated["html"]
+    assert "copy /Y template.svg" not in report
+
+
 def test_cli_checks_and_renders_card_metric_links_and_base_queries(tmp_path, capsys) -> None:
     vault = tmp_path / "vault"
     vault.mkdir()
