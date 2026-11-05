@@ -7,6 +7,7 @@ from zipfile import ZipFile
 
 import pytest
 from obs_html.report_data import decode_report_data
+from producer_commands import python_command
 
 from obs_html.cli import (
     DEFAULT_CONFIG,
@@ -271,8 +272,11 @@ def test_authorized_silent_producers_create_inputs_before_conversion(tmp_path) -
     (vault / "manifest.md").write_text("- [[producer]]\n- [[generated]]\n", encoding="utf-8")
     (vault / "producer.md").write_text(
         "# Producer\n\n```cmd silent\n"
-        "copy /Y template.svg generated.svg > NUL & copy /Y template.md generated.md > NUL\n"
-        "```\n",
+        + python_command(
+            "import shutil; shutil.copyfile('template.svg', 'generated.svg'); "
+            "shutil.copyfile('template.md', 'generated.md')"
+        )
+        + "\n```\n",
         encoding="utf-8",
     )
     (vault / "template.svg").write_text("<svg/>", encoding="utf-8")
@@ -288,7 +292,7 @@ def test_authorized_silent_producers_create_inputs_before_conversion(tmp_path) -
     generated = next(note for note in data["notes"] if note["slug"] == "generated")
     assert "Generated note." in generated["html"]
     assert 'src="data:image/svg+xml;base64,PHN2Zy8+" alt="Producer figure" />' in generated["html"]
-    assert "copy /Y template.svg" not in report
+    assert "shutil.copyfile" not in report
 
 
 @pytest.mark.parametrize("check", [False, True])
@@ -331,12 +335,16 @@ def test_unauthorized_silent_producer_missing_artifact_fails_clearly(tmp_path, c
     assert "Manifest target does not exist: generated" in capsys.readouterr().err
 
 
-def test_conversion_failure_after_authorized_producer_preserves_previous_output(tmp_path) -> None:
+def test_conversion_failure_after_authorized_producer_preserves_previous_output(
+    tmp_path, capsys,
+) -> None:
     vault = tmp_path / "vault"
     vault.mkdir()
     (vault / "manifest.md").write_text("- [[producer]]\n- [[generated]]\n", encoding="utf-8")
     (vault / "producer.md").write_text(
-        "# Producer\n\n```cmd silent\ncopy /Y template.md generated.md > NUL\n```\n",
+        "# Producer\n\n```cmd silent\n"
+        + python_command("import shutil; shutil.copyfile('template.md', 'generated.md')")
+        + "\n```\n",
         encoding="utf-8",
     )
     (vault / "template.md").write_text("# Generated\n\n[[missing]]\n", encoding="utf-8")
@@ -346,6 +354,7 @@ def test_conversion_failure_after_authorized_producer_preserves_previous_output(
     with pytest.raises(SystemExit, match="2"):
         main(["--source", str(vault), "--output", str(output), "--execute-commands"])
 
+    assert "Unresolved note reference" in capsys.readouterr().err
     assert output.read_text(encoding="utf-8") == "previous report"
 
 
