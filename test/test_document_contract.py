@@ -66,6 +66,7 @@ def capability_node_attrs(identifier: str) -> dict[str, object]:
         "attachments": {"asset": "asset", "label": "Attachment"},
         "callouts": {"kind": "note", "title": ""},
         "cards-metrics": {"source": "", "spec": {}},
+        "command-fences": {"source": "echo derived\n", "output": "derived\n"},
         "chapter-inclusion": {"id": "chapter"},
         "count-query": {"query": {}},
         "markdown-frontmatter": {"metadata": {}},

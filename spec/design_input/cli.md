@@ -11,6 +11,23 @@ This command fence derives the artifact's reference from the running CLI.
 See [[input-model]] for source semantics, [[artifact-ui]] for presentation requirements,
 and [[configuration]] for configuration ownership.
 
+## Command fences through the core
+
+A build through the core authorizes command fences once, on the core:
+
+```sh
+uv run obs-document --source spec/manifest.md --document <scratch>/spec.json \
+  --capability-reference <scratch>/capabilities.json --execute-commands \
+  --adapter html --adapter-config adapters.json --destination <scratch>/spec.html
+```
+
+`--execute-commands` makes the core run the vault's command fences from the vault root and put
+their captured output into the Document; without it, a command fence fails the build naming its
+note and the flag ([[capabilities/command-fences#Authorization]]). The adapter then renders from
+the Document alone, so `obs-html` has no command options and the same Document renders the same
+way through `obs-document --adapter html` and through `obs-html` directly. The interim
+`obs-html-interim --execute-commands` still runs its own fences until the cutover.
+
 ## Attachments per build
 
 `--embed-attachments` is the build half of the attachment rule in [[input-model]]: authors mark

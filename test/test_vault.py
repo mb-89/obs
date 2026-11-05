@@ -39,7 +39,8 @@ def node_types(document: dict[str, object]) -> set[str]:
 
 
 def recognized_capability_document(tmp_path) -> dict[str, object]:
-    return build_document(recognized_capability_vault(tmp_path) / "manifest.md", capability_reference())
+    return build_document(recognized_capability_vault(tmp_path) / "manifest.md", capability_reference(),
+                          execute_commands=True)
 
 
 def recognized_capability_vault(tmp_path) -> Path:
@@ -57,7 +58,8 @@ def recognized_capability_vault(tmp_path) -> Path:
 
 
 def additional_capability_document(tmp_path) -> dict[str, object]:
-    return build_document(additional_capability_vault(tmp_path) / "manifest.md", capability_reference())
+    return build_document(additional_capability_vault(tmp_path) / "manifest.md", capability_reference(),
+                          execute_commands=True)
 
 
 def additional_capability_vault(tmp_path) -> Path:
@@ -163,7 +165,7 @@ def test_core_places_recognized_capabilities_in_content_nodes(tmp_path) -> None:
     }]
     assert content[5]["attrs"] == {"source": "views: []\n", "spec": {"views": []}}
     assert content[6]["attrs"] == {"source": "caption: Diagram\n", "spec": {"caption": "Diagram"}}
-    assert content[7]["attrs"] == {"source": "echo example\n"}
+    assert content[7]["attrs"] == {"source": "echo example\n", "output": "example\n"}
     assert set(document["capabilities"]) == {
         "bases", "callouts", "chapter-inclusion", "command-fences", "embeds", "figures",
         "manifest", "markdown", "marks", "wikilinks",
@@ -253,7 +255,7 @@ def test_a_card_body_arrives_as_parsed_nodes_with_its_capability_fences(tmp_path
     (vault / "chapter.md").write_text(
         f"```cards\n{json.dumps(cards)}\n```\n", encoding="utf-8",
     )
-    document = build_document(vault / "manifest.md", capability_reference())
+    document = build_document(vault / "manifest.md", capability_reference(), execute_commands=True)
 
     validate(document, json.loads((ROOT / "src" / "obs" / "document.schema.json").read_text(
         encoding="utf-8",
@@ -746,7 +748,8 @@ def test_every_capability_the_core_emits_has_a_capability_note(tmp_path) -> None
 
     emitted = set()
     for vault in (recognized_capability_vault(tmp_path), additional_capability_vault(tmp_path)):
-        emitted |= set(parse_vault(vault / "manifest.md", _EveryCapability())["capabilities"])
+        emitted |= set(parse_vault(vault / "manifest.md", _EveryCapability(),
+                                   execute_commands=True)["capabilities"])
     notes = {item["id"] for item in capability_reference()["capabilities"]}
 
     assert "property-editors" in emitted
