@@ -645,7 +645,10 @@ Generation time remains separate from document revision dates.
   Queries may inspect the vault's Markdown metadata index, but only
   matched/referenced notes enter the canonical artifact store.
 
-  Unreferenced notes stay out.
+  Unreferenced notes stay out, and only included notes are validated: a note's frontmatter
+  contracts (a quantity, a note profile, a query) and its fences fail the build only when
+  the Document includes the note (decided 5 Nov 2026). Reading the vault's metadata
+  index still requires every note's frontmatter to parse as a YAML mapping.
 
   Links are wikilinks and embeds in body text (not in code) and in frontmatter string
   values. A `base` fence (also inside a `cards` body) or an embedded `.base` file selects
