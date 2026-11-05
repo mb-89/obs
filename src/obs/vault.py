@@ -602,7 +602,7 @@ def _fence_node(token: Token, context: _Context) -> dict[str, object]:
                     "type": "document", "attrs": {}, "children": _nodes(card["body"], body_context),
                 })
         elif language == "property-editor":
-            parse_property_editor(token.content, source_path)
+            specification = parse_property_editor(token.content, source_path)
         elif language == "cmd":
             validate_command(token.content)
         elif language == "figure":
@@ -624,7 +624,7 @@ def _fence_node(token: Token, context: _Context) -> dict[str, object]:
     }.get(language)
     if language == "figure":
         fence_type = "figure-descriptor" if figure_descriptor is not None else "figures"
-    if fence_type not in capability_ids:
+    if fence_type is None or fence_type not in capability_ids:
         return {
             "type": "code", "attrs": {"language": language},
             "children": [], "text": token.content,
@@ -641,6 +641,8 @@ def _fence_node(token: Token, context: _Context) -> dict[str, object]:
             raise VaultError(f"Invalid {language} fence in {source_path}: {error}") from error
         if spec is not None:
             attrs["spec"] = _json_value(spec)
+    elif language == "property-editor":
+        attrs["spec"] = _json_value(specification)
     elif language == "cards":
         attrs["spec"] = _json_value(specification)
         context.capabilities.update(body_context.capabilities)

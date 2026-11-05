@@ -39,6 +39,10 @@ def node_types(document: dict[str, object]) -> set[str]:
 
 
 def recognized_capability_document(tmp_path) -> dict[str, object]:
+    return build_document(recognized_capability_vault(tmp_path) / "manifest.md", capability_reference())
+
+
+def recognized_capability_vault(tmp_path) -> Path:
     vault = tmp_path / "recognized"
     vault.mkdir()
     (vault / "manifest.md").write_text("- [[chapter]]\n", encoding="utf-8")
@@ -49,10 +53,14 @@ def recognized_capability_document(tmp_path) -> dict[str, object]:
         "```base\nviews: []\n```\n\n```figure\ncaption: Diagram\n```\n\n```cmd\necho example\n```\n",
         encoding="utf-8",
     )
-    return build_document(vault / "manifest.md", capability_reference())
+    return vault
 
 
 def additional_capability_document(tmp_path) -> dict[str, object]:
+    return build_document(additional_capability_vault(tmp_path) / "manifest.md", capability_reference())
+
+
+def additional_capability_vault(tmp_path) -> Path:
     vault = tmp_path / "additional"
     vault.mkdir()
     (vault / "manifest.md").write_text(
@@ -74,10 +82,11 @@ def additional_capability_document(tmp_path) -> dict[str, object]:
         '"axes": [{"id": "time", "scale": "linear", "limits": {"minimum": 0, "maximum": 1}, '
         '"label": "Time"}]}], '
         '"provenance": {"command": ["generate-figure"]}}\n'
-        "```\n",
+        "```\n\n"
+        "```property-editor\nversion: 1\nfield: source\nlabel: Source\n```\n",
         encoding="utf-8",
     )
-    return build_document(vault / "manifest.md", capability_reference())
+    return vault
 
 
 def test_core_parses_a_vault_into_semantic_document_json(tmp_path) -> None:
@@ -241,13 +250,7 @@ def test_a_card_body_arrives_as_parsed_nodes_with_its_capability_fences(tmp_path
     (vault / "chapter.md").write_text(
         f"```cards\n{json.dumps(cards)}\n```\n", encoding="utf-8",
     )
-    reference = capability_reference()
-    reference["capabilities"].append({
-        "id": "property-editors", "summary": "An adapter's capability.", "authoring": "",
-        "dependsOn": [], "source": "[[adapter]]",
-    })
-
-    document = build_document(vault / "manifest.md", reference)
+    document = build_document(vault / "manifest.md", capability_reference())
 
     validate(document, json.loads((ROOT / "src" / "obs" / "document.schema.json").read_text(
         encoding="utf-8",
@@ -324,13 +327,17 @@ def test_core_emits_data_only_nodes_for_additional_input_capabilities(tmp_path) 
     assert [node["type"] for node in emitted] == [
         "markdown-frontmatter", "profiles", "quantities", "queries", "count-query",
         "references", "chapter-inclusion", "markdown", "attachments", "registers",
-        "cards-metrics", "figure-descriptor",
+        "cards-metrics", "figure-descriptor", "property-editors",
     ]
-    assert emitted[-1]["attrs"]["descriptor"]["id"] == "comparison"
+    assert emitted[-2]["attrs"]["descriptor"]["id"] == "comparison"
+    assert emitted[-1]["attrs"] == {
+        "source": "version: 1\nfield: source\nlabel: Source\n",
+        "spec": {"version": 1, "field": "source", "label": "Source"},
+    }
     assert {
         "attachments", "cards-metrics", "count-query", "figure-descriptor",
-        "markdown-frontmatter", "profiles", "quantities", "queries", "references",
-        "registers",
+        "markdown-frontmatter", "profiles", "property-editors", "quantities", "queries",
+        "references", "registers",
     } <= set(document["capabilities"])
 
 
@@ -551,3 +558,25 @@ def test_a_manifest_metadata_value_arrives_as_inline_nodes_by_field_path(tmp_pat
             {"type": "strong", "attrs": {}, "children": [_text("One")]},
         ]},
     ]
+
+
+class _EveryCapability(set):
+    """A capability set that admits every id, so the core emits every capability it can."""
+
+    def __contains__(self, item: object) -> bool:
+        return True
+
+    def __bool__(self) -> bool:
+        return True
+
+
+def test_every_capability_the_core_emits_has_a_capability_note(tmp_path) -> None:
+    from obs.vault import build_document as parse_vault
+
+    emitted = set()
+    for vault in (recognized_capability_vault(tmp_path), additional_capability_vault(tmp_path)):
+        emitted |= set(parse_vault(vault / "manifest.md", _EveryCapability())["capabilities"])
+    notes = {item["id"] for item in capability_reference()["capabilities"]}
+
+    assert "property-editors" in emitted
+    assert emitted - notes == set()

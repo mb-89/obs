@@ -125,6 +125,14 @@
           }}
         },
         {
+          "description": "A property-editor fence: its authored source and the mapping input.schema.json (propertyEditor) validated.",
+          "if": {"properties": {"type": {"const": "property-editors"}}},
+          "then": {"properties": {"attrs": {
+            "type": "object", "additionalProperties": false, "required": ["source", "spec"],
+            "properties": {"source": {"type": "string"}, "spec": {"type": "object"}}
+          }}}
+        },
+        {
           "if": {"properties": {"type": {"enum": ["markdown-frontmatter", "quantities", "references"]}}},
           "then": {"properties": {"attrs": {
             "type": "object", "additionalProperties": false, "required": ["metadata"],
