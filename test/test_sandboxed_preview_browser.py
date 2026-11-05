@@ -83,37 +83,41 @@ def test_canaries_find_what_a_scripts_only_sandbox_limits(tmp_path: Path, reader
 
 
 @pytest.mark.browser
-def test_a_sandboxed_frame_shows_one_limited_functionality_notice(tmp_path: Path, reader_browser) -> None:
+def test_a_sandboxed_frame_lists_its_limits_as_warning_notices(tmp_path: Path, reader_browser) -> None:
     from playwright.sync_api import expect
 
     errors: list[str] = []
     page, frame = open_sandboxed(tmp_path, reader_browser, errors)
-    notice = frame.locator("[data-header-notices] [data-capability-notice]")
-    expect(notice).to_have_count(1)
-    summary = notice.locator("summary")
-    expect(summary).to_have_text(re.compile(r"^Limited functionality: \d+ features$"))
-    items = notice.locator("li[data-capability]")
-    expect(items.first).to_be_hidden()
-    count = int(summary.inner_text().split(": ")[1].split()[0])
-    assert items.count() == count
+    keys = frame.locator("html").evaluate("() => globalThis.obsCapabilities.limits.map(({key}) => key)")
+    icon = frame.locator('[data-header-notices] [data-notice-icon="warning"]')
+    expect(icon.locator("[data-notice-count]")).to_have_text(str(len(keys)))
+    expect(frame.locator("[data-header-notices] [data-notice-icon]:visible")).to_have_count(1)
+    warnings = frame.locator('[data-notice-list="warning"]')
+    entries = warnings.locator('[data-notice^="capability-"]')
+    expect(entries).to_have_count(len(keys))
+    expect(warnings).to_be_hidden()
     keep_screenshot(page, "limited-functionality-collapsed")
-    summary.click()
-    printing = notice.locator('li[data-capability="printing"]')
-    dialogs = notice.locator('li[data-capability="dialogs"]')
-    expect(printing).to_be_visible()
-    expect(printing).to_contain_text("Print to PDF")
-    expect(printing).to_contain_text("print dialog")
-    expect(printing).to_contain_text("Open the HTML file directly in a browser to print.")
-    expect(dialogs).to_contain_text("Dialogs")
-    expect(dialogs).to_contain_text("Open the HTML file directly in a browser")
+    icon.click()
+    printing = warnings.locator('[data-notice="capability-printing"]')
+    expect(printing.locator("[data-notice-title]")).to_have_text("Limited functionality: Print to PDF")
+    printing.locator("[data-notice-title]").click()
+    details = printing.locator("[data-notice-details]")
+    expect(details).to_be_visible()
+    expect(details).to_contain_text("Print to PDF")
+    expect(details).to_contain_text("print dialog")
+    expect(details).to_contain_text("Open the HTML file directly in a browser to print.")
+    expect(warnings.locator('[data-notice="capability-dialogs"] [data-notice-title]')).to_contain_text("Dialogs")
     keep_screenshot(page, "limited-functionality-expanded")
     frame.locator("html").evaluate("() => globalThis.obsFilter.setExpression('file.name == \\'One\\'')")
-    expect(frame.locator("[data-filter-warning]")).to_be_visible()
-    expect(notice).to_be_visible()
-    frame.locator(".filter-warning-clear").click()
-    expect(notice).to_be_visible()
+    information = frame.locator('[data-notice-icon="information"]')
+    expect(information).to_be_visible()
+    information.click()
+    frame.locator('[data-notice="applied-filter"] [data-notice-title]').click()
+    frame.locator('[data-notice="applied-filter"] [data-filter-clear]').click()
+    expect(information).to_be_hidden()
+    expect(icon).to_be_visible()
     page.emulate_media(media="print")
-    expect(notice).to_be_hidden()
+    expect(icon).to_be_hidden()
     assert errors == []
 
 
@@ -127,7 +131,7 @@ def test_the_same_report_opened_normally_shows_no_notice(tmp_path: Path, reader_
     page = open_page(reader_browser, path, errors)
     expect(page.locator("html")).to_have_attribute("data-report-status", "ready")
     assert page.evaluate("globalThis.obsCapabilities.limits.length") == 0
-    expect(page.locator("[data-capability-notice]")).to_have_count(0)
+    expect(page.locator('[data-notice^="capability-"]')).to_have_count(0)
     assert errors == []
 
 @pytest.mark.browser
@@ -143,6 +147,12 @@ def test_print_to_pdf_in_a_sandboxed_frame_ends_in_an_inline_message(tmp_path: P
     expect(status).to_be_visible()
     expect(status).to_contain_text("PDF export failed: Print to PDF is limited here")
     expect(status).to_contain_text("Open the HTML file directly in a browser to print.")
+    # Ctrl+P has no visible control, so its failure reveals the printing entry.
+    revealed = frame.locator('[data-notice="capability-printing"] [data-notice-details]')
+    expect(revealed).to_be_hidden()
+    frame.locator("html").evaluate(
+        "() => document.dispatchEvent(new KeyboardEvent('keydown', {key: 'p', ctrlKey: true}))")
+    expect(revealed).to_be_visible()
     expect(frame.locator("html")).not_to_have_class(re.compile("preparing-print"))
     # The browser reports the ignored print() call itself; the export logs its own inline failure.
     assert [error for error in errors if "print" not in error.lower()] == []

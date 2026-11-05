@@ -175,6 +175,16 @@
             "glyph": "!"
           }
         },
+        "notice-error": {
+          "value": {
+            "glyph": "\u00d7"
+          }
+        },
+        "notice-information": {
+          "value": {
+            "glyph": "i"
+          }
+        },
         "theme-system": {
           "value": {
             "glyph": "\u25d0"
@@ -372,6 +382,30 @@
             "dark": "#4d3015"
           }
         },
+        "error": {
+          "value": {
+            "light": "#a3001b",
+            "dark": "#ff8a8a"
+          }
+        },
+        "error-soft": {
+          "value": {
+            "light": "#ffe3e3",
+            "dark": "#4d1a1a"
+          }
+        },
+        "information": {
+          "value": {
+            "light": "#00508f",
+            "dark": "#8cc8ff"
+          }
+        },
+        "information-soft": {
+          "value": {
+            "light": "#e3f1ff",
+            "dark": "#15334d"
+          }
+        },
         "action": {
           "value": {
             "ref": "color.accent"
@@ -545,6 +579,19 @@
     },
     "warning": {
       "ref": "icon.warning"
+    },
+    "notice": {
+      "children": {
+        "error": {
+          "ref": "icon.notice-error"
+        },
+        "warning": {
+          "ref": "icon.warning"
+        },
+        "information": {
+          "ref": "icon.notice-information"
+        }
+      }
     },
     "theme": {
       "children": {
