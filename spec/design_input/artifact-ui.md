@@ -1125,7 +1125,7 @@ separate from document presentation.
   The top of the page shows at most three icons, in that order,
   each only while it has entries and with a count pill, however many notices are raised.
   Clicking an icon opens its list; clicking an entry expands its details in place; a
-  second click or Escape closes. The icon row never covers the menu or chapter controls.
+  second click or Escape closes. The icons sit in the [[#Reading shell|top band]].
 
   Changed HTML and the applied filter are information, each limited capability is a
   warning, and errors are reserved for real failures. Notices are transient UI, not printed
