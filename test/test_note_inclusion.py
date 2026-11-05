@@ -158,7 +158,9 @@ def test_links_resolve_vault_relative_and_to_home(tmp_path) -> None:
 
     document = build_document(manifest, capability_reference())
 
-    assert [attrs["chapter"] for attrs in _links(document)] == ["part-sibling", "home", "home-2"]
+    assert [attrs["chapter"] for attrs in _links(document)] == [
+        "part-intro", "part-sibling", "home", "home-2", "linked-from-metadata",
+    ]
     assert "linked-from-metadata" in [chapter["id"] for chapter in document["chapters"]]
 
 
