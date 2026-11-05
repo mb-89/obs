@@ -147,24 +147,35 @@ def compile_base_filter(filters: object) -> BaseFilter:
     raise _unsupported(filters)
 
 
-def base_selects(definition: dict[str, object]) -> Callable[[dict[str, object], str], bool]:
-    """Return whether any view of a Base definition selects a note record (fields, path)."""
+NoteSelector = Callable[[dict[str, object], str], bool]
+"""Whether a note record (fields, vault-relative path) is selected."""
+
+
+def view_selectors(definition: dict[str, object]) -> list[NoteSelector | None]:
+    """One selector per view of a Base definition; ``None`` for a view whose rows are not notes."""
     base = compile_base_filter(definition.get("filters"))
-    views = []
-    for view in definition.get("views", []):
-        profile = view.get("obsHtml", {}) if isinstance(view.get("obsHtml"), dict) else {}
-        records = profile.get("records", (definition.get("obsHtml") or {}).get("records", "note"))
-        if records == "note":
-            views.append(compile_base_filter(view.get("filters")))
     members = (definition.get("obsHtml") or {}).get("members")
     paths = None if not isinstance(members, list) else {member.get("path") for member in members}
 
-    def selects(fields: dict[str, object], path: str) -> bool:
-        if not selectable(fields) or paths is not None and path not in paths:
-            return False
-        value_for = lambda field: note_value(fields, path, field)  # noqa: E731
-        return base(value_for) and any(view(value_for) for view in views)
-    return selects
+    def selector(view: dict[str, object]) -> NoteSelector | None:
+        profile = view.get("obsHtml", {}) if isinstance(view.get("obsHtml"), dict) else {}
+        if profile.get("records", (definition.get("obsHtml") or {}).get("records", "note")) != "note":
+            return None
+        own = compile_base_filter(view.get("filters"))
+
+        def selects(fields: dict[str, object], path: str) -> bool:
+            if not selectable(fields) or paths is not None and path not in paths:
+                return False
+            value_for = lambda field: note_value(fields, path, field)  # noqa: E731
+            return base(value_for) and own(value_for)
+        return selects
+    return [selector(view) for view in definition.get("views", [])]
+
+
+def base_selects(definition: dict[str, object]) -> NoteSelector:
+    """Return whether any view of a Base definition selects a note record (fields, path)."""
+    views = [view for view in view_selectors(definition) if view is not None]
+    return lambda fields, path: any(view(fields, path) for view in views)
 
 
 def _texts(value: object) -> list[str]:
