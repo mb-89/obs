@@ -447,6 +447,43 @@ def test_a_bare_base_name_that_matches_two_files_names_both_and_the_remedy(tmp_p
     assert "vault path" in message
 
 
+def test_each_view_selects_its_own_members(tmp_path) -> None:
+    vault = register_vault(tmp_path, "![[x.base]]")
+    (vault / "x.base").write_text(
+        "filters: 'kind == \"point\"'\n"
+        "views:\n"
+        "  - type: table\n    name: First\n    order: [file.name]\n"
+        "    obsHtml:\n      members:\n        - path: b-point.md\n        - path: a-point.md\n"
+        "  - type: table\n    name: Second\n    order: [file.name]\n"
+        "    obsHtml:\n      members:\n        - path: c-point.md\n"
+        "  - type: table\n    name: All\n    order: [file.name]\n",
+        encoding="utf-8",
+    )
+
+    document = build_document(vault / "manifest.md", capability_reference())
+
+    [register] = _registers(document)
+    assert register["attrs"]["rows"] == [["a-point", "b-point"], ["c-point"], ["a-point", "b-point", "c-point"]]
+
+
+@pytest.mark.parametrize(("note", "text", "field"), [
+    ("chapter.md", "# Chapter\n\n```base\nobsHtml:\n  members:\n    - path: a-point.md\n"
+     "views:\n  - type: table\n    order: [file.name]\n```\n", "base fence 1, obsHtml.members"),
+    ("x.base", "obsHtml:\n  members:\n    - path: a-point.md\n"
+     "views:\n  - type: table\n    order: [file.name]\n", "obsHtml.members"),
+])
+def test_base_level_members_fail_naming_the_note_and_the_remedy(tmp_path, note: str, text: str, field: str) -> None:
+    vault = register_vault(tmp_path, "![[x.base]]")
+    (vault / note).write_text(text, encoding="utf-8")
+
+    with pytest.raises(DocumentError) as raised:
+        build_document(vault / "manifest.md", capability_reference())
+
+    message = str(raised.value)
+    assert message.startswith(f"{vault / note}: {field}: "), message
+    assert "; see capabilities/bases." in message
+
+
 def test_an_invalid_register_base_names_the_embedding_note_and_the_remedy(tmp_path) -> None:
     vault = register_vault(tmp_path)
     (vault / "x.base").write_text("views:\n  - type: table\n", encoding="utf-8")

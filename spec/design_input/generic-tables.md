@@ -104,6 +104,8 @@ consume the same applied global Filter; a table's local query remains independen
   and optional view-local `label`. This set intersects the ordinary Base query; its order is the
   initial row order, and its labels are projected as `obsHtml.label` without modifying canonical
   note records. Missing, duplicate, absolute, or vault-escaping member paths are input errors.
+  Members belong to their view: each view selects its own members, and a Base-level
+  `obsHtml.members` is an input error naming the note; the remedy is to move it into the view.
 - Display labels for columns and grouped properties are presentation metadata over the
   existing field keys. Headers/group captions need not expose dotted storage paths;
   renaming a display label never changes filters, canonical properties or stable routes.
