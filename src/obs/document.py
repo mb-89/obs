@@ -23,11 +23,13 @@ class DocumentError(ValueError):
     """Raised when a Document violates the neutral contract."""
 
 
-def build_document(manifest_path: Path, reference: dict[str, object]) -> dict[str, object]:
+def build_document(
+    manifest_path: Path, reference: dict[str, object], configuration_path: Path | None = None,
+) -> dict[str, object]:
     """Parse a vault into a schema-valid neutral Document."""
     try:
         known = {item["id"] for item in reference["capabilities"]}
-        document = _build_document(manifest_path, known)
+        document = _build_document(manifest_path, known, configuration_path)
         validate_document(document, reference)
     except VaultError as error:
         raise DocumentError(str(error)) from error
@@ -148,6 +150,7 @@ def build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument("--document", type=Path, required=True, help="JSON Document to read or write.")
     parser.add_argument("--source", type=Path, help="Manifest note to parse into --document.")
+    parser.add_argument("--config", type=Path, help="Core configuration JSON for --source.")
     parser.add_argument("--adapter", help="Configured adapter name.")
     parser.add_argument("--adapter-config", type=Path, help="Adapter configuration JSON.")
     parser.add_argument("--capability-reference", type=Path, required=True,
@@ -161,7 +164,9 @@ def main(argv: Sequence[str] | None = None) -> int:
     try:
         reference = read_capability_reference(options.capability_reference)
         if options.source:
-            write_document(build_document(options.source, reference), options.document, reference)
+            write_document(
+                build_document(options.source, reference, options.config), options.document, reference,
+            )
         if not options.adapter:
             if options.source:
                 return 0

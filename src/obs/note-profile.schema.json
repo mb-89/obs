@@ -1,0 +1,16 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "obs note profile input",
+  "type": "object",
+  "additionalProperties": true,
+  "properties": {
+    "layout": {"enum": ["paged", "scrolling"]},
+    "heading": {"enum": ["cover", "compact"]},
+    "query": {
+      "oneOf": [
+        {"type": "object"},
+        {"type": "string", "pattern": "^\\[\\[[^\\]|#]+(?:\\|[^\\]]+)?\\]\\]$"}
+      ]
+    }
+  }
+}

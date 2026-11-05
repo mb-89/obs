@@ -1,0 +1,23 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "obs base input",
+  "type": "object",
+  "required": ["views"],
+  "additionalProperties": false,
+  "properties": {
+    "filters": {"type": ["object", "array", "string"]},
+    "properties": {"type": "object"},
+    "views": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["type", "order"],
+        "additionalProperties": true,
+        "properties": {
+          "type": {"const": "table"},
+          "order": {"type": "array", "minItems": 1, "items": {"type": "string", "pattern": "\\S"}}
+        }
+      }
+    }
+  }
+}

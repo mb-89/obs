@@ -99,3 +99,32 @@ def parse_callout(line: str) -> dict[str, str] | None:
 
 def validate_query(query: object) -> None:
     validate_count_query(query)
+
+
+def _validate_schema(name: str, value: object, label: str, source_path: object) -> None:
+    schema = json.loads(files("obs").joinpath(name).read_text(encoding="utf-8"))
+    errors = list(Draft202012Validator(schema).iter_errors(value))
+    if errors:
+        raise InputError(f"{label} in {source_path}: {errors[0].message}")
+
+
+def validate_base_definition(definition: object, source_path: object) -> None:
+    schema = json.loads(files("obs").joinpath("base.schema.json").read_text(encoding="utf-8"))
+    errors = list(Draft202012Validator(schema).iter_errors(definition))
+    if errors:
+        error = errors[0]
+        path = ".".join(str(part) for part in error.absolute_path)
+        raise InputError(f"Invalid base definition at {path or 'root'} in {source_path}: {error.message}")
+
+
+def validate_note_profile(profile: object, source_path: object) -> None:
+    schema = json.loads(files("obs").joinpath("note-profile.schema.json").read_text(encoding="utf-8"))
+    errors = list(Draft202012Validator(schema).iter_errors(profile))
+    if errors:
+        raise InputError(f"Invalid obsHtml note profile in {source_path}: {errors[0].message}")
+    if isinstance(profile, dict) and isinstance(profile.get("query"), dict):
+        validate_query(profile["query"])
+
+
+def validate_project_config(configuration: object, source_path: object) -> None:
+    _validate_schema("project.schema.json", configuration, "Invalid project configuration", source_path)
