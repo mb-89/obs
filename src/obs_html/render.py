@@ -183,6 +183,7 @@ def render(document: dict[str, object], config: Config,
     _index(document["chapters"], context)
     if HOME in context.chapters:
         raise RenderError(f"Chapter id {HOME!r} is reserved for the document's home page.")
+    context.chapters[HOME] = document["manifest"]["title"]  # The core links the manifest as home.
     model = _resolve_icons(_model(document, config, context), assets)
     return prepare_report_scripts(assets.resolve_markup(
         _shell(model, style.stylesheet, assets, config, trusted_runtime)))

@@ -232,6 +232,12 @@ def test_a_wikilink_links_to_the_chapter_the_core_names() -> None:
     assert '<a class="internal-link" href="#design-input-architecture">Architecture</a>' in html
 
 
+def test_a_link_to_the_manifest_links_to_the_home_page() -> None:
+    link = node("wikilinks", target="manifest", chapter="home", heading="", label="manifest")
+    html = _notes(_linking(link))["index"]["html"]
+    assert '<a class="internal-link" href="#home">Links</a>' in html
+
+
 def test_a_wikilink_without_a_chapter_is_unresolved_even_when_an_id_matches() -> None:
     link = node("wikilinks", target="index", chapter=None, heading="", label="index")
     html = _notes(_linking(link))["index"]["html"]
