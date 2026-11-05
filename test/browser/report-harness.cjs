@@ -237,6 +237,8 @@ const STEPS = {
                 key: cell.dataset.columnKey, label: cell.querySelector("span")?.textContent.trim() || "",
             })),
             rows: [...shell.querySelectorAll("tbody tr[data-row-key]")].map((row) => row.dataset.rowKey),
+            cells: [...shell.querySelectorAll("tbody tr[data-row-key]")].map((row) =>
+                [...row.querySelectorAll("td")].map((cell) => cell.textContent.trim())),
             count: shell.querySelector(".data-table-count")?.textContent.trim() || null,
         };
     },
