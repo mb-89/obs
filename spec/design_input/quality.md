@@ -89,6 +89,9 @@ definitions alike. Keeping the same fact in two places is an anti-pattern (user,
   (PowerShell, native pickers) is skipped elsewhere with a reason, never failed.
 - Tier names and meanings are owned by the pytest markers in `pyproject.toml`; assignment from
   dependency evidence is owned by `test/tiers.py`.
+- Structure tests, which check what a spec note owns and where it points, live in
+  `test/structure/test_<note>.py`, one file per note, so changes to different notes touch
+  different test files.
 - The browser tier runs with `uv run pytest --gate` and needs `OBS_HTML_TEST_NATIVE_BROWSER`
   set to the absolute path of a Chromium or Chrome executable (for example `/usr/bin/chromium`
   or `C:\Program Files\Google\Chrome\Application\chrome.exe`). Playwright's own browser
