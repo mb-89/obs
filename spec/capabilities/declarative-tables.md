@@ -5,7 +5,7 @@ capability:
   summary: Present compact tables using declared columns and record projections.
   authoring: Define table presentation with the supported declarative Base fields.
   dependsOn: ["[[capabilities/bases]]", "[[capabilities/canonical-references]]"]
-  inputModel: "[[input-model#Compact declarative table presentation]]"
+  source: "[[input-model#Compact declarative table presentation]]"
 ---
 
 The register presents the owning metadata as the capability reference.

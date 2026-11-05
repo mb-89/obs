@@ -5,7 +5,7 @@ capability:
   summary: Resolve local Markdown and Obsidian note links.
   authoring: Link a vault note with a Markdown link or a double-bracket wikilink.
   dependsOn: ["[[capabilities/markdown]]"]
-  inputModel: "[[input-model#Chapter content]]"
+  source: "[[input-model#Chapter content]]"
 ---
 
 ## What it does

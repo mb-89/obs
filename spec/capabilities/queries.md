@@ -5,7 +5,7 @@ capability:
   summary: Define reusable, declarative selections and aggregates.
   authoring: Give a supported query mapping a stable name and reference that name.
   dependsOn: ["[[capabilities/markdown-frontmatter]]"]
-  inputModel: "[[input-model#Reusable query ownership]]"
+  source: "[[input-model#Reusable query ownership]]"
 ---
 
 ## What it does

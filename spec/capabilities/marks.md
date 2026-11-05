@@ -5,7 +5,7 @@ capability:
   summary: Annotate authored content with stable semantic marks.
   authoring: Add the supported mark syntax to the marked paragraph.
   dependsOn: ["[[capabilities/markdown]]"]
-  inputModel: "[[input-model#Mark tags]]"
+  source: "[[input-model#Mark tags]]"
 ---
 
 ## What it does

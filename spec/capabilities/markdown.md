@@ -5,7 +5,7 @@ capability:
   summary: Render standard Markdown chapter content safely.
   authoring: Write CommonMark-compatible text, headings, lists, and fenced code.
   dependsOn: []
-  inputModel: "[[input-model#Remaining chapter content]]"
+  source: "[[input-model#Remaining chapter content]]"
 ---
 
 ## What it does

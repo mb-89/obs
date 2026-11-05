@@ -5,7 +5,7 @@ capability:
   summary: Declare a chapter conclusion and glossary content.
   authoring: Use the supported bottom-line property and glossary-note fields.
   dependsOn: ["[[capabilities/markdown-frontmatter]]"]
-  inputModel: "[[input-model#Bottom line and glossary]]"
+  source: "[[input-model#Bottom line and glossary]]"
 ---
 
 ## What it does

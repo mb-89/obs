@@ -5,7 +5,7 @@ capability:
   summary: Expose trusted actions from an authored floating-content view.
   authoring: Declare a supported action identifier in the trusted runtime mapping.
   dependsOn: ["[[capabilities/trusted-actions]]", "[[capabilities/canonical-references]]"]
-  inputModel: "[[input-model#Trusted floating-content actions]]"
+  source: "[[input-model#Trusted floating-content actions]]"
 ---
 
 The register presents the owning metadata as the capability reference.

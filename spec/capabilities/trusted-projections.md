@@ -5,7 +5,7 @@ capability:
   summary: Project trusted source data into declared presentation views.
   authoring: Declare presentation data in authored Markdown and approved data-only schemas.
   dependsOn: ["[[capabilities/markdown-frontmatter]]"]
-  inputModel: "[[input-model#Trusted presentation projections]]"
+  source: "[[input-model#Trusted presentation projections]]"
 ---
 
 The register presents the owning metadata as the capability reference.

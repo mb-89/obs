@@ -5,7 +5,7 @@ capability:
   summary: Express named numeric values and their canonical sources.
   authoring: Author a quantity note with its supported numeric frontmatter.
   dependsOn: ["[[capabilities/queries]]", "[[capabilities/markdown-frontmatter]]"]
-  inputModel: "[[input-model#Numeric-value notes]]"
+  source: "[[input-model#Numeric-value notes]]"
 ---
 
 ## What it does
