@@ -1,9 +1,11 @@
+import json
 import re
 import subprocess
 from datetime import datetime, timezone
 from pathlib import Path
 
 import pytest
+from jsonschema import ValidationError
 
 from obs_html import timings
 from obs_html.cli import main
@@ -183,3 +185,21 @@ def test_stage_durations_do_not_overlap_and_sum_to_at_most_the_total(tmp_path, c
     assert {"parse", "render", "figures", "write"} <= set(document)
     parts = [*document.values(), call["imports"], call["provenance"]]
     assert sum(parts) <= call["total"] + 0.0005 * (len(parts) + 1)  # three-decimal rounding
+
+
+def test_packaged_baselines_cover_only_registered_stages() -> None:
+    baselines = timings.load_baselines()
+    assert baselines and set(baselines) <= set(timings.STAGES)
+    assert all(seconds > 0 for seconds in baselines.values())
+
+
+@pytest.mark.parametrize(
+    ("stages", "error"),
+    [({"render": -1.0}, ValidationError), ({"render": "fast"}, ValidationError),
+     ({"bogus": 1.0}, ValueError)],
+)
+def test_invalid_baselines_are_rejected(tmp_path, stages, error) -> None:
+    path = tmp_path / "baselines.json"
+    path.write_text(json.dumps({"schemaVersion": 1, "stages": stages}), encoding="utf-8")
+    with pytest.raises(error):
+        timings.load_baselines(path)

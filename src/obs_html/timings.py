@@ -6,10 +6,17 @@ is active. A nested stage pauses its enclosing stage, so durations never overlap
 """
 from __future__ import annotations
 
+import json
 from contextlib import contextmanager
 from contextvars import ContextVar
+from pathlib import Path
 from time import perf_counter
 from typing import Iterator
+
+from jsonschema import validate
+
+BASELINES_PATH = Path(__file__).with_name("timing-baselines.json")
+BASELINES_SCHEMA_PATH = Path(__file__).with_name("timing-baselines.schema.json")
 
 STAGES: dict[str, str] = {
     "parse": "configuration, manifest, notes",
@@ -24,6 +31,17 @@ STAGES: dict[str, str] = {
     "print": "PDF printing",
     "attach": "PDF source attachment",
 }
+
+
+def load_baselines(path: Path = BASELINES_PATH) -> dict[str, float]:
+    """Read per-stage baseline seconds; every named stage must be registered."""
+    value = json.loads(path.read_text(encoding="utf-8"))
+    schema = json.loads(BASELINES_SCHEMA_PATH.read_text(encoding="utf-8"))
+    validate(instance=value, schema=schema)
+    unknown = sorted(set(value["stages"]) - set(STAGES))
+    if unknown:
+        raise ValueError(f"{path}: unregistered build stages: {', '.join(unknown)}")
+    return value["stages"]
 
 
 class Timings:
