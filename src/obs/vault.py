@@ -648,7 +648,11 @@ def _fence_node(token: Token, context: _Context) -> dict[str, object]:
         elif language == "property-editor":
             specification = parse_property_editor(token.content, source_path, place)
         elif language == "cmd":
-            validate_command(token.content)
+            try:
+                validate_command(token.content)
+            except InputError as error:
+                raise input_error(source_path, place, "is empty", "Write the command to run or "
+                                  "remove the fence; see capabilities/command-fences") from error
         elif language == "figure":
             try:
                 figure_descriptor = json.loads(token.content)

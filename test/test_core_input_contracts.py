@@ -470,6 +470,8 @@ def test_a_file_top_level_and_a_fence_place_name_where_the_failure_is() -> None:
         ("```figure\n[1]\n```\n", r"figure fence 1: must hold a JSON object\. Write the descriptor as "
          r"one JSON object; see capabilities/figure-descriptor\.$"),
         ("```base\nviews: []\n```\n```base\nviews: 1\n```\n", r"base fence 2, views: must be a list"),
+        ("```cmd\necho ok\n```\n```cmd\n\n```\n", r"cmd fence 2: is empty\. Write the command to run "
+         r"or remove the fence; see capabilities/command-fences\.$"),
     ],
 )
 def test_an_unreadable_fence_names_the_note_and_the_fence(tmp_path, fence, expected) -> None:
