@@ -241,8 +241,6 @@ def _chapter_notes(chapters: list[dict[str, object]], context: Context, depth: i
     for chapter in chapters:
         context.frontmatter = dict(chapter.get("metadata") or {})
         body = _note_body(chapter["content"], chapter["id"], context)
-        if not any(node["type"] == "section" for node in chapter["content"]):
-            body = f"<h1>{escape(chapter['title'])}</h1>\n" + body
         notes.append(_note(depth, chapter["title"], chapter["id"], "", context.frontmatter, body, context))
         notes.extend(_chapter_notes(chapter["children"], context, depth + 1))
     return notes
@@ -337,7 +335,7 @@ def _node(node: dict[str, object], context: Context) -> str:
     if kind == "text":
         return _text_node(node, context)
     if kind == "code":
-        return f"<code>{escape(node.get('text', ''))}</code>"
+        return _code(node)
     if kind == "paragraph":
         return _paragraph(node, context)
     inner = _nodes(node["children"], context)
@@ -352,6 +350,26 @@ def _node(node: dict[str, object], context: Context) -> str:
     if kind == "list-item":
         return f"<li>{inner}</li>\n"
     return f'<div class="document">{inner}</div>\n'
+
+
+# A separator run inside a code span is a break opportunity only between word characters,
+# so a leading `/root`, trailing `trail.` or bare `--flag` never strand a lone mark.
+CODE_BREAK = re.compile(r"(?<=[^\s/\\._:\-])[/\\._:\-]+(?=[^\s/\\._:\-])")
+
+
+def _code(node: dict[str, object]) -> str:
+    """A fence (it names a language, possibly empty) is a block; any other code is inline."""
+    text = node.get("text", "")
+    language = node["attrs"].get("language")
+    if language is not None:
+        css = f' class="language-{escape(language, quote=True)}"' if language else ""
+        return f"<pre><code{css}>{escape(text)}</code></pre>\n"
+    pieces, position = [], 0
+    for separator in CODE_BREAK.finditer(text):
+        pieces.append(escape(text[position:separator.end()]))
+        position = separator.end()
+    pieces.append(escape(text[position:]))
+    return f"<code>{'<wbr>'.join(pieces)}</code>"
 
 
 def _paragraph(node: dict[str, object], context: Context) -> str:

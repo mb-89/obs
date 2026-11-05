@@ -67,10 +67,10 @@ def test_chapters_become_notes_in_reading_order_with_depth(document) -> None:
     assert depths == {"home": 0, "intro": 0, "guide-usage": 1, "appendix": 0}
 
 
-def test_headings_carry_anchors_and_untitled_chapters_get_their_title(document) -> None:
+def test_headings_carry_anchors_and_untitled_chapters_stay_as_authored(document) -> None:
     notes = _notes(document)
     assert '<h3 id="guide-usage--details">Details</h3>' in notes["guide-usage"]["html"]
-    assert notes["appendix"]["html"].startswith("<h1>Appendix</h1>")
+    assert notes["appendix"]["html"].startswith("<p>")  # As the interim: the reader names it.
 
 
 def test_structural_nodes_render_escaped(document) -> None:
@@ -189,3 +189,16 @@ def test_metadata_markdown_renders_inline_on_the_cover_and_in_the_frontmatter_pa
     panel = notes["intro"]["frontmatterHtml"]
     assert panel["source"] == '<a href="https://example.org/a?b=1&amp;c=2">https://example.org/a?b=1&amp;c=2</a>'
     assert panel["tags"] == "a, b"
+
+
+def test_fenced_code_renders_as_a_block_and_inline_code_breaks_between_words(document) -> None:
+    appendix = next(chapter for chapter in document["chapters"] if chapter["id"] == "appendix")
+    appendix["content"].append({"type": "code", "attrs": {"language": "text"}, "children": [],
+                                "text": "CODE <here>\n"})
+    appendix["content"].append({"type": "code", "attrs": {"language": ""}, "children": [], "text": "plain\n"})
+    appendix["content"].append({"type": "paragraph", "attrs": {}, "children": [
+        {"type": "code", "attrs": {}, "children": [], "text": "src/obs_html/cfg.json --timings"}]})
+    html = _notes(document)["appendix"]["html"]
+    assert '<pre><code class="language-text">CODE &lt;here&gt;\n</code></pre>\n' in html
+    assert "<pre><code>plain\n</code></pre>\n" in html
+    assert "<code>src/<wbr>obs_<wbr>html/<wbr>cfg.<wbr>json --timings</code>" in html
