@@ -69,6 +69,9 @@ concerns.
 
 Core configuration is restricted to source resolution and authorized command limits.
 Report, browser, and style settings remain adapter configuration.
+The core schema set includes base definitions, note profiles, project configuration,
+and the input/execution subset of cross-cutting configuration. Document construction
+validates every recognized fence and applicable frontmatter field with these contracts.
 
 During the transition, `obs-html` retains its existing parsing and rendering code and
 does not import the core package. The duplicated adapter validation remains the
