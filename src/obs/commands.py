@@ -1,11 +1,13 @@
+"""Run an authorized cmd fence and capture its output without the build machine's paths.
+
+spec/capabilities/command-fences.md, section "Captured output", owns the rule.
+"""
 from __future__ import annotations
 
 import os
 import re
 import subprocess
 from pathlib import Path
-
-from obs_html.timings import stage
 
 
 LOCAL_PATH = "<local-path>"
@@ -23,14 +25,13 @@ MINIMAL_ENVIRONMENT = (
     "TMPDIR", "TEMP", "TMP",  # temporary folders
     "LANG", "LC_ALL",  # text encoding
 )
-"""The only environment variables a command inherits; README.md, section "Command fences", owns the list."""
+"""The only environment variables a command inherits; capabilities/command-fences owns the list."""
 
 
 class CommandError(ValueError):
     """Raised when derived command content cannot be produced."""
 
 
-@stage("commands")
 def run_command(command: str, cwd: Path, timeout_seconds: int) -> str:
     if not command.strip():
         raise CommandError("A command fence cannot be empty.")
@@ -53,18 +54,34 @@ def run_command(command: str, cwd: Path, timeout_seconds: int) -> str:
         raise CommandError(
             f"Command exceeded the {timeout_seconds}-second timeout: {command}"
         ) from error
+    output = redact_local_paths(completed.stdout, cwd)
     if completed.returncode != 0:
-        output = completed.stdout.strip()
-        detail = f"\n{output}" if output else ""
+        detail = f"\n{output.strip()}" if output.strip() else ""
         raise CommandError(f"Command exited with code {completed.returncode}: {command}{detail}")
-    return redact_local_paths(completed.stdout, cwd)
+    check_captured(output, cwd)
+    return output
+
+
+def check_captured(text: str, root: Path) -> None:
+    """Fail when captured output still names the command root or the home folder.
+
+    The replacement above makes this hold; a hit is an obs defect, not an authoring error.
+    """
+    flags = re.IGNORECASE if os.name == "nt" else 0
+    home = Path.home()
+    folders = [("command root", root), *([("home folder", home)] if home.parent != home else [])]
+    for label, folder in folders:
+        if any(re.search(re.escape(spelling) + rf"(?!{SEGMENT})", text, flags)
+               for spelling in path_spellings(folder)):
+            raise CommandError(f"its captured output still names the build machine's {label}; "
+                               "this is an obs defect to report")
 
 
 def redact_local_paths(text: str, root: Path) -> str:
     """Replace the build machine's absolute paths in command output.
 
     Paths inside the command root become relative to it, the home folder becomes ``~`` and every
-    other absolute path becomes LOCAL_PATH. README.md, section "Command fences", owns the rule.
+    other absolute path becomes LOCAL_PATH; capabilities/command-fences owns the rule.
     """
     flags = re.IGNORECASE if os.name == "nt" else 0
     end = rf"(?!{SEGMENT})"

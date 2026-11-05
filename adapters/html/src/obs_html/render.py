@@ -15,6 +15,7 @@ from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from html import escape, unescape
 from importlib.metadata import version
+from itertools import groupby
 from importlib.resources import files
 from pathlib import Path, PurePosixPath
 from typing import Callable
@@ -62,7 +63,6 @@ class RenderError(ValueError):
 @dataclass
 class Context:
     document: dict[str, object]
-    command_runner: Callable[[str], str] | None
     assets: SemanticAssets
     chapter: str = ""
     links: dict[str, dict[str, str]] = field(default_factory=dict)
@@ -79,6 +79,9 @@ class Context:
     unknown: dict[str, dict[str, str]] = field(default_factory=dict)
     fields: dict[str, dict[str, str]] = field(default_factory=dict)
     row_keys: dict[str, str] = field(default_factory=dict)
+    phrasing: bool = False
+    """Whether the node being rendered sits where HTML allows only phrasing content (inside a
+    paragraph or a heading), so it may write no block element."""
 
 
 Renderer = Callable[[dict[str, object], Context], str]
@@ -331,12 +334,14 @@ def _mark(node: dict[str, object], _context: Context) -> str:
 
 
 def _command(node: dict[str, object], context: Context) -> str:
+    """The output the core captured; the adapter never runs a command (capabilities/command-fences)."""
     if node["attrs"].get("silent"):
         return ""
-    if context.command_runner is None:
-        raise RenderError("A command fence requires explicit command execution authorization "
-                          "(--execute-commands).")
-    output = context.command_runner(node["attrs"]["source"].strip())
+    output = node["attrs"].get("output")
+    if not isinstance(output, str):
+        raise RenderError(f"Chapter {context.chapter!r}: a command-fences node has no attrs.output, "
+                          "the output the core captures; build the Document with "
+                          "obs-document --execute-commands.")
     return f'<pre class="command-output">{escape(output)}</pre>\n'
 
 
@@ -579,7 +584,6 @@ CAPABILITIES: dict[str, Renderer] = {
 
 @stage("render")
 def render(document: dict[str, object], config: Config,
-           command_runner: Callable[[str], str] | None = None,
            style_folder: Path | None = None,
            trusted_runtime: tuple[str, str] | None = None) -> str:
     if document.get("schemaVersion") != 1:
@@ -591,7 +595,7 @@ def render(document: dict[str, object], config: Config,
     style = load_style(style_folder)
     assets = SemanticAssets(style.asset_index)
     context = Context(
-        document, command_runner, assets,
+        document, assets,
         links={item["id"]: item for item in document["links"]},
         files={item["id"]: item for item in document["assets"]},
         paths={record["path"].removesuffix(".md"): record["id"]
@@ -796,6 +800,15 @@ def _node(node: dict[str, object], context: Context) -> str:
     return (CAPABILITIES.get(kind) or STRUCTURAL_NODES.get(kind) or _unknown)(node, context)
 
 
+def _phrasing(nodes: list[dict[str, object]], context: Context) -> str:
+    """The children of an element that allows only phrasing content (a paragraph, a heading)."""
+    outer, context.phrasing = context.phrasing, True
+    try:
+        return _nodes(nodes, context)
+    finally:
+        context.phrasing = outer
+
+
 def _list(node: dict[str, object], context: Context) -> str:
     tag = "ol" if node["attrs"].get("ordered") else "ul"
     if node["attrs"]["tight"]:
@@ -809,7 +822,7 @@ def _section(node: dict[str, object], context: Context) -> str:
     level = min(max(int(node["attrs"].get("level", 1)), 1), 6)
     anchor = context.headings.get(f"{context.chapter or HOME}#{_identifier(_plain(node))}", "")
     identifier = f' id="{anchor}"' if anchor else ""
-    return f"<h{level}{identifier}>{_nodes(node['children'], context)}</h{level}>\n"
+    return f"<h{level}{identifier}>{_phrasing(node['children'], context)}</h{level}>\n"
 
 
 def _wrap(opening: str, closing: str) -> Renderer:
@@ -840,7 +853,8 @@ MATH_ERRORS = tuple(error for error in vars(math_exceptions).values()
 
 
 def _math(node: dict[str, object], context: Context) -> str:
-    """TeX math as MathML: display math is a block, inline math a span."""
+    """TeX math as MathML: display math on its own is a block; display math inside a paragraph
+    or heading is phrasing content, a span the stylesheet shows as a block; inline math a span."""
     display = bool(node["attrs"].get("display"))
     formula = node.get("text", "")
     try:
@@ -848,7 +862,9 @@ def _math(node: dict[str, object], context: Context) -> str:
     except MATH_ERRORS as error:
         raise RenderError(f"Chapter {context.chapter or HOME}: math formula {formula!r} is not valid TeX "
                           f"({type(error).__name__}). Remedy: correct the formula in its note.") from error
-    return f'<div class="math block">{markup}</div>\n' if display else f'<span class="math inline">{markup}</span>'
+    if not display:
+        return f'<span class="math inline">{markup}</span>'
+    return f'<span class="math block">{markup}</span>' if context.phrasing else f'<div class="math block">{markup}</div>\n'
 
 
 def _field(node: dict[str, object], context: Context) -> str:
@@ -906,8 +922,17 @@ def _tight_item(item: dict[str, object], context: Context) -> str:
     return "".join(parts)
 
 
+BLOCK_IN_PARAGRAPH = frozenset({"registers"})
+"""Node types the core may place inside a paragraph (an embed on its own line) that render as a
+block, which HTML allows in no paragraph."""
+
+
 def _paragraph(node: dict[str, object], context: Context) -> str:
-    inner = _nodes(node["children"], context)
+    """A paragraph; a block node inside it renders between the paragraphs of the text around it."""
+    if any(child["type"] in BLOCK_IN_PARAGRAPH for child in node["children"]):
+        return "".join(_nodes(list(run), context) if block else _paragraph({**node, "children": list(run)}, context)
+                       for block, run in groupby(node["children"], lambda child: child["type"] in BLOCK_IN_PARAGRAPH))
+    inner = _phrasing(node["children"], context)
     marks = [child["attrs"] for child in node["children"] if child["type"] == "marks"]
     if not marks:
         return f"<p>{inner}</p>\n"
