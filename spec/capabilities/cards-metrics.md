@@ -23,7 +23,8 @@ Author data-only cards and query-backed document metrics.
 ## Fields
 
 `input.schema.json` (`$defs.cards`) owns each field's constraints; this list owns what each
-field means. [[input-model#Document home and abstract]] owns how adapters present them.
+field means. [[input-model#Document home and abstract]] owns how adapters present them,
+[[input-model#Chapter content]] which notes a card includes.
 Conditions are [[capabilities/queries#Conditions]]; a query reference names a vault note by
 its path without `.md`.
 

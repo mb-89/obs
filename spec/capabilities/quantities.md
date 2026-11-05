@@ -37,8 +37,9 @@ source: "[[load-calculation]]"
   `[[alias]]`.
 - `source`: a string or a list of strings that links at least one supporting note.
 
-The core validates every quantity note it reads. An invalid one fails the build with a
-message that names the note, the field and the remedy, for example:
+The core validates every quantity note the Document includes
+([[input-model#Chapter content]]); a quantity note nothing reaches is not validated. An
+invalid included one fails the build with a message that names the note, the field and the remedy, for example:
 
 ```text
 Quantity note vault/load.md: value must be a finite number, not '12 kN'; write the bare number and put the unit in unit.
