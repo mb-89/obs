@@ -1,5 +1,7 @@
 from pathlib import Path
 
+from structure.naming import says_document_presentation
+
 ROOT = Path(__file__).parents[2]
 
 
@@ -38,3 +40,7 @@ def test_chapter_sequence_is_stated_once_in_the_manifest_contract() -> None:
                         "Unlisted notes never become TOC children or previous/next chapter stops."):
         assert restatement not in flat, f"input-model.md: point to [[#Manifest contract]] instead of '{restatement}'"
     assert flat.count("[[#Manifest contract|chapter sequence]]") >= 2
+
+
+def test_no_heading_or_link_says_document_presentation() -> None:
+    assert says_document_presentation("spec/design_input/input-model.md") == []

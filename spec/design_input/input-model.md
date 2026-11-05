@@ -248,7 +248,7 @@ records; they never execute artifact-owned algorithms in the converter.
 - Home retains authored abstract order, including History and Metadata
   declarations. Removing or moving a fence removes or moves its view, including on Home;
   no renderer supplies missing tables or sections. Which front pages exist, their order and
-  titles are declared by the document presentation profile below; their paged rendering and
+  titles are declared by the artifact presentation profile below; their paged rendering and
   Contents are owned by [[artifact-ui]].
 
   The abstract is the manifest Markdown following the TOC.
@@ -273,7 +273,7 @@ A manifest or vault can define further profiles. The presentation keys below are
 single, implicit profile. First one-pager pieces (4 Nov 2026): a manifest without a TOC (Home
 alone) and `heading: compact` in the presentation profile below.
 
-### Document presentation profile
+### Artifact presentation profile
 
 Author presentation decisions live in the manifest frontmatter's reserved `obsHtml`
 mapping, the same namespace that notes and Bases fences use for obs-html-only options.
@@ -1028,7 +1028,7 @@ for example `Figure 2.4`; it is a build error unless that figure is numbered.
 A labelled reference keeps its label. Unresolved block references and duplicate block ids in
 one note
 are build errors. Numbering itself is the manifest's `obsHtml.figures` decision
-([Document presentation profile](#document-presentation-profile)).
+([Artifact presentation profile](#artifact-presentation-profile)).
 
 #### Figure captions and references
 
@@ -1246,7 +1246,7 @@ executable expressions. See [[artifact-ui]] for diagram interaction and print be
   Obsidian's `cssclasses` (one class name or a list of them) is the note's styling hook: the
   names are validated CSS class identifiers and are projected onto that note's rendered
   container, as [[artifact-ui]] places it. Styles come only from the CSS snippets the manifest
-  lists (see [Document presentation profile](#document-presentation-profile)); obs-html gives the
+  lists (see [Artifact presentation profile](#artifact-presentation-profile)); obs-html gives the
   classes no meaning of its own.
 
 - Every frontmatter field is available to the shared query language. Nested mapping fields
