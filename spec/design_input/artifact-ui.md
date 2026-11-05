@@ -338,10 +338,9 @@ central stylesheet embedded into the generated HTML.
   From a note outside the TOC, the Home icon always navigates Home; the note's current crumb
   neither invents a TOC path nor intercepts the Home link.
 - No table of contents, filter, toolbar, or navigation bar is open initially.
-- A compact menu button floats at the top-right and remains available while reading.
-- Breadcrumbs occupy that same top band, not a row below reserved menu space. The menu remains
-  out of document flow; only horizontal clearance protects wrapped crumbs from its hit area.
-  This applies at desktop and narrow widths, with no separate menu-height spacer.
+- The top band is one row and holds every top control: Home, the breadcrumbs, the chapter
+  controls, the notice icons and the menu. The notice icons sit directly left of the menu.
+  Every control in the band is a square of one size. No control takes a row of its own.
 - Each table-options icon shows a small, top-right funnel bubble while its interactive
   filter is active, even if it matches every record. Its label/tooltip expose that state.
   The notice center's applied-filter entry is the sole artifact-wide indicator: no
@@ -813,6 +812,9 @@ separate from document presentation.
   layout and page offsets. If Results ends on page 9, the next chapter starts on page 10;
   navigating or repaginating a table must not reset or overlap those page numbers.
   Screen page frames, Contents and PDF use the same final-layout numbering owner.
+- No text appears twice in one view. The title page shows the document type once, under the
+  title; it has no running header that repeats it. A chapter's running header never repeats its
+  own visible heading.
 - History belongs before Contents when supplied. Its manifest ownership and working-version
   convention are defined in [[input-model]], never inferred from Git or generation time.
 - Boxes use a soft semantic fill, matching outline and an optional centered bold heading inside
@@ -1126,7 +1128,7 @@ separate from document presentation.
   The top of the page shows at most three icons, in that order,
   each only while it has entries and with a count pill, however many notices are raised.
   Clicking an icon opens its list; clicking an entry expands its details in place; a
-  second click or Escape closes. The icon row never covers the menu or chapter controls.
+  second click or Escape closes. The icons sit in the [[#Reading shell|top band]].
 
   Changed HTML and the applied filter are information, each limited capability is a
   warning, and errors are reserved for real failures. Notices are transient UI, not printed
