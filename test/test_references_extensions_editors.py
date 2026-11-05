@@ -168,3 +168,27 @@ def test_a_field_has_one_editor_and_home_has_none() -> None:
         render(build("Doc", chapter("one", "One", fence, fence, metadata={"explanation": "x"})), CONFIG)
     with pytest.raises(RenderError, match="Chapter home: property editor needs an existing text field"):
         render(build("Doc", abstract=(fence,)), CONFIG)
+
+
+def test_a_markdown_link_to_a_note_is_an_internal_link_in_prose_and_metadata() -> None:
+    source = build("Doc", chapter("one", "One", paragraph({"type": "text", "attrs": {"link": "cite"},
+                                                          "children": [], "text": "1"})),
+                   chapter("reference", "Reference", metadata={"document": "[Source](reference.md)"}),
+                   records=({"id": "reference", "type": "note", "path": "reference.md", "fields": {}},))
+    source["links"] = [{"id": "cite", "href": "reference.md", "label": "1"},
+                       {"id": "web", "href": "https://example.org/a.md", "label": "web"}]
+    notes = _notes(source)
+    assert '<a class="internal-link" href="#reference">1</a>' in notes["one"]["html"]
+    assert notes["reference"]["frontmatterHtml"]["document"] == \
+        '<a class="internal-link" href="#reference">Source</a>'
+
+
+def test_external_and_unresolved_markdown_links_stay_ordinary_links() -> None:
+    source = build("Doc", chapter("one", "One", paragraph(
+        {"type": "text", "attrs": {"link": "web"}, "children": [], "text": "web"},
+        {"type": "text", "attrs": {"link": "gone"}, "children": [], "text": "gone"})))
+    source["links"] = [{"id": "web", "href": "https://example.org/a.md", "label": "web"},
+                       {"id": "gone", "href": "missing.md", "label": "gone"}]
+    html = _notes(source)["one"]["html"]
+    assert '<a href="https://example.org/a.md">web</a>' in html
+    assert '<a href="missing.md">gone</a>' in html

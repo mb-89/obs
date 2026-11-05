@@ -18,6 +18,7 @@ from importlib.metadata import version
 from importlib.resources import files
 from pathlib import Path, PurePosixPath
 from typing import Callable
+from urllib.parse import unquote
 
 import yaml
 from jsonschema import Draft202012Validator
@@ -565,6 +566,7 @@ def render(document: dict[str, object], config: Config,
                 key = alias.strip().casefold()  # An alias two notes share resolves to neither.
                 context.aliases[key] = record["id"] if key not in context.aliases else None
     _index(document["chapters"], context)
+    _index_headings(HOME, document["manifest"].get("abstract", []), context)
     if HOME in context.chapters:
         raise RenderError(f"Chapter id {HOME!r} is reserved for the document's home page.")
     context.chapters[HOME] = document["manifest"]["title"]  # The core links the manifest as home.
@@ -768,7 +770,7 @@ def _node(node: dict[str, object], context: Context) -> str:
     inner = _nodes(node["children"], context)
     if kind == "section":
         level = min(max(int(node["attrs"].get("level", 1)), 1), 6)
-        anchor = context.headings.get(f"{context.chapter}#{_identifier(_plain(node))}", "")
+        anchor = context.headings.get(f"{context.chapter or HOME}#{_identifier(_plain(node))}", "")
         identifier = f' id="{anchor}"' if anchor else ""
         return f"<h{level}{identifier}>{inner}</h{level}>\n"
     if kind == "list":
@@ -867,6 +869,9 @@ def _text_node(node: dict[str, object], context: Context) -> str:
         link = context.links.get(attrs["link"])
         if link is None:
             raise RenderError(f"Text links to an unknown link: {attrs['link']}.")
+        chapter = _note_target(link["href"], context)
+        if chapter is not None:
+            return f'<a class="internal-link" href="#{chapter}">{text}</a>'
         return f'<a href="{escape(link["href"], quote=True)}">{text}</a>'
     if "asset" in attrs:
         asset = context.files.get(attrs["asset"])
@@ -874,6 +879,19 @@ def _text_node(node: dict[str, object], context: Context) -> str:
             raise RenderError(f"Text names an unknown asset: {attrs['asset']}.")
         return f'<img src="{escape(asset["href"], quote=True)}" alt="{escape(node.get("text", ""), quote=True)}">'
     return text
+
+
+def _note_target(href: str, context: Context) -> str | None:
+    """The chapter a Markdown link to a vault note (``[1](reference.md)``) shows, such as a
+    citation of a reference note (obs input-model, Reference notes and link text), or None for
+    an external or unresolved target, which stays an ordinary link."""
+    if re.match(r"[A-Za-z][A-Za-z0-9+.-]*:|#", href):
+        return None
+    path = unquote(href.split("#", 1)[0])
+    if not path.endswith(".md"):
+        return None
+    chapter = context.paths.get(path.removeprefix("./").removesuffix(".md"))
+    return chapter if chapter in context.chapters else None
 
 
 def _shell(model: dict[str, object], stylesheet: str, assets: SemanticAssets, config: Config,
@@ -1093,14 +1111,20 @@ def _index(chapters: list[dict[str, object]], context: Context) -> None:
     """Record every chapter and heading anchor before rendering, so links can point forward."""
     for chapter in chapters:
         context.chapters[chapter["id"]] = chapter["title"]
-        seen: set[str] = set()
-        for node in chapter["content"]:
-            if node["type"] == "section":
-                slug = _identifier(_plain(node))
-                if slug not in seen:
-                    seen.add(slug)
-                    context.headings[f"{chapter['id']}#{slug}"] = f"{chapter['id']}--{slug}"
+        _index_headings(chapter["id"], chapter["content"], context)
         _index(chapter["children"], context)
+
+
+def _index_headings(chapter: str, nodes: list[dict[str, object]], context: Context) -> None:
+    """A heading's anchor is ``<chapter>--<slug>``; the home page's second-level headings also
+    name its front-page groups (pages.js, the abstract's ``@<slug>`` sections)."""
+    seen: set[str] = set()
+    for node in nodes:
+        if node["type"] == "section":
+            slug = _identifier(_plain(node))
+            if slug not in seen:
+                seen.add(slug)
+                context.headings[f"{chapter}#{slug}"] = f"{chapter}--{slug}"
 
 
 CSS_CLASS = re.compile(r"-?[_A-Za-z][_A-Za-z0-9-]*")
@@ -1130,7 +1154,18 @@ def _inline(value: object, context: Context | None = None) -> str:
     if re.fullmatch(r"https?://[^\s<>]+", source, re.IGNORECASE):
         source = f"<{source}>"
     html = INLINE.renderInline(source)
-    return WIKILINK.sub(lambda match: _frontmatter_link(match, context), html) if context else html
+    if context is None:
+        return html
+    html = NOTE_HREF.sub(lambda match: _note_href(match, context), html)
+    return WIKILINK.sub(lambda match: _frontmatter_link(match, context), html)
+
+
+NOTE_HREF = re.compile(r'<a href="([^"]*)">')
+
+
+def _note_href(match: re.Match[str], context: Context) -> str:
+    chapter = _note_target(unescape(match[1]), context)
+    return f'<a class="internal-link" href="#{chapter}">' if chapter is not None else match[0]
 
 
 WIKILINK = re.compile(r"\[\[([^\[\]|#]*)(?:#([^\[\]|]*))?(?:\|([^\[\]]*))?\]\]")
