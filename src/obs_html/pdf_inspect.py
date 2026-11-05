@@ -16,6 +16,7 @@ corner of the page, x to the right and y down; a raster pixel at --scale S is S 
 Examples:
   obs-html-inspect render document.pdf --page 1 --output page-1.png
   obs-html-inspect crop document.pdf --page 1 --box 72,72,300,200 --output title.png
+  obs-html-inspect text document.pdf --page 2
 """
 
 
@@ -69,6 +70,12 @@ def crop_page(pdf: Path, number: int, box: Box, scale: float, output: Path) -> t
     return image.size
 
 
+def page_text(pdf: Path, number: int) -> str:
+    """The text of page NUMBER in the order pdfium reads it, with \\n line breaks."""
+    text = _open_page(pdf, number).get_textpage().get_text_range()
+    return "\n".join(text.replace("\r\n", "\n").replace("\r", "\n").splitlines()) + "\n"
+
+
 def _number_list(values: Sequence[float]) -> str:
     return ",".join(f"{value:g}" for value in values)
 
@@ -92,7 +99,21 @@ def _parser() -> argparse.ArgumentParser:
     crop.add_argument("--box", required=True, metavar="X0,Y0,X1,Y1", help="Region in points.")
     crop.add_argument("--scale", type=float, default=2.0, help="Pixels per PDF point (default 2).")
     crop.add_argument("--output", type=Path, required=True, metavar="IMAGE", help="Raster written.")
+    text = commands.add_parser("text", help="Extract the text of a page.")
+    text.add_argument("pdf", type=Path, metavar="PDF", help="PDF to read.")
+    text.add_argument("--page", type=int, required=True, help="Page number, from 1.")
+    text.add_argument("--output", type=Path, metavar="TEXT",
+                      help="UTF-8 text file written; without it the text goes to stdout.")
     return parser
+
+
+def _deliver_text(content: str, output: Path | None, what: str) -> None:
+    """Print CONTENT, or write it to the named OUTPUT file and say so."""
+    if output is None:
+        sys.stdout.write(content)
+        return
+    output.write_text(content, encoding="utf-8")
+    print(f"Wrote {output} ({what}).")
 
 
 def main(argv: Sequence[str] | None = None) -> None:
@@ -107,6 +128,9 @@ def main(argv: Sequence[str] | None = None) -> None:
             width, height = crop_page(arguments.pdf, arguments.page, box, arguments.scale, arguments.output)
             print(f"Wrote {arguments.output} ({width}x{height} px, page {arguments.page}, "
                   f"box {_number_list(box)} pt, scale {arguments.scale:g}).")
+        elif arguments.command == "text":
+            _deliver_text(page_text(arguments.pdf, arguments.page), arguments.output,
+                          f"page {arguments.page} text")
     except InspectError as error:
         print(f"{PROG} {arguments.command}: {error}", file=sys.stderr)
         raise SystemExit(2) from None
