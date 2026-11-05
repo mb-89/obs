@@ -2,7 +2,7 @@ import json
 import re
 from pathlib import Path
 
-from jsonschema import validate
+from jsonschema import ValidationError, validate
 import pytest
 
 from obs.capabilities import build_capability_reference
@@ -166,6 +166,62 @@ def test_a_vault_whose_only_special_syntax_is_a_callout_uses_callouts_not_extens
     assert "callouts" in document["capabilities"]
     assert "extensions" not in document["capabilities"]
     assert "extensions" not in node_types(document)
+
+
+def test_a_callout_body_arrives_as_parsed_nodes_like_chapter_content(tmp_path) -> None:
+    vault = tmp_path / "vault"
+    vault.mkdir()
+    (vault / "manifest.md").write_text("- [[chapter]]\n", encoding="utf-8")
+    (vault / "target.md").write_text("# Target\n", encoding="utf-8")
+    (vault / "chapter.md").write_text(
+        "> [!warning] Check the limits\n"
+        "> Read *carefully*, see [[target|Target]] and [site](https://example.test).\n"
+        ">\n> - item `one`\n>\n"
+        "> > [!note] Inner\n> > Nested body.\n",
+        encoding="utf-8",
+    )
+
+    document = build_document(vault / "manifest.md", capability_reference())
+
+    validate(document, json.loads((ROOT / "src" / "obs" / "document.schema.json").read_text(
+        encoding="utf-8",
+    )))
+    [callout] = [node for node in document["chapters"][0]["content"] if node["type"] == "callouts"]
+    assert callout["attrs"] == {"kind": "warning", "title": "Check the limits"}
+    paragraph, listing, nested = callout["children"]
+    assert paragraph == {"type": "paragraph", "attrs": {}, "children": [
+        {"type": "text", "attrs": {}, "children": [], "text": "Read "},
+        {"type": "text", "attrs": {}, "children": [], "text": "carefully"},
+        {"type": "text", "attrs": {}, "children": [], "text": ", see "},
+        {"type": "wikilinks", "attrs": {
+            "target": "target", "chapter": "target", "heading": "", "label": "Target",
+        }, "children": []},
+        {"type": "text", "attrs": {}, "children": [], "text": " and "},
+        {"type": "text", "attrs": {"link": "site"}, "children": [], "text": "site"},
+        {"type": "text", "attrs": {}, "children": [], "text": "."},
+    ]}
+    assert listing["type"] == "list"
+    assert listing["children"][0]["children"][0]["children"][1] == {
+        "type": "code", "attrs": {}, "children": [], "text": "one",
+    }
+    assert nested == {"type": "callouts", "attrs": {"kind": "note", "title": "Inner"}, "children": [
+        {"type": "paragraph", "attrs": {}, "children": [
+            {"type": "text", "attrs": {}, "children": [], "text": "Nested body."},
+        ]},
+    ]}
+    assert {"callouts", "wikilinks"} <= set(document["capabilities"])
+    assert {"id": "site", "href": "https://example.test", "label": "site"} in document["links"]
+
+
+def test_a_callout_document_node_has_only_kind_and_title_attrs() -> None:
+    schema = json.loads((ROOT / "src" / "obs" / "document.schema.json").read_text(encoding="utf-8"))
+    node_schema = {"$defs": schema["$defs"], "$ref": "#/$defs/node"}
+    node = {"type": "callouts", "attrs": {"kind": "warning", "title": ""}, "children": []}
+    validate(node, node_schema)
+    with pytest.raises(ValidationError):
+        validate({**node, "attrs": {"kind": "warning"}}, node_schema)
+    with pytest.raises(ValidationError):
+        validate({**node, "attrs": {**node["attrs"], "body": "x"}}, node_schema)
 
 
 def test_core_marks_silent_command_fences_as_non_rendering_producers(tmp_path) -> None:
