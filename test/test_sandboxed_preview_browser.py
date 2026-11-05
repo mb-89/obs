@@ -1,4 +1,6 @@
 import html
+import os
+import re
 from pathlib import Path
 
 import pytest
@@ -8,29 +10,52 @@ from obs_html.config import load_config
 from obs_html.render import render
 
 
+def keep_screenshot(page, name: str) -> None:
+    """Save a screenshot to $OBS_HTML_SCREENSHOTS, when set, for a field report to show."""
+    folder = os.environ.get("OBS_HTML_SCREENSHOTS")
+    if folder:
+        page.screenshot(path=str(Path(folder) / f"{name}.png"))
+
+
+def preview_report() -> str:
+    return render(document(
+        "Preview",
+        chapter("one", "One", heading(1, "One"), paragraph("First chapter text.")),
+        chapter("two", "Two", heading(1, "Two"), paragraph("Second chapter text.")),
+    ), load_config())
+
+
+def open_page(reader_browser, path: Path, errors: list[str]):
+    page = reader_browser.new_page(viewport={"width": 1200, "height": 800})
+    page.on("pageerror", lambda error: errors.append(str(error)))
+    page.on("console", lambda message: errors.append(message.text) if message.type == "error" else None)
+    page.goto(path.as_uri())
+    return page
+
+
+def open_sandboxed(tmp_path: Path, reader_browser, errors: list[str]):
+    """Claude's preview: the HTML as srcdoc of a frame sandboxed to scripts only."""
+    from playwright.sync_api import expect
+
+    wrapper = tmp_path / "preview.html"
+    wrapper.write_text(
+        '<!doctype html><iframe id="report" sandbox="allow-scripts" style="width:1100px;height:700px" '
+        f'srcdoc="{html.escape(preview_report(), quote=True)}"></iframe>',
+        encoding="utf-8",
+    )
+    page = open_page(reader_browser, wrapper, errors)
+    frame = page.frame_locator("#report")
+    expect(frame.locator("html")).to_have_attribute("data-report-status", "ready")
+    return page, frame
+
+
 @pytest.mark.browser
 def test_report_runs_as_srcdoc_of_a_scripts_only_sandbox(tmp_path: Path, reader_browser) -> None:
     """Claude's preview shows HTML as srcdoc of a sandboxed frame that cannot change its URL."""
     from playwright.sync_api import expect
 
-    report = render(document(
-        "Preview",
-        chapter("one", "One", heading(1, "One"), paragraph("First chapter text.")),
-        chapter("two", "Two", heading(1, "Two"), paragraph("Second chapter text.")),
-    ), load_config())
-    wrapper = tmp_path / "preview.html"
-    wrapper.write_text(
-        '<!doctype html><iframe id="report" sandbox="allow-scripts" '
-        f'srcdoc="{html.escape(report, quote=True)}"></iframe>',
-        encoding="utf-8",
-    )
-    page = reader_browser.new_page()
     errors: list[str] = []
-    page.on("pageerror", lambda error: errors.append(str(error)))
-    page.on("console", lambda message: errors.append(message.text) if message.type == "error" else None)
-    page.goto(wrapper.as_uri())
-    frame = page.frame_locator("#report")
-    expect(frame.locator("html")).to_have_attribute("data-report-status", "ready")
+    _page, frame = open_sandboxed(tmp_path, reader_browser, errors)
     chapter_element = frame.locator("[data-active-chapter]")
     expect(chapter_element).to_have_attribute("data-chapter", "home")
 
@@ -41,4 +66,30 @@ def test_report_runs_as_srcdoc_of_a_scripts_only_sandbox(tmp_path: Path, reader_
     expect(chapter_element).to_have_attribute("data-chapter", "two")
     frame.locator('[data-step="-1"]').first.click()
     expect(chapter_element).to_have_attribute("data-chapter", "one")
+    assert errors == []
+
+
+
+@pytest.mark.browser
+def test_canaries_find_what_a_scripts_only_sandbox_limits(tmp_path: Path, reader_browser) -> None:
+    errors: list[str] = []
+    _page, frame = open_sandboxed(tmp_path, reader_browser, errors)
+    limits = frame.locator("html").evaluate("() => globalThis.obsCapabilities.limits")
+    assert [entry["key"] for entry in limits] == [
+        "history", "storage", "printing", "dialogs", "downloads", "clipboard", "popups"]
+    assert all(entry["reason"] and entry["remedy"] for entry in limits)
+    assert {entry["key"] for entry in limits if entry["refused"]} == {"history", "storage", "clipboard"}
+    assert errors == []
+
+
+@pytest.mark.browser
+def test_canaries_find_nothing_limited_in_a_normally_opened_report(tmp_path: Path, reader_browser) -> None:
+    from playwright.sync_api import expect
+
+    path = tmp_path / "report.html"
+    path.write_text(preview_report(), encoding="utf-8")
+    errors: list[str] = []
+    page = open_page(reader_browser, path, errors)
+    expect(page.locator("html")).to_have_attribute("data-report-status", "ready")
+    assert page.evaluate("globalThis.obsCapabilities.limits.length") == 0
     assert errors == []
