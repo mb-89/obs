@@ -89,6 +89,9 @@ definitions alike. Keeping the same fact in two places is an anti-pattern (user,
 - An input many tests read, such as obs's spec Document, a fixture artifact or the parity
   builds, is built once per run by `built_once` in the part's `conftest.py` and shared by every
   worker; the tests only read it.
+- Browser checks are batched: a sweep evaluates a whole layout in one page evaluation, a test
+  reaches into a frame through its `Frame`, and a step waits for an event the artifact gives,
+  never for a fixed time.
 - The suite passes on Windows and Linux alike. Tests build paths with the platform's path
   API, run real producer commands through the test interpreter rather than shell builtins,
   and compare exact bytes the test itself wrote. A test that genuinely needs one platform
