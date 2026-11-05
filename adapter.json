@@ -16,6 +16,7 @@
     "count-query",
     "document-presentation",
     "embeds",
+    "extensions",
     "figure-descriptor",
     "manifest",
     "markdown",
@@ -25,6 +26,7 @@
     "profiles",
     "quantities",
     "queries",
+    "references",
     "wikilinks"
   ]
 }

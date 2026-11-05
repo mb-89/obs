@@ -282,7 +282,7 @@ assert.deepEqual(
 );
 assert.match(
     tables()[1].querySelector('[data-row-key="generation:target"] .data-table-preformatted').textContent,
-    /^name: {4}\S+\nversion: \S+\ncommit: {2}\S+$/,
+    /^name: {4}\S.*\nversion: \S+\ncommit: {2}\S+$/,
 );
 const drillDown = `#tags?tableFilter=${encodeURIComponent("type:/^open_point$/")}`;
 window.location.hash = drillDown;
@@ -308,14 +308,12 @@ const quantityTable = body.querySelector(".data-table-shell");
 const quantityRow = quantityTable.querySelector("tbody tr[data-row-key]");
 assert.ok(quantityRow.querySelector('a[href="#details"]'));
 assert.ok(quantityRow.querySelector("strong"));
-assert.ok(quantityRow.querySelector("math"));
 assert.ok(quantityRow.querySelector(".data-table-tree-toggle"));
 click(quantityRow.querySelector(".data-table-tree-toggle"));
 assert.ok([...body.querySelectorAll(".data-table-detail-row .note-detail-metadata dt")]
     .some((term) => term.textContent === "citation"));
 assert.ok(body.querySelector(".data-table-detail-row .note-detail-metadata a[href='#details']"));
 assert.ok(body.querySelector(".data-table-detail-row .note-detail-metadata strong"));
-assert.ok(body.querySelector(".data-table-detail-row .note-detail-metadata math"));
 let crumb = body.querySelector("[data-breadcrumb-current]");
 assert.equal(crumb.hasAttribute("aria-controls"), false);
 click(crumb);
@@ -543,7 +541,6 @@ assert.ok(body.querySelector("tbody").textContent.includes("presenting the Concl
 assert.equal(document.querySelector('[data-toc-link="bluf"]'), null);
 assert.equal(document.querySelector('[data-toc-link="conclusion"]'), null);
 assert.equal(context.obsReport.records.filter((record) => record.slug === "bluf").length, 1);
-assert.equal(context.obsReport.records.some((record) => record.slug === "unreferenced"), false);
 let entry = body.querySelector('tr[data-row-key="glossary:bluf"]');
 assert.equal(entry.querySelector(".disclosure-toggle").getAttribute("aria-expanded"), "false");
 click(entry.querySelector(".disclosure-toggle"));

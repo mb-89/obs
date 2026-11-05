@@ -593,6 +593,13 @@
           "children": []
         },
         {
+          "type": "extensions",
+          "attrs": {
+            "syntax": "callout"
+          },
+          "children": []
+        },
+        {
           "type": "callouts",
           "attrs": {
             "kind": "warning",
@@ -760,6 +767,58 @@
           "children": []
         }
       ]
+    },
+    {
+      "id": "datum",
+      "title": "Datum",
+      "content": [
+        {
+          "type": "markdown-frontmatter",
+          "attrs": {
+            "metadata": {
+              "kind": "glossary",
+              "term": "Datum",
+              "definition": "A **reference** point, see [[intro]].",
+              "status": "approved"
+            }
+          },
+          "children": []
+        },
+        {
+          "type": "references",
+          "attrs": {
+            "metadata": {
+              "kind": "glossary",
+              "term": "Datum",
+              "definition": "A **reference** point, see [[intro]].",
+              "status": "approved"
+            }
+          },
+          "children": []
+        },
+        {
+          "type": "section",
+          "attrs": {
+            "level": 1
+          },
+          "children": [
+            {
+              "type": "text",
+              "attrs": {},
+              "children": [],
+              "text": "Datum"
+            }
+          ]
+        }
+      ],
+      "children": [],
+      "metadata": {
+        "kind": "glossary",
+        "term": "Datum",
+        "definition": "A **reference** point, see [[intro]].",
+        "status": "approved"
+      },
+      "toc": false
     }
   ],
   "links": [
@@ -846,6 +905,17 @@
           "distinct": "rank"
         }
       }
+    },
+    {
+      "id": "datum",
+      "type": "note",
+      "path": "datum.md",
+      "fields": {
+        "kind": "glossary",
+        "term": "Datum",
+        "definition": "A **reference** point, see [[intro]].",
+        "status": "approved"
+      }
     }
   ],
   "semanticResources": [],
@@ -865,6 +935,7 @@
     "count-query",
     "document-presentation",
     "embeds",
+    "extensions",
     "figure-descriptor",
     "manifest",
     "markdown",
@@ -874,6 +945,7 @@
     "profiles",
     "quantities",
     "queries",
+    "references",
     "wikilinks"
   ]
 }
