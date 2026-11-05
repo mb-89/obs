@@ -635,7 +635,9 @@ def _blocks(
                 })
                 item = item_end + 1
             result.append({
-                "type": "list", "attrs": {"ordered": token.type == "ordered_list_open"},
+                "type": "list", "attrs": {
+                    "ordered": token.type == "ordered_list_open", "tight": _tight(tokens, position, closing),
+                },
                 "children": items,
             })
             position = closing + 1
@@ -667,6 +669,18 @@ def _blocks(
         else:
             position += 1
     return result
+
+
+def _tight(tokens: list[Token], position: int, closing: int) -> bool:
+    """Whether the list tokens[position:closing] was authored tight; see capabilities/markdown.
+
+    markdown-it records a tight list only by hiding its items' own paragraphs.
+    """
+    level = tokens[position].level + 2
+    return not any(
+        token.type == "paragraph_open" and token.level == level and not token.hidden
+        for token in tokens[position + 1:closing]
+    )
 
 
 def _table_rows(tokens: list[Token], context: _Context) -> list[dict[str, object]]:
