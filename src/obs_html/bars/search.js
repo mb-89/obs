@@ -49,7 +49,7 @@
             status.textContent = "Type to search.";
             return;
         }
-        hits = globalThis.obsReport.searchHits().filter((hit) => query.match(hit.target));
+        hits = globalThis.obsArtifact.searchHits().filter((hit) => query.match(hit.target));
         status.textContent = `${hits.length} result${hits.length === 1 ? "" : "s"}`
             + (hits.length > renderLimit ? `; first ${renderLimit} listed.` : ".");
         hits.slice(0, renderLimit).forEach((hit, index) => {
@@ -75,18 +75,18 @@
         const link = results.querySelector(`[data-search-hit="${index}"]`);
         link?.setAttribute("aria-current", "true");
         link?.scrollIntoView({block: "nearest"});
-        return globalThis.obsReport.activateSearchResult(hit.slug, activeQuery, hit);
+        return globalThis.obsArtifact.activateSearchResult(hit.slug, activeQuery, hit);
     };
 
     const bar = input.closest("[data-bar]");
-    const isOpen = () => globalThis.obsReport.isBarOpen("search");
+    const isOpen = () => globalThis.obsArtifact.isBarOpen("search");
     const openSearch = () => {
-        globalThis.obsReport.openBar("search");
+        globalThis.obsArtifact.openBar("search");
         input.focus();
         input.select();
     };
     const closeSearch = () => {
-        globalThis.obsReport.closeBar("search");
+        globalThis.obsArtifact.closeBar("search");
         if (!bar?.contains(document.activeElement)) return;
         document.querySelector(".chapter-scroll")?.focus({preventScroll: true});
     };
@@ -125,6 +125,6 @@
         reveal(Number(link.dataset.searchHit));
     });
     input.addEventListener("input", search);
-    document.addEventListener("obs-report-filter", () => { if (!activeQuery.empty) search(); });
+    document.addEventListener("obs-artifact-filter", () => { if (!activeQuery.empty) search(); });
     globalThis.obsSearch = {reveal, step, get hits() { return hits; }, get current() { return current; }};
 })();

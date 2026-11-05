@@ -1,4 +1,4 @@
-# Generated reports
+# Generated artifacts
 /data/data_output/*
 !/data/data_output/.gitkeep
 /spec/design_output/*

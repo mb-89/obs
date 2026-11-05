@@ -4,7 +4,7 @@ from pathlib import Path
 import pytest
 
 from obs_html.content import parse_manifest
-from obs_html.renderer import render_report
+from obs_html.renderer import render_artifact
 
 
 @pytest.mark.skipif(not os.environ.get("OBS_HTML_TEST_NATIVE_BROWSER"),
@@ -26,8 +26,8 @@ def test_mark_prefixed_heading_and_real_mark_share_one_fragment_namespace(tmp_pa
     )
     manifest = tmp_path / "manifest.md"
     manifest.write_text("- [[links]]\n- [[owner]]\n", encoding="utf-8")
-    report = tmp_path / "report.html"
-    report.write_text(render_report(manifest, parse_manifest(manifest)), encoding="utf-8")
+    artifact = tmp_path / "artifact.html"
+    artifact.write_text(render_artifact(manifest, parse_manifest(manifest)), encoding="utf-8")
     targets = {
         "heading": ("#owner/mark-tags", "owner--mark-tags"),
         "mark": ("#owner/mark-owner-risk-datum", "mark-owner-risk-datum"),
@@ -40,7 +40,7 @@ def test_mark_prefixed_heading_and_real_mark_share_one_fragment_namespace(tmp_pa
         page.on("pageerror", lambda error: errors.append(str(error)))
         try:
             for name, (href, element_id) in targets.items():
-                page.goto(report.as_uri() + "#links")
+                page.goto(artifact.as_uri() + "#links")
                 link = page.locator(f'[data-chapter-body] a[href="{href}"]')
                 assert link.inner_text() == name
                 link.click()

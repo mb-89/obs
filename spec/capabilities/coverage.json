@@ -6,7 +6,7 @@
     "Profiles": "input",
     "Document presentation profile": "adapter",
     "Registers": "input",
-    "Report behavior": "adapter",
+    "Artifact behavior": "adapter",
     "Optional reproduction archive": "adapter",
     "Cover metadata and history": "adapter",
     "Chapter content": "input",

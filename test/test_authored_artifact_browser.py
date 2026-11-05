@@ -1,15 +1,15 @@
-"""Native acceptance boundary for an actual freshly built report, not a synthetic vault."""
+"""Native acceptance boundary for an actual freshly built artifact, not a synthetic vault."""
 import os
 from pathlib import Path
 
 import pytest
 
 
-def test_authored_report_all_chapters_modes_and_pdf(tmp_path):
+def test_authored_artifact_all_chapters_modes_and_pdf(tmp_path):
     executable = os.environ.get("OBS_HTML_TEST_NATIVE_BROWSER")
-    authored = os.environ.get("OBS_HTML_TEST_AUTHORED_REPORT")
+    authored = os.environ.get("OBS_HTML_TEST_AUTHORED_ARTIFACT")
     if not executable or not authored:
-        pytest.skip("Set OBS_HTML_TEST_NATIVE_BROWSER and OBS_HTML_TEST_AUTHORED_REPORT.")
+        pytest.skip("Set OBS_HTML_TEST_NATIVE_BROWSER and OBS_HTML_TEST_AUTHORED_ARTIFACT.")
     from playwright.sync_api import sync_playwright
     from pypdf import PdfReader
 
@@ -21,7 +21,7 @@ def test_authored_report_all_chapters_modes_and_pdf(tmp_path):
         page.on("console", lambda message: errors.append(message.text)
                 if message.type == "error" and "Page layout failed" in message.text else None)
         page.goto(Path(authored).resolve().as_uri())
-        slugs = page.evaluate("JSON.parse(document.querySelector('[data-report-data]').textContent).toc")
+        slugs = page.evaluate("JSON.parse(document.querySelector('[data-artifact-data]').textContent).toc")
         assert slugs
         for width, height in [(1440, 900), (1920, 1440), (2560, 2160), (390, 844)]:
             page.set_viewport_size({"width": width, "height": height})
@@ -29,7 +29,7 @@ def test_authored_report_all_chapters_modes_and_pdf(tmp_path):
                 for paged in [False, True]:
                     page.evaluate("""({slug,paged}) => {
                         obsPages.setPaged(paged);
-                        obsReport.activateChapter(slug);
+                        obsArtifact.activateChapter(slug);
                     }""", {"slug": slug, "paged": paged})
                     assert "Page layout failed" not in page.locator("[data-export-status]").inner_text(), (
                         width, height, slug, paged)
@@ -57,7 +57,7 @@ def test_authored_report_all_chapters_modes_and_pdf(tmp_path):
             areas.every(area => area.scrollHeight <= area.clientHeight + 1 &&
                 area.closest('.paper-sheet').scrollWidth <=
                     area.closest('.paper-sheet').clientWidth + 1)""")
-        output = tmp_path / "authored-report.pdf"
+        output = tmp_path / "authored-artifact.pdf"
         page.pdf(path=str(output), prefer_css_page_size=True, print_background=True)
         assert PdfReader(output).pages
         assert errors == []

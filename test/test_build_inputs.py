@@ -7,7 +7,7 @@ import pytest
 
 import obs_html.content as content
 from obs_html.cli import main
-from obs_html.report_data import decode_report_data
+from obs_html.artifact_data import decode_artifact_data
 
 
 def test_cli_reads_and_decodes_each_note_once_per_build(tmp_path, monkeypatch):
@@ -46,11 +46,11 @@ def test_cli_reads_and_decodes_each_note_once_per_build(tmp_path, monkeypatch):
 
     monkeypatch.setattr(Path, "read_text", read)
     monkeypatch.setattr(content, "_split_frontmatter", split)
-    output = tmp_path / "report.html"
+    output = tmp_path / "artifact.html"
     assert main(["--source", str(manifest), "--output", str(output)]) == 0
     assert reads == Counter({"manifest.md": 1, "one.md": 1, "target.md": 1})
     assert splits["manifest.md"] == splits["one.md"] == splits["target.md"] == 1
-    data = decode_report_data(output.read_text(encoding="utf-8"))
+    data = decode_artifact_data(output.read_text(encoding="utf-8"))
     rendered = next(note["html"] for note in data["notes"] if note["slug"] == "one")
     assert rendered.count('href="#target/details"') == 8
     assert 'href="#target/mark-target-risk-watch"' in rendered
@@ -63,7 +63,7 @@ def test_cli_reads_and_decodes_each_note_once_per_build(tmp_path, monkeypatch):
         main(["--source", str(manifest), "--output", str(output)])
     assert reads["target.md"] == 2
     assert output.is_file()
-    assert decode_report_data(output.read_text(encoding="utf-8")) == data
+    assert decode_artifact_data(output.read_text(encoding="utf-8")) == data
 
 
 def test_queries_reuse_context_free_parses_without_validating_unselected_notes(tmp_path, monkeypatch):
@@ -92,11 +92,11 @@ def test_queries_reuse_context_free_parses_without_validating_unselected_notes(t
         return original_parse(markdown, source, *args, **kwargs)
 
     monkeypatch.setattr(MarkdownIt, "parse", parse)
-    output = tmp_path / "report.html"
+    output = tmp_path / "artifact.html"
     assert main(["--source", str(manifest), "--output", str(output)]) == 0
     assert parses[target_body] == 2  # Context-free extraction, then note-local resolution.
     assert parses[unused_body] == 1
-    data = decode_report_data(output.read_text(encoding="utf-8"))
+    data = decode_artifact_data(output.read_text(encoding="utf-8"))
     assert {note["slug"] for note in data["notes"]} == {"home", "register", "target"}
     target = next(note for note in data["notes"] if note["slug"] == "target")
     assert target["marks"][0]["label"] == "watch"
@@ -114,9 +114,9 @@ def test_identical_note_text_keeps_note_local_link_context(tmp_path):
         (vault / folder / "target.md").write_text("# Details\n", encoding="utf-8")
     manifest = vault / "manifest.md"
     manifest.write_text("- [[a/one]]\n- [[b/one]]\n", encoding="utf-8")
-    output = tmp_path / "report.html"
+    output = tmp_path / "artifact.html"
     assert main(["--source", str(manifest), "--output", str(output)]) == 0
-    notes = {note["slug"]: note for note in decode_report_data(
+    notes = {note["slug"]: note for note in decode_artifact_data(
         output.read_text(encoding="utf-8"),
     )["notes"]}
     assert 'href="#a-target/details"' in notes["a-one"]["html"]
@@ -176,10 +176,10 @@ def test_cli_reuses_asset_bytes_only_within_one_build(tmp_path, monkeypatch):
         assert len(set(keys)) == 2
         return {key: data["embeddedAssets"][key] for key in keys}
 
-    output = tmp_path / "report.html"
+    output = tmp_path / "artifact.html"
     assert main(["--source", str(vault), "--output", str(output), "--embed-attachments"]) == 0
     assert reads == Counter({"icon.svg": 1, "example.bin": 1})
-    first = decode_report_data(output.read_text(encoding="utf-8"))
+    first = decode_artifact_data(output.read_text(encoding="utf-8"))
     first_assets = authored_assets(first)
     assert set(first_assets.values()) == {
         "data:image/svg+xml;base64,PHN2Zz5maXJzdDwvc3ZnPg==",
@@ -190,7 +190,7 @@ def test_cli_reuses_asset_bytes_only_within_one_build(tmp_path, monkeypatch):
     attachment.write_bytes(b"next attachment")
     assert main(["--source", str(vault), "--output", str(output), "--embed-attachments"]) == 0
     assert reads == Counter({"icon.svg": 2, "example.bin": 2})
-    second = decode_report_data(output.read_text(encoding="utf-8"))
+    second = decode_artifact_data(output.read_text(encoding="utf-8"))
     second_assets = authored_assets(second)
     assert set(second_assets.values()) == {
         "data:image/svg+xml;base64,PHN2Zz5uZXh0PC9zdmc+",

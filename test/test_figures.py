@@ -185,8 +185,8 @@ def test_sankey_placed_sink_accepts_same_stage_and_shared_sources(tmp_path, plac
 
 def test_sankey_source_note_is_included_as_an_exact_canonical_dependency(tmp_path):
     from obs_html.content import ContentError, parse_manifest
-    from obs_html.renderer import render_report
-    from obs_html.report_data import REPORT_PATTERN, decode_report_data
+    from obs_html.renderer import render_artifact
+    from obs_html.artifact_data import ARTIFACT_PATTERN, decode_artifact_data
 
     graph = {
         "version": 1,
@@ -210,21 +210,21 @@ def test_sankey_source_note_is_included_as_an_exact_canonical_dependency(tmp_pat
         "---\n" + json.dumps({"kind": "reference-graph", "graph": graph}) + "\n---\n",
         encoding="utf-8",
     )
-    report = render_report(manifest, parse_manifest(manifest))
-    data = decode_report_data(REPORT_PATTERN.search(report)[0])
+    artifact = render_artifact(manifest, parse_manifest(manifest))
+    data = decode_artifact_data(ARTIFACT_PATTERN.search(artifact)[0])
     source = next(note for note in data["notes"] if note["sourcePath"] == "graph-source.md")
     assert source["frontmatter"]["graph"] == graph
     assert source["slug"] not in data["toc"]
 
     (tmp_path / "graph-source.md").unlink()
     with pytest.raises(ContentError, match="Dynamic Sankey source note does not resolve"):
-        render_report(manifest, parse_manifest(manifest))
+        render_artifact(manifest, parse_manifest(manifest))
 
 
 def test_manifest_canonical_notes_include_unlinked_runtime_records(tmp_path):
     from obs_html.content import ContentError, parse_manifest
-    from obs_html.renderer import render_report
-    from obs_html.report_data import REPORT_PATTERN, decode_report_data
+    from obs_html.renderer import render_artifact
+    from obs_html.artifact_data import ARTIFACT_PATTERN, decode_artifact_data
 
     manifest = tmp_path / "manifest.md"
     manifest.write_text(
@@ -235,28 +235,28 @@ def test_manifest_canonical_notes_include_unlinked_runtime_records(tmp_path):
     (tmp_path / "configuration.md").write_text(
         '---\n{"kind":"reference-configuration","schemaVersion":1}\n---\n'
     )
-    report = render_report(manifest, parse_manifest(manifest))
-    data = decode_report_data(REPORT_PATTERN.search(report)[0])
+    artifact = render_artifact(manifest, parse_manifest(manifest))
+    data = decode_artifact_data(ARTIFACT_PATTERN.search(artifact)[0])
     assert any(note["sourcePath"] == "configuration.md" for note in data["notes"])
     assert all(note["slug"] not in data["toc"] for note in data["notes"]
                if note["sourcePath"] == "configuration.md")
 
     manifest.write_text('---\ncanonicalNotes: ["missing"]\n---\n- [[chapter]]\n', encoding="utf-8")
     with pytest.raises(ContentError, match="Canonical note dependency does not resolve"):
-        render_report(manifest, parse_manifest(manifest))
+        render_artifact(manifest, parse_manifest(manifest))
 
 
 @pytest.mark.parametrize("canonical_notes", ['"configuration"', '["../outside"]', '["configuration", "configuration"]'])
 def test_manifest_canonical_notes_reject_invalid_dependencies(tmp_path, canonical_notes):
     from obs_html.content import ContentError, parse_manifest
-    from obs_html.renderer import render_report
+    from obs_html.renderer import render_artifact
 
     manifest = tmp_path / "manifest.md"
     manifest.write_text(f"---\ncanonicalNotes: {canonical_notes}\n---\n- [[chapter]]\n", encoding="utf-8")
     (tmp_path / "chapter.md").write_text("# Results\n")
     (tmp_path / "configuration.md").write_text("---\nkind: reference-configuration\n---\n")
     with pytest.raises(ContentError, match="Canonical note dependency|canonicalNotes"):
-        render_report(manifest, parse_manifest(manifest))
+        render_artifact(manifest, parse_manifest(manifest))
 
 
 @pytest.mark.parametrize("graph", [
@@ -353,23 +353,23 @@ def test_sampler_rejects_invalid_parameter_bindings(parameters):
         compile_plot(spec(), parameters)
 
 
-def test_renderer_has_no_figure_cost_for_plain_reports(tmp_path):
+def test_renderer_has_no_figure_cost_for_plain_artifacts(tmp_path):
     from obs_html.content import parse_manifest
-    from obs_html.renderer import render_report
+    from obs_html.renderer import render_artifact
     manifest = tmp_path / "manifest.md"
     manifest.write_text("- [[chapter]]\n")
     (tmp_path / "chapter.md").write_text("# Plain chapter\n\nNo figures.")
-    result = render_report(manifest, parse_manifest(manifest))
+    result = render_artifact(manifest, parse_manifest(manifest))
     assert 'id="plotly-script"' not in result
     assert 'id="figure-script"' not in result
 
 
 def test_plotly_cdn_is_pinned_integrity_checked_without_duplicate_fallback(tmp_path):
     from obs_html.content import parse_manifest
-    from obs_html.renderer import render_report
+    from obs_html.renderer import render_artifact
     from obs_html.config import load_config
     from importlib.resources import files
-    from obs_html.report_data import decode_report_data
+    from obs_html.artifact_data import decode_artifact_data
     manifest = tmp_path / "manifest.md"
     manifest.write_text("- [[chapter]]\n")
     (tmp_path / "default.svg").write_text('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"/>')
@@ -380,9 +380,9 @@ def test_plotly_cdn_is_pinned_integrity_checked_without_duplicate_fallback(tmp_p
         "equations: {a: x}\ntraces: [{y: a, label: A}]\n```\n"
     )
     override = tmp_path / "cfg.json"
-    override.write_text('{"schemaVersion":1,"report":{"figures":{"plotlyDelivery":"cdn"}}}')
+    override.write_text('{"schemaVersion":1,"artifact":{"figures":{"plotlyDelivery":"cdn"}}}')
     config = load_config(files("obs_html").joinpath("cfg.json"), override)
-    result = render_report(manifest, parse_manifest(manifest), figures=config.figures)
+    result = render_artifact(manifest, parse_manifest(manifest), figures=config.figures)
     assert 'src="https://cdn.plot.ly/plotly-basic-2.35.3.min.js"' in result
     assert 'integrity="sha384-' in result
     assert 'crossorigin="anonymous"' in result
@@ -393,7 +393,7 @@ def test_plotly_cdn_is_pinned_integrity_checked_without_duplicate_fallback(tmp_p
     assert plotly_scripts == [""]
     assert files("obs_html").joinpath("vendor", "plotly-basic.min.js").read_text(
         encoding="utf-8") not in result
-    model = decode_report_data(result)
+    model = decode_artifact_data(result)
     chapter = next(note for note in model["notes"] if note["slug"] == "chapter")
     assert 'data-figure-kind="plot"' in chapter["html"]
     assert "<img" not in chapter["html"]

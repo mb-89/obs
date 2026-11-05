@@ -31,7 +31,7 @@ obsHtml:
     - [[capability-reference|Capability reference]]
 - [[design_input/architecture|Architecture]]
   - [[design_input/quality|Quality]]
-  - [[design_input/report-ui|Report UI]]
+  - [[design_input/artifact-ui|Artifact UI]]
     - [[design_input/generic-tables|Generic tables]]
   - [[design_input/configuration|Configuration]]
   - [[design_input/cli|CLI]]

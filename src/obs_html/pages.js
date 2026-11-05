@@ -1,6 +1,6 @@
 (() => {
-    const report = globalThis.obsReport;
-    const data = JSON.parse(document.querySelector("[data-report-data]").textContent);
+    const artifact = globalThis.obsArtifact;
+    const data = JSON.parse(document.querySelector("[data-artifact-data]").textContent);
     const reader = document.querySelector("[data-chapter-scroll]");
     const chapter = document.querySelector("[data-active-chapter]");
     const body = chapter.querySelector("[data-chapter-body]");
@@ -41,14 +41,14 @@
     const printStyle = document.createElement("style");
     printStyle.textContent = `
         @page { size: ${paper.widthMillimeters}mm ${paper.heightMillimeters}mm; margin: 0; }
-        @page report-portrait { size: ${paper.widthMillimeters}mm ${paper.heightMillimeters}mm; margin: 0; }
-        @page report-landscape { size: ${paper.heightMillimeters}mm ${paper.widthMillimeters}mm; margin: 0; }
+        @page artifact-portrait { size: ${paper.widthMillimeters}mm ${paper.heightMillimeters}mm; margin: 0; }
+        @page artifact-landscape { size: ${paper.heightMillimeters}mm ${paper.widthMillimeters}mm; margin: 0; }
     `;
     document.head.append(printStyle);
 
     const sourceFor = (slug) => {
         const source = document.createElement("div");
-        report.renderStatic(slug, source, true,
+        artifact.renderStatic(slug, source, true,
             chapter.dataset.chapter === slug ? chapter.dataset.tableFilter || "" : "");
         return source;
     };
@@ -108,7 +108,7 @@
                 if (declaration.title) contents.append(pageHeading(declaration.title));
                 const list = document.createElement("ol");
                 list.className = "page-contents";
-                report.navigationChapters().forEach((record) => {
+                artifact.navigationChapters().forEach((record) => {
                     const item = document.createElement("li");
                     item.style.setProperty("--chapter-depth", record.depth);
                     const link = document.createElement("a");
@@ -792,7 +792,7 @@
     };
     const measureProvisionally = (slug) => {
         if (measuredStarts.size || provisionalCounts.has(slug) || slug === "home" ||
-                !report.exportChapters().some(record => record.slug === slug)) return;
+                !artifact.exportChapters().some(record => record.slug === slug)) return;
         printed.classList.add("measuring-pages");
         try {
             layout(printed, [{slug, source: sourceFor(slug)}], false, false, true, provisionalAllocations);
@@ -810,8 +810,8 @@
             const counts = new Map();
             const allocations = new Map();
             try {
-                const entries = groups(report.exportChapters(), null, false);
-                const chapters = report.exportChapters();
+                const entries = groups(artifact.exportChapters(), null, false);
+                const chapters = artifact.exportChapters();
                 for (const entry of [...entries, ...chapters.map(record => ({slug: record.slug}))]) {
                     await globalThis.obsStartup.yield();
                     if (printing || epoch !== measurementEpoch) return;
@@ -895,7 +895,7 @@
             }
             const slug = chapter.dataset.chapter;
             screenSlug = slug;
-            const selected = report.exportChapters();
+            const selected = artifact.exportChapters();
             if (!measuredStarts.size) {
                 if (globalThis.obsStartup) scheduleMeasurements();
                 else {
@@ -963,7 +963,7 @@
     const preparePrint = () => {
         printing = true;
         root.classList.add("preparing-print");
-        layout(printed, groups(report.exportChapters()), true);
+        layout(printed, groups(artifact.exportChapters()), true);
     };
     const finishPrint = () => {
         printing = false;
@@ -1022,12 +1022,12 @@
         if (exportPending) return exportPending;
         exportPending = (async () => {
             await globalThis.obsHtmlReady;
-            await report.whenChapterReady?.();
+            await artifact.whenChapterReady?.();
             document.dispatchEvent(new CustomEvent("obs-print-start"));
             printing = true;
             root.classList.add("preparing-print");
             try {
-                const entries = groups(report.exportChapters());
+                const entries = groups(artifact.exportChapters());
                 printed.replaceChildren(...entries.map(({source}) => source));
                 await waitForPrintAssets(printed);
                 layout(printed, entries, true);
@@ -1059,7 +1059,7 @@
         screen.replaceChildren();
     });
     document.addEventListener("obs-chapter-content-ready", () => renderScreen());
-    document.addEventListener("obs-report-filter", () => {
+    document.addEventListener("obs-artifact-filter", () => {
         invalidateMeasurements();
         renderScreen();
     });

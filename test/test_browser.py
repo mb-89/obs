@@ -10,7 +10,7 @@ import pytest
 
 from obs_html.content import ContentError, validate_base_definition
 from obs_html.content import parse_manifest
-from obs_html.renderer import render_report
+from obs_html.renderer import render_artifact
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -44,8 +44,8 @@ def test_open_point_references_reveal_rows_and_canonical_backlinks(tmp_path: Pat
     )
     manifest = tmp_path / "manifest.md"
     manifest.write_text("- [[owner]]\n- [[review]]\n- [[register]]\n", encoding="utf-8")
-    report = tmp_path / "report.html"
-    report.write_text(render_report(manifest, parse_manifest(manifest), table_page_size=1),
+    artifact = tmp_path / "artifact.html"
+    artifact.write_text(render_artifact(manifest, parse_manifest(manifest), table_page_size=1),
                       encoding="utf-8")
     with sync_playwright() as playwright:
         browser = playwright.chromium.launch(executable_path=os.environ["OBS_HTML_TEST_NATIVE_BROWSER"])
@@ -53,7 +53,7 @@ def test_open_point_references_reveal_rows_and_canonical_backlinks(tmp_path: Pat
         errors = []
         page.on("pageerror", lambda error: errors.append(str(error)))
         try:
-            page.goto(report.as_uri() + "#review")
+            page.goto(artifact.as_uri() + "#review")
             link = page.locator('[data-chapter-body] td a[data-tag-label="datum_a_continuity"]')
             expect(link).to_have_text("#mark/open_point/datum_a_continuity")
             page.evaluate("""() => document.addEventListener("obs-chapter-change", (event) => {
@@ -99,7 +99,7 @@ def test_tag_navigation_uses_bases_filter_grammar(tmp_path: Path) -> None:
     manifest = tmp_path / "manifest.md"
     manifest.write_text("- [[owner]]\n- [[decoy]]\n- [[register]]\n", encoding="utf-8")
     document = tmp_path / "document.html"
-    document.write_text(render_report(manifest, parse_manifest(manifest)), encoding="utf-8")
+    document.write_text(render_artifact(manifest, parse_manifest(manifest)), encoding="utf-8")
     with sync_playwright() as playwright:
         browser = playwright.chromium.launch(executable_path=os.environ["OBS_HTML_TEST_NATIVE_BROWSER"])
         page = browser.new_page(viewport={"width": 1920, "height": 1080})
@@ -116,7 +116,7 @@ def test_tag_navigation_uses_bases_filter_grammar(tmp_path: Path) -> None:
 
 
 @pytest.fixture(scope="module")
-def native_reader_report(tmp_path_factory):
+def native_reader_artifact(tmp_path_factory):
     executable = os.environ.get("OBS_HTML_TEST_NATIVE_BROWSER")
     if not executable:
         pytest.skip("Set OBS_HTML_TEST_NATIVE_BROWSER for native reader checks.")
@@ -143,23 +143,23 @@ def native_reader_report(tmp_path_factory):
         ), encoding="utf-8",
     )
     (vault / "beta.md").write_text("# Beta\n\nLast chapter.\n", encoding="utf-8")
-    report = vault / "report.html"
-    report.write_text(render_report(manifest, parse_manifest(manifest)), encoding="utf-8")
+    artifact = vault / "artifact.html"
+    artifact.write_text(render_artifact(manifest, parse_manifest(manifest)), encoding="utf-8")
     with sync_playwright() as playwright:
         browser = playwright.chromium.launch(executable_path=executable)
         try:
-            yield browser, report
+            yield browser, artifact
         finally:
             browser.close()
 
 
 @pytest.fixture
-def native_reader_page(native_reader_report):
-    browser, report = native_reader_report
+def native_reader_page(native_reader_artifact):
+    browser, artifact = native_reader_artifact
     page = browser.new_page(viewport={"width": 1920, "height": 900})
     errors = []
     page.on("pageerror", lambda error: errors.append(str(error)))
-    page.goto(report.as_uri() + "#alpha")
+    page.goto(artifact.as_uri() + "#alpha")
     try:
         yield page
     finally:
@@ -167,10 +167,10 @@ def native_reader_page(native_reader_report):
     assert errors == []
 
 
-def test_native_comment_export_uses_isolated_browser_clipboard(native_reader_report) -> None:
+def test_native_comment_export_uses_isolated_browser_clipboard(native_reader_artifact) -> None:
     from playwright.sync_api import expect
 
-    browser, report = native_reader_report
+    browser, artifact = native_reader_artifact
     context = browser.new_context(permissions=["clipboard-write"])
     context.add_init_script("""{
         const write = navigator.clipboard.writeText.bind(navigator.clipboard);
@@ -180,7 +180,7 @@ def test_native_comment_export_uses_isolated_browser_clipboard(native_reader_rep
             window.fixtureClipboardWrites.push(text);
         };
     }""")
-    documents = {"report.html": report.read_text(encoding="utf-8")}
+    documents = {"artifact.html": artifact.read_text(encoding="utf-8")}
     context.route(
         "http://localhost/**",
         lambda route: route.fulfill(
@@ -193,9 +193,9 @@ def test_native_comment_export_uses_isolated_browser_clipboard(native_reader_rep
     errors = []
     page.on("pageerror", lambda error: errors.append(str(error)))
     try:
-        page.goto("http://localhost/report.html#alpha")
+        page.goto("http://localhost/artifact.html#alpha")
         page.evaluate("""() => {
-            obsReport.openBar('comments');
+            obsArtifact.openBar('comments');
             // Review mode prepends a gutter of icon buttons; match the paragraph's own text.
             const paragraph = [...document.querySelectorAll('[data-chapter-body] p')]
                 .find(node => node.lastChild?.nodeValue === 'Opening text.');
@@ -277,9 +277,9 @@ def test_native_comment_export_uses_isolated_browser_clipboard(native_reader_rep
         expect(page.locator("[data-comment-announcer]")).to_have_text("HTML saved.")
         expect(page.locator("[data-review-save-guidance]")).to_have_attribute("data-dirty", "false")
         documents["reviewed.html"] = page.evaluate("window.fixtureSavedHtml")
-        reviewed = report.with_name("reviewed.html")
+        reviewed = artifact.with_name("reviewed.html")
         reviewed.write_text(documents["reviewed.html"], encoding="utf-8")
-        report.with_name("comments.md").write_text(copied[0], encoding="utf-8")
+        artifact.with_name("comments.md").write_text(copied[0], encoding="utf-8")
         reopened = context.new_page()
         reopened.on("pageerror", lambda error: errors.append(str(error)))
         reopened.goto("http://localhost/reviewed.html#alpha")
@@ -308,7 +308,7 @@ def test_native_comment_export_uses_isolated_browser_clipboard(native_reader_rep
         }""")
         assert narrow["scrollWidth"] <= narrow["width"]
         assert all(right <= narrow["right"] + 1 for right in narrow["buttons"])
-        report.with_name("native-comment-proof.json").write_text(
+        artifact.with_name("native-comment-proof.json").write_text(
             json.dumps({
                 "clipboard_writes": len(copied), "clipboard_reads": 0,
                 "native_page": page.evaluate("fixtureExpectedPage"),
@@ -326,7 +326,7 @@ def test_native_comment_export_preserves_multiblock_selection(native_reader_page
 
     page = native_reader_page
     target = page.evaluate("""() => {
-        obsReport.openBar('comments');
+        obsArtifact.openBar('comments');
         const paragraphs = [...document.querySelectorAll('[data-chapter-body] p')];
         const first = paragraphs.find(node => node.lastChild?.nodeValue === 'Opening text.');
         const last = paragraphs.find(node => node.lastChild?.nodeValue === 'More detail.');
@@ -360,7 +360,7 @@ def test_native_comment_export_omits_hidden_target_page(native_reader_page) -> N
 
     page = native_reader_page
     page.evaluate("""() => {
-        obsReport.openBar('comments');
+        obsArtifact.openBar('comments');
         const paragraph = [...document.querySelectorAll('[data-chapter-body] p')]
             .find(node => node.lastChild?.nodeValue === 'Opening text.');
         const range = document.createRange();
@@ -387,13 +387,13 @@ def test_native_comment_export_omits_hidden_target_page(native_reader_page) -> N
     assert "Hidden target feedback." in copied
 
 
-def test_native_comment_controls_compact_layout(native_reader_report) -> None:
-    browser, report = native_reader_report
+def test_native_comment_controls_compact_layout(native_reader_artifact) -> None:
+    browser, artifact = native_reader_artifact
     page = browser.new_page()
     measurements = []
     try:
-        page.goto(report.as_uri() + "#alpha")
-        page.evaluate("obsReport.openBar('comments')")
+        page.goto(artifact.as_uri() + "#alpha")
+        page.evaluate("obsArtifact.openBar('comments')")
         for width in (1280, 390):
             page.set_viewport_size({"width": width, "height": 900})
             result = page.evaluate("""() => {
@@ -422,8 +422,8 @@ def test_native_comment_controls_compact_layout(native_reader_report) -> None:
             else:
                 assert result["copy"]["y"] >= result["left"]["bottom"]
             measurements.append({"viewport_width": width, **result})
-            page.screenshot(path=str(report.with_name(f"comment-controls-{width}.png")))
-        report.with_name("compact-controls-proof.json").write_text(
+            page.screenshot(path=str(artifact.with_name(f"comment-controls-{width}.png")))
+        artifact.with_name("compact-controls-proof.json").write_text(
             json.dumps(measurements, indent=2), encoding="utf-8",
         )
     finally:
@@ -457,9 +457,9 @@ def test_native_table_vertical_viewport(tmp_path: Path) -> None:
         )
     (tmp_path / "manifest.md").write_text("- [[overview]]\n", encoding="utf-8")
     manifest = tmp_path / "manifest.md"
-    report = tmp_path / "report.html"
-    report.write_text(
-        render_report(manifest, parse_manifest(manifest)),
+    artifact = tmp_path / "artifact.html"
+    artifact.write_text(
+        render_artifact(manifest, parse_manifest(manifest)),
         encoding="utf-8",
     )
 
@@ -469,7 +469,7 @@ def test_native_table_vertical_viewport(tmp_path: Path) -> None:
         errors = []
         page.on("pageerror", lambda error: errors.append(str(error)))
         try:
-            page.goto(report.as_uri() + "#overview")
+            page.goto(artifact.as_uri() + "#overview")
             shell = page.locator(".data-table-shell").first
             scroller = shell.locator(".data-table-scroll")
             assert scroller.get_attribute("data-max-rows") == "3"
@@ -587,7 +587,7 @@ def test_native_table_vertical_viewport(tmp_path: Path) -> None:
             assert page.locator(".paged-reader .data-table-scroll[data-max-rows='3']").count() == 1
             static = page.evaluate("""() => {
                 const root = document.createElement('div');
-                obsReport.renderStatic('overview', root, true);
+                obsArtifact.renderStatic('overview', root, true);
                 return {
                     rows: root.querySelectorAll('table tbody tr[data-row-key]').length,
                     scrollers: root.querySelectorAll('.data-table-scroll').length,
@@ -602,7 +602,7 @@ def test_native_table_vertical_viewport(tmp_path: Path) -> None:
 
 @pytest.mark.skipif(not os.environ.get("OBS_HTML_TEST_NATIVE_BROWSER"),
                     reason="Set OBS_HTML_TEST_NATIVE_BROWSER for native title checks.")
-def test_native_explicit_empty_title_preserves_cover_and_pdf(tmp_path: Path, native_reader_report) -> None:
+def test_native_explicit_empty_title_preserves_cover_and_pdf(tmp_path: Path, native_reader_artifact) -> None:
     from io import BytesIO
     from pypdf import PdfReader
     from playwright.sync_api import expect
@@ -611,15 +611,15 @@ def test_native_explicit_empty_title_preserves_cover_and_pdf(tmp_path: Path, nat
     manifest = tmp_path / "My document.md"
     manifest.write_text(
         "---\ntitle: ''\nsubtitle: '[Source → Target](chapter.md)'\n"
-        "organization: Example\ndocument type: Report\nauthors: [Ada]\n---\n"
+        "organization: Example\ndocument type: Artifact\nauthors: [Ada]\n---\n"
         "- [[chapter]]\n\nOpening evidence.\n",
         encoding="utf-8",
     )
-    report = tmp_path / "report.html"
-    report.write_text(render_report(manifest, parse_manifest(manifest)), encoding="utf-8")
-    page = native_reader_report[0].new_page(viewport={"width": 1440, "height": 900})
+    artifact = tmp_path / "artifact.html"
+    artifact.write_text(render_artifact(manifest, parse_manifest(manifest)), encoding="utf-8")
+    page = native_reader_artifact[0].new_page(viewport={"width": 1440, "height": 900})
     try:
-        page.goto(report.as_uri())
+        page.goto(artifact.as_uri())
         expect(page.locator("html")).to_have_attribute("data-theme", "light")
         expect(page.locator("html")).to_have_class("paged-mode")
         expect(page).to_have_title("My document")
@@ -627,7 +627,7 @@ def test_native_explicit_empty_title_preserves_cover_and_pdf(tmp_path: Path, nat
         expect(cover.locator(".document-title")).to_have_count(0)
         expect(cover.locator(".document-subtitle a")).to_have_text("Source → Target")
         expect(cover.locator(".cover-organization")).to_have_text("Example")
-        expect(cover.locator(".cover-type")).to_have_text("Report")
+        expect(cover.locator(".cover-type")).to_have_text("Artifact")
         expect(cover.locator(".cover-facts")).to_contain_text("Ada")
         assert cover.bounding_box()["height"] >= 297 * 96 / 25.4 - 1
         page.evaluate("window.print = () => {}; obsPages.exportPDF()")
@@ -635,7 +635,7 @@ def test_native_explicit_empty_title_preserves_cover_and_pdf(tmp_path: Path, nat
         pdf = PdfReader(BytesIO(page.pdf(prefer_css_page_size=True)))
         first_page = pdf.pages[0].extract_text()
         assert "Source" in first_page and "Target" in first_page
-        assert "Example" in first_page and "Ada" in first_page and "Report" in first_page
+        assert "Example" in first_page and "Ada" in first_page and "Artifact" in first_page
         assert "My document" not in first_page
     finally:
         page.close()
@@ -643,7 +643,7 @@ def test_native_explicit_empty_title_preserves_cover_and_pdf(tmp_path: Path, nat
 
 def test_reader_mobile_pages_fit_reader_without_changing_print_paper(native_reader_page) -> None:
     page = native_reader_page
-    page.evaluate("obsReport.activateChapter('home')")
+    page.evaluate("obsArtifact.activateChapter('home')")
     page.set_viewport_size({"width": 390, "height": 844})
     page.wait_for_timeout(100)
     dimensions = page.locator(".chapter-scroll").evaluate("""reader => ({
@@ -672,7 +672,7 @@ def test_reader_title_sheet_keeps_full_paper_size(native_reader_page) -> None:
     from pypdf import PdfReader
 
     page = native_reader_page
-    page.evaluate("obsReport.activateChapter('home')")
+    page.evaluate("obsArtifact.activateChapter('home')")
     cover = page.locator('.paged-reader .paper-sheet[data-page-chapter="home"]')
     assert cover.count() == 1
     bounds = cover.bounding_box()
@@ -681,10 +681,10 @@ def test_reader_title_sheet_keeps_full_paper_size(native_reader_page) -> None:
     page.evaluate("obsPages.setPaged(false); obsPages.setPaged(true)")
     assert cover.bounding_box()["height"] == pytest.approx(bounds["height"], abs=1)
 
-    page.evaluate("obsReport.activateChapter('beta')")
+    page.evaluate("obsArtifact.activateChapter('beta')")
     assert page.locator(".paged-reader .paper-sheet").bounding_box()["height"] < bounds["height"]
 
-    page.evaluate("obsReport.activateChapter('home')")
+    page.evaluate("obsArtifact.activateChapter('home')")
     page.evaluate("window.print = () => {}; obsPages.exportPDF()")
     try:
         pdf = PdfReader(BytesIO(page.pdf(prefer_css_page_size=True, print_background=True)))
@@ -696,7 +696,7 @@ def test_reader_title_sheet_keeps_full_paper_size(native_reader_page) -> None:
 
 @pytest.mark.parametrize("follower", ["paragraph", "list", "figure", "captioned-figure", "table"])
 @pytest.mark.parametrize("chain", [False, True])
-def test_native_heading_keeps_content(tmp_path, native_reader_report, follower, chain):
+def test_native_heading_keeps_content(tmp_path, native_reader_artifact, follower, chain):
     """Real layout must look through section wrappers, not just clip a preview."""
     manifest = tmp_path / "manifest.md"
     manifest.write_text("- [[sample]]\n", encoding="utf-8")
@@ -720,15 +720,15 @@ def test_native_heading_keeps_content(tmp_path, native_reader_report, follower, 
         "# Sample\n\n**Spacer**\n\n## Topic\n\n" +
         ("### Nested\n\n" if chain else "") + following + "\n", encoding="utf-8",
     )
-    output = tmp_path / "report.html"
-    output.write_text(render_report(manifest, parse_manifest(manifest)), encoding="utf-8")
-    page = native_reader_report[0].new_page()
+    output = tmp_path / "artifact.html"
+    output.write_text(render_artifact(manifest, parse_manifest(manifest)), encoding="utf-8")
+    page = native_reader_artifact[0].new_page()
     try:
         page.goto(output.as_uri() + "#sample")
         page.evaluate("obsPages.setPaged(false)")
         page.add_style_tag(content=".chapter-body p:has(>strong:only-child) {height:700px; margin:0}")
         page.evaluate("obsPages.setPaged(true)")
-        selector = {"paragraph": "p", "list": "ul", "figure": "figure[data-report-figure]:has(img)",
+        selector = {"paragraph": "p", "list": "ul", "figure": "figure[data-artifact-figure]:has(img)",
                     "captioned-figure": "figure", "table": "table"}[follower]
         for projection in (".paged-reader", ".print-book"):
             if projection == ".print-book":
@@ -761,7 +761,7 @@ def test_native_heading_keeps_content(tmp_path, native_reader_report, follower, 
         page.close()
 
 
-def test_wide_reader_tables_fit_fixed_print_area(tmp_path, native_reader_report):
+def test_wide_reader_tables_fit_fixed_print_area(tmp_path, native_reader_artifact):
     manifest = tmp_path / "manifest.md"
     manifest.write_text("- [[wide]]\n", encoding="utf-8")
     columns = ["Description", "Assumptions", "Evidence", "Qualification", "Open"]
@@ -772,9 +772,9 @@ def test_wide_reader_tables_fit_fixed_print_area(tmp_path, native_reader_report)
         for index in range(28)
     )
     (tmp_path / "wide.md").write_text("# Wide table\n\n" + table, encoding="utf-8")
-    output = tmp_path / "report.html"
-    output.write_text(render_report(manifest, parse_manifest(manifest)), encoding="utf-8")
-    page = native_reader_report[0].new_page(viewport={"width": 1920, "height": 1440})
+    output = tmp_path / "artifact.html"
+    output.write_text(render_artifact(manifest, parse_manifest(manifest)), encoding="utf-8")
+    page = native_reader_artifact[0].new_page(viewport={"width": 1920, "height": 1440})
     try:
         page.goto(output.as_uri() + "#wide")
         page.evaluate("window.print = () => {}; obsPages.exportPDF()")
@@ -814,21 +814,21 @@ def test_native_compact_heading_spacing(native_reader_page):
 
 
 @pytest.mark.parametrize("space,lines", [(1, 8), (3, 4), (4, 5), (5, 8), (40, 95)])
-def test_native_paragraph_widows_and_orphans(tmp_path, native_reader_report, space, lines):
+def test_native_paragraph_widows_and_orphans(tmp_path, native_reader_artifact, space, lines):
     manifest = tmp_path / "manifest.md"
     manifest.write_text("- [[sample]]\n", encoding="utf-8")
     prose = "  \n".join(f"Line {index:03} with *inline emphasis*." for index in range(lines))
     (tmp_path / "sample.md").write_text(
         "# Sample\n\n**Spacer**\n\n" + prose + "\n\nFinal marker.\n", encoding="utf-8",
     )
-    output = tmp_path / "report.html"
-    output.write_text(render_report(manifest, parse_manifest(manifest)), encoding="utf-8")
-    page = native_reader_report[0].new_page()
+    output = tmp_path / "artifact.html"
+    output.write_text(render_artifact(manifest, parse_manifest(manifest)), encoding="utf-8")
+    page = native_reader_artifact[0].new_page()
     try:
         page.goto(output.as_uri() + "#sample")
         # Reserve an exact number of text lines after the fixture's preceding block.
         height = page.locator(".paged-reader").evaluate("""(body, space) => {
-            const paper = JSON.parse(document.querySelector('[data-report-data]').textContent).paper;
+            const paper = JSON.parse(document.querySelector('[data-artifact-data]').textContent).paper;
             const title = body.querySelector('h1');
             const paragraph = [...body.querySelectorAll('p')].find(p => p.textContent.startsWith('Line'));
             const style = getComputedStyle(paragraph);
@@ -917,7 +917,7 @@ def test_reader_edge_scroll_cues(native_reader_page) -> None:
         editor.dispatchEvent(new WheelEvent('wheel', {bubbles: true, deltaY: 100}));
     }""")
     assert following.get_attribute("data-scroll-boundary") is None
-    page.evaluate("obsReport.activateChapter('beta')")
+    page.evaluate("obsArtifact.activateChapter('beta')")
     assert previous.get_attribute("data-scroll-boundary") is None
     reader.dispatch_event("wheel", {"deltaY": 100})
     assert following.get_attribute("data-scroll-boundary") is None
@@ -928,8 +928,8 @@ def test_reader_nested_heading_toc(native_reader_page) -> None:
     page.goto(page.url.split("#")[0] + "#beta")
     page.reload()
     assert page.locator('[data-toc-toggle][aria-expanded="true"]').count() == 0
-    page.evaluate("obsReport.activateChapter('alpha')")
-    page.evaluate("obsReport.openBar('toc')")
+    page.evaluate("obsArtifact.activateChapter('alpha')")
+    page.evaluate("obsArtifact.openBar('toc')")
     toc = page.locator("[data-toc-tree]")
     assert toc.locator('[data-toc-toggle][aria-expanded="true"]').count() == 0
     alpha = toc.locator('a[href="#alpha"]').locator("..")
@@ -997,7 +997,7 @@ def test_reader_boundary_attention_ping(native_reader_page) -> None:
     reader.evaluate("(node) => {node.scrollTop = node.scrollHeight;}")
     reader.dispatch_event("wheel", {"deltaY": 100})
     assert page.locator('[data-step="1"] .attention-ping').count() == 1
-    page.evaluate("obsReport.activateChapter('beta')")
+    page.evaluate("obsArtifact.activateChapter('beta')")
     assert page.locator(".attention-ping").count() == 0
     page.emulate_media(reduced_motion="reduce")
     reader.evaluate("(node) => {node.scrollTop = 0;}")
@@ -1010,7 +1010,7 @@ def test_reader_boundary_attention_ping(native_reader_page) -> None:
 
 def test_reader_review_gutter_tracks_paper_edge(native_reader_page) -> None:
     page = native_reader_page
-    page.evaluate("obsReport.openBar('comments')")
+    page.evaluate("obsArtifact.openBar('comments')")
     for width in (1920, 1280, 2400):
         page.set_viewport_size({"width": width, "height": 900})
         page.wait_for_function("""() => {
@@ -1026,7 +1026,7 @@ def test_reader_review_gutter_tracks_paper_edge(native_reader_page) -> None:
             const bounds = gutter.getBoundingClientRect();
             return bounds.left >= 0 && bounds.right <= paper.left;
         }""")
-    page.evaluate("obsReport.openBar('toc', 'left')")
+    page.evaluate("obsArtifact.openBar('toc', 'left')")
     page.wait_for_function("""() => {
         const gutter = document.querySelector('.paper-content p .review-gutter');
         const gap = gutter.closest('.paper-sheet').getBoundingClientRect().left -
@@ -1037,7 +1037,7 @@ def test_reader_review_gutter_tracks_paper_edge(native_reader_page) -> None:
 
 def test_reader_review_controls_cover_continuation_sheets(native_reader_page) -> None:
     page = native_reader_page
-    page.evaluate("obsReport.openBar('comments')")
+    page.evaluate("obsArtifact.openBar('comments')")
     page.locator("[data-comment-author]").fill("Continuation reviewer")
     page.locator("[data-comment-author]").dispatch_event("change")
     sheets = page.locator(".paged-reader .paper-sheet")
@@ -1060,7 +1060,7 @@ def test_reader_review_controls_cover_continuation_sheets(native_reader_page) ->
 @pytest.mark.parametrize("reviewer", ["", "Alice"])
 def test_reader_review_decision_updates_canonical_summary(native_reader_page, reviewer) -> None:
     page = native_reader_page
-    page.evaluate("obsReport.openBar('comments')")
+    page.evaluate("obsArtifact.openBar('comments')")
     page.locator("[data-comment-author]").fill(reviewer)
     page.locator("[data-comment-author]").dispatch_event("change")
     accepted = page.locator('[data-review-summary-state="accepted"] strong')
@@ -1068,8 +1068,8 @@ def test_reader_review_decision_updates_canonical_summary(native_reader_page, re
     before = int(waiting.inner_text())
     page.evaluate("""() => {
         window.reviewStaticRenders = 0;
-        const render = obsReport.renderStatic;
-        obsReport.renderStatic = (...args) => { reviewStaticRenders++; return render(...args); };
+        const render = obsArtifact.renderStatic;
+        obsArtifact.renderStatic = (...args) => { reviewStaticRenders++; return render(...args); };
     }""")
     item = page.locator(".paper-content p").filter(has_text="Paragraph 24.").first
     item.locator(".review-action--accept").dispatch_event("click")
@@ -1082,14 +1082,14 @@ def test_reader_review_decision_updates_canonical_summary(native_reader_page, re
     decision = page.evaluate("obsComments.data.reviews.at(-1)")
     assert decision["chapter"] == "alpha"
     assert page.evaluate("""() => {
-        const record = obsReport.records.find(record => record.slug === 'alpha');
+        const record = obsArtifact.records.find(record => record.slug === 'alpha');
         return record.fields.review.includes('accepted') &&
             record.filterAttributes.review.includes('accepted');
     }""")
     item.locator(".review-action--accept").dispatch_event("click")
     assert accepted.inner_text() == "0"
     assert int(waiting.inner_text()) == before
-    page.evaluate("obsReport.activateChapter('glossary')")
+    page.evaluate("obsArtifact.activateChapter('glossary')")
     row = page.locator('tr[data-row-key="glossary:bluf"]')
     row.locator(".review-action--accept").dispatch_event("click")
     assert row.get_attribute("data-review-state") == "accepted"
@@ -1106,11 +1106,11 @@ def test_reader_review_decision_updates_canonical_summary(native_reader_page, re
     assert int(waiting.inner_text()) == before
 
 
-def test_reader_waiting_only_batch_review(native_reader_page, native_reader_report, tmp_path) -> None:
+def test_reader_waiting_only_batch_review(native_reader_page, native_reader_artifact, tmp_path) -> None:
     from obs_html.comments import extract_comments
 
     page = native_reader_page
-    page.evaluate("obsReport.openBar('comments')")
+    page.evaluate("obsArtifact.openBar('comments')")
     author = page.locator("[data-comment-author]")
     author.fill("Bob")
     author.dispatch_event("change")
@@ -1169,7 +1169,7 @@ def test_reader_waiting_only_batch_review(native_reader_page, native_reader_repo
     author.fill("Bob")
     author.dispatch_event("change")
     assert int(page.locator('[data-review-summary-state="waiting"] strong').inner_text()) > 0
-    assert page.evaluate("obsReport.exportChapters().some(record => record.slug === 'beta')")
+    assert page.evaluate("obsArtifact.exportChapters().some(record => record.slug === 'beta')")
     author.fill("Alice")
     author.dispatch_event("change")
     assert page.locator('[data-review-summary-state="waiting"] strong').inner_text() == "0"
@@ -1180,7 +1180,7 @@ def test_reader_waiting_only_batch_review(native_reader_page, native_reader_repo
     assert "[Full section]" in extracted
     for item in batch["batch"]["items"]:
         assert f"{item['chapter']} {item['item']}" in extracted
-    browser, original = native_reader_report
+    browser, original = native_reader_artifact
     merge_page = browser.new_page()
     try:
         merge_page.goto(original.as_uri() + "#beta")
@@ -1201,8 +1201,8 @@ def test_reader_waiting_only_batch_review(native_reader_page, native_reader_repo
     }""")
     # The reviewed copy restores the saved waiting-only filter, which leaves no alpha content.
     assert page.locator("[data-active-chapter]").get_attribute("data-chapter") == "home"
-    page.evaluate("""obsReport.openBar('comments'); obsFilter.setExpression('');
-        obsReport.activateChapter('alpha')""")
+    page.evaluate("""obsArtifact.openBar('comments'); obsFilter.setExpression('');
+        obsArtifact.activateChapter('alpha')""")
     repeated = page.locator(".paper-content p").first
     repeated.locator(".review-action--accept").click(modifiers=["Control", "Shift"])
     assert page.evaluate("obsComments.data") == data
@@ -1235,7 +1235,7 @@ def test_reader_batch_generated_rows_ignore_local_view(native_reader_page) -> No
     from playwright.sync_api import expect
 
     page = native_reader_page
-    page.evaluate("obsReport.activateChapter('glossary'); obsReport.openBar('comments')")
+    page.evaluate("obsArtifact.activateChapter('glossary'); obsArtifact.openBar('comments')")
     shell = page.locator("[data-data-table]").first
     # The two-row glossary fits one page, so the filter below is the local view under test.
     row = shell.locator('tr[data-row-key="glossary:bluf"]')
@@ -1263,7 +1263,7 @@ def test_reader_batch_generated_rows_ignore_local_view(native_reader_page) -> No
 
 def test_reader_batch_section_spans_continuation_pages(native_reader_page) -> None:
     page = native_reader_page
-    page.evaluate("obsReport.openBar('comments')")
+    page.evaluate("obsArtifact.openBar('comments')")
     paragraph = page.locator(".paper-content p").filter(has_text="Paragraph 24.").first
     paragraph.locator(".review-action--accept").click(modifiers=["Shift"])
     reviews = page.evaluate("obsComments.data.reviews")
@@ -1274,8 +1274,8 @@ def test_reader_batch_section_spans_continuation_pages(native_reader_page) -> No
 
 
 @pytest.fixture
-def native_batch_page(native_reader_report, tmp_path):
-    browser, _ = native_reader_report
+def native_batch_page(native_reader_artifact, tmp_path):
+    browser, _ = native_reader_artifact
     manifest = tmp_path / "manifest.md"
     manifest.write_text("- [[one]]\n- [[two]]\n", encoding="utf-8")
     (tmp_path / "one.md").write_text(
@@ -1284,13 +1284,13 @@ def native_batch_page(native_reader_report, tmp_path):
         "## Second\n\nOther section.\n", encoding="utf-8",
     )
     (tmp_path / "two.md").write_text("# Two\n\nInactive item.\n", encoding="utf-8")
-    report = tmp_path.parent / f"{tmp_path.name}-report.html"
-    report.write_text(render_report(manifest, parse_manifest(manifest)), encoding="utf-8")
+    artifact = tmp_path.parent / f"{tmp_path.name}-artifact.html"
+    artifact.write_text(render_artifact(manifest, parse_manifest(manifest)), encoding="utf-8")
     page = browser.new_page(viewport={"width": 1920, "height": 900})
     errors = []
     page.on("pageerror", lambda error: errors.append(str(error)))
-    page.goto(report.as_uri() + "#one")
-    page.evaluate("obsReport.openBar('comments')")
+    page.goto(artifact.as_uri() + "#one")
+    page.evaluate("obsArtifact.openBar('comments')")
     try:
         yield page
     finally:
@@ -1359,7 +1359,7 @@ def test_reader_batch_document_accepts_waiting_without_comments(native_batch_pag
 
 def test_reader_table_width_includes_disclosure(native_reader_page) -> None:
     page = native_reader_page
-    page.evaluate("obsReport.activateChapter('glossary')")
+    page.evaluate("obsArtifact.activateChapter('glossary')")
     for cell in page.locator(".paged-reader tr[data-row-key] td:first-child").all():
         assert cell.evaluate("""cell => {
             const buttons = cell.querySelectorAll('button');
@@ -1367,7 +1367,7 @@ def test_reader_table_width_includes_disclosure(native_reader_page) -> None:
             const label = buttons[1].getBoundingClientRect();
             return label.left >= toggle.right && Math.abs(label.top - toggle.top) < 10;
         }""")
-    page.evaluate("obsReport.activateChapter('alpha')")
+    page.evaluate("obsArtifact.activateChapter('alpha')")
     page.evaluate("""() => {
         const table = obsDataTable.render({
             key: 'width-check',
@@ -1520,17 +1520,17 @@ def test_reader_header_options_reserve_short_final_label(native_reader_page) -> 
     assert measurement["labelRight"] <= measurement["handleLeft"]
 
 
-def run_report_dom_contract(report: Path, mode: str, *runtimes: Path, arguments: tuple[str, ...] = ()) -> str:
+def run_artifact_dom_contract(artifact: Path, mode: str, *runtimes: Path, arguments: tuple[str, ...] = ()) -> str:
     module = os.environ.get("OBS_HTML_TEST_DOM_MODULE") or str(
         ROOT / "test" / "browser" / "node_modules" / "linkedom"
     )
     node = shutil.which("node")
-    assert node, "The observable report contracts require the existing Node adapter."
+    assert node, "The observable artifact contracts require the existing Node adapter."
     assert Path(module).is_dir(), "Set OBS_HTML_TEST_DOM_MODULE to the existing linkedom adapter."
     paths = [str(path) for path in runtimes]
     paths.extend([""] * (3 - len(paths)))
     result = subprocess.run(
-        [node, str(ROOT / "test" / "browser" / "report-ui.cjs"), str(report),
+        [node, str(ROOT / "test" / "browser" / "artifact-ui.cjs"), str(artifact),
          module, *paths, mode, *arguments],
         text=True, encoding="utf-8", capture_output=True, cwd=ROOT, timeout=30,
     )
@@ -1567,7 +1567,7 @@ const payload = JSON.parse(fs.readFileSync(0, "utf8"));
 
 @pytest.mark.skipif(not os.environ.get("OBS_HTML_TEST_NATIVE_BROWSER"),
                     reason="Set OBS_HTML_TEST_NATIVE_BROWSER for native paged layout checks.")
-def test_native_live_pages_and_split_pdf(tmp_path: Path, native_reader_report) -> None:
+def test_native_live_pages_and_split_pdf(tmp_path: Path, native_reader_artifact) -> None:
     from io import BytesIO
     from pypdf import PdfReader
 
@@ -1600,8 +1600,8 @@ def test_native_live_pages_and_split_pdf(tmp_path: Path, native_reader_report) -
         "\n\n## Code\n\n```text\n" + code + "\n```\n", encoding="utf-8",
     )
     html = tmp_path / "live.html"
-    html.write_text(render_report(manifest, parse_manifest(manifest)), encoding="utf-8")
-    with native_reader_report[0].new_context() as context:
+    html.write_text(render_artifact(manifest, parse_manifest(manifest)), encoding="utf-8")
+    with native_reader_artifact[0].new_context() as context:
         try:
             page = context.new_page()
             errors = []
@@ -1613,7 +1613,7 @@ def test_native_live_pages_and_split_pdf(tmp_path: Path, native_reader_report) -
             assert page.locator('[data-page-chapter="home"] .cover-facts-frame').count() == 1
             assert page.locator('[data-page-chapter="@metadata"]').count() == 0
             assert len(page.locator(".contents-page-number").all_text_contents()) == 3
-            page.evaluate("obsReport.activateChapter('records')")
+            page.evaluate("obsArtifact.activateChapter('records')")
             shell = page.locator(".paged-reader .data-table-shell")
             assert shell.count() == 1
             assert shell.locator(".data-table-footer").is_visible()
@@ -1646,7 +1646,7 @@ def test_native_live_pages_and_split_pdf(tmp_path: Path, native_reader_report) -
             assert shell.locator("th").first.inner_text().startswith("definition")
             page.evaluate("obsPages.setPaged(false); obsPages.setPaged(true)")
             assert shell.locator("th").first.inner_text().startswith("definition")
-            page.evaluate("obsReport.activateChapter('listing')")
+            page.evaluate("obsArtifact.activateChapter('listing')")
             assert page.locator(".paged-reader ol").count() == 1
             assert page.locator(".paged-reader ol li").count() == 100
             assert page.locator(".paged-reader pre").count() == 1
@@ -1655,7 +1655,7 @@ def test_native_live_pages_and_split_pdf(tmp_path: Path, native_reader_report) -
                 "(pre) => pre.scrollWidth <= pre.clientWidth + 1")
             assert page.locator(".paged-reader .paper-sheet").evaluate_all(
                 "(sheets) => sheets.some(sheet => sheet.clientHeight > 1123)")
-            page.evaluate("obsReport.activateChapter('prose')")
+            page.evaluate("obsArtifact.activateChapter('prose')")
             assert page.locator("p[data-paragraph-lines]").count() == 0
             visible_sheets = page.locator(".paged-reader .paper-sheet:visible")
             original_count = visible_sheets.count()
@@ -1668,7 +1668,7 @@ def test_native_live_pages_and_split_pdf(tmp_path: Path, native_reader_report) -
             toggle.click()
             assert visible_sheets.count() == original_count
             assert page.locator(".paged-reader p").count() == 36
-            page.evaluate("obsReport.openBar('comments')")
+            page.evaluate("obsArtifact.openBar('comments')")
             assert page.locator(".paper-content .review-gutter").first.evaluate("""gutter => {
                 const page = gutter.closest('.paper-sheet').getBoundingClientRect();
                 const reader = document.querySelector('[data-chapter-scroll]').getBoundingClientRect();
@@ -1709,11 +1709,11 @@ def test_native_live_pages_and_split_pdf(tmp_path: Path, native_reader_report) -
             saved_page.goto(reviewed_path.as_uri() + "#prose")
             assert saved_page.locator("html").evaluate("(root) => root.classList.contains('paged-mode')")
             saved_page.evaluate("""() => {
-                if (document.querySelector('[data-bar="comments"]').hidden) obsReport.openBar('comments');
+                if (document.querySelector('[data-bar="comments"]').hidden) obsArtifact.openBar('comments');
             }""")
             assert saved_page.evaluate("obsComments.data.annotations[0].replies[0].text") == "Nested reply."
             assert saved_page.locator(".paper-content p").first.get_attribute("data-review-state") == "accepted"
-            saved_page.evaluate("obsPages.setPaged(false); obsReport.activateChapter('prose')")
+            saved_page.evaluate("obsPages.setPaged(false); obsArtifact.activateChapter('prose')")
             assert saved_page.evaluate("""() => [...CSS.highlights.get('obs-comments')][0].toString()""") == "A deliberately"
             saved_page.close()
             page.evaluate("obsPages.setPaged(true); window.print = () => {}")
@@ -1863,16 +1863,16 @@ def test_comment_export_dom_contract(tmp_path: Path) -> None:
     (tmp_path / "child.md").write_text(
         "# Child\n\nInactive paragraph.\n", encoding="utf-8",
     )
-    report = tmp_path / "report.html"
-    report.write_text(
-        render_report(tmp_path / "manifest.md", parse_manifest(tmp_path / "manifest.md")),
+    artifact = tmp_path / "artifact.html"
+    artifact.write_text(
+        render_artifact(tmp_path / "manifest.md", parse_manifest(tmp_path / "manifest.md")),
         encoding="utf-8",
     )
     package = files("obs_html")
     runtimes = [str(package / "bars" / "comments.js"), str(package / "bars" / "settings.js"),
                 str(package / "storage.js")]
     result = subprocess.run(
-        [node, str(ROOT / "test" / "browser" / "report-ui.cjs"), str(report), module,
+        [node, str(ROOT / "test" / "browser" / "artifact-ui.cjs"), str(artifact), module,
          *runtimes, "--comments-only"],
         text=True, capture_output=True, cwd=ROOT, timeout=30,
     )
@@ -1889,7 +1889,7 @@ def test_reader_navigation_gutters_leave_table_controls_clickable(
     page = native_reader_page
     page.set_viewport_size({"width": width, "height": 900})
     page.evaluate("""paged => {
-        obsReport.activateChapter('glossary');
+        obsArtifact.activateChapter('glossary');
         obsPages.setPaged(paged);
     }""", paged)
     shell = page.locator('[data-chapter-body] .data-table-shell')
@@ -1919,7 +1919,7 @@ def test_query_editor_uses_table_local_session_state_and_reports_errors(
     from playwright.sync_api import expect
 
     page = native_reader_page
-    page.evaluate("obsReport.activateChapter('glossary')")
+    page.evaluate("obsArtifact.activateChapter('glossary')")
     shell = page.locator('[data-chapter-body] [data-data-table="glossary-base-1"]')
     columns = lambda: shell.locator("thead th").evaluate_all(
         "headers => headers.map(header => header.dataset.columnKey)",
@@ -1928,7 +1928,7 @@ def test_query_editor_uses_table_local_session_state_and_reports_errors(
     resized = shell.locator("col").first.get_attribute("style")
     # Resized widths are session-only view state, never saved reader state.
     presentation = page.evaluate(
-        "JSON.parse(obsReport.serializeModel()).readerState.tables['glossary-base-1']",
+        "JSON.parse(obsArtifact.serializeModel()).readerState.tables['glossary-base-1']",
     )
     assert presentation is None
     if restored:
@@ -1936,7 +1936,7 @@ def test_query_editor_uses_table_local_session_state_and_reports_errors(
         saved.write_text(page.evaluate("obsComments.reviewedHtml()"), encoding="utf-8")
         page.goto(saved.as_uri() + "#glossary")
         assert page.evaluate(
-            "JSON.parse(obsReport.serializeModel()).readerState.tables['glossary-base-1']",
+            "JSON.parse(obsArtifact.serializeModel()).readerState.tables['glossary-base-1']",
         ) == presentation
         assert shell.locator("col").first.get_attribute("style") != resized
         shell.locator(".data-table-column-resize").first.press("ArrowRight")
@@ -1953,10 +1953,10 @@ def test_query_editor_uses_table_local_session_state_and_reports_errors(
     assert columns() == ["term", "definition"]
     assert shell.locator("tbody tr[data-row-key]").count() == 2
     assert page.evaluate(
-        "JSON.parse(obsReport.serializeModel()).readerState.tables['glossary-base-1']",
+        "JSON.parse(obsArtifact.serializeModel()).readerState.tables['glossary-base-1']",
     ) == presentation
     assert shell.locator("col").first.get_attribute("style") == resized
-    page.evaluate("obsReport.activateChapter('alpha'); obsReport.activateChapter('glossary')")
+    page.evaluate("obsArtifact.activateChapter('alpha'); obsArtifact.activateChapter('glossary')")
     expect(editor).to_have_value("views: [")
     editor.fill(page.evaluate("""text => {
         const definition = obsBases.parse(text);
@@ -1968,12 +1968,12 @@ def test_query_editor_uses_table_local_session_state_and_reports_errors(
     assert columns() == ["definition", "term"]
     assert shell.locator("tbody tr[data-row-key]").count() == 1
     assert page.evaluate(
-        "JSON.parse(obsReport.serializeModel()).readerState.tables['glossary-base-1']",
+        "JSON.parse(obsArtifact.serializeModel()).readerState.tables['glossary-base-1']",
     ) is None
-    page.evaluate("obsReport.activateChapter('alpha'); obsReport.activateChapter('glossary')")
+    page.evaluate("obsArtifact.activateChapter('alpha'); obsArtifact.activateChapter('glossary')")
     assert columns() == ["definition", "term"]
     assert shell.locator("tbody tr[data-row-key]").count() == 1
-    canonical = page.evaluate("""() => JSON.parse(obsReport.serializeModel())
+    canonical = page.evaluate("""() => JSON.parse(obsArtifact.serializeModel())
         .notes.find(note => note.slug === 'glossary').tables[0].definition""")
     assert canonical["views"][0]["order"] == ["term", "definition"]
 
@@ -2078,11 +2078,11 @@ def test_complete_document_dom_interactions(tmp_path: Path) -> None:
         "obsHtml: {records: documentMetadata}\n```\n",
         encoding="utf-8",
     )
-    report = tmp_path / "report.html"
-    report.write_text(render_report(manifest, parse_manifest(manifest)), encoding="utf-8")
+    artifact = tmp_path / "artifact.html"
+    artifact.write_text(render_artifact(manifest, parse_manifest(manifest)), encoding="utf-8")
     package = files("obs_html")
     result = subprocess.run(
-        [node, str(ROOT / "test" / "browser" / "report-ui.cjs"), str(report), module,
+        [node, str(ROOT / "test" / "browser" / "artifact-ui.cjs"), str(artifact), module,
          str(package / "bars" / "comments.js"), str(package / "bars" / "settings.js"),
          str(package / "storage.js")],
         text=True, capture_output=True, cwd=ROOT, timeout=30,

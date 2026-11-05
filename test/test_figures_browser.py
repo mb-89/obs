@@ -1,4 +1,4 @@
-"""Focused native figure checks; no large report fixture or mocked plotting engine."""
+"""Focused native figure checks; no large artifact fixture or mocked plotting engine."""
 import json
 import os
 
@@ -6,7 +6,7 @@ import pytest
 import yaml
 
 from obs_html.content import parse_manifest
-from obs_html.renderer import render_report
+from obs_html.renderer import render_artifact
 from test_reader_controls import _write_reader_fixture, reader_browser  # noqa: F401
 
 
@@ -29,16 +29,16 @@ def test_cdn_unavailable_reports_missing_interaction_without_static_payload(tmp_
         "equations: {a: x}\ntraces: [{y: a, label: A}]\n```\n",
     )
     override = tmp_path / "cfg.json"
-    override.write_text('{"schemaVersion":1,"report":{"figures":{"plotlyDelivery":"cdn"}}}')
+    override.write_text('{"schemaVersion":1,"artifact":{"figures":{"plotlyDelivery":"cdn"}}}')
     config = load_config(files("obs_html").joinpath("cfg.json"), override)
-    output = tmp_path / "report.html"
-    output.write_text(render_report(manifest, parse_manifest(manifest), figures=config.figures), encoding="utf-8")
+    output = tmp_path / "artifact.html"
+    output.write_text(render_artifact(manifest, parse_manifest(manifest), figures=config.figures), encoding="utf-8")
     with sync_playwright() as playwright:
         browser = playwright.chromium.launch(executable_path=executable)
         page = browser.new_page()
         page.route("https://cdn.plot.ly/**", lambda route: route.abort())
         page.goto(output.as_uri() + "#one")
-        assert page.evaluate("document.documentElement.dataset.reportStatus") == "ready"
+        assert page.evaluate("document.documentElement.dataset.artifactStatus") == "ready"
         page.evaluate("obsPages.setPaged(false)")
         figure = page.locator("[data-active-chapter] figure")
         assert "Plotly could not load" in figure.inner_text()
@@ -76,7 +76,7 @@ def test_migrated_caption_paragraphs_keep_review_identities(tmp_path):
         (tmp_path / "one.md").write_text("# One\n\n" + body + "\n\nOrdinary prose.\n", encoding="utf-8")
         manifest = tmp_path / "manifest.md"
         output = tmp_path / f"review-{index}.html"
-        output.write_text(render_report(manifest, parse_manifest(manifest)), encoding="utf-8")
+        output.write_text(render_artifact(manifest, parse_manifest(manifest)), encoding="utf-8")
         paths.append(output)
     with sync_playwright() as playwright:
         browser = playwright.chromium.launch(executable_path=executable)
@@ -85,7 +85,7 @@ def test_migrated_caption_paragraphs_keep_review_identities(tmp_path):
             page = browser.new_page()
             page.goto(output.as_uri() + "#one")
             page.evaluate("obsPages.setPaged(false)")
-            page.evaluate("obsReport.openBar('comments')")
+            page.evaluate("obsArtifact.openBar('comments')")
             signatures.append(page.locator("[data-active-chapter] [data-review-item]").evaluate_all(
                 "(items) => items.map(item => [item.tagName, item.dataset.reviewItem])"
             ))
@@ -99,7 +99,7 @@ def test_migrated_caption_paragraphs_keep_review_identities(tmp_path):
                 saved.write_text(page.evaluate("obsComments.reviewedHtml()"), encoding="utf-8")
                 reopened = browser.new_page()
                 reopened.goto(saved.as_uri() + "#one")
-                reopened.evaluate("obsPages.setPaged(false); obsReport.openBar('comments')")
+                reopened.evaluate("obsPages.setPaged(false); obsArtifact.openBar('comments')")
                 restored = reopened.locator("figcaption p").first
                 assert restored.get_attribute("data-review-item") == caption.get_attribute("data-review-item")
                 assert restored.get_attribute("data-review-state") == "accepted"
@@ -134,8 +134,8 @@ def test_native_sankey_places_upward_outcome_before_its_source_stage(tmp_path):
         encoding="utf-8",
     )
     manifest = tmp_path / "manifest.md"
-    output = tmp_path / "report.html"
-    output.write_text(render_report(manifest, parse_manifest(manifest)), encoding="utf-8")
+    output = tmp_path / "artifact.html"
+    output.write_text(render_artifact(manifest, parse_manifest(manifest)), encoding="utf-8")
     with sync_playwright() as playwright:
         browser = playwright.chromium.launch(executable_path=executable)
         page = browser.new_page(viewport={"width": 1200, "height": 900})
@@ -178,8 +178,8 @@ def test_native_sankey_same_stage_shared_sink_stays_finite_when_filtered(tmp_pat
         "data": {"where": [{"field": "kind", "equals": "path"}]},
     }), encoding="utf-8")
     manifest = tmp_path / "manifest.md"
-    output = tmp_path / "report.html"
-    output.write_text(render_report(manifest, parse_manifest(manifest)), encoding="utf-8")
+    output = tmp_path / "artifact.html"
+    output.write_text(render_artifact(manifest, parse_manifest(manifest)), encoding="utf-8")
     with sync_playwright() as playwright:
         browser = playwright.chromium.launch(executable_path=executable)
         page = browser.new_page()
@@ -239,8 +239,8 @@ def test_native_sankey_origin_adjacent_exports_refit_after_filtered_expansion(tm
             f"---\nkind: path\ncase: {case}\n---\n", encoding="utf-8",
         )
     manifest = tmp_path / "manifest.md"
-    output = tmp_path / "report.html"
-    output.write_text(render_report(manifest, parse_manifest(manifest)), encoding="utf-8")
+    output = tmp_path / "artifact.html"
+    output.write_text(render_artifact(manifest, parse_manifest(manifest)), encoding="utf-8")
     with sync_playwright() as playwright:
         browser = playwright.chromium.launch(executable_path=executable)
         page = browser.new_page(viewport={"width": 1200, "height": 900})
@@ -268,7 +268,7 @@ def test_native_sankey_origin_adjacent_exports_refit_after_filtered_expansion(tm
             const box = svg.getBoundingClientRect();
             return box.width <= parent.width && box.height <= parent.height;
         }""")
-        assert page.evaluate("obsReport.exportChapters().some(chapter => chapter.slug === 'introduction')")
+        assert page.evaluate("obsArtifact.exportChapters().some(chapter => chapter.slug === 'introduction')")
         page.screenshot(path=str(tmp_path / "filtered-expanded-sinks.png"))
         assert errors == []
         browser.close()
@@ -290,15 +290,15 @@ def test_large_images_fit_paper_independently_of_reader_viewport(tmp_path):
         body += f"## {name}\n\n![{name}]({name}.svg)\n\n"
     (tmp_path / "images.md").write_text(body, encoding="utf-8")
     manifest = tmp_path / "manifest.md"
-    report = tmp_path / "images.html"
-    report.write_text(render_report(manifest, parse_manifest(manifest)), encoding="utf-8")
+    artifact = tmp_path / "images.html"
+    artifact.write_text(render_artifact(manifest, parse_manifest(manifest)), encoding="utf-8")
     with sync_playwright() as playwright:
         browser = playwright.chromium.launch(executable_path=executable)
         page = browser.new_page(viewport={"width": 1920, "height": 1440})
         errors = []
         page.on("pageerror", lambda error: errors.append(str(error)))
         page.on("console", lambda message: errors.append(message.text) if message.type == "error" else None)
-        page.goto(report.as_uri() + "#images")
+        page.goto(artifact.as_uri() + "#images")
         page.evaluate("obsPages.setPaged(false); obsPages.setPaged(true)")
         assert "Page layout failed" not in page.locator("[data-export-status]").inner_text()
         assert page.locator(".paged-reader figure").count() == 2
@@ -314,7 +314,7 @@ def test_large_images_fit_paper_independently_of_reader_viewport(tmp_path):
 
 
 @pytest.fixture
-def figure_report(tmp_path):
+def figure_artifact(tmp_path):
     (tmp_path / "manifest.md").write_text("- [[figures]]\n", encoding="utf-8")
     (tmp_path / "default.svg").write_text(
         '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 100">'
@@ -344,16 +344,16 @@ def figure_report(tmp_path):
     )
     (tmp_path / "figures.md").write_text(body, encoding="utf-8")
     manifest = tmp_path / "manifest.md"
-    html = render_report(manifest, parse_manifest(manifest))
+    html = render_artifact(manifest, parse_manifest(manifest))
     assert html.count('id="plotly-script"') == 1
     assert html.count('id="figure-script"') == 1
-    report = tmp_path / "report.html"
-    report.write_text(html, encoding="utf-8")
-    return report
+    artifact = tmp_path / "artifact.html"
+    artifact.write_text(html, encoding="utf-8")
+    return artifact
 
 
 @pytest.fixture
-def sankey_report(tmp_path):
+def sankey_artifact(tmp_path):
     (tmp_path / "manifest.md").write_text("- [[flow]]\n", encoding="utf-8")
     (tmp_path / "flow.json").write_text(json.dumps({
         "version": 1,
@@ -373,13 +373,13 @@ def sankey_report(tmp_path):
         encoding="utf-8",
     )
     manifest = tmp_path / "manifest.md"
-    report = tmp_path / "sankey.html"
-    report.write_text(render_report(manifest, parse_manifest(manifest)), encoding="utf-8")
-    return report
+    artifact = tmp_path / "sankey.html"
+    artifact.write_text(render_artifact(manifest, parse_manifest(manifest)), encoding="utf-8")
+    return artifact
 
 
 @pytest.fixture
-def dynamic_sankey_report(tmp_path):
+def dynamic_sankey_artifact(tmp_path):
     (tmp_path / "manifest.md").write_text(
         "---\nobsHtml: {query: {scope: records, where: [{field: kind, equals: flow-record}]}}\n---\n"
         "- [[flow]]\n- [[record-a]]\n- [[record-b]]\n- [[record-c]]\n",
@@ -414,12 +414,12 @@ def dynamic_sankey_report(tmp_path):
             encoding="utf-8",
         )
     manifest = tmp_path / "manifest.md"
-    report = tmp_path / "dynamic-sankey.html"
-    report.write_text(render_report(manifest, parse_manifest(manifest)), encoding="utf-8")
-    return report
+    artifact = tmp_path / "dynamic-sankey.html"
+    artifact.write_text(render_artifact(manifest, parse_manifest(manifest)), encoding="utf-8")
+    return artifact
 
 
-def test_native_figures_interaction_and_default_print(figure_report):
+def test_native_figures_interaction_and_default_print(figure_artifact):
     executable = os.environ.get("OBS_HTML_TEST_NATIVE_BROWSER")
     if not executable:
         pytest.skip("Set OBS_HTML_TEST_NATIVE_BROWSER for native figure checks.")
@@ -429,15 +429,15 @@ def test_native_figures_interaction_and_default_print(figure_report):
         page = browser.new_page(viewport={"width": 1440, "height": 1000})
         errors = []
         page.on("pageerror", lambda error: errors.append(str(error)))
-        page.goto(figure_report.as_uri() + "#figures")
-        page.evaluate("obsPages.setPaged(false); obsReport.activateChapter('figures')")
+        page.goto(figure_artifact.as_uri() + "#figures")
+        page.evaluate("obsPages.setPaged(false); obsArtifact.activateChapter('figures')")
         root = page.locator("[data-active-chapter]")
         svg = root.locator('[data-figure-kind="svg"]')
-        image = root.locator(".report-figure")
-        assert root.locator("[data-report-figure] .figure-expand").count() == 3
+        image = root.locator(".artifact-figure")
+        assert root.locator("[data-artifact-figure] .figure-expand").count() == 3
         assert all(
             control.is_visible()
-            for control in root.locator("[data-report-figure] .figure-expand").all()
+            for control in root.locator("[data-artifact-figure] .figure-expand").all()
         )
         image_button = image.get_by_role("button", name="Expand figure")
         assert image_button.is_visible()
@@ -452,7 +452,7 @@ def test_native_figures_interaction_and_default_print(figure_report):
             "el => el.getBoundingClientRect().width === innerWidth && "
             "el.getBoundingClientRect().height === innerHeight"
         )
-        assert image_dialog.locator(".report-figure").evaluate("el => el === window._contentImage")
+        assert image_dialog.locator(".artifact-figure").evaluate("el => el === window._contentImage")
         page.keyboard.press("Tab")
         assert image_dialog.evaluate("el => el.contains(document.activeElement)")
         image_dialog.get_by_role("button", name="Close enlarged figure").click()
@@ -460,10 +460,10 @@ def test_native_figures_interaction_and_default_print(figure_report):
             "el => el === document.activeElement"
         )
         image_button.click()
-        page.evaluate("obsReport.activateChapter('home')")
+        page.evaluate("obsArtifact.activateChapter('home')")
         assert not image_dialog.is_visible()
-        page.evaluate("obsReport.activateChapter('figures')")
-        image = root.locator(".report-figure")
+        page.evaluate("obsArtifact.activateChapter('figures')")
+        image = root.locator(".artifact-figure")
         image_button = image.get_by_role("button", name="Expand figure")
         assert image_button.is_visible()
         page.set_viewport_size({"width": 390, "height": 844})
@@ -554,18 +554,18 @@ def test_native_figures_interaction_and_default_print(figure_report):
             assert figure.locator("figcaption").evaluate(
                 "el => getComputedStyle(el).textAlign"
             ) == "center"
-        print_image = page.locator(".print-book .report-figure")
+        print_image = page.locator(".print-book .artifact-figure")
         assert print_image.locator("img").is_visible()
         assert print_image.get_by_role("button", name="Expand figure").count() == 0
         assert print_image.locator("figcaption").count() == 0
         pdf = page.pdf(print_background=True)
         assert pdf.startswith(b"%PDF")
-        (figure_report.parent / "native-default-print.pdf").write_bytes(pdf)
+        (figure_artifact.parent / "native-default-print.pdf").write_bytes(pdf)
         assert errors == []
         browser.close()
 
 
-def test_dynamic_sankey_recomputes_from_canonical_records_and_shared_filter(dynamic_sankey_report):
+def test_dynamic_sankey_recomputes_from_canonical_records_and_shared_filter(dynamic_sankey_artifact):
     executable = os.environ.get("OBS_HTML_TEST_NATIVE_BROWSER")
     if not executable:
         pytest.skip("Set OBS_HTML_TEST_NATIVE_BROWSER for native figure checks.")
@@ -575,8 +575,8 @@ def test_dynamic_sankey_recomputes_from_canonical_records_and_shared_filter(dyna
         page = browser.new_page(viewport={"width": 1440, "height": 1000})
         errors = []
         page.on("pageerror", lambda error: errors.append(str(error)))
-        page.goto(dynamic_sankey_report.as_uri() + "#flow")
-        page.evaluate("obsPages.setPaged(false); obsReport.activateChapter('flow')")
+        page.goto(dynamic_sankey_artifact.as_uri() + "#flow")
+        page.evaluate("obsPages.setPaged(false); obsArtifact.activateChapter('flow')")
         svg = page.locator("[data-active-chapter] .figure-sankey svg")
         links = svg.locator(".sankey-link")
         assert [links.nth(index).get_attribute("data-flow-value") for index in range(2)] == ["2", "1"]
@@ -608,7 +608,7 @@ def test_dynamic_sankey_recomputes_from_canonical_records_and_shared_filter(dyna
         browser.close()
 
 
-def test_native_sankey_is_portable_and_prints_as_svg(sankey_report):
+def test_native_sankey_is_portable_and_prints_as_svg(sankey_artifact):
     executable = os.environ.get("OBS_HTML_TEST_NATIVE_BROWSER")
     if not executable:
         pytest.skip("Set OBS_HTML_TEST_NATIVE_BROWSER for native figure checks.")
@@ -618,8 +618,8 @@ def test_native_sankey_is_portable_and_prints_as_svg(sankey_report):
         page = browser.new_page(viewport={"width": 1440, "height": 1000})
         errors = []
         page.on("pageerror", lambda error: errors.append(str(error)))
-        page.goto(sankey_report.as_uri() + "#flow")
-        page.evaluate("obsPages.setPaged(false); obsReport.activateChapter('flow')")
+        page.goto(sankey_artifact.as_uri() + "#flow")
+        page.evaluate("obsPages.setPaged(false); obsArtifact.activateChapter('flow')")
         figure = page.locator("[data-active-chapter] .figure-sankey")
         svg = figure.locator("svg[role=img]")
         assert svg.get_attribute("aria-label") == "Trace paths"
@@ -635,7 +635,7 @@ def test_native_sankey_is_portable_and_prints_as_svg(sankey_report):
         widths = [float(links.nth(index).get_attribute("stroke-width")) for index in range(2)]
         assert max(widths) / min(widths) == pytest.approx(3)
         assert not page.locator("#plotly-script").count()
-        page.screenshot(path=str(sankey_report.parent / "sankey-native.png"), full_page=True)
+        page.screenshot(path=str(sankey_artifact.parent / "sankey-native.png"), full_page=True)
         page.evaluate("window.print = () => {}; obsPages.exportPDF()")
         page.emulate_media(media="print")
         print_figure = page.locator(".print-book .figure-sankey")
@@ -670,14 +670,14 @@ def test_normal_images_fit_viewport_in_both_reading_modes(tmp_path):
         body += f"![{name}]({name}.svg)\n\n"
     (tmp_path / "images.md").write_text(body, encoding="utf-8")
     manifest = tmp_path / "manifest.md"
-    report = tmp_path / "images.html"
-    report.write_text(render_report(manifest, parse_manifest(manifest)), encoding="utf-8")
+    artifact = tmp_path / "images.html"
+    artifact.write_text(render_artifact(manifest, parse_manifest(manifest)), encoding="utf-8")
     with sync_playwright() as playwright:
         browser = playwright.chromium.launch(executable_path=executable)
         page = browser.new_page(viewport={"width": 1440, "height": 900})
-        page.goto(report.as_uri() + "#images")
+        page.goto(artifact.as_uri() + "#images")
         for paged in (False, True):
-            page.evaluate("paged => { obsPages.setPaged(paged); obsReport.activateChapter('images'); }", paged)
+            page.evaluate("paged => { obsPages.setPaged(paged); obsArtifact.activateChapter('images'); }", paged)
             for name, (width, height) in variants.items():
                 image = page.locator(f'[data-active-chapter] img[alt="{name}"]')
                 image.wait_for(state="attached")
@@ -702,7 +702,7 @@ def test_normal_images_fit_viewport_in_both_reading_modes(tmp_path):
         browser.close()
 
 
-def test_expanded_plot_reflows_and_legend_is_movable(figure_report):
+def test_expanded_plot_reflows_and_legend_is_movable(figure_artifact):
     executable = os.environ.get("OBS_HTML_TEST_NATIVE_BROWSER")
     if not executable:
         pytest.skip("Set OBS_HTML_TEST_NATIVE_BROWSER for native figure checks.")
@@ -710,8 +710,8 @@ def test_expanded_plot_reflows_and_legend_is_movable(figure_report):
     with sync_playwright() as playwright:
         browser = playwright.chromium.launch(executable_path=executable)
         page = browser.new_page(viewport={"width": 1440, "height": 1000})
-        page.goto(figure_report.as_uri() + "#figures")
-        page.evaluate("obsPages.setPaged(false); obsReport.activateChapter('figures')")
+        page.goto(figure_artifact.as_uri() + "#figures")
+        page.evaluate("obsPages.setPaged(false); obsArtifact.activateChapter('figures')")
         chart = page.locator(".figure-chart")
         page.wait_for_function("document.querySelector('.figure-chart')?._fullLayout")
         normal = chart.bounding_box()
@@ -785,15 +785,15 @@ def test_expanded_images_are_centered_at_largest_fit(tmp_path):
         body += f"![{name}]({name}.svg)\n\n"
     (tmp_path / "images.md").write_text(body, encoding="utf-8")
     manifest = tmp_path / "manifest.md"
-    report = tmp_path / "images.html"
-    report.write_text(render_report(manifest, parse_manifest(manifest)), encoding="utf-8")
+    artifact = tmp_path / "images.html"
+    artifact.write_text(render_artifact(manifest, parse_manifest(manifest)), encoding="utf-8")
     with sync_playwright() as playwright:
         browser = playwright.chromium.launch(executable_path=executable)
         page = browser.new_page(viewport={"width": 1440, "height": 1000})
-        page.goto(report.as_uri() + "#images")
-        page.evaluate("obsPages.setPaged(false);obsReport.activateChapter('images')")
+        page.goto(artifact.as_uri() + "#images")
+        page.evaluate("obsPages.setPaged(false);obsArtifact.activateChapter('images')")
         for name in ("portrait", "landscape"):
-            figure = page.locator("[data-active-chapter] .report-figure").filter(
+            figure = page.locator("[data-active-chapter] .artifact-figure").filter(
                 has=page.locator(f'img[alt="{name}"]'),
             )
             figure.evaluate("""figure => {
@@ -845,40 +845,40 @@ def test_native_deferred_figure_binds_counts_on_first_entry_and_reentry(tmp_path
                   for index, name in enumerate(("source", "target"))],
         "links": [{"source": "source", "target": "target", "value": 1, "where": where}],
     }), encoding="utf-8")
-    report = tmp_path / "deferred-figure.html"
-    report.write_text(render_report(manifest, parse_manifest(manifest)), encoding="utf-8")
+    artifact = tmp_path / "deferred-figure.html"
+    artifact.write_text(render_artifact(manifest, parse_manifest(manifest)), encoding="utf-8")
     page = reader_browser.new_page(viewport={"width": 1500, "height": 1000})
     errors = []
     page.on("pageerror", lambda error: errors.append(str(error)))
     try:
-        page.goto(report.as_uri())
+        page.goto(artifact.as_uri())
         page.evaluate("obsHtmlReady")
         page.evaluate("paged => obsPages.setPaged(paged)", paged)
         root = ".paged-reader" if paged else "[data-active-chapter]"
         for _ in range(2):
-            page.evaluate("obsReport.activateChapter('chapter')")
-            page.evaluate("obsReport.whenChapterReady()")
+            page.evaluate("obsArtifact.activateChapter('chapter')")
+            page.evaluate("obsArtifact.whenChapterReady()")
             figure = page.locator(root + " [data-figure-kind='sankey']")
             expect(figure.locator(".sankey-label tspan")).to_have_text([
                 "Source", "1 records", "1 unique", "Target", "1 records", "1 unique",
             ])
-            page.evaluate("expression => obsReport.setFilter(obsQuery.compile(expression))",
+            page.evaluate("expression => obsArtifact.setFilter(obsQuery.compile(expression))",
                 "slug:chapter OR status:does-not-exist")
             expect(figure).to_be_visible()
             expect(figure.locator(".sankey-canvas")).to_contain_text("No matching records")
-            page.evaluate("obsReport.setFilter(obsQuery.compile(''))")
+            page.evaluate("obsArtifact.setFilter(obsQuery.compile(''))")
             expect(figure.locator(".sankey-label tspan")).to_have_text([
                 "Source", "1 records", "1 unique", "Target", "1 records", "1 unique",
             ])
-            page.evaluate("obsReport.activateChapter('home')")
-            page.evaluate("obsReport.whenChapterReady()")
+            page.evaluate("obsArtifact.activateChapter('home')")
+            page.evaluate("obsArtifact.whenChapterReady()")
         assert errors == []
     finally:
         page.close()
 
 
 @pytest.fixture
-def case_sankey_report(tmp_path):
+def case_sankey_artifact(tmp_path):
     """Records whose values and property names differ only in case (capabilities/bases#Comparisons)."""
     (tmp_path / "manifest.md").write_text(
         "---\nobsHtml: {query: {scope: records, where: [{field: kind, equals: flow-record}]}}\n---\n"
@@ -915,16 +915,16 @@ def case_sankey_report(tmp_path):
             f"---\nkind: {kind}\n{key}: {target}\n---\n# record-{name}\n", encoding="utf-8",
         )
     manifest = tmp_path / "manifest.md"
-    report = tmp_path / "case-sankey.html"
-    report.write_text(render_report(manifest, parse_manifest(manifest)), encoding="utf-8")
-    return report
+    artifact = tmp_path / "case-sankey.html"
+    artifact.write_text(render_artifact(manifest, parse_manifest(manifest)), encoding="utf-8")
+    return artifact
 
 
-RETAINED = ("obsReport.records.filter(record => /^record-/.test(record.slug) && obsReport.matchesFilter(record))"
+RETAINED = ("obsArtifact.records.filter(record => /^record-/.test(record.slug) && obsArtifact.matchesFilter(record))"
             ".map(record => record.slug.slice(7)).join('')")
 
 
-def _case_sankey_page(playwright, report):
+def _case_sankey_page(playwright, artifact):
     executable = os.environ.get("OBS_HTML_TEST_NATIVE_BROWSER")
     if not executable:
         pytest.skip("Set OBS_HTML_TEST_NATIVE_BROWSER for native figure checks.")
@@ -932,15 +932,15 @@ def _case_sankey_page(playwright, report):
     page = browser.new_page(viewport={"width": 1440, "height": 1000})
     errors = []
     page.on("pageerror", lambda error: errors.append(str(error)))
-    page.goto(report.as_uri() + "#flow")
-    page.evaluate("obsPages.setPaged(false); obsReport.activateChapter('flow')")
+    page.goto(artifact.as_uri() + "#flow")
+    page.evaluate("obsPages.setPaged(false); obsArtifact.activateChapter('flow')")
     return browser, page, errors
 
 
-def test_sankey_drill_down_shows_exactly_the_rows_its_count_counted(case_sankey_report):
+def test_sankey_drill_down_shows_exactly_the_rows_its_count_counted(case_sankey_artifact):
     from playwright.sync_api import sync_playwright
     with sync_playwright() as playwright:
-        browser, page, errors = _case_sankey_page(playwright, case_sankey_report)
+        browser, page, errors = _case_sankey_page(playwright, case_sankey_artifact)
         svg = page.locator("[data-active-chapter] .figure-sankey svg")
         links = svg.locator(".sankey-link")
         assert [links.nth(index).get_attribute("data-flow-value") for index in range(2)] == ["3", "1"]
@@ -960,12 +960,12 @@ def test_sankey_drill_down_shows_exactly_the_rows_its_count_counted(case_sankey_
     ("TARGET: /^approved$/", [{"field": "target", "equals": "approved"}], "abc"),
     ("target: /^Rejected$/c", [{"field": "target", "equals": "Rejected", "matchCase": True}], "e"),
 ])
-def test_reader_filter_and_where_equals_select_the_same_rows(case_sankey_report, expression, where, expected):
+def test_reader_filter_and_where_equals_select_the_same_rows(case_sankey_artifact, expression, where, expected):
     from playwright.sync_api import sync_playwright
     with sync_playwright() as playwright:
-        browser, page, errors = _case_sankey_page(playwright, case_sankey_report)
+        browser, page, errors = _case_sankey_page(playwright, case_sankey_artifact)
         counted = page.evaluate(
-            "where => obsReport.records.filter(record => /^record-/.test(record.slug) && "
+            "where => obsArtifact.records.filter(record => /^record-/.test(record.slug) && "
             "obsQuery.compileConditions(where).match(record)).map(record => record.slug.slice(7)).join('')",
             where,
         )
@@ -989,8 +989,8 @@ def test_facet_pill_retains_exactly_the_rows_it_counts(tmp_path):
             f"---\nkind: item\nstatus: {status}\n---\n# item-{index}\n", encoding="utf-8",
         )
     manifest = tmp_path / "manifest.md"
-    report = tmp_path / "facets.html"
-    report.write_text(render_report(manifest, parse_manifest(manifest)), encoding="utf-8")
+    artifact = tmp_path / "facets.html"
+    artifact.write_text(render_artifact(manifest, parse_manifest(manifest)), encoding="utf-8")
     executable = os.environ.get("OBS_HTML_TEST_NATIVE_BROWSER")
     if not executable:
         pytest.skip("Set OBS_HTML_TEST_NATIVE_BROWSER for native filter checks.")
@@ -998,14 +998,14 @@ def test_facet_pill_retains_exactly_the_rows_it_counts(tmp_path):
     with sync_playwright() as playwright:
         browser = playwright.chromium.launch(executable_path=executable)
         page = browser.new_page(viewport={"width": 1440, "height": 1000})
-        page.goto(report.as_uri())
-        page.evaluate("obsPages.setPaged(false); obsReport.openBar('filter')")
+        page.goto(artifact.as_uri())
+        page.evaluate("obsPages.setPaged(false); obsArtifact.openBar('filter')")
         page.locator(".filter-field-button", has_text="status").click()
         pill = page.locator('[role="menuitemcheckbox"][data-filter-value="open"]')
         expect(pill.locator("small")).to_have_text("3")
         pill.click()
         page.wait_for_function(
-            "obsReport.records.filter(record => /^item-/.test(record.slug) && obsReport.matchesFilter(record))"
+            "obsArtifact.records.filter(record => /^item-/.test(record.slug) && obsArtifact.matchesFilter(record))"
             ".map(record => record.slug.slice(5)).join('') === '012'"
         )
         browser.close()

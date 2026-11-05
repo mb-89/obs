@@ -1,6 +1,6 @@
 /* Presentation only: actions and accessible names remain with their consumers. */
 (() => {
-    const model = JSON.parse(document.querySelector("[data-report-data]").textContent);
+    const model = JSON.parse(document.querySelector("[data-artifact-data]").textContent);
     const catalog = model.assets;
     const entry = name => {
         if (!catalog || !Object.hasOwn(catalog, name)) throw new Error(`Unknown semantic asset: ${name}`);

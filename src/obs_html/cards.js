@@ -1,6 +1,6 @@
 (() => {
   "use strict";
-  const report = globalThis.obsReport;
+  const artifact = globalThis.obsArtifact;
   const projections = new Map();
   const selections = new Map();
   const counts = new Map();
@@ -11,11 +11,11 @@
   // A distinct count reads the property its conditions read (capabilities/queries#Conditions).
   const values = (record, field) => globalThis.obsQuery.propertyTexts(record, field);
   function owner(path) {
-    owners ||= new Map(report.records.map(record => [record.sourcePath, record]));
+    owners ||= new Map(artifact.records.map(record => [record.sourcePath, record]));
     return owners.get(path);
   }
   function select(query, projectionKey = "", visiting = new Set()) {
-    population ||= report.records.filter(record => report.matchesFilter(record));
+    population ||= artifact.records.filter(record => artifact.matchesFilter(record));
     const cacheKey = JSON.stringify([projectionKey, query.from || "", query.where]);
     if (selections.has(cacheKey)) return selections.get(cacheKey);
     let upstream = population;
@@ -150,7 +150,7 @@
     pending = true;
     queueMicrotask(() => {pending = false; update();});
   }
-  document.addEventListener("obs-report-filter", invalidate);
+  document.addEventListener("obs-artifact-filter", invalidate);
   document.addEventListener("obs-canonical-property-change", invalidate);
   document.addEventListener("obs-chapter-change", () => update());
   document.addEventListener("obs-pages-layout", () => update());

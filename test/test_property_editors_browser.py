@@ -5,7 +5,7 @@ import pytest
 import yaml
 
 from obs_html.content import parse_manifest
-from obs_html.renderer import render_report
+from obs_html.renderer import render_artifact
 from test_reader_controls import reader_browser  # noqa: F401
 
 
@@ -29,24 +29,24 @@ def test_native_canonical_projection_rejects_protected_fields_and_home_atomicall
             encoding="utf-8",
         )
     manifest = tmp_path / "manifest.md"
-    report = tmp_path / "report.html"
-    report.write_text(render_report(manifest, parse_manifest(manifest)), encoding="utf-8")
+    artifact = tmp_path / "artifact.html"
+    artifact.write_text(render_artifact(manifest, parse_manifest(manifest)), encoding="utf-8")
     with sync_playwright() as playwright:
         browser = playwright.chromium.launch(executable_path=executable)
         try:
             page = browser.new_page()
-            page.goto(report.as_uri())
+            page.goto(artifact.as_uri())
             page.evaluate("""() => {
-                obsReport.records.find(record => record.slug === 'home').frontmatter.status = 'Initial';
+                obsArtifact.records.find(record => record.slug === 'home').frontmatter.status = 'Initial';
                 window.projectionEvents = 0;
                 document.addEventListener('obs-canonical-property-change', () => projectionEvents++);
-                document.addEventListener('obs-report-filter', () => projectionEvents++);
+                document.addEventListener('obs-artifact-filter', () => projectionEvents++);
             }""")
-            original = page.evaluate("obsReport.serializeModel()")
+            original = page.evaluate("obsArtifact.serializeModel()")
             for slug, field in [("two", field) for field in protected] + [("home", "status")]:
                 rejected = page.evaluate("""({slug, field}) => {
                     try {
-                        obsReport.commitCanonicalProjection([
+                        obsArtifact.commitCanonicalProjection([
                             {slug: 'one', fields: {status: 'Changed before invalid'}},
                             {slug, fields: {[field]: field === 'aliases' ? ['Changed'] : 'Changed'}},
                         ]);
@@ -54,7 +54,7 @@ def test_native_canonical_projection_rejects_protected_fields_and_home_atomicall
                     } catch (_) { return true; }
                 }""", {"slug": slug, "field": field})
                 assert rejected, (slug, field)
-                assert page.evaluate("obsReport.serializeModel()") == original
+                assert page.evaluate("obsArtifact.serializeModel()") == original
                 assert page.evaluate("window.projectionEvents") == 0
         finally:
             browser.close()
@@ -76,8 +76,8 @@ def test_native_property_edits_survive_actual_reviewed_download_and_reopen(tmp_p
             "   order: [identifier, explanation]\n```\n", encoding="utf-8",
         )
     manifest = tmp_path / "manifest.md"
-    report = tmp_path / "report.html"
-    report.write_text(render_report(manifest, parse_manifest(manifest)), encoding="utf-8")
+    artifact = tmp_path / "artifact.html"
+    artifact.write_text(render_artifact(manifest, parse_manifest(manifest)), encoding="utf-8")
     malicious = 'Accepted \u03b1 \u4e2d </script><script>window.editExecuted=true</script> **literal**'
     with sync_playwright() as playwright:
         browser = playwright.chromium.launch(executable_path=executable)
@@ -87,64 +87,64 @@ def test_native_property_edits_survive_actual_reviewed_download_and_reopen(tmp_p
         page.set_default_timeout(5000)
         errors = []
         page.on("pageerror", lambda error: errors.append(str(error)))
-        page.goto(report.as_uri() + "#one")
-        page.evaluate("obsPages.setPaged(false); obsReport.activateChapter('one')")
+        page.goto(artifact.as_uri() + "#one")
+        page.evaluate("obsPages.setPaged(false); obsArtifact.activateChapter('one')")
         editor = page.locator("[data-active-chapter] [data-property-editor]")
         expect(editor).to_have_value("Original one")
         editor.fill(malicious)
         editor.press("Tab")
-        assert page.evaluate("obsReport.records.find(note => note.slug === 'one').frontmatter.explanation") == malicious
+        assert page.evaluate("obsArtifact.records.find(note => note.slug === 'one').frontmatter.explanation") == malicious
         assert malicious in page.locator("[data-active-chapter] .data-table-shell table").inner_text()
-        assert page.evaluate("obsReport.records.find(note => note.slug === 'two').frontmatter.explanation") == "Original two"
+        assert page.evaluate("obsArtifact.records.find(note => note.slug === 'two').frontmatter.explanation") == "Original two"
         assert page.evaluate("""() => {
-            try { obsReport.commitProperty('one', 'identifier', 'changed'); return false; }
+            try { obsArtifact.commitProperty('one', 'identifier', 'changed'); return false; }
             catch (_) { return true; }
         }""")
         assert page.evaluate("""obsQuery.compile('explanation:"Accepted"').match(
-            obsReport.records.find(note => note.slug === 'one'))""")
+            obsArtifact.records.find(note => note.slug === 'one'))""")
         assert not page.evaluate("Boolean(window.editExecuted)")
         page.evaluate("""() => {
             obsComments.data.reviewers.push('Reader');
             obsComments.data.annotations.push({id:'kept-comment', author:'Reader', text:'Keep this comment',
               status:'open', replies:[], target:{chapter:'one',quote:'Source text.',start:0,end:12}});
             obsComments.data.reviews.push({chapter:'one',item:'item-1',reviewer:'Reader',state:'accepted'});
-            obsReport.openBar('comments');
+            obsArtifact.openBar('comments');
         }""")
         with page.expect_download() as download:
             page.locator("[data-comment-save]").click()
         saved = tmp_path / "reviewed.html"
         download.value.save_as(saved)
         page.goto(saved.as_uri() + "#one")
-        page.evaluate("obsPages.setPaged(false); obsReport.activateChapter('one')")
+        page.evaluate("obsPages.setPaged(false); obsArtifact.activateChapter('one')")
         expect(page.locator("[data-active-chapter] [data-property-editor]")).to_have_value(malicious)
         assert page.evaluate("obsComments.data.annotations[0].text") == "Keep this comment"
         assert page.evaluate("obsComments.data.reviews[0].state") == "accepted"
         assert not page.evaluate("Boolean(window.editExecuted)")
-        page.evaluate("obsReport.activateChapter('two')")
+        page.evaluate("obsArtifact.activateChapter('two')")
         editor = page.locator("[data-active-chapter] [data-property-editor]")
         expect(editor).to_have_value("Original two")
         editor.fill("")
         editor.press("Tab")
-        page.evaluate("obsReport.openBar('comments')")
+        page.evaluate("obsArtifact.openBar('comments')")
         with page.expect_download() as download:
             page.locator("[data-comment-save]").click()
         second = tmp_path / "reviewed-twice.html"
         download.value.save_as(second)
         page.goto(second.as_uri() + "#two")
-        page.evaluate("obsPages.setPaged(false); obsReport.activateChapter('two')")
+        page.evaluate("obsPages.setPaged(false); obsArtifact.activateChapter('two')")
         expect(page.locator("[data-active-chapter] [data-property-editor]")).to_have_value("")
-        assert page.evaluate("obsReport.records.find(note => note.slug === 'one').frontmatter.explanation") == malicious
-        assert page.evaluate("obsReport.records.find(note => note.slug === 'one').frontmatter.identifier") == "one"
+        assert page.evaluate("obsArtifact.records.find(note => note.slug === 'one').frontmatter.explanation") == malicious
+        assert page.evaluate("obsArtifact.records.find(note => note.slug === 'one').frontmatter.identifier") == "one"
         assert page.evaluate("obsComments.data.annotations.length") == 1
-        page.evaluate("obsReport.openBar('comments')")
+        page.evaluate("obsArtifact.openBar('comments')")
         with page.expect_download() as download:
             page.locator("[data-comment-save]").click()
         unchanged = tmp_path / "reviewed-no-new-edits.html"
         download.value.save_as(unchanged)
         page.goto(unchanged.as_uri() + "#two")
-        page.evaluate("obsPages.setPaged(false); obsReport.activateChapter('two')")
+        page.evaluate("obsPages.setPaged(false); obsArtifact.activateChapter('two')")
         expect(page.locator("[data-active-chapter] [data-property-editor]")).to_have_value("")
-        assert page.evaluate("obsReport.records.find(note => note.slug === 'one').frontmatter.explanation") == malicious
+        assert page.evaluate("obsArtifact.records.find(note => note.slug === 'one').frontmatter.explanation") == malicious
         assert page.evaluate("obsComments.data.reviews[0].state") == "accepted"
         assert errors == []
         browser.close()
@@ -166,8 +166,8 @@ def test_native_unsaved_review_warning_tracks_changes_and_save_boundaries(tmp_pa
             encoding="utf-8",
         )
     manifest = tmp_path / "manifest.md"
-    report = tmp_path / "report.html"
-    report.write_text(render_report(manifest, parse_manifest(manifest)), encoding="utf-8")
+    artifact = tmp_path / "artifact.html"
+    artifact.write_text(render_artifact(manifest, parse_manifest(manifest)), encoding="utf-8")
     with sync_playwright() as playwright:
         browser = playwright.chromium.launch(executable_path=executable)
         context = browser.new_context(accept_downloads=True)
@@ -178,7 +178,7 @@ def test_native_unsaved_review_warning_tracks_changes_and_save_boundaries(tmp_pa
             )
         page = context.new_page()
         page.set_default_timeout(5000)
-        page.goto(report.as_uri() + "#one")
+        page.goto(artifact.as_uri() + "#one")
         status = page.locator("[data-review-save-guidance]")
         expect(status).to_contain_text("Download HTML")
         expect(status).to_contain_text("No unsaved review changes")
@@ -187,8 +187,8 @@ def test_native_unsaved_review_warning_tracks_changes_and_save_boundaries(tmp_pa
             return window.dispatchEvent(event) && !event.defaultPrevented;
         }""")
 
-        page.evaluate("obsPages.setPaged(false); obsReport.activateChapter('two'); obsReport.activateChapter('one')")
-        page.evaluate("obsReport.openBar('comments')")
+        page.evaluate("obsPages.setPaged(false); obsArtifact.activateChapter('two'); obsArtifact.activateChapter('one')")
+        page.evaluate("obsArtifact.openBar('comments')")
         expect(status).to_contain_text("No unsaved review changes")
         page.evaluate("obsFilter.setExpression('title: /One/')")
         expect(status).to_contain_text("No unsaved review changes")
@@ -197,7 +197,7 @@ def test_native_unsaved_review_warning_tracks_changes_and_save_boundaries(tmp_pa
         editor.fill("Edited")
         editor.press("Tab")
         assert page.evaluate(
-            "obsReport.records.find(note => note.slug === 'one').frontmatter.explanation",
+            "obsArtifact.records.find(note => note.slug === 'one').frontmatter.explanation",
         ) == "Edited"
         expect(status).to_contain_text("Unsaved review changes")
         assert page.evaluate("""() => {
@@ -208,7 +208,7 @@ def test_native_unsaved_review_warning_tracks_changes_and_save_boundaries(tmp_pa
         editor.fill("Original")
         editor.press("Tab")
         assert page.evaluate(
-            "obsReport.records.find(note => note.slug === 'one').frontmatter.explanation",
+            "obsArtifact.records.find(note => note.slug === 'one').frontmatter.explanation",
         ) == "Original"
         expect(status).to_contain_text("No unsaved review changes")
 
@@ -228,7 +228,7 @@ def test_native_unsaved_review_warning_tracks_changes_and_save_boundaries(tmp_pa
         expect(page.locator("[data-review-save-guidance]")).to_contain_text(
             "No unsaved review changes",
         )
-        page.evaluate("obsReport.openBar('comments')")
+        page.evaluate("obsArtifact.openBar('comments')")
 
         page.evaluate("""async () => {
             const incoming = {version:2, annotations:[{
@@ -266,7 +266,7 @@ def test_native_unsaved_review_warning_tracks_changes_and_save_boundaries(tmp_pa
         expect(page.locator("[data-review-save-guidance]")).to_contain_text(
             "No unsaved review changes",
         )
-        page.evaluate("obsReport.openBar('comments')")
+        page.evaluate("obsArtifact.openBar('comments')")
         page.locator("[data-active-chapter] .review-action--accept").first.click()
         expect(page.locator("[data-review-save-guidance]")).to_contain_text("Unsaved review changes")
         page.evaluate("""() => {
@@ -284,7 +284,7 @@ def test_native_unsaved_review_warning_tracks_changes_and_save_boundaries(tmp_pa
         assert page.evaluate("window.pickerClosed && window.pickerContents.includes('obs-comments')")
 
         page.evaluate("""() => {
-            obsReport.openBar('comments');
+            obsArtifact.openBar('comments');
             document.querySelector('.comment-text-editor').value = 'A newer unsaved edit';
             document.querySelector('.comment-text-editor').dispatchEvent(new Event('input', {bubbles:true}));
             delete window.showSaveFilePicker;
@@ -385,8 +385,8 @@ def test_native_canonical_projection_is_atomic_and_updates_existing_views(tmp_pa
         "data": {"where": [{"field": "kind", "equals": "path"}]},
     }), encoding="utf-8")
     manifest = tmp_path / "manifest.md"
-    report = tmp_path / "report.html"
-    report.write_text(render_report(manifest, parse_manifest(manifest)), encoding="utf-8")
+    artifact = tmp_path / "artifact.html"
+    artifact.write_text(render_artifact(manifest, parse_manifest(manifest)), encoding="utf-8")
 
     with sync_playwright() as playwright:
         browser = playwright.chromium.launch(executable_path=executable)
@@ -396,9 +396,9 @@ def test_native_canonical_projection_is_atomic_and_updates_existing_views(tmp_pa
         page.set_default_timeout(5000)
         errors = []
         page.on("pageerror", lambda error: errors.append(str(error)))
-        page.goto(report.as_uri() + "#one")
-        page.evaluate("obsPages.setPaged(false); obsReport.activateChapter('one')")
-        page.evaluate("obsReport.setFilter(obsQuery.compile('kind:path'))")
+        page.goto(artifact.as_uri() + "#one")
+        page.evaluate("obsPages.setPaged(false); obsArtifact.activateChapter('one')")
+        page.evaluate("obsArtifact.setFilter(obsQuery.compile('kind:path'))")
         table = page.locator('[data-active-chapter] [data-data-table="one-base-1"]')
         expect(table.locator("tbody tr[data-row-key]")).to_have_count(2)
         sankey_link = page.locator(
@@ -410,22 +410,22 @@ def test_native_canonical_projection_is_atomic_and_updates_existing_views(tmp_pa
         editor.press("Tab")
         expect(sankey_link).to_have_attribute("data-flow-value", "1")
         assert page.evaluate(
-            "obsReport.records.find(record => record.slug === 'one').fields.status[0]",
+            "obsArtifact.records.find(record => record.slug === 'one').fields.status[0]",
         ) == "finding-at-eit"
         assert page.evaluate(
-            "obsReport.records.find(record => record.slug === 'one').fields.coverageaccepted[0]",
+            "obsArtifact.records.find(record => record.slug === 'one').fields.coverageaccepted[0]",
         ) == "no"
         assert page.evaluate(
-            "obsReport.records.find(record => record.slug === 'one').fields.sinkkey[0]",
+            "obsArtifact.records.find(record => record.slug === 'one').fields.sinkkey[0]",
         ) == "one-path"
         assert page.evaluate(
-            "obsReport.records.find(record => record.slug === 'one').fields.statusgroup[0]",
+            "obsArtifact.records.find(record => record.slug === 'one').fields.statusgroup[0]",
         ) == "finding-at-eit"
         editor.fill("Updated explanation")
         editor.press("Tab")
         expect(sankey_link).to_have_attribute("data-flow-value", "2")
         assert page.evaluate(
-            "obsReport.records.find(record => record.slug === 'one').fields.status[0]",
+            "obsArtifact.records.find(record => record.slug === 'one').fields.status[0]",
         ) == "explained-finding-at-eit"
         editor.fill("")
         editor.press("Tab")
@@ -435,10 +435,10 @@ def test_native_canonical_projection_is_atomic_and_updates_existing_views(tmp_pa
             let notifications = 0;
             let filterRefreshes = 0;
             document.addEventListener('obs-canonical-property-change', () => notifications++);
-            document.addEventListener('obs-report-filter', () => filterRefreshes++);
+            document.addEventListener('obs-artifact-filter', () => filterRefreshes++);
             window.projectionCounts = () => ({notifications, filterRefreshes});
         }""")
-        changed = page.evaluate("""() => obsReport.commitCanonicalProjection([
+        changed = page.evaluate("""() => obsArtifact.commitCanonicalProjection([
             {slug: 'one', fields: {
                 coverageAccepted: 'yes',
                 sinkKey: 'resolved-one',
@@ -455,30 +455,30 @@ def test_native_canonical_projection_is_atomic_and_updates_existing_views(tmp_pa
             "notifications": 1, "filterRefreshes": 1,
         }
         assert page.evaluate(
-            "obsReport.records.filter(record => record.fields.kind?.includes('path'))"
+            "obsArtifact.records.filter(record => record.fields.kind?.includes('path'))"
             ".map(record => record.fields.status[0])",
         ) == ["finding-at-eit", "explained-finding-at-eit"]
         expect(sankey_link).to_have_attribute("data-flow-value", "1")
         expect(table).to_contain_text("finding-at-eit")
         assert page.evaluate(
-            "obsReport.matchesFilter(obsReport.records.find(record => record.slug === 'one'))",
+            "obsArtifact.matchesFilter(obsArtifact.records.find(record => record.slug === 'one'))",
         )
 
         with pytest.raises(Exception):
-            page.evaluate("""() => obsReport.commitCanonicalProjection([
+            page.evaluate("""() => obsArtifact.commitCanonicalProjection([
                 {slug: 'one', fields: {status: 'changed-before-invalid'}},
                 {slug: 'two', fields: {missingField: 'not-declared'}},
             ])""")
         assert page.evaluate(
-            "obsReport.records.find(record => record.slug === 'one').fields.status[0]",
+            "obsArtifact.records.find(record => record.slug === 'one').fields.status[0]",
         ) == "finding-at-eit"
         assert page.evaluate("window.projectionCounts()") == {
             "notifications": 1, "filterRefreshes": 1,
         }
 
-        page.evaluate("obsReport.activateChapter('home')")
+        page.evaluate("obsArtifact.activateChapter('home')")
         expect(page.locator("[data-record-card] .record-metric-value strong")).to_have_text("1")
-        serialized = json.loads(page.evaluate("obsReport.serializeModel()"))
+        serialized = json.loads(page.evaluate("obsArtifact.serializeModel()"))
         serialized_notes = {note["slug"]: note for note in serialized["notes"]}
         assert serialized_notes["one"]["frontmatter"]["status"] == "finding-at-eit"
         assert serialized_notes["two"]["frontmatter"]["outputGroups"] == [
@@ -490,7 +490,7 @@ def test_native_canonical_projection_is_atomic_and_updates_existing_views(tmp_pa
               text:'Keep projection review', status:'open', replies:[],
               target:{chapter:'one',quote:'One',start:0,end:3}});
             obsComments.data.reviews.push({chapter:'one',item:'item-1',reviewer:'Reviewer',state:'accepted'});
-            obsReport.openBar('comments');
+            obsArtifact.openBar('comments');
         }""")
         guidance = page.locator("[data-review-save-guidance]")
         expect(guidance).to_contain_text("Unsaved review changes")
@@ -499,12 +499,12 @@ def test_native_canonical_projection_is_atomic_and_updates_existing_views(tmp_pa
         saved = tmp_path / "projected.html"
         download.value.save_as(saved)
         page.goto(saved.as_uri() + "#one")
-        page.evaluate("obsPages.setPaged(false); obsReport.activateChapter('one')")
+        page.evaluate("obsPages.setPaged(false); obsArtifact.activateChapter('one')")
         assert page.evaluate(
-            "obsReport.records.find(record => record.slug === 'one').fields.status[0]",
+            "obsArtifact.records.find(record => record.slug === 'one').fields.status[0]",
         ) == "finding-at-eit"
         assert page.evaluate(
-            "obsReport.records.find(record => record.slug === 'two').fields.outputgroups",
+            "obsArtifact.records.find(record => record.slug === 'two').fields.outputgroups",
         ) == ["Exported to labels", "Exported to system"]
         expect(
             page.locator("[data-active-chapter] .sankey-canvas [data-flow-value]"),
@@ -537,7 +537,7 @@ def test_native_single_line_editor_preserves_untouched_multiline_and_saves(tmp_p
     (tmp_path / "findings.md").write_text("# Findings\n\n```base\n" +
         yaml.safe_dump(definition) + "```\n", encoding="utf-8")
     output = tmp_path / "single-line.html"
-    output.write_text(render_report(manifest, parse_manifest(manifest)), encoding="utf-8")
+    output.write_text(render_artifact(manifest, parse_manifest(manifest)), encoding="utf-8")
     page = reader_browser.new_page(viewport={"width": 1500, "height": 1000})
     page.add_init_script("delete window.showSaveFilePicker")
     downloads = []
@@ -553,16 +553,16 @@ def test_native_single_line_editor_preserves_untouched_multiline_and_saves(tmp_p
         expect(editor).to_have_count(1)
         editor.focus()
         editor.press("Tab")
-        assert page.evaluate("obsReport.records.find(r=>r.slug==='finding').frontmatter.explanation") == original
+        assert page.evaluate("obsArtifact.records.find(r=>r.slug==='finding').frontmatter.explanation") == original
         label = page.locator(".data-table-cell--single-line a")
         expect(label).to_have_attribute("title", title)
         assert label.evaluate("node=>getComputedStyle(node).whiteSpace") == "nowrap"
         editor.fill("Actually edited and accepted.")
         editor.press("Enter")
-        assert page.evaluate("obsReport.records.find(r=>r.slug==='finding').frontmatter.explanation") == \
+        assert page.evaluate("obsArtifact.records.find(r=>r.slug==='finding').frontmatter.explanation") == \
             "Actually edited and accepted."
         assert downloads == []
-        page.evaluate("obsReport.openBar('comments')")
+        page.evaluate("obsArtifact.openBar('comments')")
         with page.expect_download() as downloaded:
             page.locator("[data-comment-save]").click()
         reviewed = tmp_path / "reviewed.html"

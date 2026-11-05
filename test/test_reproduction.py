@@ -20,7 +20,7 @@ from obs_html.content import ContentError, read_manifest
 from obs_html.pdf import attach_archive
 from obs_html.pdf import export_pdf
 from obs_html.reproduction import ARCHIVE_NAME, embedded_archive, source_archive
-from obs_html.report_data import REPORT_PATTERN, decode_report_data, encode_report_data
+from obs_html.artifact_data import ARTIFACT_PATTERN, decode_artifact_data, encode_artifact_data
 
 HISTORY_FENCE = (
     "\n## History\n\n```base\nproperties:\n  version: {displayName: Version}\n  change: {displayName: Change}\n"
@@ -37,8 +37,8 @@ def vault_at(tmp_path: Path) -> Path:
     return vault
 
 
-def report_data(report: str) -> dict:
-    return decode_report_data(report)
+def artifact_data(artifact: str) -> dict:
+    return decode_artifact_data(artifact)
 
 
 def test_reader_and_archive_share_exact_attachment_owner(tmp_path: Path) -> None:
@@ -48,19 +48,19 @@ def test_reader_and_archive_share_exact_attachment_owner(tmp_path: Path) -> None
     (vault / "one.md").write_text(
         "# One\n\n![Original](evidence.dat)\n\n![Again](evidence.dat)\n", encoding="utf-8",
     )
-    output = tmp_path / "report.html"
+    output = tmp_path / "artifact.html"
     assert main(["--source", str(vault), "--output", str(output), "--embed-source",
                  "--embed-attachments"]) == 0
-    report = output.read_text(encoding="utf-8")
-    data = report_data(report)
-    assert base64.b64encode(original).decode() not in report
+    artifact = output.read_text(encoding="utf-8")
+    data = artifact_data(artifact)
+    assert base64.b64encode(original).decode() not in artifact
     source_assets = [asset for asset in data["embeddedAssets"].values()
                      if asset.get("archivePath") == "vault/evidence.dat"]
     assert len(source_assets) == 1
     asset = source_assets[0]
     assert asset["archivePath"] == "vault/evidence.dat"
     assert asset["mime"] == "application/octet-stream"
-    with ZipFile(BytesIO(embedded_archive(report))) as archive:
+    with ZipFile(BytesIO(embedded_archive(artifact))) as archive:
         assert archive.read(asset["archivePath"]) == original
         assert archive.namelist().count(asset["archivePath"]) == 1
 
@@ -116,13 +116,13 @@ def test_malformed_shared_asset_is_explicit_error(tmp_path: Path) -> None:
     vault = vault_at(tmp_path)
     (vault / "one.md").write_text("# One\n\n[Evidence](input.dat)\n", encoding="utf-8")
     (vault / "input.dat").write_bytes(b"exact original")
-    output = tmp_path / "report.html"
+    output = tmp_path / "artifact.html"
     assert main(["--source", str(vault), "--output", str(output), "--embed-source"]) == 0
-    report = output.read_text(encoding="utf-8")
-    data = report_data(report)
+    artifact = output.read_text(encoding="utf-8")
+    data = artifact_data(artifact)
     asset = next(iter(data["embeddedAssets"].values()))
     asset["sha256"] = "0" * 64
-    damaged = REPORT_PATTERN.sub(lambda match: encode_report_data(data), report, count=1)
+    damaged = ARTIFACT_PATTERN.sub(lambda match: encode_artifact_data(data), artifact, count=1)
     with pytest.raises(ContentError, match="asset|digest"):
         embedded_archive(damaged)
 
@@ -159,7 +159,7 @@ def test_native_shared_assets_download_print_review_and_reproduce(tmp_path: Path
     (vault / "one.md").write_text(
         "# One\n\n![Original](original.dat)\n\n![Icon](icon.svg)\n", encoding="utf-8",
     )
-    output = tmp_path / "report.html"
+    output = tmp_path / "artifact.html"
     assert main(["--source", str(vault), "--output", str(output), "--embed-source", "--check",
                  "--embed-attachments"]) == 0
     assert main(["--source", str(vault), "--output", str(output), "--embed-source",
@@ -177,7 +177,7 @@ def test_native_shared_assets_download_print_review_and_reproduce(tmp_path: Path
             with page.expect_download() as downloaded:
                 page.get_by_role("link", name="Original", exact=True).click()
             assert Path(downloaded.value.path()).read_bytes() == original
-            page.evaluate("obsReport.openBar('settings')")
+            page.evaluate("obsArtifact.openBar('settings')")
             with page.expect_download() as zipped:
                 page.locator("[data-source-exports] [data-source-download]").click()
             assert Path(zipped.value.path()).read_bytes() == archive
@@ -196,7 +196,7 @@ def test_native_shared_assets_download_print_review_and_reproduce(tmp_path: Path
                     author: 'Reviewer'
                 });
                 window.showSaveFilePicker = undefined;
-                obsReport.openBar('comments');
+                obsArtifact.openBar('comments');
             }""")
             with page.expect_download() as reviewed_download:
                 page.locator("[data-comment-save]").click()
@@ -238,17 +238,17 @@ def test_native_malformed_shared_assets_fail_explicitly(tmp_path: Path, damage: 
     vault = vault_at(tmp_path)
     (vault / "original.dat").write_bytes(b"exact original evidence")
     (vault / "one.md").write_text("# One\n\n[Original](original.dat)\n", encoding="utf-8")
-    output = tmp_path / "report.html"
+    output = tmp_path / "artifact.html"
     assert main(["--source", str(vault), "--output", str(output), "--embed-source"]) == 0
-    report = output.read_text(encoding="utf-8")
-    data = report_data(report)
+    artifact = output.read_text(encoding="utf-8")
+    data = artifact_data(artifact)
     asset = next(iter(data["embeddedAssets"].values()))
     if damage == "digest":
         asset["sha256"] = "0" * 64
     else:
         asset["archivePath"] = "vault/missing.dat"
-    report = REPORT_PATTERN.sub(lambda match: encode_report_data(data), report, count=1)
-    output.write_text(report, encoding="utf-8")
+    artifact = ARTIFACT_PATTERN.sub(lambda match: encode_artifact_data(data), artifact, count=1)
+    output.write_text(artifact, encoding="utf-8")
     with sync_playwright() as playwright:
         browser = playwright.chromium.launch(executable_path=os.environ["OBS_HTML_TEST_NATIVE_BROWSER"])
         try:
@@ -271,7 +271,7 @@ def test_native_assets_without_source_archive_remain_self_contained(tmp_path: Pa
         b'<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32"><circle r="16"/></svg>',
     )
     (vault / "one.md").write_text("# One\n\n![Icon](icon.svg)\n\n![Again](icon.svg)\n", encoding="utf-8")
-    output = tmp_path / "report.html"
+    output = tmp_path / "artifact.html"
     assert main(["--source", str(vault), "--output", str(output)]) == 0
     assert embedded_archive(output.read_text(encoding="utf-8")) is None
     with sync_playwright() as playwright:
@@ -294,15 +294,15 @@ def test_native_print_payload_readiness_uses_existing_timeout(tmp_path: Path) ->
     from playwright.sync_api import sync_playwright
 
     vault = vault_at(tmp_path)
-    output = tmp_path / "report.html"
+    output = tmp_path / "artifact.html"
     assert main(["--source", str(vault), "--output", str(output), "--embed-source"]) == 0
-    report = output.read_text(encoding="utf-8")
-    data = report_data(report)
+    artifact = output.read_text(encoding="utf-8")
+    data = artifact_data(artifact)
     assert data["printReadyTimeoutMilliseconds"] > 50
     # The payload is compressed, so a text replace would silently keep the long default.
     data["printReadyTimeoutMilliseconds"] = 50
-    report = REPORT_PATTERN.sub(lambda match: encode_report_data(data), report, count=1)
-    output.write_text(report, encoding="utf-8")
+    artifact = ARTIFACT_PATTERN.sub(lambda match: encode_artifact_data(data), artifact, count=1)
+    output.write_text(artifact, encoding="utf-8")
     with sync_playwright() as playwright:
         browser = playwright.chromium.launch(executable_path=os.environ["OBS_HTML_TEST_NATIVE_BROWSER"])
         try:
@@ -313,7 +313,7 @@ def test_native_print_payload_readiness_uses_existing_timeout(tmp_path: Path) ->
                 globalThis.printCalls = 0;
                 window.print = () => { printCalls++; };
             }""")
-            page.evaluate("obsReport.openBar('settings')")
+            page.evaluate("obsArtifact.openBar('settings')")
             page.locator("[data-export-pdf]").click()
             page.wait_for_function(
                 "document.querySelector('[data-export-status]').textContent.includes('Timed out')",
@@ -329,12 +329,12 @@ def test_archive_opt_in_includes_sources_and_roundtrips_pdf(tmp_path: Path) -> N
     vault = vault_at(tmp_path)
     (vault / ".secret").write_text("not shared", encoding="utf-8")
     (vault / "script.py").write_text("print('input helper')", encoding="utf-8")
-    output = tmp_path / "report.html"
+    output = tmp_path / "artifact.html"
     assert main(["--source", str(vault), "--output", str(output)]) == 0
     assert embedded_archive(output.read_text(encoding="utf-8")) is None
     assert main(["--source", str(vault), "--output", str(output), "--embed-source"]) == 0
-    report = output.read_text(encoding="utf-8")
-    archive = embedded_archive(report)
+    artifact = output.read_text(encoding="utf-8")
+    archive = embedded_archive(artifact)
     assert archive is not None
     with ZipFile(BytesIO(archive)) as contents:
         assert "vault/.secret" not in contents.namelist()
@@ -345,12 +345,12 @@ def test_archive_opt_in_includes_sources_and_roundtrips_pdf(tmp_path: Path) -> N
         assert "--config ../build-config.json" in contents.read("REPRODUCE.txt").decode()
         assert "generator/src/obs_html/archive.js" in contents.namelist()
         assert "--execute-commands" in contents.read("reproduce.py").decode()
-        assert json.loads(contents.read("build-config.json"))["report"]["print"]["paperSizes"]["A4"] == {
+        assert json.loads(contents.read("build-config.json"))["artifact"]["print"]["paperSizes"]["A4"] == {
             "widthMillimeters": 210, "heightMillimeters": 297}
         (tmp_path / "build-config.json").write_bytes(contents.read("build-config.json"))
     assert load_config(tmp_path / "build-config.json") == load_config(DEFAULT_CONFIG)
-    assert 'id="pdf-library-script"' in report
-    assert "Download source ZIP" in report
+    assert 'id="pdf-library-script"' in artifact
+    assert "Download source ZIP" in artifact
     writer = PdfWriter()
     writer.add_blank_page(width=595, height=842)
     pdf = BytesIO()
@@ -364,7 +364,7 @@ def test_archive_opt_in_includes_sources_and_roundtrips_pdf(tmp_path: Path) -> N
     source_pdf = tmp_path / "original.pdf"
     source_pdf.write_bytes(pdf.getvalue())
     target = tmp_path / "attached.pdf"
-    assert main(["--attach-source-to-pdf", str(source_pdf), "--source-report", str(output),
+    assert main(["--attach-source-to-pdf", str(source_pdf), "--source-artifact", str(output),
                  "--output", str(target)]) == 0
     assert PdfReader(target).attachments[ARCHIVE_NAME] == [archive]
     assert source_pdf.read_bytes() == pdf.getvalue()
@@ -378,7 +378,7 @@ def test_source_archive_records_authorized_silent_producers(tmp_path: Path) -> N
         + "\n```\n",
         encoding="utf-8",
     )
-    output = tmp_path / "report.html"
+    output = tmp_path / "artifact.html"
 
     assert main([
         "--source", str(vault), "--output", str(output), "--embed-source", "--execute-commands",
@@ -396,7 +396,7 @@ def test_source_archive_records_authorized_silent_producers(tmp_path: Path) -> N
 
 def test_check_archive_never_writes_and_missing_checkout_fails(tmp_path: Path) -> None:
     vault = vault_at(tmp_path)
-    output = tmp_path / "report.html"
+    output = tmp_path / "artifact.html"
     assert main(["--source", str(vault), "--output", str(output), "--embed-source", "--check"]) == 0
     assert not output.exists()
     with pytest.raises(ContentError, match="generator checkout"):
@@ -426,9 +426,9 @@ def test_manifest_history_and_empty_cover_fields(tmp_path: Path) -> None:
         '  - {version: "01*", date: "", author: Lin, change: Working draft}\n'
         '---\n- [[one]]\n', encoding="utf-8",
     )
-    output = tmp_path / "report.html"
+    output = tmp_path / "artifact.html"
     assert main(["--source", str(vault), "--output", str(output)]) == 0
-    unauthored = decode_report_data(output.read_text(encoding="utf-8"))["notes"][0]
+    unauthored = decode_artifact_data(output.read_text(encoding="utf-8"))["notes"][0]
     assert unauthored["tables"] == [], "history metadata alone must not add a Home table"
     manifest.write_text(manifest.read_text(encoding="utf-8") + HISTORY_FENCE, encoding="utf-8")
     metadata = read_manifest(manifest).metadata
@@ -438,7 +438,7 @@ def test_manifest_history_and_empty_cover_fields(tmp_path: Path) -> None:
     assert metadata["history"][0]["date"] == "2026-10-01"
     assert "date" not in metadata["history"][1]
     assert main(["--source", str(vault), "--output", str(output)]) == 0
-    data = decode_report_data(output.read_text(encoding="utf-8"))
+    data = decode_artifact_data(output.read_text(encoding="utf-8"))
     home = data["notes"][0]
     assert "SE Harness" in home["html"]
     assert "<dd>01*</dd>" not in home["html"]
@@ -474,7 +474,7 @@ def test_native_pdf_and_standalone_browser_attachment(tmp_path: Path) -> None:
         'history:\n  - {version: "00*", author: Ada, change: Working draft}\n'
         '---\n- [[one]]\n\n> [!important]\n> A key conclusion.\n' + HISTORY_FENCE, encoding="utf-8",
     )
-    html = tmp_path / "report.html"
+    html = tmp_path / "artifact.html"
     assert main(["--source", str(vault), "--output", str(html), "--embed-source"]) == 0
     archive = embedded_archive(html.read_text(encoding="utf-8"))
     pdf_bytes = export_pdf(html)
@@ -507,7 +507,7 @@ def test_native_pdf_and_standalone_browser_attachment(tmp_path: Path) -> None:
             plain_path = tmp_path / "printed.pdf"
             plain_path.write_bytes(plain.getvalue())
             with page.expect_download() as attached_download:
-                page.evaluate("obsReport.openBar('settings')")
+                page.evaluate("obsArtifact.openBar('settings')")
                 assert page.evaluate("""() => {
                     const box = selector => document.querySelector(selector).getBoundingClientRect();
                     const pages = box('.settings-pages'), pdf = box('[data-export-pdf]');

@@ -6,8 +6,8 @@ import pytest
 from obs_html.content import (
     Chapter, ContentError, paragraph_warnings, parse_manifest, read_chapter_content, render_chapter,
 )
-from obs_html.renderer import render_report
-from obs_html.report_data import decode_report_data
+from obs_html.renderer import render_artifact
+from obs_html.artifact_data import decode_artifact_data
 
 
 def test_columns_preserve_canonical_cards_queries_links_and_source_lines(tmp_path):
@@ -60,7 +60,7 @@ def test_manifest_columns_keep_one_home_query_owner(tmp_path):
         "```base\nviews:\n  - type: table\n    order: [title]\n```\n|||\n",
         encoding="utf-8",
     )
-    data = decode_report_data(render_report(manifest, parse_manifest(manifest)))
+    data = decode_artifact_data(render_artifact(manifest, parse_manifest(manifest)))
     home = next(note for note in data["notes"] if note["slug"] == "home")
     assert home["html"].count('class="markdown-column"') == 2
     assert home["html"].count('data-base-table="home-base-1"') == 1

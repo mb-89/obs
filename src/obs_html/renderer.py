@@ -37,7 +37,7 @@ from obs_html.content import (
   external_link_warnings,
   quantity_label,
 )
-from obs_html.report_data import encode_report_data, prepare_report_scripts, serialize_report_data
+from obs_html.artifact_data import encode_artifact_data, prepare_artifact_scripts, serialize_artifact_data
 from obs_html.styles import load_style
 from obs_html.timings import stage
 
@@ -110,7 +110,7 @@ def _deduplicate_embedded_assets(data: dict[str, object]) -> None:
   data["embeddedAssets"] = assets
 
 
-def render_report(
+def render_artifact(
   manifest_path: Path,
   chapters: list[Chapter],
   command_runner: Callable[[str], str] | None = None,
@@ -150,7 +150,7 @@ def render_report(
     query_script = files("obs_html").joinpath("query.js").read_text(encoding="utf-8")
     table_script = files("obs_html").joinpath("table.js").read_text(encoding="utf-8")
     transaction_script = files("obs_html").joinpath("canonical-transaction.js").read_text(encoding="utf-8")
-    script = files("obs_html").joinpath("report.js").read_text(encoding="utf-8")
+    script = files("obs_html").joinpath("artifact.js").read_text(encoding="utf-8")
     manifest = manifest or read_manifest(manifest_path)
     title = _document_title(manifest, manifest_path)
     if css_snippet_folder is None:
@@ -164,7 +164,7 @@ def render_report(
     )
     bars = discover_bars()
     bar_scripts = "\n".join(f"\n{bar.script}" for bar in bars if bar.script)
-    report_data = _serialize_report_data(
+    artifact_data = _serialize_artifact_data(
       chapters,
       vault_root,
       command_runner,
@@ -195,22 +195,22 @@ def render_report(
       figure_references=figure_references,
     )
     card_assets = ""
-    if "data-record-cards" in report_data:
+    if "data-record-cards" in artifact_data:
         card_js = files("obs_html").joinpath("cards.js").read_text(encoding="utf-8")
         card_assets = f'<script id="cards-script">{card_js}</script>'
     property_assets = ""
-    if "data-property-editor" in report_data:
+    if "data-property-editor" in artifact_data:
         property_js = files("obs_html").joinpath("properties.js").read_text(encoding="utf-8")
         property_assets = f'<script id="property-editor-script">{property_js}</script>'
     figure_assets = ""
-    if "data-report-figure" in report_data or "data-engineering-figure" in report_data:
+    if "data-artifact-figure" in artifact_data or "data-engineering-figure" in artifact_data:
         figure_css = files("obs_html").joinpath("figures.css").read_text(encoding="utf-8")
         figure_js = files("obs_html").joinpath("figures.js").read_text(encoding="utf-8")
         plotly = ""
-        if 'data-figure-kind=\\"plot\\"' in report_data:
+        if 'data-figure-kind=\\"plot\\"' in artifact_data:
             figure_settings = json.loads(
                 files("obs_html").joinpath("cfg.json").read_text(encoding="utf-8")
-            )["report"]["figures"] | (figures or {})
+            )["artifact"]["figures"] | (figures or {})
             if figure_settings["plotlyDelivery"] == "cdn":
                 plotly = (
                     f'<script id="plotly-script" src="{figure_settings["plotlyCdnUrl"]}" '
@@ -229,14 +229,14 @@ def render_report(
                 )
         figure_assets = f'<style id="figure-styles">{figure_css}</style>{plotly}<script id="figure-script">{figure_js}</script>'
 
-    model = json.loads(report_data)
+    model = json.loads(artifact_data)
     startup = model["reading"]
     reader_startup = "".join(
       f"    {line}\n" for line in files("obs_html").joinpath("reader-startup.js").read_text(encoding="utf-8")
       .replace("READER_THEME", json.dumps(startup["theme"]))
       .replace("READER_PAGED", json.dumps(startup["paged"])).splitlines()
     )
-    report_island = encode_report_data(model, data_compression)
+    artifact_island = encode_artifact_data(model, data_compression)
     runtime_head = ""
     runtime_script = ""
     if trusted_runtime_bundle:
@@ -248,7 +248,7 @@ def render_report(
             + re.sub(r"</script", r"<\\/script", runtime_source, flags=re.IGNORECASE)
             + "</script>"
         )
-    return prepare_report_scripts(assets.resolve_markup(f"""<!doctype html>
+    return prepare_artifact_scripts(assets.resolve_markup(f"""<!doctype html>
 <html lang="en" data-theme="{escape(startup['theme'])}">
 <head>
   <meta charset="utf-8">
@@ -258,7 +258,7 @@ def render_report(
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="color-scheme" content="light dark">
   <title>{escape(title)}</title>
-  <style id="report-styles">
+  <style id="artifact-styles">
 {stylesheet}
   </style>
   <style id="semantic-asset-styles">{assets.css()}</style>{author_styles}
@@ -301,7 +301,7 @@ def render_report(
     {_render_dock_region("bottom")}
   </div>
 
-  <script id="running-header-script" data-header-metadata="{escape(serialize_report_data(model['document']['metadata']), quote=True)}">
+  <script id="running-header-script" data-header-metadata="{escape(serialize_artifact_data(model['document']['metadata']), quote=True)}">
 {files("obs_html").joinpath("running-header.js").read_text(encoding="utf-8")}
   </script>
   <button class="icon-button menu-button" type="button" data-menu-button
@@ -314,7 +314,7 @@ def render_report(
     {''.join(_render_bar(bar, chapters) for bar in bars)}
   </div>
 
-  {report_island}
+  {artifact_island}
   <script id="obs-comments" type="application/json" data-comment-island>{_empty_comment_island()}</script>
   <script id="query-script">
 {query_script}
@@ -338,7 +338,7 @@ def render_report(
   <script id="canonical-transaction-script">
 {transaction_script}
   </script>
-  <script id="report-script">
+  <script id="artifact-script">
 {files("obs_html").joinpath("hover-card.js").read_text(encoding="utf-8")}
 {files("obs_html").joinpath("guided-card.js").read_text(encoding="utf-8")}
 {script}
@@ -394,7 +394,7 @@ def _document_title(manifest: Manifest, manifest_path: Path) -> str:
     return manifest_path.stem
 
 
-def _serialize_report_data(
+def _serialize_artifact_data(
   chapters: list[Chapter],
   vault_root: Path,
   command_runner: Callable[[str], str] | None,
@@ -438,13 +438,13 @@ def _serialize_report_data(
   for document in documents:
     for table in document.tables:
       assets.normalize_definition(table.definition)
-  report_defaults = json.loads(
+  artifact_defaults = json.loads(
     files("obs_html").joinpath("cfg.json").read_text(encoding="utf-8")
-  )["report"]
-  reading_settings = report_defaults["reading"] | (reading or {})
+  )["artifact"]
+  reading_settings = artifact_defaults["reading"] | (reading or {})
   for key, replacement in REMOVED_READING_SETTINGS.items():
     if key in reading_settings:
-      raise ValueError(f"report.reading.{key} was removed: {replacement}")
+      raise ValueError(f"artifact.reading.{key} was removed: {replacement}")
   presentation = manifest.presentation
   # Light is a product invariant; the opening layout is the author's manifest declaration.
   reading_settings = {"theme": "light", "paged": presentation["layout"] == "paged", **reading_settings}
@@ -483,27 +483,27 @@ def _serialize_report_data(
         },
       },
     },
-    "paper": _paper(presentation["print"], print_setup or report_defaults["print"]),
+    "paper": _paper(presentation["print"], print_setup or artifact_defaults["print"]),
     "reading": {key: value for key, value in reading_settings.items()
                 if key not in {"paragraphWarningLines", "paragraphLineCharacters"}},
-    "figures": figures if figures is not None else report_defaults["figures"],
+    "figures": figures if figures is not None else artifact_defaults["figures"],
     "printReadyTimeoutMilliseconds": print_ready_timeout_milliseconds
-      if print_ready_timeout_milliseconds is not None else report_defaults["printReadyTimeoutMilliseconds"],
-    "hoverCard": hover_card if hover_card is not None else report_defaults["hoverCard"],
-    "tablePageSize": table_page_size if table_page_size is not None else report_defaults["tablePageSize"],
+      if print_ready_timeout_milliseconds is not None else artifact_defaults["printReadyTimeoutMilliseconds"],
+    "hoverCard": hover_card if hover_card is not None else artifact_defaults["hoverCard"],
+    "tablePageSize": table_page_size if table_page_size is not None else artifact_defaults["tablePageSize"],
     "inactiveIconOpacity": inactive_icon_opacity
-      if inactive_icon_opacity is not None else report_defaults["inactiveIconOpacity"],
+      if inactive_icon_opacity is not None else artifact_defaults["inactiveIconOpacity"],
     "tableColumnMinimumPixels": table_column_minimum_pixels
-      if table_column_minimum_pixels is not None else report_defaults["tableColumnMinimumPixels"],
+      if table_column_minimum_pixels is not None else artifact_defaults["tableColumnMinimumPixels"],
     "tableCompactColumnMinimumPixels": table_compact_column_minimum_pixels
-      if table_compact_column_minimum_pixels is not None else report_defaults["tableCompactColumnMinimumPixels"],
+      if table_compact_column_minimum_pixels is not None else artifact_defaults["tableCompactColumnMinimumPixels"],
     "dockPaneMinimumPixels": dock_pane_minimum_pixels
-      if dock_pane_minimum_pixels is not None else report_defaults["dockPaneMinimumPixels"],
-    "guidedCard": guided_card if guided_card is not None else report_defaults["guidedCard"],
+      if dock_pane_minimum_pixels is not None else artifact_defaults["dockPaneMinimumPixels"],
+    "guidedCard": guided_card if guided_card is not None else artifact_defaults["guidedCard"],
     "tableIconWidthPixels": table_icon_width_pixels
-      if table_icon_width_pixels is not None else report_defaults["tableIconWidthPixels"],
+      if table_icon_width_pixels is not None else artifact_defaults["tableIconWidthPixels"],
     "tableDetailFontSizePoints": table_detail_font_size_points
-      if table_detail_font_size_points is not None else report_defaults["tableDetailFontSizePoints"],
+      if table_detail_font_size_points is not None else artifact_defaults["tableDetailFontSizePoints"],
     "facetDistinctRatio": facet_distinct_ratio,
     "query": query_profile(
       presentation["query"], home, notes, vault_root, documents_by_path, reference_index,
@@ -572,7 +572,7 @@ def _serialize_report_data(
   }
   data = _transform_strings(data, assets.resolve_markup)
   _deduplicate_embedded_assets(data)
-  return serialize_report_data(data)
+  return serialize_artifact_data(data)
 
 
 def _render_frontmatter_html(

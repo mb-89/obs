@@ -8,7 +8,7 @@ from pathlib import Path
 import pytest
 
 from obs_html.content import parse_manifest
-from obs_html.renderer import render_report
+from obs_html.renderer import render_artifact
 
 
 @pytest.mark.skipif(
@@ -26,15 +26,15 @@ def test_storage_denial_keeps_settings_and_review_controls_usable(
     )
     manifest = tmp_path / "manifest.md"
     manifest.write_text("- [[one]]\n", encoding="utf-8")
-    report = tmp_path / "report.html"
-    report.write_text(
-        render_report(manifest, parse_manifest(manifest)),
+    artifact = tmp_path / "artifact.html"
+    artifact.write_text(
+        render_artifact(manifest, parse_manifest(manifest)),
         encoding="utf-8",
     )
     wrapper = tmp_path / "sandbox.html"
     wrapper.write_text(
-        '<!doctype html><iframe id="report" sandbox="allow-scripts" '
-        f'src="{html.escape(report.as_uri() + "#one", quote=True)}"></iframe>',
+        '<!doctype html><iframe id="artifact" sandbox="allow-scripts" '
+        f'src="{html.escape(artifact.as_uri() + "#one", quote=True)}"></iframe>',
         encoding="utf-8",
     )
 
@@ -45,7 +45,7 @@ def test_storage_denial_keeps_settings_and_review_controls_usable(
         page = browser.new_page()
         try:
             page.goto(wrapper.as_uri())
-            frame = page.frame_locator("#report")
+            frame = page.frame_locator("#artifact")
             expect(frame.locator("[data-active-chapter]")).to_have_attribute(
                 "data-chapter",
                 "one",
@@ -53,14 +53,14 @@ def test_storage_denial_keeps_settings_and_review_controls_usable(
             expect(frame.locator("[data-chapter-body]")).to_contain_text(
                 "The review control remains available",
             )
-            frame.locator("body").evaluate("() => obsReport.openBar('settings', 'right')")
+            frame.locator("body").evaluate("() => obsArtifact.openBar('settings', 'right')")
             expect(frame.locator('[data-storage-warning="appearance"]')).to_have_count(0)
             expect(frame.locator("html")).to_have_attribute("data-theme", "light")
 
             frame.locator("[data-theme-select]").select_option("dark")
             expect(frame.locator("html")).to_have_attribute("data-theme", "dark")
 
-            frame.locator("body").evaluate("() => obsReport.openBar('comments', 'right')")
+            frame.locator("body").evaluate("() => obsArtifact.openBar('comments', 'right')")
             reviewer = frame.locator("[data-comment-author]")
             expect(reviewer).to_be_visible()
             expect(frame.locator('[data-storage-warning="reviewer"]')).to_be_visible()
@@ -95,14 +95,14 @@ def test_repeated_embedded_images_do_not_request_internal_asset_uris(
         )
     manifest = tmp_path / "manifest.md"
     manifest.write_text("- [[one]]\n- [[two]]\n", encoding="utf-8")
-    report = tmp_path / "report.html"
-    report_html = render_report(manifest, parse_manifest(manifest))
-    assert "obs-asset:" in report_html
-    report.write_text(report_html, encoding="utf-8")
+    artifact = tmp_path / "artifact.html"
+    artifact_html = render_artifact(manifest, parse_manifest(manifest))
+    assert "obs-asset:" in artifact_html
+    artifact.write_text(artifact_html, encoding="utf-8")
     wrapper = tmp_path / "sandbox.html"
     wrapper.write_text(
-        '<!doctype html><iframe id="report" sandbox="allow-scripts" '
-        f'src="{html.escape(report.as_uri() + "#one", quote=True)}"></iframe>',
+        '<!doctype html><iframe id="artifact" sandbox="allow-scripts" '
+        f'src="{html.escape(artifact.as_uri() + "#one", quote=True)}"></iframe>',
         encoding="utf-8",
     )
 
@@ -115,7 +115,7 @@ def test_repeated_embedded_images_do_not_request_internal_asset_uris(
         page.on("requestfailed", lambda request: failed_requests.append(request.url))
         try:
             page.goto(wrapper.as_uri())
-            frame = page.frame_locator("#report")
+            frame = page.frame_locator("#artifact")
             expect(frame.locator("[data-active-chapter]")).to_have_attribute(
                 "data-chapter",
                 "one",
@@ -123,7 +123,7 @@ def test_repeated_embedded_images_do_not_request_internal_asset_uris(
             image_element = frame.locator("[data-chapter-body] figure > img")
             expect(image_element).to_have_count(1)
             assert image_element.get_attribute("src").startswith("data:image/")
-            frame.locator("body").evaluate("() => obsReport.activateChapter('two')")
+            frame.locator("body").evaluate("() => obsArtifact.activateChapter('two')")
             expect(frame.locator("[data-active-chapter]")).to_have_attribute(
                 "data-chapter",
                 "two",
@@ -134,7 +134,7 @@ def test_repeated_embedded_images_do_not_request_internal_asset_uris(
             static_image_src = frame.locator("body").evaluate("""() => {
                 const root = document.createElement("div");
                 document.body.append(root);
-                obsReport.renderStatic("one", root);
+                obsArtifact.renderStatic("one", root);
                 return root.querySelector("img").getAttribute("src");
             }""")
             assert static_image_src.startswith("data:image/")
@@ -199,14 +199,14 @@ def test_archived_images_never_request_internal_asset_uris(tmp_path: Path) -> No
 
         try:
             page.goto(output.as_uri() + "#one")
-            page.wait_for_function("document.documentElement.dataset.reportStatus === 'ready'")
-            assert "evidence.md" in page.evaluate("obsReport.canonicalNotes().map(note => note.sourcePath)")
+            page.wait_for_function("document.documentElement.dataset.artifactStatus === 'ready'")
+            assert "evidence.md" in page.evaluate("obsArtifact.canonicalNotes().map(note => note.sourcePath)")
             body = page.locator("[data-chapter-body]")
             expect(body.locator('img[alt="Red"]')).to_have_count(1)
             settled("initial render")
             assert body.locator('img[alt="Red"]').get_attribute("src").startswith("blob:")
 
-            page.evaluate("obsReport.activateChapter('two')")
+            page.evaluate("obsArtifact.activateChapter('two')")
             expect(page.locator("[data-active-chapter]")).to_have_attribute("data-chapter", "two")
             settled("chapter activation")
 
@@ -224,21 +224,21 @@ def test_archived_images_never_request_internal_asset_uris(tmp_path: Path) -> No
             settled("saved copy")
             assert 'data-obs-asset-src="' not in saved.read_text(encoding="utf-8")
             page.goto(saved.as_uri() + "#two")
-            page.wait_for_function("document.documentElement.dataset.reportStatus === 'ready'")
+            page.wait_for_function("document.documentElement.dataset.artifactStatus === 'ready'")
             settled("reopened saved copy")
 
             page.evaluate("""async pixel => {
                 const bytes = Uint8Array.from(atob(pixel), char => char.charCodeAt(0));
                 const descriptor = await obsPayload.describeAsset('assets/blue.png', bytes, 'image/png');
-                const notes = obsReport.canonicalNotes();
+                const notes = obsArtifact.canonicalNotes();
                 const evidence = notes.find(note => note.sourcePath === 'evidence.md');
                 evidence.html = `<p><img src="obs-asset:${descriptor.key}" alt="Replacement"></p>`;
-                const staged = await obsReport.stageCanonicalTransaction({
-                    expectedRevision: obsReport.revision, notes,
+                const staged = await obsArtifact.stageCanonicalTransaction({
+                    expectedRevision: obsArtifact.revision, notes,
                     assetChanges: [{...descriptor, bytes, removeKeys: []}],
                 });
                 staged.commit();
-                obsReport.activateChapter(evidence.slug);
+                obsArtifact.activateChapter(evidence.slug);
             }""", PIXELS["blue"])
             replacement = page.locator('[data-chapter-body] img[alt="Replacement"]')
             expect(replacement).to_have_count(1)

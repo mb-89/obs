@@ -6,7 +6,7 @@ import yaml
 
 from obs_html.cli import main
 from obs_html.content import ContentError, validate_base_definition
-from obs_html.report_data import decode_report_data
+from obs_html.artifact_data import decode_artifact_data
 from obs_html.semantic_assets import SemanticAssets, markup
 from test_browser import run_browser_script
 from test_named_icons import write_index
@@ -86,13 +86,13 @@ def test_tiny_real_base_cli_preserves_exact_id_boundary(tmp_path, capsys, name, 
     (source / "chapter.md").write_text(
         "```base\n" + yaml.safe_dump(_definition(name), sort_keys=False) + "```\n", encoding="utf-8")
     write_index(source / "assets.json", {LONG_NAME: {"glyph": "LONG"}})
-    (source / "cfg.json").write_text('{"report":{"assetIndex":"assets.json"}}', encoding="utf-8")
-    output = tmp_path / "report.html"
+    (source / "cfg.json").write_text('{"artifact":{"assetIndex":"assets.json"}}', encoding="utf-8")
+    output = tmp_path / "artifact.html"
     arguments = ["--source", str(source), "--output", str(output)] + (["--check"] if check else [])
     if name == LONG_NAME:
         assert main(arguments) == 0
         if not check:
-            data = decode_report_data(output.read_text(encoding="utf-8"))
+            data = decode_artifact_data(output.read_text(encoding="utf-8"))
             assert data["assets"][LONG_NAME]["value"] == {"glyph": "LONG"}
     else:
         with pytest.raises(SystemExit) as failure:

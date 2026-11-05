@@ -15,7 +15,7 @@ from obs_html.content import (
     read_manifest,
     render_chapter,
 )
-from obs_html.report_data import decode_report_data
+from obs_html.artifact_data import decode_artifact_data
 
 
 def test_alias_frontmatter_is_not_reparsed_for_each_reference(tmp_path, monkeypatch) -> None:
@@ -37,10 +37,10 @@ def test_alias_frontmatter_is_not_reparsed_for_each_reference(tmp_path, monkeypa
         return original_split(source, source_path)
 
     monkeypatch.setattr(content, "_split_frontmatter", count_target_parses)
-    output = tmp_path.parent / f"{tmp_path.name}-report.html"
+    output = tmp_path.parent / f"{tmp_path.name}-artifact.html"
     assert main(["--source", str(manifest), "--output", str(output)]) == 0
     assert target_parses <= 2
-    data = decode_report_data(output.read_text(encoding="utf-8"))
+    data = decode_artifact_data(output.read_text(encoding="utf-8"))
     rendered = next(note["html"] for note in data["notes"] if note["slug"] == "one")
     assert rendered.count('href="#target"') >= 24
 
@@ -52,10 +52,10 @@ def test_cli_deduplicates_case_insensitive_aliases_per_note(tmp_path, capsys) ->
     (tmp_path / "target.md").write_text(
         "---\naliases: [Friendly, friendly]\n---\n# Target\n", encoding="utf-8",
     )
-    output = tmp_path.parent / f"{tmp_path.name}-report.html"
+    output = tmp_path.parent / f"{tmp_path.name}-artifact.html"
 
     assert main(["--source", str(manifest), "--output", str(output)]) == 0
-    data = decode_report_data(output.read_text(encoding="utf-8"))
+    data = decode_artifact_data(output.read_text(encoding="utf-8"))
     rendered = next(note["html"] for note in data["notes"] if note["slug"] == "one")
     assert '<a href="#target">Target</a>' in rendered
 
@@ -102,9 +102,9 @@ def test_manifest_abstract_authoring_comments_are_inert(tmp_path) -> None:
         "<!--\n```base\ninvalid\n```\n-->\n", encoding="utf-8",
     )
     parsed = read_manifest(manifest)
-    from obs_html.renderer import render_report
-    html = render_report(manifest, parsed.chapters)
-    content = json.dumps(decode_report_data(html))
+    from obs_html.renderer import render_artifact
+    html = render_artifact(manifest, parsed.chapters)
+    content = json.dumps(decode_artifact_data(html))
     assert "Visible  abstract." in content
     assert "[[missing]]" not in content
 
@@ -729,7 +729,7 @@ def test_note_links_in_code_remain_literal_and_heading_links_resolve(tmp_path: P
 
 def test_silent_command_fence_renders_nothing_and_is_not_a_display_command(tmp_path: Path) -> None:
     (tmp_path / "chapter.md").write_text(
-        "# Chapter\n\nBefore.\n\n```cmd silent\nproduce-artifact\n```\n\nAfter.\n",
+        "# Chapter\n\nBefore.\n\n```cmd silent\nproduce-file\n```\n\nAfter.\n",
         encoding="utf-8",
     )
     manifest = tmp_path / "manifest.md"
@@ -745,7 +745,7 @@ def test_silent_command_fence_renders_nothing_and_is_not_a_display_command(tmp_p
 
     assert "Before." in rendered
     assert "After." in rendered
-    assert "produce-artifact" not in rendered
+    assert "produce-file" not in rendered
 
 
 def test_note_links_resolve_canonical_paragraph_mark_anchors(tmp_path: Path) -> None:
@@ -839,7 +839,7 @@ def test_rendered_chapter_uses_body_only_and_links_internally(tmp_path: Path) ->
     assert "&lt;script&gt;bad()&lt;/script&gt;" in rendered
 
 
-def test_frontmatter_is_normalized_for_report_data(tmp_path: Path) -> None:
+def test_frontmatter_is_normalized_for_artifact_data(tmp_path: Path) -> None:
     note = tmp_path / "chapter.md"
     note.write_text(
         "---\n"
@@ -847,7 +847,7 @@ def test_frontmatter_is_normalized_for_report_data(tmp_path: Path) -> None:
         "published: 2026-10-19\n"
         "owner:\n"
         "  name: Ada\n"
-        "tags: [design, report]\n"
+        "tags: [design, artifact]\n"
         "---\n"
         "# Chapter\n",
         encoding="utf-8",
@@ -861,7 +861,7 @@ def test_frontmatter_is_normalized_for_report_data(tmp_path: Path) -> None:
         "status": "active",
         "published": "2026-10-19",
         "owner": {"name": "Ada"},
-        "tags": ["design", "report"],
+        "tags": ["design", "artifact"],
     }
 
 

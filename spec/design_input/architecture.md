@@ -1,5 +1,5 @@
 ---
-summary: Python owns source semantics and emits one canonical report store; browser views derive from that store.
+summary: Python owns source semantics and emits one canonical artifact store; browser views derive from that store.
 ---
 
 # Architecture
@@ -87,7 +87,7 @@ source semantics only; execution and every presentation projection remain adapte
 concerns.
 
 Core configuration is restricted to source resolution and authorized command limits.
-Report, browser, and style settings remain adapter configuration.
+Artifact, browser, and style settings remain adapter configuration.
 The core schema set includes base definitions, note profiles, project configuration,
 and the input/execution subset of cross-cutting configuration. Document construction
 validates every recognized fence and applicable frontmatter field with these contracts.
@@ -123,7 +123,7 @@ starting its process.
 The capability-reference generator reads those notes, rejects missing input-model
 coverage and dependency identifiers, and writes the schema-validated JSON document.
 
-Domain adapters own their evidence parsing, calculations, and report content;
+Domain adapters own their evidence parsing, calculations, and artifact content;
 obs-html owns reusable rendering and interaction behavior. In evidence-driven
 pipelines, the generated Obsidian vault is a disposable intermediate
 representation, not a parallel authoring source.
@@ -132,8 +132,8 @@ Regeneration must derive it from the original evidence exports and explicitly
 authored adapter inputs. Framework
 defects are fixed here, not worked around through hand-edited intermediate notes.
 
-An adapter's migrated report must provide its required interactions within the
-obs-html edition, not redirect readers to a legacy interactive report. Missing
+An adapter's migrated artifact must provide its required interactions within the
+obs-html edition, not redirect readers to a legacy interactive artifact. Missing
 reusable capabilities belong in this framework; original evidence links and
 downloads remain distinct from legacy-application navigation.
 
@@ -141,7 +141,7 @@ The renderer emits the nested table of contents and ordered chapter data once;
 client-side navigation shows exactly one chapter and manages previous/next controls, URL
 fragments, browser history, scroll reset, and docked-bar state.
 
-One embedded central stylesheet owns the component rules described in [[report-ui]].
+One embedded central stylesheet owns the component rules described in [[artifact-ui]].
 The [[semantic-assets]] index owns named presentation values and their inheritance;
 stylesheet variables and DOM are derived views of that owner.
 
@@ -164,16 +164,16 @@ project records; authored Markdown owns queries and composition. Application run
 update canonical data without replacing the authored table selection. Framework default
 content follows the same contract instead of constructing hidden table definitions.
 
-The report embeds
+The artifact embeds
 those definitions and their queries, not precomputed result rows.
 
 The browser evaluates a definition
-lazily against canonical report records when its containing chapter is opened.
+lazily against canonical artifact records when its containing chapter is opened.
 
 Platform wrappers contain only bootstrap logic and dispatch to the same CLI.
 
 Trusted application registration and revision-checked canonical/archive transactions
-follow [[input-model]]. The generic report owns action dispatch and atomic replacement;
+follow [[input-model]]. The generic artifact owns action dispatch and atomic replacement;
 domain adapters own parsing, shared semantic projection and their generated source
 changes.
 
@@ -195,7 +195,7 @@ covers every runtime file. Values reach a runtime through data islands or attrib
 the pre-paint reader startup substitutes JSON values for its placeholders.
 
 Review comments and per-reviewer block decisions live in one embedded JSON island separate
-from the canonical report data.
+from the canonical artifact data.
 
 The Comments bar is the only browser-side owner of that
 island.
@@ -207,20 +207,20 @@ Saving a reviewed copy rewrites the island in the
 standalone HTML; it never changes source Markdown or canonical chapter data.
 
 CLI extraction
-reads only this island and never executes report scripts or parses comments from rendered
+reads only this island and never executes artifact scripts or parses comments from rendered
 prose.
 
 Command execution is owned by a separate runner boundary. Markdown parsing supplies the
 command and receives escaped output; it does not own process invocation, timeout policy,
 or authorization.
 
-## Report data ownership
+## Artifact data ownership
 
 - The generated HTML embeds one canonical note store with identifiers, normalized frontmatter,
 	and rendered content; its separate ordered TOC contains note identifiers, not copied records.
 	Manifest and link resolution semantics are owned by [[input-model]].
-- Repeated embedded data-URI payloads are stored once in the canonical report data and referenced
-  by opaque local tokens. Browser views resolve those tokens before presentation, keeping reports
+- Repeated embedded data-URI payloads are stored once in the canonical artifact data and referenced
+  by opaque local tokens. Browser views resolve those tokens before presentation, keeping artifacts
   self-contained and preserving standalone/PDF access.
 - The single-payload rule also applies across reader attachments and an embedded reproduction
   archive. Do not embed the same original evidence once for downloads and again in a separate
@@ -243,8 +243,8 @@ or authorization.
 	render from the canonical store rather than hidden chapter documents.
 - New views consume the generic store contract and keep only view-local state.
 - Derived indexes may be built in memory at runtime but are not serialized as duplicate
-	report data.
-- Canonical report data has one transport codec shared by generation, source-archive
+	artifact data.
+- Canonical artifact data has one transport codec shared by generation, source-archive
   handling, read-only extraction and reviewed saving. The default gzip/base64
   transport compresses that semantic JSON, not only its original attachments.
 
@@ -265,9 +265,9 @@ or authorization.
 ## Safety boundaries
 
 Figure support uses data-only Markdown contracts and a reusable generic presentation/runtime.
-Plot equations, SVG composition, and graph/diagram data remain report-owned calculations;
+Plot equations, SVG composition, and graph/diagram data remain artifact-owned calculations;
 generic figure infrastructure owns validation, confined inputs, presentation, interaction,
-and optional projection of canonical report records through the existing report filter.
+and optional projection of canonical artifact records through the existing artifact filter.
 
 Dynamic figures reference canonical record fields and never serialize a second copy of the
 record collection. No domain-specific geometry, collision model, named imperfection or trace
@@ -286,6 +286,6 @@ The concrete contracts and execution boundaries are owned by [[input-model]].
 - Command fences execute only when the build grants explicit authorization.
 - Generated HTML never refers to source-machine local files.
 - Comment text is rendered with DOM text APIs and serialized with script-closing characters
-	escaped. A returned report is untrusted input to the read-only extractor.
+	escaped. A returned artifact is untrusted input to the read-only extractor.
 
 See [[product]], [[configuration]], and [[input-model]].

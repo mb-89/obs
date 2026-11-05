@@ -4,9 +4,9 @@ import os
 import pytest
 
 from obs_html.content import parse_manifest
-from obs_html.renderer import render_report
+from obs_html.renderer import render_artifact
 
-CODES = ["content.py:1444", "src/obs_html/report.js", "alpha-beta-gamma-delta", "one_two_three_four"]
+CODES = ["content.py:1444", "src/obs_html/artifact.js", "alpha-beta-gamma-delta", "one_two_three_four"]
 SEPARATORS = "/\\._:- "
 
 # Character offsets at which a code span continues on a new line.
@@ -71,12 +71,12 @@ def _open(browser, tmp_path, manifest_body, chapter_body="# Chapter\n\nChapter p
     manifest.write_text(manifest_body, encoding="utf-8")
     (tmp_path / "chapter.md").write_text(chapter_body, encoding="utf-8")
     output = tmp_path / "document.html"
-    output.write_text(render_report(manifest, parse_manifest(manifest)), encoding="utf-8")
+    output.write_text(render_artifact(manifest, parse_manifest(manifest)), encoding="utf-8")
     page = browser.new_page(viewport={"width": 1440, "height": 900})
     errors = []
     page.on("pageerror", lambda error: errors.append(str(error)))
     page.goto(output.as_uri())
-    page.wait_for_function("document.documentElement.dataset.reportStatus === 'ready' && globalThis.obsPages")
+    page.wait_for_function("document.documentElement.dataset.artifactStatus === 'ready' && globalThis.obsPages")
     return page, errors
 
 
@@ -99,7 +99,7 @@ def test_native_code_spans_break_only_after_separators_in_a_narrow_column(tmp_pa
         f"# Chapter\n\n||| 1:4\n{prose}\n|||\nWide neighbouring column prose.\n|||\n"
     ))
     try:
-        page.evaluate("obsReport.activateChapter('chapter')")
+        page.evaluate("obsArtifact.activateChapter('chapter')")
         for root in _views(page):
             spans = root.evaluate(LINE_STARTS)
             assert [span["text"] for span in spans] == CODES
@@ -119,7 +119,7 @@ def test_native_search_highlights_a_code_span_across_break_opportunities(tmp_pat
     try:
         from playwright.sync_api import expect
 
-        page.evaluate("obsPages.setPaged(false); obsReport.openBar('search')")
+        page.evaluate("obsPages.setPaged(false); obsArtifact.openBar('search')")
         page.locator("[data-search-input]").fill('"content.py:1444"')
         expect(page.locator("[data-search-status]")).to_have_text("1 result.")
         page.locator("[data-search-results] a").first.click()
@@ -159,7 +159,7 @@ def test_native_callout_tones_are_distinct_titled_cards(tmp_path, text_browser):
     body = "".join(f"> [!{kind}]\n> {kind} body.\n\n" for kind in kinds)
     page, errors = _open(text_browser, tmp_path, "- [[chapter]]\n", f"# Chapter\n\n{body}")
     try:
-        page.evaluate("obsReport.activateChapter('chapter')")
+        page.evaluate("obsArtifact.activateChapter('chapter')")
         for root in _views(page):
             cards = root.locator("aside.content-callout").evaluate_all("""nodes => nodes.map(node => {
                 const style = getComputedStyle(node);

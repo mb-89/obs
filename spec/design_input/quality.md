@@ -9,7 +9,7 @@ result.
 SPOT, single point of truth, everywhere: code, configuration, design, process and agent
 definitions alike. Keeping the same fact in two places is an anti-pattern (user, 4 Nov 2026).
 
-- State a fact or contract only in the artifact that owns and controls it.
+- State a fact or contract only in the file that owns and controls it.
 - When another document or agent needs that fact, refer to its owner with a link, embed,
   schema reference, generated output, or other derived view instead of paraphrasing it.
 - Do not narrate implementation behavior in prose that cannot enforce that behavior.
@@ -21,7 +21,7 @@ definitions alike. Keeping the same fact in two places is an anti-pattern (user,
 - A note with only frontmatter is valid. Never repeat frontmatter fields as body prose merely
   to make links or table details readable; render the owning metadata correctly instead.
   Bodies contain only additional discussion, not a second transcription of the row.
-- Generated-report data ownership is defined by [[architecture]]; views must consume that
+- Generated-artifact data ownership is defined by [[architecture]]; views must consume that
   owner rather than serializing parallel copies.
 
 ## Change locality
@@ -41,7 +41,7 @@ definitions alike. Keeping the same fact in two places is an anti-pattern (user,
   several derived representations.
 - Treat a reported instance as evidence of an error class. Fix its shared cause at the owning
   mechanism, with regression coverage for representative variants; do not special-case the
-  shown report, record, heading or screenshot.
+  shown artifact, record, heading or screenshot.
 - When a change appears to require edits across many files, first improve the ownership
   boundary or derive repeated data from one source of truth.
 - Keep generated output derived; never hand-edit it.
@@ -85,9 +85,9 @@ definitions alike. Keeping the same fact in two places is an anti-pattern (user,
 
 ### Test feedback time
 
-Table detail expansion must not re-render the whole report or recompute all review items.
-Profile the actual Node report in a native browser and measure expansion latency before and
-after changes. Keep embedded assets and large payloads single-owned; measure report byte
+Table detail expansion must not re-render the whole artifact or recompute all review items.
+Profile the actual Node artifact in a native browser and measure expansion latency before and
+after changes. Keep embedded assets and large payloads single-owned; measure artifact byte
 composition before optimizing size, without dropping source material or weakening portability.
 
 #mark/open_point/test_feedback_time
@@ -129,4 +129,4 @@ should be reduced first? Use measured timings rather than treating a passing tes
 This quality requirement applies across parsing, configuration, rendering, controls,
 documentation, and future frontmatter behavior.
 
-See [[architecture]] for current ownership boundaries and [[report-ui]] for UI intent.
+See [[architecture]] for current ownership boundaries and [[artifact-ui]] for UI intent.
