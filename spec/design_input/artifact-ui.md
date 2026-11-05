@@ -355,6 +355,8 @@ failures have their form in [[input-model#Chapter content]].
 - The top band is one row and holds every top control: Home, the breadcrumbs, the
   frontmatter chevron, the notice icons and the menu. The notice icons sit directly left of the menu.
   Every control in the band is a square of one size. No control takes a row of its own.
+  Breadcrumbs that do not fit truncate on that row; each keeps its full title as its text and
+  tooltip.
 - Each table-options icon shows a small, top-right funnel bubble while its interactive
   filter is active, even if it matches every record. Its label/tooltip expose that state.
   The notice center's applied-filter entry is the sole artifact-wide indicator: no
