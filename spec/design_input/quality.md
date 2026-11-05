@@ -83,12 +83,15 @@ definitions alike. Keeping the same fact in two places is an anti-pattern (user,
 - Give browser features independently selectable tests and small fixtures. Share expensive
   adapter startup within a selected module; do not require the end-to-end scenario to test a
   local interaction. Prefer extracting pure transformations only when they have a cohesive owner.
-- The complete suite (`test/suite.py`) runs each part's tests in parallel worker processes,
-  one per CPU (pytest-xdist). A module's tests share a worker, so its module fixtures are built
+- The complete suite (`test/suite.py`) runs its parts side by side and each part's tests in
+  parallel worker processes, one per CPU (pytest-xdist). A module's tests share a worker, so its module fixtures are built
   once per run; each worker starts one browser and gives every test fresh contexts in it.
 - An input many tests read, such as obs's spec Document, a fixture artifact or the parity
   builds, is built once per run by `built_once` in the part's `conftest.py` and shared by every
   worker; the tests only read it.
+- No test reaches the network. Each part's `test/network_guard.py` fails a test that opens a
+  connection to anything but loopback, naming the test, the host and the remedy; a subprocess a
+  test starts reads remote data from a fake too, as the parity gate's `obs-document` does.
 - Browser checks are batched: a sweep evaluates a whole layout in one page evaluation, a test
   reaches into a frame through its `Frame`, and a step waits for an event the artifact gives,
   never for a fixed time.
@@ -101,7 +104,12 @@ definitions alike. Keeping the same fact in two places is an anti-pattern (user,
 - Structure tests, which check what a spec note owns and where it points, live in
   `test/structure/test_<note>.py`, one file per note, so changes to different notes touch
   different test files.
-- The browser tier runs with `uv run pytest --gate` and needs `OBS_HTML_TEST_NATIVE_BROWSER`
+- A bare `uv run pytest`, and so the complete suite, runs the unit and dom tiers and every
+  browser or e2e test that does not reach the interim adapter (`obs_html_interim`). The interim
+  adapter's browser and e2e tests run only with `uv run pytest --gate`: the adapter's parity gate
+  compares the interim adapter, and the cutover removes them with it. `test/tiers.py` decides
+  what reaches the interim adapter from the same source evidence as the tiers.
+- The browser tier needs `OBS_HTML_TEST_NATIVE_BROWSER`
   set to the absolute path of a Chromium or Chrome executable (for example `/usr/bin/chromium`
   or `C:\Program Files\Google\Chrome\Application\chrome.exe`). Playwright's own browser
   downloads are not used. Unset, its tests skip; set to a browser that cannot start, they fail
