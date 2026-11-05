@@ -61,7 +61,6 @@ def additional_capability_document(tmp_path) -> dict[str, object]:
     (vault / "source.csv").write_text("value\n1\n", encoding="utf-8")
     (vault / "chapter.md").write_text(
         "---\nkind: quantity\nquery: {where: []}\nobsHtml: {document: false}\n"
-        "bottom line: Keep the conclusion concise.\n"
         "reference: https://example.test/source\n---\n"
         "![Source](source.csv)\n\n![[register.base#Open]]\n\n"
         "```cards\nversion: 1\ncards: [{title: Coverage, body: Current state.}]\n```\n\n"
@@ -178,7 +177,7 @@ def test_core_emits_data_only_nodes_for_additional_input_capabilities(tmp_path) 
     ]
 
     assert [node["type"] for node in emitted] == [
-        "markdown-frontmatter", "profiles", "quantities", "bottom-lines", "queries", "count-query",
+        "markdown-frontmatter", "profiles", "quantities", "queries", "count-query",
         "references", "chapter-inclusion", "markdown", "attachments", "registers",
         "cards-metrics", "figure-descriptor",
     ]
