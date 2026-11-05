@@ -241,7 +241,8 @@ def spec_document_file(tmp_path_factory) -> Path:
     """obs's spec as the core's Document JSON, built once per run.
 
     The remote images its manifest shows are served as a small SVG; any other URL is
-    unreachable, as in every test.
+    unreachable, as in every test. Its cmd fences are authorized, and a stand-in echoes each
+    command as its output instead of starting it.
     """
     def build(folder: Path) -> None:
         from obs import vault
@@ -259,8 +260,9 @@ def spec_document_file(tmp_path_factory) -> Path:
 
         with pytest.MonkeyPatch.context() as patch:
             patch.setattr(vault, "fetch_remote", fetch)
+            patch.setattr(vault, "run_command", lambda command, cwd, timeout_seconds: f"{command}\n")
             document = build_document(SPEC_MANIFEST, build_capability_reference(
-                capabilities, capabilities / "coverage.json"))
+                capabilities, capabilities / "coverage.json"), execute_commands=True)
         (folder / "spec.json").write_text(json.dumps(document), encoding="utf-8")
 
     return built_once(tmp_path_factory, "spec-document", build) / "spec.json"
