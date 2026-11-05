@@ -1681,7 +1681,9 @@ missing or unsupported local images fail validation.
 Base64 PDF/plain-text/JSON/binary
 attachment links are allowed; this does not enable raw HTML or HTML/script data URLs.
 
-Math is rendered as static MathML without remote scripts.
+Math is rendered as static MathML without remote scripts. Display math written inside a paragraph
+(`Text $$a^2$$ text`) stays inside that paragraph, as in Obsidian: obs_html writes it as
+phrasing content shown as a block, since HTML allows no block element inside a paragraph.
 
 Ordinary Markdown citations such
 as `[[1]](references.md#ref-1)` are links with bracketed labels, not nested wikilinks.
