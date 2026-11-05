@@ -86,3 +86,21 @@ def test_the_spec_manifest_is_not_selected_by_a_query_or_base_matching_all_notes
     assert "manifest.md" not in every_query
     assert "manifest.md" not in _selected(records, base_selects(MATCH_ALL_BASE))
     assert len(every_query) == len(records) - 1
+
+
+def test_an_ignored_note_is_not_a_member_of_a_base_members_projection_that_would_select_it(tmp_path) -> None:
+    members = {"obsHtml": {"members": [{"path": "hidden.md"}, {"path": "finding.md"}]}, **MATCH_ALL_BASE}
+    manifest = _vault(tmp_path, {
+        "manifest.md": "- [[register]]\n",
+        "register.md": (
+            "```base\nobsHtml:\n  members:\n    - path: hidden.md\n    - path: finding.md\n"
+            "views:\n  - type: table\n    order: [file.name]\n```\n"
+        ),
+        "finding.md": "Selected.\n",
+        "hidden.md": "---\nignored: true\n---\nIgnored.\n",
+    })
+
+    document = build_document(manifest, capability_reference())
+
+    assert [chapter["id"] for chapter in document["chapters"]] == ["register", "finding"]
+    assert _selected(document["records"], base_selects(members)) == ["finding.md"]

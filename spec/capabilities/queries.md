@@ -13,8 +13,8 @@ capability:
 Define reusable, declarative selections and aggregates.
 
 Queries select from the Document's note records, which [[capabilities/bases#Note records]]
-describes. A query never selects an ignored note and its count excludes it
-([[capabilities/markdown-frontmatter#Ignored notes]]). The notes a query in an included note selects are included in the Document too
+describes; [[capabilities/markdown-frontmatter#Ignored notes]] says which notes a query never
+selects. The notes a query in an included note selects are included in the Document too
 ([[input-model#Chapter content]]).
 
 ## Conditions
