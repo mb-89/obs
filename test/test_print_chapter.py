@@ -43,3 +43,19 @@ def test_print_chapter_rejects_generation_options(report, capsys) -> None:
     with pytest.raises(SystemExit, match="2"):
         main(["--print-chapter", str(report), "intro", "--source", "vault"])
     assert "--print-chapter cannot be combined" in capsys.readouterr().err
+
+
+def test_unknown_chapter_id_names_it_and_lists_the_available_ids(report, capsys) -> None:
+    with pytest.raises(SystemExit, match="2"):
+        main(["--print-chapter", str(report), "missing"])
+    err = capsys.readouterr().err
+    assert f"--print-chapter {report}: No chapter with id 'missing'." in err
+    assert "Available chapter ids: home, intro, other." in err
+
+
+def test_report_without_data_names_the_file(tmp_path, capsys) -> None:
+    page = tmp_path / "plain.html"
+    page.write_text("<!doctype html><p>no data</p>", encoding="utf-8")
+    with pytest.raises(SystemExit, match="2"):
+        main(["--print-chapter", str(page), "intro"])
+    assert f"--print-chapter {page}: Cannot read document data" in capsys.readouterr().err
