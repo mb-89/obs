@@ -186,6 +186,7 @@
               "type": "wikilinks",
               "attrs": {
                 "target": "guide/usage",
+                "chapter": "guide-usage",
                 "heading": "Details",
                 "label": "the details"
               },
@@ -229,8 +230,17 @@
               "type": "wikilinks",
               "attrs": {
                 "target": "missing",
+                "chapter": null,
                 "heading": "",
                 "label": "gone"
+              },
+              "children": []
+            },
+            {
+              "type": "embeds",
+              "attrs": {
+                "target": "guide/usage",
+                "chapter": "guide-usage"
               },
               "children": []
             },
@@ -659,6 +669,7 @@
     "chapter-inclusion",
     "command-fences",
     "document-presentation",
+    "embeds",
     "figure-descriptor",
     "manifest",
     "markdown",
