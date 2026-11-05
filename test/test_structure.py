@@ -175,3 +175,15 @@ def test_quality_glossary_alone_defines_the_vocabulary() -> None:
 def test_architecture_links_the_document_to_the_glossary() -> None:
     architecture = (ROOT / "spec" / "design_input" / "architecture.md").read_text(encoding="utf-8")
     assert "[[quality#Glossary|" in architecture
+
+
+def test_width_rule_has_one_owner() -> None:
+    design = ROOT / "spec" / "design_input"
+    input_model = (design / "input-model.md").read_text(encoding="utf-8")
+
+    assert "column or width changes" not in input_model
+
+    generic_tables = (design / "generic-tables.md").read_text(encoding="utf-8")
+    assert "never mark the" not in generic_tables
+    assert "never show the change notice" not in generic_tables
+    assert "[[artifact-ui#What counts as a change" in generic_tables

@@ -29,7 +29,7 @@ selection by dispatching `obs-table-set-columns` on the table host. That project
 derived view state: it becomes the table's current default and is not itself saved table
 presentation.
 
-Only explicit reader column or width changes that differ from the current projection are
+Only explicit reader column changes that differ from the current projection are
 retained as reader state, so reopening and
 re-projecting a saved selection starts unchanged.
 
