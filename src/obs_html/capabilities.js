@@ -1,6 +1,8 @@
 // Canaries: probe, before any feature runs, what the host lets this HTML do.
 // One registry entry per browser capability; adding a capability is one entry.
-// A probe returns true (allowed), false (refused) or undefined (unknown); unknown counts as limited.
+// A probe returns {allowed, observation}: allowed is true, false (refused) or undefined (unknown, which
+// counts as limited); observation says what the canary saw, so a report can show why it is limited.
+// A probe that throws is refused, and its error is what it observed.
 (() => {
     const view = globalThis.window || globalThis;
     // The sandbox tokens of every frame up to the top, intersected: null outside any sandbox,
@@ -19,7 +21,16 @@
         }
         return tokens;
     })();
-    const sandboxAllows = (token) => sandbox === null ? true : sandbox?.has(token);
+    const sandboxAllows = (token) => {
+        if (sandbox === null) return {allowed: true, observation: "no sandboxed frame up to the top window"};
+        if (sandbox === undefined) {
+            return {allowed: undefined, observation: "an enclosing frame hides its sandbox flags (cross-origin host)"};
+        }
+        const flags = sandbox.size ? [...sandbox].join(" ") : "no flags";
+        return sandbox.has(token)
+            ? {allowed: true, observation: `the frame sandbox (${flags}) grants ${token}`}
+            : {allowed: false, observation: `the frame sandbox (${flags}) lacks ${token}`};
+    };
     const registry = [
         {
             key: "history", feature: "Chapter addresses",
@@ -29,7 +40,7 @@
                 const address = view.location.href;
                 view.history.replaceState(view.history.state, "", "#obs-capability-canary");
                 view.history.replaceState(view.history.state, "", address);
-                return true;
+                return {allowed: true, observation: "history.replaceState changed the address"};
             },
         },
         {
@@ -40,7 +51,7 @@
                 const key = "obs-capability-canary";
                 view.localStorage.setItem(key, "1");
                 view.localStorage.removeItem(key);
-                return true;
+                return {allowed: true, observation: "localStorage.setItem stored a value"};
             },
         },
         {
@@ -66,9 +77,17 @@
             blocks: "clipboard access, so Copy comments cannot copy",
             remedy: "Open the HTML file directly in a browser to copy comments.",
             probe() {
-                if (typeof view.navigator?.clipboard?.writeText !== "function") return false;
+                if (typeof view.navigator?.clipboard?.writeText !== "function") {
+                    return {allowed: false, observation: "navigator.clipboard.writeText is missing"};
+                }
                 const policy = view.document.permissionsPolicy || view.document.featurePolicy;
-                return policy ? policy.allowsFeature("clipboard-write") : view === view.top || undefined;
+                if (policy) {
+                    const allowed = policy.allowsFeature("clipboard-write");
+                    return {allowed, observation: `the permissions policy ${allowed ? "allows" : "denies"} clipboard-write`};
+                }
+                return view === view.top
+                    ? {allowed: true, observation: "a top-level page with navigator.clipboard"}
+                    : {allowed: undefined, observation: "a frame without a permissions policy API to ask"};
             },
         },
         {
@@ -78,21 +97,27 @@
             probe: () => sandboxAllows("allow-popups"),
         },
     ];
-    const limits = registry.flatMap(({key, feature, blocks, remedy, probe}) => {
-        let allowed;
+    // Every canary's result, allowed ones included; limits holds the ones that are not allowed.
+    const results = Object.freeze(registry.map(({key, feature, blocks, remedy, probe}) => {
+        let result;
         try {
-            allowed = probe();
-        } catch {
-            allowed = false;
+            result = probe();
+        } catch (error) {
+            const message = String(error?.message || error).replace(/\.+$/, "");
+            result = {allowed: false, observation: `it threw ${error?.name || "an error"}: ${message}`};
         }
-        if (allowed === true) return [];
-        const reason = allowed === false
-            ? `The page showing this HTML blocks ${blocks}.`
-            : `The page showing this HTML may block ${blocks}; this HTML cannot check.`;
-        return [Object.freeze({key, feature, reason, remedy, refused: allowed === false})];
-    });
+        const {allowed, observation} = result;
+        const reason = allowed === true ? ""
+            : allowed === false
+                ? `The page showing this HTML blocks ${blocks}.`
+                : `The page showing this HTML may block ${blocks}; this HTML cannot check.`;
+        return Object.freeze({key, feature, reason, remedy, observation, allowed: allowed === true,
+            refused: allowed === false});
+    }));
+    const limits = results.filter((entry) => !entry.allowed);
     const limit = (key) => limits.find((entry) => entry.key === key) || null;
     globalThis.obsCapabilities = Object.freeze({
+        results,
         limits: Object.freeze(limits),
         limit,
         // The message a degraded control shows inline when used, or "" where the feature is allowed.

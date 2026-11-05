@@ -48,6 +48,12 @@
     };
 
     const isDirty = () => savedSnapshot !== null && currentSnapshot() !== savedSnapshot;
+    // A reader filter is not a content change (obs report-ui.md, input-model.md): the saved
+    // HTML still keeps it, but applying or clearing it never marks the HTML changed.
+    const readerSnapshot = () => {
+        const {filterExpression: _filter, ...reader} = globalThis.obsReport.readerState();
+        return JSON.stringify(reader);
+    };
     const currentDocumentSnapshot = () => {
         const revision = globalThis.obsReport.revision;
         if (archiveSnapshotRevision !== revision) {
@@ -56,7 +62,7 @@
         }
         return {
             semantic: currentSnapshot(),
-            reader: JSON.stringify(globalThis.obsReport.readerState()),
+            reader: readerSnapshot(),
             archive: archiveSnapshot,
         };
     };

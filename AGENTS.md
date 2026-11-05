@@ -28,3 +28,6 @@ Before the tests, synchronize the pinned obs module as the README's
 uv run obs-html --help
 uv run pytest
 ```
+
+Integrations also run the parity gate against the interim reference; its module docstring is
+its reference: `uv run pytest test/test_parity_browser.py`.
