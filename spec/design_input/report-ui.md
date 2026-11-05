@@ -289,6 +289,9 @@ central stylesheet embedded into the generated HTML.
   than repeating the same location for each generated projection.
 
 - The viewport contains one active chapter, with scrolling confined to that chapter.
+- A sandboxed preview frame (`srcdoc`, `allow-scripts` only, as in Claude's preview) is a supported
+  environment: where the frame refuses URL or storage changes, navigation and settings keep working
+  without them.
 - Chapter/page navigation commits the destination and presents its heading, breadcrumbs
   and available static content on the next paint, before expensive table or calculated
   overview work. Results must not remain apparently unresponsive while its table loads.
