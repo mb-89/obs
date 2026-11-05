@@ -88,6 +88,26 @@ def test_a_query_or_base_in_an_included_note_includes_every_selected_note(tmp_pa
     ))
 
 
+def test_a_query_selects_by_marks_and_ignores_case(tmp_path) -> None:
+    """capabilities/queries#Conditions: marks are selectable; text and names ignore case."""
+    manifest = _vault(tmp_path, {
+        "manifest.md": "- [[count]]\n",
+        "count.md": "---\nquery: {where: [{field: mark.open_point, exists: true}]}\n---\nCount.\n",
+        "marked.md": "Does it hold? #mark/open_point/holds\n",
+        "coded.md": "`#mark/open_point/code` is code.\n",
+        "cased.md": "---\nStatus: OPEN\n---\nCased.\n",
+        "exact.md": "---\nquery: {where: [{field: status, equals: open}]}\n---\nExact.\n",
+        "flagged.md": "---\nquery: {where: [{field: status, equals: Shut, matchCase: true}]}\n---\nFlag.\n",
+        "shut.md": "---\nstatus: shut\n---\nShut.\n",
+    })
+    (tmp_path / "manifest.md").write_text("- [[count]]\n- [[exact]]\n- [[flagged]]\n", encoding="utf-8")
+
+    identifiers = {chapter["id"] for chapter in build_document(manifest, capability_reference())["chapters"]}
+
+    assert {"marked", "cased"} <= identifiers
+    assert not {"coded", "shut"} & identifiers
+
+
 def test_a_link_cycle_terminates_with_each_note_once(tmp_path) -> None:
     manifest = _vault(tmp_path, {
         "manifest.md": "- [[a]]\n",

@@ -11,7 +11,9 @@ from importlib.resources import files
 import json
 from pathlib import PurePosixPath
 import re
-from typing import Callable
+from typing import Callable, Sequence
+
+from markdown_it import MarkdownIt
 
 from obs.input import InputError
 
@@ -19,6 +21,7 @@ from obs.input import InputError
 BaseFilter = Callable[[Callable[[str], object]], bool]
 _MISSING = object()
 _LIST_INDEX = re.compile(r"0|[1-9][0-9]*")
+_MARK = re.compile(r"(?<!\S)#mark/(?P<category>[a-z_]+)/(?P<id>[a-z0-9]+(?:_[a-z0-9]+)*)(?=\s|$)")
 _FILE_PROPERTIES = {"file.name", "file.path", "file.folder", "file.ext"}
 IGNORED = "ignored"
 """The frontmatter field that marks a note as ignored; see markdown-frontmatter."""
@@ -46,6 +49,11 @@ def same_text(actual: str, expected: str, match_case: bool = False) -> bool:
 
 def note_value(fields: dict[str, object], path: str, field: str) -> object:
     """Resolve a Bases property of a note record at a vault-relative POSIX path."""
+    value = _resolve(fields, path, field)
+    return None if value is _MISSING else value
+
+
+def _resolve(fields: dict[str, object], path: str, field: str) -> object:
     field = field.removeprefix("note.")
     location = PurePosixPath(path)
     if field == "file.name":
@@ -80,8 +88,7 @@ def note_value(fields: dict[str, object], path: str, field: str) -> object:
             return _MISSING
         return traverse(value[key], parts[1:])
 
-    value = traverse(fields, field.split("."))
-    return None if value is _MISSING else value
+    return traverse(fields, field.split("."))
 
 
 @cache
@@ -172,12 +179,42 @@ def _texts(value: object) -> list[str]:
     return [str(value)]
 
 
-def conditions_select(conditions: list[dict[str, object]], fields: dict[str, object], path: str) -> bool:
+Mark = tuple[str, str]
+"""A note's mark: its category and identifier (capabilities/marks)."""
+
+
+@cache
+def note_marks(body: str) -> tuple[Mark, ...]:
+    """The marks a note's Markdown body holds outside code; see capabilities/marks."""
+    marks: list[Mark] = []
+    for token in MarkdownIt("commonmark", {"html": False, "linkify": False}).parse(body):
+        for child in token.children or []:
+            if child.type == "text":
+                marks.extend((match["category"], match["id"]) for match in _MARK.finditer(child.content))
+    return tuple(marks)
+
+
+def _condition_value(fields: dict[str, object], path: str, field: str, marks: Sequence[Mark]) -> object:
+    """A note property, else its marks for mark and mark.<category> (capabilities/queries#Conditions)."""
+    value = _resolve(fields, path, field)
+    if value is not _MISSING:
+        return value
+    name = field.removeprefix("note.").lower()
+    if name == "mark":
+        return list(dict.fromkeys(category for category, _ in marks)) or None
+    if name.startswith("mark."):
+        return [identifier for category, identifier in marks if category.lower() == name[5:]] or None
+    return None
+
+
+def conditions_select(
+    conditions: list[dict[str, object]], fields: dict[str, object], path: str, marks: Sequence[Mark] = (),
+) -> bool:
     """Whether a note record has every query condition; see capabilities/queries#Conditions."""
     if not selectable(fields):
         return False
     for condition in conditions:
-        texts = _texts(note_value(fields, path, str(condition["field"])))
+        texts = _texts(_condition_value(fields, path, str(condition["field"]), marks))
         if "equals" in condition and not any(
             same_text(text, str(condition["equals"]), condition.get("matchCase") is True) for text in texts
         ):
