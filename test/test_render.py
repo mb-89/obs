@@ -132,6 +132,34 @@ def test_records_join_the_queryable_population_outside_the_reading_order(documen
     assert records["alpha"]["html"] == ""
 
 
+def test_a_record_path_is_its_note_source_path() -> None:
+    source = build("Paths", chapter("items-alpha", "Alpha"), records=(
+        {"id": "items-alpha", "type": "note", "path": "items/alpha.md", "fields": {}},
+        {"id": "items-beta", "type": "note", "path": "items/beta.md", "fields": {}}))
+    notes = _notes(source)
+    assert notes["items-alpha"]["sourcePath"] == "items/alpha.md"
+    assert notes["items-beta"]["sourcePath"] == "items/beta.md"
+
+
+def test_frontmatter_wikilinks_link_the_chapter_their_record_path_names() -> None:
+    fields = {"dependsOn": ["[[capabilities/markdown]]", "[[wikilinks|Links]]", "[[gone]]", "[[detail]]"]}
+    source = build("Links", chapter("capabilities-markdown", "Markdown"),
+                   chapter("capabilities-wikilinks", "Wikilinks"), chapter("capabilities-bases", "Bases"),
+                   records=(
+                       {"id": "capabilities-markdown", "type": "note", "path": "capabilities/markdown.md",
+                        "fields": {}},
+                       {"id": "capabilities-wikilinks", "type": "note", "path": "capabilities/wikilinks.md",
+                        "fields": {}},
+                       {"id": "capabilities-bases", "type": "note", "path": "capabilities/bases.md",
+                        "fields": fields},
+                       {"id": "detail", "type": "note", "path": "detail.md", "fields": {}}))
+    html = _notes(source)["capabilities-bases"]["frontmatterHtml"]["dependsOn"]
+    assert html == ('<a class="internal-link" href="#capabilities-markdown">Markdown</a>, '
+                    '<a class="internal-link" href="#capabilities-wikilinks">Links</a>, '
+                    '<span class="unresolved" title="gone">gone</span>, '
+                    '<span class="unresolved" title="detail">detail</span>')
+
+
 def test_command_fences_render_escaped_output_and_skip_silent_producers(document) -> None:
     commands = []
     notes = _notes(document, lambda command: commands.append(command) or "<b>derived</b>\n")
