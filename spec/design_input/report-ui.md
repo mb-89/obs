@@ -1132,10 +1132,27 @@ separate from document presentation.
   retain the existing distinction between confirmed file writes and unconfirmed downloads.
   The native unload warning uses that same unsaved-document state.
 
-  The changed-HTML and applied-filter notices share one heading-height layout owner:
+  A Limited functionality notice joins the changed-HTML and applied-filter notices in the
+  shared heading notice area when any capability canary reports limited. The canaries
+  are one registry in obs-html's `capabilities.js` (history updates, storage, printing,
+  modal dialogs, downloads, clipboard, popups) and run before any feature is used.
+
+  A probe never blocks or throws, and a refused or unknown result counts as limited.
+  Collapsed, the notice counts the limited features; expanded, it lists each with why
+  the host limits it and the remedy, for example "Open the HTML file directly in a
+  browser to print". It is not printed and does not dismiss the other notices.
+
+  A limited feature degrades in place: its control shows the same reason and remedy
+  inline, never through a modal dialog, and Print to PDF never stays in its preparing
+  state. In a host that allows everything there is no notice and no visible delay.
+  Probes, reasons and remedies are owned by the registry, not repeated here.
+
+  The changed-HTML, applied-filter and Limited functionality notices share one
+  heading-height layout owner:
   they sit beside one another when space permits, wrap together on narrow screens,
-  and never overlap each other, the menu or chapter controls. Clearing a filter does
-  not dismiss the changed-HTML notice. Notices are transient UI, not printed content
+  and never overlap each other, the menu or chapter controls.
+
+  Clearing a filter does not dismiss the changed-HTML notice. Notices are transient UI, not printed content
   or a dirty warning embedded into a newly reopened saved HTML.
 
   Generic reader-facing controls and messages call the artifact HTML, not a report.

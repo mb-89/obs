@@ -160,7 +160,12 @@ failures surgically rather than adding a separate static representation.
 Check content/navigation, tables/filtering, diagrams/expansion, appearance and
 reviewer-name controls, comments/decisions/field edits, downloaded edited HTML
 reopened locally, and PDF export. Mark host-restricted actions explicitly with
-the download-and-open remedy. Defer minification until compatibility works so
+the download-and-open remedy.
+
+The report now does this itself: in a limited host its capability canaries
+raise the Limited functionality notice; see
+[Report UI](report-ui.md#dock-menu) (the shared heading notice area) for the notice and
+the registry that lists the browser capabilities the report depends on. Defer minification until compatibility works so
 format transformations do not obscure diagnosis.
 
 For agreed SharePoint/OneDrive viewing paths, reports should offer a readable,
