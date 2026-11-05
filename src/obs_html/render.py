@@ -83,15 +83,30 @@ def _frontmatter(node: dict[str, object], context: Context) -> str:
 
 def _wikilink(node: dict[str, object], context: Context) -> str:
     attrs = node["attrs"]
-    label = escape(attrs["label"])
-    chapter = _resolve_chapter(attrs["target"], context)
-    if chapter is not None and attrs["label"] == attrs["target"]:
-        label = escape(context.chapters[chapter])  # An unaliased link shows its note's title.
+    chapter = attrs["chapter"]
     if chapter is None:
-        return f'<span class="unresolved" title="{escape(attrs["target"], quote=True)}">{label}</span>'
+        return (f'<span class="unresolved" title="{escape(attrs["target"], quote=True)}">'
+                f'{escape(attrs["label"])}</span>')
+    title = _chapter_title(chapter, context)
+    label = escape(title if attrs["label"] == attrs["target"] else attrs["label"])  # Unaliased: the note's title.
     anchor = context.headings.get(f"{chapter}#{_identifier(attrs['heading'])}") if attrs["heading"] else None
     href = f"#{chapter}/{anchor.removeprefix(f'{chapter}--')}" if anchor else f"#{chapter}"
     return f'<a class="internal-link" href="{href}">{label}</a>'
+
+
+def _embed(node: dict[str, object], context: Context) -> str:
+    """An embedded note renders as a link to its chapter, titled like an unaliased wikilink."""
+    target, chapter = node["attrs"]["target"], node["attrs"]["chapter"]
+    if chapter is None:
+        return f'<span class="unresolved embed" title="{escape(target, quote=True)}">{escape(target)}</span>'
+    return f'<a class="internal-link embed" href="#{chapter}">{escape(_chapter_title(chapter, context))}</a>'
+
+
+def _chapter_title(chapter: str, context: Context) -> str:
+    if chapter not in context.chapters:
+        raise RenderError(f"Chapter {context.chapter or HOME}: a link names chapter {chapter!r}, which the "
+                          "Document does not contain; regenerate the Document with the obs core.")
+    return context.chapters[chapter]
 
 
 def _mark(node: dict[str, object], _context: Context) -> str:
@@ -134,6 +149,7 @@ CAPABILITIES: dict[str, Renderer] = {
     "chapter-inclusion": _nothing,
     "command-fences": _command,
     "document-presentation": _nothing,
+    "embeds": _embed,
     "figure-descriptor": _figure,
     "manifest": _nothing,
     "markdown": _nothing,
@@ -667,15 +683,6 @@ def _index(chapters: list[dict[str, object]], context: Context) -> None:
                     seen.add(slug)
                     context.headings[f"{chapter['id']}#{slug}"] = f"{chapter['id']}--{slug}"
         _index(chapter["children"], context)
-
-
-def _resolve_chapter(target: str, context: Context) -> str | None:
-    """Find the one chapter a link target names: its identifier, or a unique path suffix of it."""
-    identifier = _identifier(target.removesuffix(".md"))
-    if identifier in context.chapters:
-        return identifier
-    matches = [chapter for chapter in context.chapters if chapter.endswith(f"-{identifier}")]
-    return matches[0] if len(matches) == 1 else None
 
 
 CSS_CLASS = re.compile(r"-?[_A-Za-z][_A-Za-z0-9-]*")
