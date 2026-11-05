@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import mimetypes
+import json
 from pathlib import Path
 import re
 from typing import Iterator
@@ -9,6 +10,19 @@ from typing import Iterator
 from markdown_it import MarkdownIt
 from markdown_it.token import Token
 import yaml
+
+from obs.config import CoreConfig, CoreConfigError, load_core_config
+from obs.input import (
+    InputError,
+    parse_callout,
+    parse_card_spec,
+    parse_property_editor,
+    validate_base_definition,
+    validate_command,
+    validate_count_query,
+    validate_note_profile,
+    validate_project_config,
+)
 
 
 _MANIFEST_ITEM = re.compile(
@@ -19,7 +33,6 @@ _WIKILINK = re.compile(
 )
 _EMBED = re.compile(r"!\[\[(?P<target>[^\]|#]+)(?:#[^\]|]+)?(?:\|[^\]]+)?\]\]")
 _MARK = re.compile(r"#mark/(?P<category>[a-z_]+)/(?P<id>[a-z0-9_]+)")
-_CALLOUT = re.compile(r"^\[!(?P<kind>[^\]]+)\](?:\s*(?P<title>.*))?$")
 _SEMANTIC = re.compile(
     r"(?P<embed>!)?\[\[(?P<target>[^\]|#]+)(?:#(?P<heading>[^\]|]+))?"
     r"(?:\|(?P<label>[^\]]+))?\]\]|#mark/(?P<category>[a-z_]+)/(?P<id>[a-z0-9_]+)"
@@ -32,14 +45,35 @@ class VaultError(ValueError):
 
 def build_document(
     manifest_path: Path, capability_ids: set[str] | None = None,
+    configuration_path: Path | None = None,
 ) -> dict[str, object]:
     """Build semantic Document data from a manifest and its linked chapters."""
+    try:
+        configuration: CoreConfig | None = (
+            load_core_config(configuration_path) if configuration_path is not None else None
+        )
+    except CoreConfigError as error:
+        raise VaultError(str(error)) from error
     manifest_path = manifest_path.resolve()
     vault_root = manifest_path.parent
     metadata, body = _read_note(manifest_path)
     title = metadata.get("title", manifest_path.stem.replace("-", " ").title())
     if not isinstance(title, str) or not title.strip():
         raise VaultError("Manifest title must be a non-empty string.")
+    if configuration is not None and manifest_path.name != configuration.manifest_filename:
+        raise VaultError(
+            f"Manifest filename does not match core configuration: {manifest_path.name}"
+        )
+    if configuration is not None:
+        project_configuration = vault_root / configuration.project_config_filename
+        if project_configuration.is_file():
+            try:
+                validate_project_config(
+                    json.loads(project_configuration.read_text(encoding="utf-8")),
+                    project_configuration,
+                )
+            except (OSError, json.JSONDecodeError, InputError) as error:
+                raise VaultError(str(error)) from error
     chapters, abstract = _parse_manifest(body, manifest_path, vault_root)
     links: list[dict[str, str]] = []
     assets: list[dict[str, str]] = []
@@ -102,6 +136,14 @@ def _split_frontmatter(source: str, path: Path) -> tuple[dict[str, object], str]
         metadata = {}
     if not isinstance(metadata, dict):
         raise VaultError(f"Frontmatter must be a mapping: {path}")
+    try:
+        profile = metadata.get("obsHtml")
+        if profile is not None:
+            validate_note_profile(profile, path)
+        if "query" in metadata:
+            validate_count_query(metadata["query"])
+    except InputError as error:
+        raise VaultError(str(error)) from error
     body_start = closing + 4
     if source[body_start:body_start + 1] == "\n":
         body_start += 1
@@ -197,7 +239,25 @@ def _nodes(
             result.append(node)
         elif token.type == "fence":
             language = token.info.strip().split(maxsplit=1)[0]
-            fence_type = {"base": "bases", "figure": "figures", "cmd": "command-fences"}.get(language)
+            try:
+                if language == "base":
+                    specification = yaml.safe_load(token.content)
+                    validate_base_definition(specification, source_path)
+                elif language == "cards":
+                    parse_card_spec(token.content)
+                elif language == "property-editor":
+                    parse_property_editor(token.content, source_path)
+                elif language == "cmd":
+                    validate_command(token.content)
+            except (InputError, yaml.YAMLError) as error:
+                raise VaultError(str(error)) from error
+            fence_type = {
+                "base": "bases",
+                "figure": "figures",
+                "cmd": "command-fences",
+                "cards": "cards",
+                "property-editor": "property-editors",
+            }.get(language)
             if fence_type in capability_ids:
                 attrs: dict[str, object] = {"source": token.content}
                 if language in {"base", "figure"}:
@@ -218,16 +278,16 @@ def _nodes(
         elif token.type == "blockquote_open" and position + 2 < len(tokens):
             inline = next((item for item in tokens[position:] if item.type == "inline"), None)
             lines = inline.content.splitlines() if inline else []
-            match = _CALLOUT.match(lines[0].strip()) if lines else None
+            callout = parse_callout(lines[0].strip()) if lines else None
             closing = next(
                 (index for index in range(position + 1, len(tokens)) if tokens[index].type == "blockquote_close"),
                 position,
             )
-            if match and "callouts" in capability_ids:
+            if callout and "callouts" in capability_ids:
                 body = "\n".join(lines[1:]).strip()
                 result.append({
                     "type": "callouts",
-                    "attrs": {"kind": match["kind"].lower(), "title": match["title"] or ""},
+                    "attrs": {"kind": callout["type"], "title": callout["title"]},
                     "children": [] if not body else [{"type": "paragraph", "attrs": {}, "children": _semantic_text_nodes(
                         body, source_path, vault_root, links, link_ids, capability_ids, capabilities,
                     )}],
