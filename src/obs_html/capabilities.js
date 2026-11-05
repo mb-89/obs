@@ -102,4 +102,32 @@
         },
     });
 
+    // The notice joins the shared heading notice area that report.js creates.
+    if (!limits.length) return;
+    const mount = () => {
+        const area = view.document.querySelector("[data-header-notices]");
+        if (!area) return;
+        const notice = view.document.createElement("aside");
+        notice.className = "capability-notice";
+        notice.dataset.capabilityNotice = "";
+        notice.setAttribute("aria-label", "Limited functionality");
+        const details = view.document.createElement("details");
+        const summary = view.document.createElement("summary");
+        summary.textContent = `Limited functionality: ${limits.length} ` +
+            `${limits.length === 1 ? "feature" : "features"}`;
+        const list = view.document.createElement("ul");
+        list.replaceChildren(...limits.map((entry) => {
+            const item = view.document.createElement("li");
+            item.dataset.capability = entry.key;
+            const name = view.document.createElement("strong");
+            name.textContent = entry.feature;
+            item.append(name, ` ${entry.reason} ${entry.remedy}`);
+            return item;
+        }));
+        details.append(summary, list);
+        notice.append(details);
+        area.append(notice);
+    };
+    // The startup loader announces this once every report script, report.js included, has run.
+    view.document.addEventListener("obs-html-interactive", mount, {once: true});
 })();
