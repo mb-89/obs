@@ -657,7 +657,7 @@ Generation time remains separate from document revision dates.
   selection; the `from` and `secondary` owner notes
   are included too. Each note is included once, so cycles end.
 
-  Queries and Bases never select an ignored note
+  No automatic selection selects an ignored note
   ([[capabilities/markdown-frontmatter#Ignored notes]]), the manifest included when it marks
   itself ignored. Following the person's underscore analogy (not yet confirmed in detail), an
   explicit reference still reaches it: an ignored note in the manifest's TOC, or linked or
