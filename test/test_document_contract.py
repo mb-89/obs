@@ -61,6 +61,23 @@ def figure_descriptor() -> dict[str, object]:
     }
 
 
+def capability_node_attrs(identifier: str) -> dict[str, object]:
+    attrs = {
+        "attachments": {"asset": "asset", "label": "Attachment"},
+        "cards-metrics": {"source": "", "spec": {}},
+        "chapter-inclusion": {"id": "chapter"},
+        "count-query": {"query": {}},
+        "markdown-frontmatter": {"metadata": {}},
+        "profiles": {"profile": {}},
+        "quantities": {"metadata": {}},
+        "queries": {"query": {}},
+        "references": {"metadata": {}},
+        "registers": {"target": "register.base", "heading": ""},
+        "figure-descriptor": {"descriptor": figure_descriptor()},
+    }
+    return attrs.get(identifier, {})
+
+
 def test_document_schema_validates_a_core_document() -> None:
     schema = json.loads((ROOT / "src" / "obs" / "document.schema.json").read_text(encoding="utf-8"))
 
@@ -82,7 +99,7 @@ def test_document_cli_writes_a_vault_document(tmp_path) -> None:
     ]) == 0
 
     document = json.loads(output.read_text(encoding="utf-8"))
-    assert document["chapters"][0]["content"][0]["children"][0]["text"] == "Content."
+    assert document["chapters"][0]["content"][2]["children"][0]["text"] == "Content."
 
 
 def test_document_validates_figure_descriptor_at_the_figure_node(tmp_path) -> None:
@@ -213,7 +230,7 @@ def test_document_accepts_one_node_for_each_input_capability(tmp_path) -> None:
     document["chapters"][0]["content"] = [
         {
             "type": item["id"],
-            "attrs": {"descriptor": figure_descriptor()} if item["id"] == "figure-descriptor" else {},
+            "attrs": capability_node_attrs(item["id"]),
             "children": [],
             "text": item["id"],
         }
