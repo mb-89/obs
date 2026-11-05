@@ -12,6 +12,9 @@ capability:
 
 Define reusable, declarative selections and aggregates.
 
+Queries select from the Document's note records, which [[capabilities/bases#Note records]]
+describes.
+
 ## Authoring example
 
 ```markdown
