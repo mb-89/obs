@@ -8,4 +8,14 @@ capability:
   inputModel: "[[input-model#Remaining chapter content]]"
 ---
 
-The register presents the owning metadata as the capability reference.
+## What it does
+
+Render standard Markdown chapter content safely.
+
+## Authoring example
+
+```markdown
+# Chapter
+
+Ordinary **Markdown** content.
+```

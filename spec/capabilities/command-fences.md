@@ -4,8 +4,18 @@ capability:
   id: command-fences
   summary: Request authorized command-derived document content.
   authoring: Use a cmd fence and run it only through the explicit execution boundary.
-  dependsOn: [markdown]
+  dependsOn: ["[[capabilities/markdown]]"]
   inputModel: "[[input-model#Command-derived content]]"
 ---
 
-The register presents the owning metadata as the capability reference.
+## What it does
+
+Request authorized command-derived document content.
+
+## Authoring example
+
+```markdown
+```cmd
+Write-Output "Derived content"
+```
+```

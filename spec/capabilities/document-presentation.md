@@ -1,10 +1,10 @@
 ---
-kind: capability
+kind: adapter-behavior
 capability:
   id: document-presentation
   summary: Set document-level layout, page, and bottom-line presentation.
   authoring: Declare the document obsHtml presentation mapping in manifest frontmatter.
-  dependsOn: [manifest, profiles]
+  dependsOn: ["[[capabilities/manifest]]", "[[capabilities/profiles]]"]
   inputModel: "[[input-model#Document presentation profile]]"
 ---
 

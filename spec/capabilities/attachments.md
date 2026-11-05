@@ -4,8 +4,16 @@ capability:
   id: attachments
   summary: Link or embed vault-local source attachments.
   authoring: Use a relative Markdown link or a supported attachment embed.
-  dependsOn: [markdown, embeds]
+  dependsOn: ["[[capabilities/markdown]]", "[[capabilities/embeds]]"]
   inputModel: "[[input-model#Document home and abstract]]"
 ---
 
-The register presents the owning metadata as the capability reference.
+## What it does
+
+Link or embed vault-local source attachments.
+
+## Authoring example
+
+```markdown
+![Source](input/data.csv)
+```

@@ -4,8 +4,18 @@ capability:
   id: count-query
   summary: Compute one declared count from canonical records.
   authoring: Declare a count query with its supported source and predicate fields.
-  dependsOn: [queries]
+  dependsOn: ["[[capabilities/queries]]"]
   inputModel: "[[input-model#One count query]]"
 ---
 
-The register presents the owning metadata as the capability reference.
+## What it does
+
+Compute one declared count from canonical records.
+
+## Authoring example
+
+```markdown
+query:
+  count: true
+  where: [{field: status, equals: open}]
+```

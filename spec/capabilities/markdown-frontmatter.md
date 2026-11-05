@@ -4,8 +4,18 @@ capability:
   id: markdown-frontmatter
   summary: Add structured metadata to a Markdown note.
   authoring: Put one YAML frontmatter mapping at the beginning of a note.
-  dependsOn: [markdown]
+  dependsOn: ["[[capabilities/markdown]]"]
   inputModel: "[[input-model#Markdown body and frontmatter]]"
 ---
 
-The register presents the owning metadata as the capability reference.
+## What it does
+
+Add structured metadata to a Markdown note.
+
+## Authoring example
+
+```markdown
+---
+aliases: [Short name]
+---
+```

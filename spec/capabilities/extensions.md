@@ -4,8 +4,16 @@ capability:
   id: extensions
   summary: Add a bounded next Obsidian syntax extension.
   authoring: Use only an extension with an explicit input-model contract.
-  dependsOn: [markdown]
+  dependsOn: ["[[capabilities/markdown]]"]
   inputModel: "[[input-model#Next Obsidian extension]]"
 ---
 
-The register presents the owning metadata as the capability reference.
+## What it does
+
+Add a bounded next Obsidian syntax extension.
+
+## Authoring example
+
+```markdown
+> [!note] An explicitly supported extension.
+```
