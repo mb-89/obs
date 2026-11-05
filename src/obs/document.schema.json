@@ -68,6 +68,14 @@
           }}}
         },
         {
+          "description": "A list: whether it is numbered and whether it was authored tight (no blank line between its items); its children are list-item nodes.",
+          "if": {"properties": {"type": {"const": "list"}}},
+          "then": {"properties": {"attrs": {
+            "type": "object", "additionalProperties": false, "required": ["ordered", "tight"],
+            "properties": {"ordered": {"type": "boolean"}, "tight": {"type": "boolean"}}
+          }}}
+        },
+        {
           "description": "TeX math: the formula is text, display is true for a $$ formula.",
           "if": {"properties": {"type": {"const": "math"}}},
           "then": {"required": ["text"], "properties": {"children": {"maxItems": 0}, "attrs": {
