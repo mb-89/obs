@@ -2047,10 +2047,16 @@
         }
 
         const hash = `#${slug}`;
-        if (historyMode === "push" && window.location.hash !== hash) {
-            window.history.pushState({ slug }, "", hash);
-        } else if (historyMode === "replace") {
-            window.history.replaceState({ slug }, "", hash);
+        // A sandboxed or srcdoc frame (Claude's preview) cannot change its URL; navigation
+        // still works there, only the address and browser Back do not follow it.
+        try {
+            if (historyMode === "push" && window.location.hash !== hash) {
+                window.history.pushState({ slug }, "", hash);
+            } else if (historyMode === "replace") {
+                window.history.replaceState({ slug }, "", hash);
+            }
+        } catch {
+            // Fail open: the chapter is shown without a history entry.
         }
         if (deferred.length) {
             pendingNavigation = slug;
