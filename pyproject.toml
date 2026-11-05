@@ -28,3 +28,7 @@ packages = ["src/obs_html"]
 
 [tool.pytest.ini_options]
 testpaths = ["test"]
+markers = [
+    "dom: runs the embedded report runtime in Node (needs `npm --prefix test/browser ci`).",
+    "browser: opens a real Chromium through Playwright.",
+]
