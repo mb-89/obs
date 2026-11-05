@@ -170,16 +170,17 @@ def record_value(record: Record, note: Record | None, field: str) -> object:
 
 
 def view_selectors(definition: dict[str, object]) -> list[RecordSelector]:
-    """One selector per view of a Base definition, over the record type its obsHtml.records names."""
+    """One selector per view of a Base definition, over the record type its obsHtml.records names
+    and, where the view declares obsHtml.members, over those notes alone."""
     base = compile_base_filter(definition.get("filters"))
     profile = definition.get("obsHtml") if isinstance(definition.get("obsHtml"), dict) else {}
-    members = profile.get("members")
-    paths = None if not isinstance(members, list) else {member.get("path") for member in members}
 
     def selector(view: dict[str, object]) -> RecordSelector:
         own_profile = view.get("obsHtml") if isinstance(view.get("obsHtml"), dict) else {}
         kind = own_profile.get("records", profile.get("records", "note"))
         own = compile_base_filter(view.get("filters"))
+        members = own_profile.get("members")
+        paths = None if not isinstance(members, list) else {member.get("path") for member in members}
 
         def selects(record: Record, note: Record | None) -> bool:
             owner = record if record["type"] == "note" else note

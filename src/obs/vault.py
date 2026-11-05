@@ -886,9 +886,14 @@ def _semantic_text_nodes(text: str, context: _Context) -> list[dict[str, object]
             nodes.append({"type": "text", "attrs": {}, "children": [], "text": text[position:match.start()]})
         value = match.group(0)
         target = (match["target"] or "").strip()
-        resolved = _link(target, source_path, vault) if target else None
+        resolved = _link(target, source_path, vault, value) if target else None
         is_base = bool(match["embed"]) and Path(target).suffix == ".base"
         definition: object = None
+        if is_base and resolved is None:
+            raise VaultError(
+                f"Base does not exist in {vault.relative(source_path)}: {value} matches no vault file; "
+                f"create {target} in the vault or embed the vault path of an existing .base file."
+            )
         if is_base and resolved is not None:
             try:
                 definition = yaml.safe_load(resolved.read_text(encoding="utf-8-sig"))
@@ -914,8 +919,12 @@ def _semantic_text_nodes(text: str, context: _Context) -> list[dict[str, object]
         elif match["embed"] and "embeds" in capability_ids:
             attrs: dict[str, object] = {"target": target, "chapter": None}
             if Path(target).suffix not in {"", ".md", ".base"}:
-                path = resolved or _embedded_file(value, target, source_path, vault)
-                attrs["asset"] = _asset(context, target, target, path)["id"]
+                if resolved is None:
+                    raise VaultError(
+                        f"Asset does not exist in {vault.relative(source_path)}: {value}; "
+                        f"add {target} to the vault or correct the embed."
+                    )
+                attrs["asset"] = _asset(context, target, target, resolved)["id"]
             vault.links.append((attrs, resolved))
             nodes.append({"type": "embeds", "attrs": attrs, "children": []})
             capabilities.add("embeds")
@@ -941,11 +950,6 @@ def _register_attrs(
 ) -> dict[str, object]:
     """The registers node's attrs: the Base, the embedded view and each view's rows; see capabilities/registers."""
     source = vault.relative(source_path)
-    if not isinstance(definition, dict):
-        raise VaultError(
-            f"Register Base does not exist in {source}: {embed}; "
-            f"create {target} in the vault or correct the embed."
-        )
     names = [view.get("name") for view in definition["views"]]
     view = None
     if heading:
@@ -1043,32 +1047,14 @@ def _image_file(src: str, label: str, context: _Context) -> Path | None:
     return path
 
 
-def _embedded_file(embed: str, target: str, source_path: Path, vault: _Vault) -> Path:
-    """An embedded file that is neither next to its note nor at the vault root, by its unique name.
-
-    Resolution follows input-model ("Document home and abstract"): next to the note, from the
-    vault root, then the case-insensitive file name, which must be unique.
-    """
-    source = vault.relative(source_path)
-    matches = vault.files_named(Path(target).name) if len(Path(target).parts) == 1 else []
-    if len(matches) > 1:
-        raise VaultError(
-            f"Ambiguous file name in {source}: {embed} matches "
-            f"{', '.join(vault.relative(path) for path in matches)}; embed the vault path instead."
-        )
-    if not matches:
-        raise VaultError(
-            f"Asset does not exist in {source}: {embed}; add {target} to the vault or correct the embed."
-        )
-    return matches[0]
-
-
-def _link(target: str, source_path: Path, vault: _Vault) -> Path | None:
-    """Resolve a link target and include a reached note; warn for a missing note.
+def _link(target: str, source_path: Path, vault: _Vault, syntax: str = "") -> Path | None:
+    """Resolve a link or embed target and include a reached note; warn for a missing note.
 
     Resolution follows input-model ("Remaining chapter content"): source-relative path,
-    vault-relative path, unique note name, then alias.
+    vault-relative path, then a bare name that matches exactly one non-hidden vault file (a
+    Markdown note by its name, then by its alias). ``syntax`` is the link as written, for errors.
     """
+    syntax = syntax or f"[[{target}]]"
     relative = Path(target)
     source = vault.relative(source_path)
     if relative.is_absolute() or ".." in relative.parts:
@@ -1083,18 +1069,22 @@ def _link(target: str, source_path: Path, vault: _Vault) -> Path | None:
             break
     else:
         path = None
-        if relative.suffix == ".md" and len(relative.parts) == 1:
-            name = relative.stem.casefold()
-            matches = [note for note in vault.notes if note != vault.manifest and note.stem.casefold() == name]
-            if not matches:
-                matches = [
-                    note for note, (metadata, _) in vault.notes.items()
-                    if note != vault.manifest and name in _aliases(metadata)
-                ]
+        if len(relative.parts) == 1:
+            if relative.suffix == ".md":
+                name = relative.stem.casefold()
+                matches = [note for note in vault.notes if note != vault.manifest and note.stem.casefold() == name]
+                if not matches:
+                    matches = [
+                        note for note, (metadata, _) in vault.notes.items()
+                        if note != vault.manifest and name in _aliases(metadata)
+                    ]
+            else:
+                matches = vault.files_named(relative.name)
             if len(matches) > 1:
                 raise VaultError(
-                    f"Ambiguous note name in {source}: [[{target}]] matches "
-                    f"{', '.join(vault.relative(note) for note in matches)}; link the vault path instead."
+                    f"Ambiguous {'note' if relative.suffix == '.md' else 'file'} name in {source}: "
+                    f"{syntax} matches {', '.join(vault.relative(match) for match in matches)}; "
+                    f"{'embed' if syntax.startswith('!') else 'link'} the vault path instead."
                 )
             path = matches[0] if matches else None
     if path is None:

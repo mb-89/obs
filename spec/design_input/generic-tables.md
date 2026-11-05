@@ -93,7 +93,8 @@ consume the same applied global Filter; a table's local query remains independen
 
   A line `![[name.base]]` or `![[path/name.base#View]]` embeds a reusable `.base` file as in
   Obsidian. A target with a folder is vault-relative; a bare name must match exactly one
-  non-hidden file in the vault.
+  non-hidden file in the vault. A bare name that matches none or several fails the build, naming
+  the embedding note and the candidates; the remedy is to embed the file's vault path.
 
   The file holds the same YAML as a fence and passes the same validation once per build.
   `![[file.base]]` embeds all views with the selector; `#View` embeds only that view. Every
@@ -103,6 +104,8 @@ consume the same applied global Filter; a table's local query remains independen
   and optional view-local `label`. This set intersects the ordinary Base query; its order is the
   initial row order, and its labels are projected as `obsHtml.label` without modifying canonical
   note records. Missing, duplicate, absolute, or vault-escaping member paths are input errors.
+  Members belong to their view: each view selects its own members, and a Base-level
+  `obsHtml.members` is an input error naming the note; the remedy is to move it into the view.
 - Display labels for columns and grouped properties are presentation metadata over the
   existing field keys. Headers/group captions need not expose dotted storage paths;
   renaming a display label never changes filters, canonical properties or stable routes.
