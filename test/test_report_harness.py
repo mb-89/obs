@@ -73,3 +73,13 @@ def test_harness_activates_a_chapter(report: Path, tmp_path: Path) -> None:
     error = run_harness(report, tmp_path, {"step": "activate", "chapter": "missing"}, check=False)
     assert 'report-harness.cjs: activate: the report has no chapter "missing".' in error
     assert "Remedy:" in error
+
+
+def test_harness_mounts_a_table(report: Path, tmp_path: Path) -> None:
+    _, table = run_harness(report, tmp_path, {"step": "activate", "chapter": "items"},
+                           {"step": "table", "key": TABLE})
+    assert [column["key"] for column in table["columns"]] == ["file.name", "rank"]
+    assert table["rows"] == ["note:gamma", "note:beta", "note:alpha"]
+    assert table["count"] == "3 of 3 items"
+    error = run_harness(report, tmp_path, {"step": "table", "key": TABLE}, check=False)
+    assert f'table: the active chapter "home" mounted no table "{TABLE}".' in error

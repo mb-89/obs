@@ -199,6 +199,24 @@ const STEPS = {
             title: active.querySelector("h1")?.textContent.trim() || null,
         };
     },
+    // The table the active chapter mounted for a key, as the reader sees it.
+    async table(report, {key}) {
+        const body = activeChapter(report).querySelector("[data-chapter-body]");
+        const shell = [...body.querySelectorAll("[data-data-table]:not([data-page-continuation])")]
+            .find((element) => element.dataset.dataTable === key);
+        if (!shell) {
+            throw new HarnessError("table", `the active chapter "${activeChapter(report).dataset.chapter}" `
+                + `mounted no table "${key}".`, "activate the chapter the data step lists for that table first.");
+        }
+        return {
+            key,
+            columns: [...shell.querySelectorAll("thead th[data-column-key]")].map((cell) => ({
+                key: cell.dataset.columnKey, label: cell.querySelector("span")?.textContent.trim() || "",
+            })),
+            rows: [...shell.querySelectorAll("tbody tr[data-row-key]")].map((row) => row.dataset.rowKey),
+            count: shell.querySelector(".data-table-count")?.textContent.trim() || null,
+        };
+    },
 };
 
 async function runSteps(report, steps) {
