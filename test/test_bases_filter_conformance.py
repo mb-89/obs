@@ -111,3 +111,17 @@ def test_core_and_interim_schemas_share_the_comparison_pattern():
         return json.loads(schema.read_text(encoding="utf-8"))["$defs"]["comparison"]["pattern"]
 
     assert pattern("obs") == pattern("obs_html")
+
+
+@pytest.mark.parametrize("package", ["core", "adapter"])
+def test_match_case_flag_belongs_to_an_equals_condition(package):
+    if package == "core":
+        from obs.input import InputError as Error, validate_count_query
+    else:
+        from obs_html.cards import validate_count_query
+        from obs_html.content import ContentError as Error
+
+    validate_count_query({"where": [{"field": "status", "equals": "Open", "matchCase": True}]})
+    with pytest.raises(Error) as error:
+        validate_count_query({"where": [{"field": "status", "exists": True, "matchCase": True}]})
+    assert str(error.value).startswith("Quantity query:") and "'equals' is a dependency of 'matchCase'" in str(error.value)
