@@ -673,24 +673,16 @@ Implementation decisions (4 Nov 2026, worker, reversible):
   Paper size and margins are the manifest's `obsHtml.print`
   ([[input-model#Document presentation profile]]); their catalogue and limits are configuration.
 
-  Every sheet of a document has the same paper size and orientation. A table explicitly
-  marked wide (decided 4 Nov 2026) stays in the ordinary flow and the page count.
+  A table explicitly marked wide starts a landscape sheet. All continuation sheets containing
+  that table remain landscape, including repeated headers and expanded content, and ordinary
+  content after the table returns to portrait. Do not rotate the entire report or infer wide
+  mode from a role name or a guessed overflow threshold. Keep the table's heading/caption with
+  its first rows.
 
-  It extends into both inline margins, up to configuration's
-  `report.print.wideTableEdgeMillimeters` from the paper edge (none when the margin is
-  narrower), and splits and repeats its header like any table. Inside a card or column it
-  stays within that container.
-
-  Do not change the page width or orientation for a table, rotate the report, or infer wide
-  mode from a role name or a guessed overflow threshold. Keep the table's heading/caption
-  with its first rows.
-
-  This replaces the earlier landscape sheets per wide table, which gave the retro of
-  28–29 Oct 2026 41 instead of 24 screen pages. A document that needs landscape paper as a
-  whole is a future per-document `obsHtml.print` choice, not a table property.
-
-  Verify on the exported PDF that a wide table keeps every page box, the page count of the
-  same document without `wide`, undistorted text and its cells within the extended area.
+  Screen sheets express the same mixed orientation within the available reader width. PDF uses
+  actual swapped physical page dimensions, not a rotated/clipped portrait canvas. Mixed
+  portrait/landscape page boxes, readable ID/title labels, contained columns and repeated table
+  headers require native PDF verification.
 
   Previous/next arrows still change chapters, not individual sheets.
 
@@ -709,8 +701,8 @@ Implementation decisions (4 Nov 2026, worker, reversible):
   Logical measurement retains the HTML whole-table hint through the shared static
   source projection; it must not reserve physical PDF continuation numbers between
   two adjacent HTML chapters.
-  Tables stay whole on one HTML sheet, wide ones included, and keep the chapter's logical
-  sheet numbers during local interaction, including column resizing.
+  Tables that initially span several HTML sheets retain their logical sheet allocation during
+  local interaction, including column resizing.
 
   Existing sheets may grow to accommodate changed row/detail heights; they must not
   introduce

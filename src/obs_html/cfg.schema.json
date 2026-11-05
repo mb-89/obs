@@ -149,7 +149,7 @@
         "printReadyTimeoutMilliseconds": {"type": "integer", "minimum": 100, "maximum": 120000},
         "print": {
           "$ref": "#/$defs/print",
-          "required": ["paperSizes", "wideTableEdgeMillimeters"]
+          "required": ["paperSizes"]
         },
         "hoverCard": {
           "$ref": "#/$defs/hoverCard",
@@ -229,10 +229,6 @@
       "additionalProperties": false,
       "description": "Print catalogue; each document chooses its paper and margin in the manifest's obsHtml.print.",
       "properties": {
-        "wideTableEdgeMillimeters": {
-          "type": "number", "minimum": 3, "maximum": 40,
-          "description": "Distance from the paper edge a wide table may extend to, into the margins; a margin narrower than this is not extended."
-        },
         "paperSizes": {
           "type": "object",
           "minProperties": 1,

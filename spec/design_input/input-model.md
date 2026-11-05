@@ -1712,7 +1712,7 @@ may exclude transport/query wrappers without runtime knowledge of those wrappers
 declared `views[0].obsHtml.details: columns` mode. Missing references are empty, not
 synthetic subject documents. Existing `displayName` labels apply to group captions too.
 
-`views[0].obsHtml.wide: true` marks table composition only; [[report-ui]] owns its placement.
+`views[0].obsHtml.wide: true` marks table composition only; [[report-ui]] owns orientation.
 
 Icon slots use `properties.<slot>.obsHtml.icon` with a catalog resource `name`
 and accessible `label`, plus one of `linkProperty` with `unavailable`,

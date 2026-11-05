@@ -446,7 +446,6 @@ def _serialize_report_data(
     if key in reading_settings:
       raise ValueError(f"report.reading.{key} was removed: {replacement}")
   presentation = manifest.presentation
-  print_settings = print_setup or report_defaults["print"]
   # Light is a product invariant; the opening layout is the author's manifest declaration.
   reading_settings = {"theme": "light", "paged": presentation["layout"] == "paged", **reading_settings}
   bottom_line = presentation["bottomLine"]
@@ -490,8 +489,7 @@ def _serialize_report_data(
         },
       },
     },
-    "paper": _paper(presentation["print"], print_settings),
-    "wideTableEdgeMillimeters": print_settings["wideTableEdgeMillimeters"],
+    "paper": _paper(presentation["print"], print_setup or report_defaults["print"]),
     "reading": {key: value for key, value in reading_settings.items()
                 if key not in {"paragraphWarningLines", "paragraphLineCharacters"}},
     "figures": figures if figures is not None else report_defaults["figures"],

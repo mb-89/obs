@@ -20,24 +20,30 @@
     let originalChildren = new Map();
     let measuredStarts = new Map();
     let measuredCounts = new Map();
+    let measuredTableAllocations = new Map();
     let measuredTotal = 0;
     // Current-chapter page slots measured synchronously while whole-document numbering is pending,
     // so the live screen gets its final layout at once and numbering later updates in place.
     let provisionalCounts = new Map();
+    let provisionalAllocations = new Map();
     let measurementEpoch = 0;
     let measurementScheduled = false;
+    let printMediaBoxes = [];
     const root = document.documentElement;
     const paper = data.paper;
     root.style.setProperty("--paper-width", `${paper.widthMillimeters}mm`);
     root.style.setProperty("--paper-height", `${paper.heightMillimeters}mm`);
     root.style.setProperty("--paper-margin", `${paper.marginMillimeters}mm`);
-    root.style.setProperty("--wide-table-edge", `${data.wideTableEdgeMillimeters}mm`);
     root.style.setProperty("--paper-code-font", `${data.reading.codeFontPoints}pt`);
     root.style.setProperty("--heading-space-before", `${data.reading.headingSpaceBeforeEm}em`);
     root.style.setProperty("--heading-space-after", `${data.reading.headingSpaceAfterEm}em`);
     root.style.setProperty("--paragraph-minimum-lines", data.reading.paragraphMinimumLines);
     const printStyle = document.createElement("style");
-    printStyle.textContent = `@page { size: ${paper.widthMillimeters}mm ${paper.heightMillimeters}mm; margin: 0; }`;
+    printStyle.textContent = `
+        @page { size: ${paper.widthMillimeters}mm ${paper.heightMillimeters}mm; margin: 0; }
+        @page report-portrait { size: ${paper.widthMillimeters}mm ${paper.heightMillimeters}mm; margin: 0; }
+        @page report-landscape { size: ${paper.heightMillimeters}mm ${paper.widthMillimeters}mm; margin: 0; }
+    `;
     document.head.append(printStyle);
 
     const sourceFor = (slug) => {
@@ -135,16 +141,23 @@
         const pageIndex = () => destination.children.length - pageOffset - 1;
         const logicalPages = live ? (measuredStarts.size ? measuredCounts.get(slug)
             : provisionalCounts.get(slug)) || null : null;
+        const tableAllocations = new Map();
+        let activeTableAllocation = null;
         let content;
         let containers;
         let pageHasContent;
         let expanded = false;
+        let orientation = "portrait";
+        let wideDepth = 0;
+        let widePrelude = false;
+        let pendingPortrait = false;
         const path = [];
         const listPositions = new Map();
         const usedLiveContainers = new Set();
         const newPage = () => {
             // Numbered screen sheets grow within their original allocation instead of stealing later slots.
-            if (live && logicalPages && pageIndex() >= logicalPages - 1) {
+            if (live && ((logicalPages && pageIndex() >= logicalPages - 1) ||
+                    (activeTableAllocation && pageIndex() >= activeTableAllocation.last))) {
                 content.closest(".paper-sheet").classList.add("paper-sheet-flexible");
                 expanded = false;
                 return;
@@ -162,6 +175,7 @@
             sheet.className = "paper-sheet";
             sheet.classList.add(...authorClasses(slug));
             sheet.dataset.pageChapter = slug;
+            sheet.dataset.pageOrientation = orientation;
             content = document.createElement("div");
             content.className = "paper-content";
             sheet.append(content);
@@ -178,6 +192,11 @@
                 newPage();
             }
             if (!pageHasContent) content.closest(".paper-sheet").dataset.logicalReserved = "";
+        };
+        const orient = (value, force = false) => {
+            if (orientation === value && !force) return;
+            orientation = value;
+            newPage();
         };
         const parent = () => {
             let current = content;
@@ -328,6 +347,33 @@
             }
         };
         const place = (node) => {
+            const wide = node.nodeType === 1 && node.matches('[data-table-wide="true"]') && !wideDepth;
+            const key = node.dataset?.dataTable || node.dataset?.reviewTable;
+            const allocation = wide && logicalPages ? (measuredStarts.size ? measuredTableAllocations
+                : provisionalAllocations).get(slug)?.get(key) : null;
+            let first;
+            if (wide) {
+                orient("landscape", !widePrelude && pageHasContent);
+                if (allocation) reserveUntil(allocation.first);
+                first = pageIndex();
+                activeTableAllocation = allocation;
+                pendingPortrait = false;
+                widePrelude = false;
+                wideDepth += 1;
+            }
+            try {
+                placeNode(node);
+            } finally {
+                if (wide) {
+                    if (allocation) reserveUntil(allocation.last);
+                    if (logical && key) tableAllocations.set(key, {first, last: pageIndex()});
+                    activeTableAllocation = null;
+                    wideDepth -= 1;
+                    pendingPortrait = true;
+                }
+            }
+        };
+        const placeNode = (node) => {
             if (node.nodeType === 3 && !node.textContent.trim()) {
                 if (live) parent().append(node);
                 return;
@@ -363,6 +409,8 @@
                 ];
                 const sources = planned(node);
                 planned(copy).forEach((table, index) => {
+                    // Wide tables are only fitted once they are placed on their landscape pages.
+                    if (table.dataset.tableWide === "true" && !wideDepth) return;
                     const widths = globalThis.obsDataTable.fitStaticTable(table);
                     const source = sources[index];
                     if (!widths || !source || source === table) return;
@@ -388,13 +436,17 @@
                     copy.style.tableLayout = "fixed";
                 }
             }
-            if (fits()) {
+            const mixed = node.nodeType === 1 && !wideDepth &&
+                node.querySelector('[data-table-wide="true"]');
+            if (fits() && !mixed) {
                 pageHasContent = true;
                 return;
             }
             copy.remove();
             const whole = (live || logical) && node.nodeType === 1 &&
-                node.matches(".data-table-shell, table, ol, ul, pre, p, .content-card");
+                node.matches(".data-table-shell, table, ol, ul, pre, p, .content-card") &&
+                (!(wideDepth && node.matches(".data-table-shell, table")) ||
+                    node.matches('[data-screen-page-breaks="false"]')) && !mixed;
             if (whole) {
                 if (pageHasContent && !node.matches(".data-table-shell, table, ol, ul, pre")) newPage();
                 parent().append(copy);
@@ -405,7 +457,8 @@
                 }
                 return;
             }
-            if (pageHasContent && node.nodeType !== 3 && !overflowingContainer(node)) {
+            if (pageHasContent && node.nodeType !== 3 && !overflowingContainer(node) &&
+                    !(live && node.nodeName === "TR")) {
                 newPage();
                 parent().append(copy);
                 if (fits()) {
@@ -414,7 +467,16 @@
                 }
                 copy.remove();
             }
-            if (!live && node.nodeName === "P" && !node.querySelector("img:not(.resource-icon *), svg:not(.resource-icon *)") && node.textContent.trim()) {
+            if (live && node.nodeName === "TR") {
+                const table = path.find((ancestor) => ancestor.nodeName === "TABLE");
+                if (pageHasContent && containers.get(table)?.querySelector("tbody tr")) newPage();
+                parent().append(copy);
+                pageHasContent = true;
+                if (!fits()) {
+                    content.closest(".paper-sheet").classList.add("paper-sheet-flexible");
+                    expanded = true;
+                }
+            } else if (!live && node.nodeName === "P" && !node.querySelector("img:not(.resource-icon *), svg:not(.resource-icon *)") && node.textContent.trim()) {
                 splitParagraph(node);
             } else if (!live && node.nodeName === "TR") {
                 splitRow(node);
@@ -517,10 +579,27 @@
                 if (remaining.some((cell) => cell.childNodes.length)) newPage();
             }
         };
+        const firstIsWide = (nodes) => {
+            for (const node of nodes) {
+                if ((node.nodeType === 3 && !node.textContent.trim()) || node.hidden || isHeading(node)) continue;
+                if (node.nodeType !== 1) return false;
+                if (node.matches('[data-table-wide="true"]')) return true;
+                return node.matches("section, div, blockquote") && firstIsWide([...node.childNodes]);
+            }
+            return false;
+        };
         const placeChildren = (nodes) => nodes.forEach((node, index) => {
             if (node.nodeType === 3 && !node.textContent.trim()) {
                 place(node);
                 return;
+            }
+            if (!wideDepth && pendingPortrait) {
+                orient("portrait");
+                pendingPortrait = false;
+            }
+            if (!wideDepth && isHeading(node) && firstIsWide(nodes.slice(index))) {
+                orient("landscape");
+                widePrelude = true;
             }
             const list = path[path.length - 1];
             if (node.nodeName === "LI" && list?.tagName === "OL") {
@@ -549,6 +628,7 @@
         });
         placeChildren([...source.childNodes]);
         if (logicalPages) reserveUntil(logicalPages - 1);
+        return tableAllocations;
     };
     const fixLinks = (destination, forPrint) => {
         const ids = new Set();
@@ -588,14 +668,15 @@
             }
         });
     };
-    const layout = (destination, entries, forPrint, live = false, logical = false) => {
+    const layout = (destination, entries, forPrint, live = false, logical = false, allocations = null) => {
         destination.replaceChildren();
         destination.classList.toggle("logical-pages", logical);
         const sectionTitles = new Map(entries.filter((entry) => entry.title !== undefined)
             .map((entry) => [entry.slug, entry.title]));
         entries.forEach(({slug, source}) => {
             const start = destination.children.length;
-            paginate(source, destination, slug, live, logical);
+            const tables = paginate(source, destination, slug, live, logical);
+            if (logical) allocations?.set(slug, tables);
             const first = destination.children[start];
             if (!live) first.id = slug;
             if (slug === "@history") first.dataset.documentHistory = "";
@@ -648,6 +729,14 @@
             sheet.prepend(header);
             sheet.append(footer);
         });
+        if (forPrint) {
+            printMediaBoxes = [...destination.children].map((sheet) => ({
+                widthMillimeters: sheet.dataset.pageOrientation === "landscape"
+                    ? paper.heightMillimeters : paper.widthMillimeters,
+                heightMillimeters: sheet.dataset.pageOrientation === "landscape"
+                    ? paper.widthMillimeters : paper.heightMillimeters,
+            }));
+        }
         return starts;
     };
     const showError = (error) => {
@@ -696,7 +785,9 @@
     };
     const invalidateMeasurements = () => {
         measuredStarts.clear();
+        measuredTableAllocations.clear();
         provisionalCounts = new Map();
+        provisionalAllocations = new Map();
         measurementEpoch++;
     };
     const measureProvisionally = (slug) => {
@@ -704,7 +795,7 @@
                 !report.exportChapters().some(record => record.slug === slug)) return;
         printed.classList.add("measuring-pages");
         try {
-            layout(printed, [{slug, source: sourceFor(slug)}], false, false, true);
+            layout(printed, [{slug, source: sourceFor(slug)}], false, false, true, provisionalAllocations);
             provisionalCounts.set(slug, printed.children.length);
         } finally {
             printed.replaceChildren();
@@ -717,6 +808,7 @@
         const measure = async () => {
             const epoch = measurementEpoch;
             const counts = new Map();
+            const allocations = new Map();
             try {
                 const entries = groups(report.exportChapters(), null, false);
                 const chapters = report.exportChapters();
@@ -727,7 +819,7 @@
                     try {
                         layout(printed, [{slug: entry.slug, source: entry.source || sourceFor(entry.slug),
                             title: entry.title}],
-                            false, false, true);
+                            false, false, true, allocations);
                         counts.set(entry.slug, printed.children.length);
                     } finally {
                         printed.replaceChildren();
@@ -736,6 +828,7 @@
                 }
                 if (epoch !== measurementEpoch) return;
                 measuredCounts = counts;
+                measuredTableAllocations = allocations;
                 let total = 0;
                 measuredCounts.forEach((count, slug) => {
                     measuredStarts.set(slug, total + 1);
@@ -751,10 +844,12 @@
         globalThis.obsStartup.defer("Document page numbering", measure);
     };
     let screenSlug = null;
-    // Page counts each live chapter was laid out with.
+    // Page counts and wide-table slots each live chapter was laid out with.
     let screenBasis = new Map();
-    // Measurement only changes the live layout when its page counts differ from those the
-    // shown sheets were laid out with; otherwise renumber in place so live tables stay attached.
+    const allocationKey = (allocation) => JSON.stringify([...(allocation || [])]);
+    // Measurement only changes the live layout when its page counts or wide-table slots differ
+    // from those the shown sheets were laid out with; otherwise renumber in place so live
+    // tables stay attached.
     const renumberScreen = () => {
         if (!screen.isConnected || screenSlug !== chapter.dataset.chapter) return false;
         const sheets = [...screen.children].filter(sheet => sheet.matches(".paper-sheet"));
@@ -767,8 +862,9 @@
         });
         for (const [slug, chapterSheets] of bySlug) {
             const basis = screenBasis.get(slug);
-            if (basis === undefined || measuredCounts.get(slug) !== chapterSheets.length ||
-                    basis !== chapterSheets.length) return false;
+            if (!basis || measuredCounts.get(slug) !== chapterSheets.length ||
+                    basis.count !== chapterSheets.length ||
+                    basis.allocation !== allocationKey(measuredTableAllocations.get(slug))) return false;
         }
         screen.querySelectorAll("[data-contents-chapter]").forEach(number => {
             number.textContent = String(measuredStarts.get(number.dataset.contentsChapter) || "");
@@ -805,7 +901,9 @@
                 else {
                     printed.classList.add("measuring-pages");
                     try {
-                        measuredStarts = layout(printed, groups(selected), false, false, true);
+                        measuredTableAllocations = new Map();
+                        measuredStarts = layout(printed, groups(selected), false, false, true,
+                            measuredTableAllocations);
                         measuredCounts = new Map();
                         [...printed.children].forEach(sheet => {
                             const slug = sheet.dataset.pageChapter;
@@ -830,8 +928,11 @@
             screen.classList.add("laying-out");
             screenBasis = new Map();
             const counts = measuredStarts.size ? measuredCounts : provisionalCounts;
+            const allocations = measuredStarts.size ? measuredTableAllocations : provisionalAllocations;
             entries.forEach(entry => {
-                if (counts.has(entry.slug)) screenBasis.set(entry.slug, counts.get(entry.slug));
+                if (counts.has(entry.slug)) screenBasis.set(entry.slug, {
+                    count: counts.get(entry.slug), allocation: allocationKey(allocations.get(entry.slug)),
+                });
             });
             try {
                 layout(screen, entries, false, true);
@@ -1002,6 +1103,11 @@
         }
     });
     window.addEventListener("afterprint", finishPrint);
-    globalThis.obsPages = {setPaged, exportPDF};
+    globalThis.obsPages = {
+        setPaged, exportPDF,
+        get printMediaBoxes() {
+            return printMediaBoxes.map((box) => ({...box}));
+        },
+    };
     setPaged(data.reading.paged);
 })();
