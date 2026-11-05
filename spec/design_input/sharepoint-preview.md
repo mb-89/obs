@@ -162,10 +162,9 @@ reviewer-name controls, comments/decisions/field edits, downloaded edited HTML
 reopened locally, and PDF export. Mark host-restricted actions explicitly with
 the download-and-open remedy.
 
-The artifact now does this itself: in a limited host its capability canaries
-raise Limited functionality warnings; see
-[Artifact UI](artifact-ui.md#dock-menu) (the notice center) for the warnings and
-the registry that lists the browser capabilities the artifact depends on. Defer minification until compatibility works so
+The artifact now does this itself: see [Artifact UI](artifact-ui.md#dock-menu),
+the notice center, for which features it includes and how their canaries report a
+host's limits. Defer minification until compatibility works so
 format transformations do not obscure diagnosis.
 
 For agreed SharePoint/OneDrive viewing paths, artifacts should offer a readable,
