@@ -1,4 +1,4 @@
-.report-figure,
+.artifact-figure,
 .engineering-figure {
     --figure-width: min(
         calc(var(--content-inline-size) * var(--figure-prose-width-multiplier)),
@@ -15,7 +15,7 @@
     width: var(--figure-width);
 }
 
-.report-figure > img {
+.artifact-figure > img {
     display: block;
     height: auto;
     margin-inline: auto;
@@ -33,7 +33,7 @@
 }
 
 .engineering-figure figcaption,
-.report-figure figcaption {
+.artifact-figure figcaption {
     font-size: 0.9em;
     margin-block: 0.65rem 0;
     overflow-wrap: anywhere;
@@ -44,7 +44,7 @@
     font-weight: 600;
 }
 
-[data-report-figure][id] {
+[data-artifact-figure][id] {
     scroll-margin-top: 4rem;
 }
 
@@ -52,7 +52,7 @@
     display: none;
 }
 
-.paper-content :is(.report-figure, .engineering-figure) {
+.paper-content :is(.artifact-figure, .engineering-figure) {
     --figure-width: 100%;
     margin-inline: 0;
     max-width: 100%;
@@ -170,7 +170,7 @@
     background: var(--color-canvas);
 }
 
-.figure-overlay > .report-figure,
+.figure-overlay > .artifact-figure,
 .figure-overlay > .engineering-figure {
     display: flex;
     flex-direction: column;
@@ -187,7 +187,7 @@
     flex-shrink: 0;
 }
 
-.figure-overlay > .report-figure {
+.figure-overlay > .artifact-figure {
     overflow: hidden;
 }
 
@@ -197,7 +197,7 @@
     transform-origin: 0 0;
 }
 
-.figure-overlay .report-figure > figcaption {
+.figure-overlay .artifact-figure > figcaption {
     background: var(--color-canvas);
     position: relative;
     z-index: 1;
@@ -262,26 +262,26 @@
     height: 100%;
 }
 
-.print-book .report-figure button,
+.print-book .artifact-figure button,
 .print-book .engineering-figure button {
     display: none !important;
 }
 
 @media screen {
-    .report-figure:not(.figure-expanded) > img,
+    .artifact-figure:not(.figure-expanded) > img,
     .engineering-figure:not(.figure-expanded) > .figure-default {
         max-height: calc(100dvh * var(--figure-viewport-height-ratio));
         width: auto;
     }
 }
 
-.paper-content :is(.report-figure, .engineering-figure):not(.figure-expanded) > img {
+.paper-content :is(.artifact-figure, .engineering-figure):not(.figure-expanded) > img {
     max-height: var(--figure-paper-image-height, calc(var(--paper-height) - 2 * var(--paper-margin)));
     width: auto;
 }
 
 @media screen {
-    .paged-reader .paper-content :is(.report-figure, .engineering-figure):not(.figure-expanded) > img {
+    .paged-reader .paper-content :is(.artifact-figure, .engineering-figure):not(.figure-expanded) > img {
         max-height: min(
             var(--figure-paper-image-height, calc(var(--paper-height) - 2 * var(--paper-margin))),
             calc(100dvh * var(--figure-viewport-height-ratio))
@@ -290,7 +290,7 @@
 }
 
 @media print {
-    .report-figure button,
+    .artifact-figure button,
     .engineering-figure button,
     .figure-overlay {
         display: none !important;

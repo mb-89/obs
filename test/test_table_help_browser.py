@@ -10,7 +10,7 @@ import pytest
 import yaml
 
 from obs_html.content import parse_manifest
-from obs_html.renderer import render_report
+from obs_html.renderer import render_artifact
 from pickers import choose_files
 from test_reader_controls import reader_browser
 
@@ -23,7 +23,7 @@ HELP = (
     "- Download [the source archive](obs-source:archive).\n\n"
     '<script>window.helpInjected = true</script>'
 )
-RUNTIME = """obsReport.registerApplication({
+RUNTIME = """obsArtifact.registerApplication({
     id: 'help-fixture',
     actions: [{
         id: 'replaceEvidence', accept: '.txt', help: 'Choose replacement evidence.',
@@ -73,21 +73,21 @@ def write_help_fixture(root):
 
 def render_help_fixture(root):
     manifest = write_help_fixture(root / "vault")
-    report = root / "report.html"
-    report.write_text(render_report(manifest, parse_manifest(manifest)), encoding="utf-8")
-    return report
+    artifact = root / "artifact.html"
+    artifact.write_text(render_artifact(manifest, parse_manifest(manifest)), encoding="utf-8")
+    return artifact
 
 
 def build_help_fixture_cli(root):
     manifest = write_help_fixture(root / "vault")
-    report = root / "report.html"
+    artifact = root / "artifact.html"
     command = [
         sys.executable, "-c", "from obs_html.cli import main; raise SystemExit(main())",
         "--source", str(manifest), "--embed-source",
         "--trusted-runtime-bundle", f"help-fixture={manifest.parent / 'runtime.js'}",
     ]
     for mode, arguments in (
-        ("check", ["--check"]), ("build", ["--output", str(report)]),
+        ("check", ["--check"]), ("build", ["--output", str(artifact)]),
     ):
         result = subprocess.run(
             [*command, *arguments], cwd=ROOT, text=True, capture_output=True, timeout=60,
@@ -96,7 +96,7 @@ def build_help_fixture_cli(root):
             result.stdout + result.stderr, encoding="utf-8",
         )
         assert result.returncode == 0, result.stdout + result.stderr
-    return report
+    return artifact
 
 
 def test_table_help_reuses_shared_rich_hover_dom(tmp_path):
@@ -106,9 +106,9 @@ def test_table_help_reuses_shared_rich_hover_dom(tmp_path):
     )
     if not node or not Path(module).is_dir():
         pytest.skip("Set OBS_HTML_TEST_DOM_MODULE to the existing linkedom adapter.")
-    report = render_help_fixture(tmp_path)
+    artifact = render_help_fixture(tmp_path)
     result = subprocess.run(
-        [node, str(ROOT / "test" / "browser" / "report-ui.cjs"), str(report), module,
+        [node, str(ROOT / "test" / "browser" / "artifact-ui.cjs"), str(artifact), module,
          "", "", "", "--table-help-only"],
         text=True, capture_output=True, cwd=ROOT, timeout=30,
     )
@@ -118,7 +118,7 @@ def test_table_help_reuses_shared_rich_hover_dom(tmp_path):
 def test_native_table_help_placement_keyboard_action_and_reopen(tmp_path, reader_browser):
     from playwright.sync_api import expect
 
-    report = build_help_fixture_cli(tmp_path)
+    artifact = build_help_fixture_cli(tmp_path)
     context = reader_browser.new_context(viewport={"width": 1280, "height": 900})
     page = context.new_page()
     errors = []
@@ -128,10 +128,10 @@ def test_native_table_help_placement_keyboard_action_and_reopen(tmp_path, reader
         requests.append(route.request.url), route.fulfill(status=200, body="Export instructions"),
     ))
     try:
-        page.goto(report.as_uri() + "#chapter")
+        page.goto(artifact.as_uri() + "#chapter")
         page.evaluate("obsHtmlReady")
-        page.evaluate("obsPages.setPaged(false); obsReport.activateChapter('chapter')")
-        page.evaluate("obsReport.whenChapterReady()")
+        page.evaluate("obsPages.setPaged(false); obsArtifact.activateChapter('chapter')")
+        page.evaluate("obsArtifact.whenChapterReady()")
         action = page.get_by_role("button", name="Replace evidence", exact=True)
         card = page.locator("#hover-card")
         expect(action).to_have_attribute("title", "Replace evidence")
@@ -202,8 +202,8 @@ def test_native_table_help_placement_keyboard_action_and_reopen(tmp_path, reader
         internal.click()
         expect(page.locator("[data-active-chapter]")).to_have_attribute("data-chapter", "target")
         expect(card).to_be_hidden()
-        page.evaluate("obsReport.activateChapter('chapter')")
-        page.evaluate("obsReport.whenChapterReady()")
+        page.evaluate("obsArtifact.activateChapter('chapter')")
+        page.evaluate("obsArtifact.whenChapterReady()")
         action.focus()
         expect(card).to_be_visible()
         with page.expect_popup() as popup:
@@ -234,7 +234,7 @@ def test_native_table_help_placement_keyboard_action_and_reopen(tmp_path, reader
         page.keyboard.press("Escape")
         help_control.press("Enter")
         expect(card).to_be_visible()
-        # A click outside closes the card (report-ui.md "Overlays").
+        # A click outside closes the card (artifact-ui.md "Overlays").
         page.evaluate("document.querySelector('[data-chapter-scroll]').click()")
         expect(card).to_be_hidden()
         help_control.blur()
@@ -251,13 +251,13 @@ def test_native_table_help_placement_keyboard_action_and_reopen(tmp_path, reader
         page.evaluate("window.dispatchEvent(new Event('afterprint'))")
         page.goto(saved.as_uri() + "#chapter")
         page.evaluate("obsHtmlReady")
-        page.evaluate("obsPages.setPaged(false); obsReport.activateChapter('chapter')")
-        page.evaluate("obsReport.whenChapterReady()")
+        page.evaluate("obsPages.setPaged(false); obsArtifact.activateChapter('chapter')")
+        page.evaluate("obsArtifact.whenChapterReady()")
         expect(card).to_be_hidden()
         help_control.focus()
         expect(card).to_be_visible()
         expect(card.locator("strong")).to_have_text("original evidence")
-        assert page.evaluate("""() => obsReport.canonicalNotes().find(note =>
+        assert page.evaluate("""() => obsArtifact.canonicalNotes().find(note =>
             note.sourcePath === 'evidence.md').frontmatter.instructions""") == HELP
         assert errors == []
     finally:

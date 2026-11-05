@@ -3,8 +3,8 @@ import json
 import pytest
 
 from obs_html.content import ContentError, parse_manifest
-from obs_html.renderer import render_report
-from obs_html.report_data import decode_report_data
+from obs_html.renderer import render_artifact
+from obs_html.artifact_data import decode_artifact_data
 
 
 def test_property_editor_is_explicit_and_canonical(tmp_path):
@@ -15,8 +15,8 @@ def test_property_editor_is_explicit_and_canonical(tmp_path):
         encoding="utf-8",
     )
     manifest = tmp_path / "manifest.md"
-    html = render_report(manifest, parse_manifest(manifest))
-    data = decode_report_data(html)
+    html = render_artifact(manifest, parse_manifest(manifest))
+    data = decode_artifact_data(html)
     note = next(note for note in data["notes"] if note["slug"] == "one")
     assert note["editableProperties"] == {"explanation": {"label": "Review explanation", "maxLength": 4096}}
     assert "data-property-editor" in note["html"]
@@ -37,8 +37,8 @@ def test_property_editor_projection_is_preserved_as_static_data(tmp_path):
         encoding="utf-8",
     )
     manifest = tmp_path / "manifest.md"
-    html = render_report(manifest, parse_manifest(manifest))
-    data = decode_report_data(html)
+    html = render_artifact(manifest, parse_manifest(manifest))
+    data = decode_artifact_data(html)
     note = next(note for note in data["notes"] if note["slug"] == "one")
     assert note["editableProperties"]["explanation"]["projection"] == {
         "blank": {"status": "finding", "accepted": "no", "sink": "path"},
@@ -68,7 +68,7 @@ def test_property_editor_projection_rejects_protected_fields(tmp_path, field, br
     )
     manifest = tmp_path / "manifest.md"
     with pytest.raises(ContentError, match="Property editor"):
-        render_report(manifest, parse_manifest(manifest))
+        render_artifact(manifest, parse_manifest(manifest))
 
 
 def test_property_editor_projection_preserves_supported_arrays(tmp_path):
@@ -80,8 +80,8 @@ def test_property_editor_projection_preserves_supported_arrays(tmp_path):
         encoding="utf-8",
     )
     manifest = tmp_path / "manifest.md"
-    report = render_report(manifest, parse_manifest(manifest))
-    data = decode_report_data(report)
+    artifact = render_artifact(manifest, parse_manifest(manifest))
+    data = decode_artifact_data(artifact)
     note = next(note for note in data["notes"] if note["slug"] == "one")
     assert note["editableProperties"]["explanation"]["projection"] == {
         "blank": {"outputs": []}, "nonblank": {"outputs": ["System", "Labels"]},
@@ -97,7 +97,7 @@ def test_property_editor_rejects_missing_nontext_or_semantic_fields(tmp_path, fi
     )
     manifest = tmp_path / "manifest.md"
     with pytest.raises(ContentError, match="Property editor"):
-        render_report(manifest, parse_manifest(manifest))
+        render_artifact(manifest, parse_manifest(manifest))
 
 
 @pytest.mark.parametrize("projection", [
@@ -124,4 +124,4 @@ def test_property_editor_rejects_unsafe_or_type_mismatched_projection(tmp_path, 
     )
     manifest = tmp_path / "manifest.md"
     with pytest.raises(ContentError, match="Property editor"):
-        render_report(manifest, parse_manifest(manifest))
+        render_artifact(manifest, parse_manifest(manifest))

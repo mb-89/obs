@@ -1,6 +1,6 @@
 """Reference notes in the reader: hover card per kind, one floating window, one overlay system.
 
-Owners: report-ui.md "Overlays", "Floating window", "Link hover card";
+Owners: artifact-ui.md "Overlays", "Floating window", "Link hover card";
 input-model.md "Reference notes and link text".
 """
 import os
@@ -10,7 +10,7 @@ import pytest
 import yaml
 
 from obs_html.content import parse_manifest
-from obs_html.renderer import render_report
+from obs_html.renderer import render_artifact
 from pickers import choose_files
 from test_guided_card_browser import CARD, RUNTIME, UNAVAILABLE
 
@@ -53,11 +53,11 @@ def _fixture(root: Path) -> Path:
 
 
 @pytest.fixture(scope="module")
-def report(tmp_path_factory) -> Path:
+def artifact(tmp_path_factory) -> Path:
     root = tmp_path_factory.mktemp("reference-items")
     manifest = _fixture(root / "vault")
     output = root / "reference-items.html"
-    output.write_text(render_report(
+    output.write_text(render_artifact(
         manifest, parse_manifest(manifest), trusted_runtime_bundle=("guided-fixture", RUNTIME),
     ), encoding="utf-8")
     return output
@@ -78,7 +78,7 @@ def browser():
             instance.close()
 
 
-def _open(browser, report: Path, *, helper: bool = False):
+def _open(browser, artifact: Path, *, helper: bool = False):
     context = browser.new_context(viewport={"width": 1200, "height": 800})
     context.set_default_timeout(10000)
     for pattern in ("https://webstore.iec.ch/**", "https://example.org/**"):
@@ -90,10 +90,10 @@ def _open(browser, report: Path, *, helper: bool = False):
     errors = []
     page.on("pageerror", lambda error: errors.append(str(error)))
     page.on("console", lambda message: message.type == "error" and errors.append(message.text))
-    page.goto(report.as_uri() + "#chapter")
+    page.goto(artifact.as_uri() + "#chapter")
     page.evaluate("obsHtmlReady")
-    page.evaluate("obsPages.setPaged(false); obsReport.activateChapter('chapter')")
-    page.evaluate("obsReport.whenChapterReady()")
+    page.evaluate("obsPages.setPaged(false); obsArtifact.activateChapter('chapter')")
+    page.evaluate("obsArtifact.whenChapterReady()")
     return context, page, errors
 
 
@@ -101,10 +101,10 @@ def _prose(page, href: str, index: int = 0):
     return page.locator(f"[data-chapter-body] p a[href='{href}']").nth(index)
 
 
-def test_hover_card_shows_per_kind_content_and_the_only_external_link(browser, report):
+def test_hover_card_shows_per_kind_content_and_the_only_external_link(browser, artifact):
     from playwright.sync_api import expect
 
-    context, page, errors = _open(browser, report)
+    context, page, errors = _open(browser, artifact)
     try:
         card = page.locator("#hover-card")
         assert page.locator(f"[data-chapter-body] a[href^='http']").count() == 0
@@ -156,10 +156,10 @@ def test_hover_card_shows_per_kind_content_and_the_only_external_link(browser, r
         context.close()
 
 
-def test_hover_card_stays_until_escape_click_outside_or_another_hover(browser, report):
+def test_hover_card_stays_until_escape_click_outside_or_another_hover(browser, artifact):
     from playwright.sync_api import expect
 
-    context, page, errors = _open(browser, report)
+    context, page, errors = _open(browser, artifact)
     try:
         card = page.locator("#hover-card")
         link = _prose(page, "#iec")
@@ -217,11 +217,11 @@ def test_hover_card_stays_until_escape_click_outside_or_another_hover(browser, r
         context.close()
 
 
-def test_every_hover_trigger_uses_the_one_card(browser, report):
+def test_every_hover_trigger_uses_the_one_card(browser, artifact):
     """Overlay tier 1 has one owner: no CSS tooltips, no per-feature popovers, no explanation titles."""
     from playwright.sync_api import expect
 
-    context, page, errors = _open(browser, report)
+    context, page, errors = _open(browser, artifact)
     try:
         assert page.locator("[role='tooltip'], .query-tooltip, .storage-tooltip").count() == 0
         popovers = page.evaluate("[...document.querySelectorAll('[popover]')].map(node => node.id || node.className)")
@@ -254,10 +254,10 @@ def test_every_hover_trigger_uses_the_one_card(browser, report):
         context.close()
 
 
-def test_off_contents_note_shows_in_the_floating_window_with_history(browser, report):
+def test_off_contents_note_shows_in_the_floating_window_with_history(browser, artifact):
     from playwright.sync_api import expect
 
-    context, page, errors = _open(browser, report)
+    context, page, errors = _open(browser, artifact)
     try:
         window = page.locator("[data-guided-card]")
         _prose(page, "#iec").click()
@@ -298,17 +298,17 @@ def test_off_contents_note_shows_in_the_floating_window_with_history(browser, re
         expect(window.locator(".guided-card-title")).to_have_text("IEC 1234")
         window.locator("[data-guided-card-close]").click()
         expect(page.locator("[data-guided-card]")).to_have_count(0)
-        assert page.evaluate("obsReport.canonicalNotes().find(n => n.sourcePath === 'evidence.md')"
+        assert page.evaluate("obsArtifact.canonicalNotes().find(n => n.sourcePath === 'evidence.md')"
                              ".frontmatter.payload") == "old bytes"
         assert errors == []
     finally:
         context.close()
 
 
-def test_open_helper_window_is_reused_in_place(browser, report):
+def test_open_helper_window_is_reused_in_place(browser, artifact):
     from playwright.sync_api import expect
 
-    context, page, errors = _open(browser, report, helper=True)
+    context, page, errors = _open(browser, artifact, helper=True)
     try:
         with context.expect_page() as opened:
             _prose(page, "#iec").click()
@@ -335,7 +335,7 @@ def test_open_helper_window_is_reused_in_place(browser, report):
 
 
 @pytest.fixture(scope="module")
-def spec_report(tmp_path_factory) -> Path:
+def spec_artifact(tmp_path_factory) -> Path:
     from obs_html.cli import main
 
     output = tmp_path_factory.mktemp("spec") / "spec.html"
@@ -344,7 +344,7 @@ def spec_report(tmp_path_factory) -> Path:
     return output
 
 
-def test_spec_build_hovers_use_the_one_card_without_console_errors(browser, spec_report):
+def test_spec_build_hovers_use_the_one_card_without_console_errors(browser, spec_artifact):
     """Every hover trigger in the spec build resolves through the one hover-card owner."""
     from playwright.sync_api import expect
 
@@ -355,12 +355,12 @@ def test_spec_build_hovers_use_the_one_card_without_console_errors(browser, spec
     page.on("pageerror", lambda error: errors.append(str(error)))
     page.on("console", lambda message: message.type == "error" and errors.append(message.text))
     try:
-        page.goto(spec_report.as_uri())
+        page.goto(spec_artifact.as_uri())
         page.evaluate("obsHtmlReady")
         page.evaluate("obsPages.setPaged(false)")
-        for slug in page.evaluate("JSON.parse(document.querySelector('[data-report-data]').textContent).toc"):
-            page.evaluate(f"obsReport.activateChapter({slug!r})")
-            page.evaluate("obsReport.whenChapterReady()")
+        for slug in page.evaluate("JSON.parse(document.querySelector('[data-artifact-data]').textContent).toc"):
+            page.evaluate(f"obsArtifact.activateChapter({slug!r})")
+            page.evaluate("obsArtifact.whenChapterReady()")
         assert errors == []
         assert page.locator("[role='tooltip'], .query-tooltip, .storage-tooltip").count() == 0
         assert page.evaluate("""[...document.querySelectorAll('[title]:not(:disabled)')]
@@ -376,8 +376,8 @@ def test_spec_build_hovers_use_the_one_card_without_console_errors(browser, spec
             page.keyboard.press("Escape")
             expect(card).to_be_hidden()
 
-        page.evaluate("obsReport.activateChapter('design-input-input-model')")
-        page.evaluate("obsReport.whenChapterReady()")
+        page.evaluate("obsArtifact.activateChapter('design-input-input-model')")
+        page.evaluate("obsArtifact.whenChapterReady()")
         reference = page.locator("[data-chapter-body] a[href='#appendix-references-obsidian-bases-syntax']").first
         assert reference.inner_text() == "Bases syntax"
         reference.scroll_into_view_if_needed()
@@ -387,8 +387,8 @@ def test_spec_build_hovers_use_the_one_card_without_console_errors(browser, spec
         assert page.locator("[data-chapter-body] a[href^='https://help.obsidian.md']").count() == 0
         page.keyboard.press("Escape")
 
-        page.evaluate("obsReport.activateChapter('appendix-references')")
-        page.evaluate("obsReport.whenChapterReady()")
+        page.evaluate("obsArtifact.activateChapter('appendix-references')")
+        page.evaluate("obsArtifact.whenChapterReady()")
         rows = page.locator("[data-chapter-body] tbody tr[data-row-key]")
         expect(rows).to_have_count(7)
         assert page.locator(".hover-card").count() == 1

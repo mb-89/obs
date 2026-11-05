@@ -7,8 +7,8 @@ diagnostics and operation restrictions belong to its parser, not this note.
 uv run obs-html --help
 ````
 
-This command fence derives the report's reference from the running CLI.
-See [[input-model]] for source semantics, [[report-ui]] for presentation requirements,
+This command fence derives the artifact's reference from the running CLI.
+See [[input-model]] for source semantics, [[artifact-ui]] for presentation requirements,
 and [[configuration]] for configuration ownership.
 
 ## Attachments per build
@@ -80,14 +80,14 @@ pages of an exported PDF and does not depend on the reader's scrolling container
 
 ## Printing a chapter
 
-`--print-chapter HTML ID` prints one chapter of a built report to stdout, as HTML or, with
-`--chapter-format text`, as plain text. Tests and agents check what a report shows, for
+`--print-chapter HTML ID` prints one chapter of a built artifact to stdout, as HTML or, with
+`--chapter-format text`, as plain text. Tests and agents check what an artifact shows, for
 example that a link resolves, directly from the command instead of a browser script; the
-report's data island is packed, so reading it by hand needs a decoder.
+artifact's data island is packed, so reading it by hand needs a decoder.
 
-It prints the chapter as the generator stored it in the report's data, without starting a
+It prints the chapter as the generator stored it in the artifact's data, without starting a
 browser: what the reader runtime changes on load, such as interactive table controls, is not
-included; `--check-rendered` covers the opened page. Chapter ids are the note slugs the report's table of
+included; `--check-rendered` covers the opened page. Chapter ids are the note slugs the artifact's table of
 contents uses; an unknown id lists the available ones.
 
 ## PowerShell callers

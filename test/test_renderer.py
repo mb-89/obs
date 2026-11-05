@@ -7,8 +7,8 @@ from pathlib import Path
 import pytest
 
 from obs_html.content import ContentError, parse_manifest
-from obs_html.renderer import render_report
-from obs_html.report_data import decode_report_data
+from obs_html.renderer import render_artifact
+from obs_html.artifact_data import decode_artifact_data
 
 
 HEX_COLOR = re.compile(r"#[0-9a-fA-F]{3,8}\b")
@@ -24,7 +24,7 @@ def test_manifest_dependencies_remain_canonical_without_document_metadata_row(tm
     (tmp_path / "source-only.md").write_text(
         "---\nobsHtml: {document: false}\nkind: data\n---\n", encoding="utf-8",
     )
-    data = decode_report_data(render_report(manifest, parse_manifest(manifest)))
+    data = decode_artifact_data(render_artifact(manifest, parse_manifest(manifest)))
     home = data["notes"][0]
     assert data["document"]["metadata"]["canonicalNotes"] == ["source-only"]
     assert data["document"]["metadata"]["projectField"] == "Keep this metadata"
@@ -33,7 +33,7 @@ def test_manifest_dependencies_remain_canonical_without_document_metadata_row(tm
     assert home["tables"] == [], "metadata stays canonical without an implicit view"
 
 
-def test_report_is_one_self_contained_semantic_document(tmp_path: Path) -> None:
+def test_artifact_is_one_self_contained_semantic_document(tmp_path: Path) -> None:
     (tmp_path / "one.md").write_text(
         "---\nstatus: active\n---\n# One\n\nFirst body.", encoding="utf-8"
     )
@@ -42,17 +42,17 @@ def test_report_is_one_self_contained_semantic_document(tmp_path: Path) -> None:
     manifest.write_text("- [[one|First]]\n  - [[two|Second]]\n", encoding="utf-8")
     chapters = parse_manifest(manifest)
 
-    report = render_report(manifest, chapters)
+    artifact = render_artifact(manifest, chapters)
 
-    assert report.startswith("<!doctype html>")
-    assert report.count('<style id="report-styles">') == 1
-    assert report.count('<script id="query-script"') == 1
-    assert report.count('<script id="report-script"') == 1
-    assert report.count('class="chapter"') == 1
-    assert report.count('<article class="chapter" data-active-chapter>') == 1
-    store = re.search(r'<script id="report-data"[^>]*>(.*?)</script>', report, re.DOTALL)
+    assert artifact.startswith("<!doctype html>")
+    assert artifact.count('<style id="artifact-styles">') == 1
+    assert artifact.count('<script id="query-script"') == 1
+    assert artifact.count('<script id="artifact-script"') == 1
+    assert artifact.count('class="chapter"') == 1
+    assert artifact.count('<article class="chapter" data-active-chapter>') == 1
+    store = re.search(r'<script id="artifact-data"[^>]*>(.*?)</script>', artifact, re.DOTALL)
     assert store
-    data = decode_report_data(store[0])
+    data = decode_artifact_data(store[0])
     assert [(item["title"], item["depth"]) for item in data["notes"]] == [
         ("manifest", 0),
         ("First", 0),
@@ -62,15 +62,15 @@ def test_report_is_one_self_contained_semantic_document(tmp_path: Path) -> None:
     assert data["notes"][1]["html"].count("First body.") == 1
     assert data["notes"][2]["html"].count("Second body.") == 1
     assert data["notes"][1]["frontmatter"] == {"status": "active"}
-    assert 'data-frontmatter-toggle' in report
-    assert 'data-frontmatter-body' in report
-    assert " style=" not in report
-    assert report.count('<script id="obs-comments"') == 1
-    assert '<script id="obs-comments" type="application/json" data-comment-island>' in report
-    assert '{"version":2,"annotations":[],"reviewers":[],"reviews":[]}' in report
+    assert 'data-frontmatter-toggle' in artifact
+    assert 'data-frontmatter-body' in artifact
+    assert " style=" not in artifact
+    assert artifact.count('<script id="obs-comments"') == 1
+    assert '<script id="obs-comments" type="application/json" data-comment-island>' in artifact
+    assert '{"version":2,"annotations":[],"reviewers":[],"reviews":[]}' in artifact
 
 
-def test_report_serializes_semantics_and_chapter_owned_tables(tmp_path: Path) -> None:
+def test_artifact_serializes_semantics_and_chapter_owned_tables(tmp_path: Path) -> None:
     (tmp_path / "one.md").write_text(
         "# One\n\nResolve this soon. #mark/open_point/which_option\n\n"
         "```base\n"
@@ -83,19 +83,19 @@ def test_report_serializes_semantics_and_chapter_owned_tables(tmp_path: Path) ->
     manifest = tmp_path / "manifest.md"
     manifest.write_text("- [[one|First]]\n", encoding="utf-8")
 
-    report = render_report(
+    artifact = render_artifact(
         manifest,
         parse_manifest(manifest),
         facet_distinct_ratio=0.4,
     )
-    store = re.search(r'<script id="report-data"[^>]*>(.*?)</script>', report, re.DOTALL)
+    store = re.search(r'<script id="artifact-data"[^>]*>(.*?)</script>', artifact, re.DOTALL)
     assert store
-    data = decode_report_data(store[0])
+    data = decode_artifact_data(store[0])
 
     assert data["facetDistinctRatio"] == 0.4
     assert data["tablePageSize"] == json.loads(
         files("obs_html").joinpath("cfg.json").read_text(encoding="utf-8")
-    )["report"]["tablePageSize"]
+    )["artifact"]["tablePageSize"]
     assert "generatedViews" not in data
     assert "glossaryEntries" not in data
     chapter = data["notes"][1]
@@ -135,8 +135,8 @@ def test_open_point_backlinks_keep_canonical_body_and_property_locations(tmp_pat
     manifest = tmp_path / "manifest.md"
     manifest.write_text("- [[owner]]\n- [[referrer]]\n", encoding="utf-8")
 
-    report = render_report(manifest, parse_manifest(manifest))
-    data = decode_report_data(report)
+    artifact = render_artifact(manifest, parse_manifest(manifest))
+    data = decode_artifact_data(artifact)
     owner, referrer = data["notes"][1:]
     backlinks = owner["marks"][0]["backlinks"]
 
@@ -164,8 +164,8 @@ def test_open_point_backlinks_distinguish_table_cells_and_nested_properties(tmp_
     manifest = tmp_path / "manifest.md"
     manifest.write_text("- [[owner]]\n- [[referrer]]\n", encoding="utf-8")
 
-    report = render_report(manifest, parse_manifest(manifest))
-    data = decode_report_data(report)
+    artifact = render_artifact(manifest, parse_manifest(manifest))
+    data = decode_artifact_data(artifact)
     owner, referrer = data["notes"][1:]
 
     assert [link["href"] for link in owner["marks"][0]["backlinks"]] == [
@@ -189,8 +189,8 @@ def test_open_point_backlinks_reveal_tight_list_locations(tmp_path: Path) -> Non
     manifest = tmp_path / "manifest.md"
     manifest.write_text("- [[owner]]\n- [[referrer]]\n", encoding="utf-8")
 
-    report = render_report(manifest, parse_manifest(manifest))
-    data = decode_report_data(report)
+    artifact = render_artifact(manifest, parse_manifest(manifest))
+    data = decode_artifact_data(artifact)
 
     assert '<li data-source-line="3">' in data["notes"][2]["html"]
     assert '<li data-source-line="4">' in data["notes"][2]["html"]
@@ -211,8 +211,8 @@ def test_open_point_self_reference_does_not_create_register_backlinks(tmp_path: 
     manifest = tmp_path / "manifest.md"
     manifest.write_text("- [[owner]]\n", encoding="utf-8")
 
-    report = render_report(manifest, parse_manifest(manifest))
-    data = decode_report_data(report)
+    artifact = render_artifact(manifest, parse_manifest(manifest))
+    data = decode_artifact_data(artifact)
     owner = data["notes"][1]
 
     assert [(mark["kind"], mark["label"], mark["anchor"]) for mark in owner["marks"]] == [
@@ -227,7 +227,7 @@ def test_open_point_self_reference_does_not_create_register_backlinks(tmp_path: 
     assert '>#mark/open_point/datum</a>' in owner["html"]
 
 
-def test_report_rejects_duplicate_marker_identity_across_chapters(tmp_path: Path) -> None:
+def test_artifact_rejects_duplicate_marker_identity_across_chapters(tmp_path: Path) -> None:
     marker = "Resolve this soon. #mark/open_point/which_option\n"
     (tmp_path / "one.md").write_text(marker, encoding="utf-8")
     (tmp_path / "two.md").write_text(marker, encoding="utf-8")
@@ -235,7 +235,7 @@ def test_report_rejects_duplicate_marker_identity_across_chapters(tmp_path: Path
     manifest.write_text("- [[one]]\n- [[two]]\n", encoding="utf-8")
 
     with pytest.raises(ContentError, match="Duplicate paragraph marker"):
-        render_report(manifest, parse_manifest(manifest))
+        render_artifact(manifest, parse_manifest(manifest))
 
 
 def test_document_pages_use_manifest_metadata_and_ordinary_base_definitions(tmp_path: Path) -> None:
@@ -255,10 +255,10 @@ def test_document_pages_use_manifest_metadata_and_ordinary_base_definitions(tmp_
         "obsHtml: {records: documentMetadata}\n```\n",
         encoding="utf-8",
     )
-    report = render_report(manifest, parse_manifest(manifest))
-    store = re.search(r'<script id="report-data"[^>]*>(.*?)</script>', report, re.DOTALL)
+    artifact = render_artifact(manifest, parse_manifest(manifest))
+    store = re.search(r'<script id="artifact-data"[^>]*>(.*?)</script>', artifact, re.DOTALL)
     assert store
-    data = decode_report_data(store[0])
+    data = decode_artifact_data(store[0])
     document = data["document"]
     assert document["metadata"]["owners"] == ["Ada", "Lin"]
     assert document["metadata"]["settings"] == {"review": True}
@@ -281,28 +281,28 @@ def test_document_pages_use_manifest_metadata_and_ordinary_base_definitions(tmp_
     assert home["html"].index("Abstract <strong>prose") < home["html"].index('data-base-table="home-base-1"')
     assert home["html"].index('data-base-table="home-base-1"') < home["html"].index('data-base-table="home-base-2"')
     assert authored["generated"] == ""
-    assert '<script id="yaml-script" ' in report
-    assert 'Copyright (C)' in report
-    assert '<script id="base-schema" type="application/json">' in report
+    assert '<script id="yaml-script" ' in artifact
+    assert 'Copyright (C)' in artifact
+    assert '<script id="base-schema" type="application/json">' in artifact
 
 
 def test_compact_heading_is_one_identity_line_on_a_home_only_document(tmp_path: Path) -> None:
     manifest = tmp_path / "manifest.md"
     manifest.write_text(
         "---\ntitle: Summary\norganization: Org\nproduct: {name: Product, version: '2'}\n"
-        "document type: Report\nauthors: Ada\nconfidentiality: Internal\n"
+        "document type: Artifact\nauthors: Ada\nconfidentiality: Internal\n"
         "obsHtml: {heading: compact, pages: [{page: abstract}]}\n---\n"
         "```base\nviews:\n  - type: table\n    order: [key, value]\n"
         "obsHtml: {records: documentMetadata}\n```\n",
         encoding="utf-8",
     )
-    data = decode_report_data(render_report(manifest, parse_manifest(manifest)))
+    data = decode_artifact_data(render_artifact(manifest, parse_manifest(manifest)))
     assert data["toc"] == ["home"]
     html = data["notes"][0]["html"]
     assert html.startswith(
         '<header class="document-heading document-heading--compact"><div class="compact-heading">'
         '<span class="cover-organization">Org</span><span class="cover-product">Product 2</span>'
-        '<span class="cover-type">Report</span><h1 class="document-title">Summary</h1></div></header>'
+        '<span class="cover-type">Artifact</span><h1 class="document-title">Summary</h1></div></header>'
     )
     assert "cover-frame" not in html and "cover-facts" not in html and "Internal" not in html
     assert 'data-base-table="home-base-1"' in html
@@ -312,19 +312,19 @@ def test_empty_abstract_has_no_implicit_tables_and_keeps_title_fallback(tmp_path
     (tmp_path / "one.md").write_text("# One", encoding="utf-8")
     manifest = tmp_path / "My document.md"
     manifest.write_text("- [[one]]\n", encoding="utf-8")
-    report = render_report(manifest, parse_manifest(manifest))
-    data = decode_report_data(report)
+    artifact = render_artifact(manifest, parse_manifest(manifest))
+    data = decode_artifact_data(artifact)
     assert data["document"]["title"] == "My document"
     assert data["notes"][0]["tables"] == []
     assert all(chapter["generated"] != "abstract" for chapter in data["notes"])
-    assert "<title>My document</title>" in report
+    assert "<title>My document</title>" in artifact
     stylesheet = files("obs_html").joinpath("base.css").read_text(encoding="utf-8")
     assert re.search(r"\.document-title\s*\{\s*text-align: center;", stylesheet)
 
 
-def _report_data(manifest: Path) -> dict:
-    report = render_report(manifest, parse_manifest(manifest))
-    return decode_report_data(report)
+def _artifact_data(manifest: Path) -> dict:
+    artifact = render_artifact(manifest, parse_manifest(manifest))
+    return decode_artifact_data(artifact)
 
 
 @pytest.mark.parametrize("title, identity, visible", [
@@ -344,12 +344,12 @@ def test_document_title_visibility_is_separate_from_identity(
         "---\n" + json.dumps(metadata) + "\n---\n- [[one]]\n\nOpening evidence.\n",
         encoding="utf-8",
     )
-    report = render_report(manifest, parse_manifest(manifest))
-    data = decode_report_data(report)
+    artifact = render_artifact(manifest, parse_manifest(manifest))
+    data = decode_artifact_data(artifact)
     home = data["notes"][0]
     assert data["document"]["title"] == home["title"] == identity
     assert home["slug"] == home["generated"] == "home"
-    assert f"<title>{identity}</title>" in report
+    assert f"<title>{identity}</title>" in artifact
     if visible is None:
         assert "document-title" not in home["html"]
     else:
@@ -373,7 +373,7 @@ def test_reference_closure_stores_each_note_once_without_adding_toc_entries(tmp_
     )
     manifest = tmp_path / "manifest.md"
     manifest.write_text("- [[chapter]]\n", encoding="utf-8")
-    data = _report_data(manifest)
+    data = _artifact_data(manifest)
     assert data["toc"] == ["home", "chapter"]
     assert {note["slug"] for note in data["notes"]} == {"home", "chapter", "definition", "nested"}
     assert len({note["slug"] for note in data["notes"]}) == len(data["notes"])
@@ -394,8 +394,8 @@ def test_repeated_embedded_image_payload_is_stored_once(tmp_path: Path) -> None:
     manifest = tmp_path / "manifest.md"
     manifest.write_text("- [[one]]\n- [[two]]\n", encoding="utf-8")
 
-    report = render_report(manifest, parse_manifest(manifest))
-    data = decode_report_data(report)
+    artifact = render_artifact(manifest, parse_manifest(manifest))
+    data = decode_artifact_data(artifact)
     payload = f"data:image/png;base64,{base64.b64encode(image).decode('ascii')}"
 
     asset_id, = [key for key, value in data["embeddedAssets"].items() if value == payload]
@@ -422,13 +422,13 @@ def test_standalone_content_images_use_shared_figure_presentation(tmp_path: Path
     manifest = tmp_path / "manifest.md"
     manifest.write_text("- [[chapter]]\n", encoding="utf-8")
 
-    report = render_report(manifest, parse_manifest(manifest))
-    data = decode_report_data(report)
+    artifact = render_artifact(manifest, parse_manifest(manifest))
+    data = decode_artifact_data(artifact)
     chapter = next(note for note in data["notes"] if note["slug"] == "chapter")
 
-    assert chapter["html"].count('data-report-figure') == 1
+    assert chapter["html"].count('data-artifact-figure') == 1
     assert re.search(
-        r'<figure class="report-figure" data-report-figure>\s*<img src="obs-asset:',
+        r'<figure class="artifact-figure" data-artifact-figure>\s*<img src="obs-asset:',
         chapter["html"],
     )
     assert 'alt="Standalone diagram"' in chapter["html"]
@@ -442,7 +442,7 @@ def test_standalone_content_images_use_shared_figure_presentation(tmp_path: Path
     assert 'alt="Inline icon" /> stays inline.' in chapter["html"]
     assert '<a href="https://one.invalid/"><img' in chapter["html"]
     assert '<a href="https://two.invalid/"><img' in chapter["html"]
-    assert 'id="figure-script"' in report
+    assert 'id="figure-script"' in artifact
 
 
 def test_quantity_notes_are_included_by_query_with_source_links(tmp_path: Path) -> None:
@@ -461,7 +461,7 @@ def test_quantity_notes_are_included_by_query_with_source_links(tmp_path: Path) 
     manifest = tmp_path / "manifest.md"
     manifest.write_text("- [[chapter]]\n", encoding="utf-8")
 
-    data = _report_data(manifest)
+    data = _artifact_data(manifest)
     notes = {note["slug"]: note for note in data["notes"]}
 
     assert {"home", "chapter", "flatness", "drawing"} <= notes.keys()
@@ -487,7 +487,7 @@ def test_note_metadata_html_is_derived_for_rich_table_cells(tmp_path: Path) -> N
     manifest = tmp_path / "manifest.md"
     manifest.write_text("- [[register]]\n", encoding="utf-8")
 
-    data = _report_data(manifest)
+    data = _artifact_data(manifest)
     quantity = next(note for note in data["notes"] if note["slug"] == "quantity")
 
     assert quantity["frontmatterHtml"]["citation"].startswith(
@@ -512,7 +512,7 @@ def test_query_matches_seed_nested_references_and_queries_until_fixed_point(tmp_
     (tmp_path / "unmatched.md").write_text("---\nstatus: unwanted\n---\n[[missing]]", encoding="utf-8")
     manifest = tmp_path / "manifest.md"
     manifest.write_text("- [[register]]\n", encoding="utf-8")
-    data = _report_data(manifest)
+    data = _artifact_data(manifest)
     assert data["toc"] == ["home", "register"]
     assert {note["slug"] for note in data["notes"]} == {
         "home", "register", "term", "details", "matched", "last",
@@ -533,7 +533,7 @@ def test_tag_query_includes_unlisted_source_note_and_metadata_links_are_followed
     (tmp_path / "owner.md").write_text("# Owner", encoding="utf-8")
     manifest = tmp_path / "manifest.md"
     manifest.write_text("---\nowner: '[[owner]]'\n---\n- [[register]]\n", encoding="utf-8")
-    data = _report_data(manifest)
+    data = _artifact_data(manifest)
     assert {note["slug"] for note in data["notes"]} == {"home", "register", "risk", "nested", "owner"}
 
 
@@ -543,7 +543,7 @@ def test_unresolved_link_in_a_referenced_note_is_an_explicit_error(tmp_path: Pat
     manifest = tmp_path / "manifest.md"
     manifest.write_text("- [[chapter]]\n", encoding="utf-8")
     with pytest.raises(ContentError, match="Unresolved note reference 'missing'"):
-        _report_data(manifest)
+        _artifact_data(manifest)
 
 
 @pytest.mark.parametrize(("metadata", "expression"), [
@@ -563,21 +563,21 @@ def test_query_inclusion_uses_canonical_typed_metadata(
     (tmp_path / "matched.md").write_text(f"---\n{metadata}\n---\n# Matched", encoding="utf-8")
     manifest = tmp_path / "manifest.md"
     manifest.write_text("- [[register]]\n", encoding="utf-8")
-    assert {note["slug"] for note in _report_data(manifest)["notes"]} == {"home", "register", "matched"}
+    assert {note["slug"] for note in _artifact_data(manifest)["notes"]} == {"home", "register", "matched"}
 
 
-def test_report_starts_with_no_open_bars(tmp_path: Path) -> None:
+def test_artifact_starts_with_no_open_bars(tmp_path: Path) -> None:
     (tmp_path / "one.md").write_text("# One", encoding="utf-8")
     manifest = tmp_path / "manifest.md"
     manifest.write_text("- [[one]]\n", encoding="utf-8")
 
-    report = render_report(manifest, parse_manifest(manifest))
+    artifact = render_artifact(manifest, parse_manifest(manifest))
 
-    assert 'data-bar="toc" aria-label="Table of contents" hidden' in report
-    assert 'data-bar="filter" aria-label="Filter" hidden' in report
-    assert 'data-bar="search" aria-label="Search" hidden' in report
-    assert 'class="bar-icon bar-icon--filter"' in report
-    assert 'data-menu-button\n          aria-label="Open bars menu" aria-expanded="false"' in report
+    assert 'data-bar="toc" aria-label="Table of contents" hidden' in artifact
+    assert 'data-bar="filter" aria-label="Filter" hidden' in artifact
+    assert 'data-bar="search" aria-label="Search" hidden' in artifact
+    assert 'class="bar-icon bar-icon--filter"' in artifact
+    assert 'data-menu-button\n          aria-label="Open bars menu" aria-expanded="false"' in artifact
 
 
 def test_inline_runtimes_are_embedded_from_package_scripts(tmp_path: Path) -> None:
@@ -585,12 +585,12 @@ def test_inline_runtimes_are_embedded_from_package_scripts(tmp_path: Path) -> No
     manifest = tmp_path / "manifest.md"
     manifest.write_text("---\nobsHtml: {layout: paged}\n---\n- [[one]]\n", encoding="utf-8")
 
-    report = render_report(manifest, parse_manifest(manifest))
+    artifact = render_artifact(manifest, parse_manifest(manifest))
 
     package = files("obs_html")
-    assert package.joinpath("storage.js").read_text(encoding="utf-8") in report
-    startup = re.search(r'<script id="reader-startup-script"[^>]*>(.*?)</script>', report, re.DOTALL)[1]
-    reading = decode_report_data(report)["reading"]
+    assert package.joinpath("storage.js").read_text(encoding="utf-8") in artifact
+    startup = re.search(r'<script id="reader-startup-script"[^>]*>(.*?)</script>', artifact, re.DOTALL)[1]
+    reading = decode_artifact_data(artifact)["reading"]
     expected = (package.joinpath("reader-startup.js").read_text(encoding="utf-8")
                 .replace("READER_THEME", json.dumps(reading["theme"]))
                 .replace("READER_PAGED", json.dumps(reading["paged"])))
@@ -598,23 +598,23 @@ def test_inline_runtimes_are_embedded_from_package_scripts(tmp_path: Path) -> No
     assert [line.strip() for line in startup.strip().splitlines()] == expected.strip().splitlines()
 
 
-def test_report_has_generic_bar_scripts_and_resize_handles(tmp_path: Path) -> None:
+def test_artifact_has_generic_bar_scripts_and_resize_handles(tmp_path: Path) -> None:
     (tmp_path / "one.md").write_text("# One", encoding="utf-8")
     manifest = tmp_path / "manifest.md"
     manifest.write_text("- [[one]]\n", encoding="utf-8")
 
-    report = render_report(manifest, parse_manifest(manifest))
+    artifact = render_artifact(manifest, parse_manifest(manifest))
 
-    assert '<script id="bar-scripts" ' in report
-    assert report.count('role="separator"') == 4
+    assert '<script id="bar-scripts" ' in artifact
+    assert artifact.count('role="separator"') == 4
     for direction, orientation in (
         ("left", "vertical"),
         ("right", "vertical"),
         ("top", "horizontal"),
         ("bottom", "horizontal"),
     ):
-        assert f'data-dock-resize="{direction}" role="separator"' in report
-        assert f'aria-orientation="{orientation}" tabindex="0"' in report
+        assert f'data-dock-resize="{direction}" role="separator"' in artifact
+        assert f'aria-orientation="{orientation}" tabindex="0"' in artifact
 
 
 def test_table_of_contents_has_branch_and_all_controls(tmp_path: Path) -> None:
@@ -623,11 +623,11 @@ def test_table_of_contents_has_branch_and_all_controls(tmp_path: Path) -> None:
     manifest = tmp_path / "manifest.md"
     manifest.write_text("- [[one]]\n  - [[two]]\n", encoding="utf-8")
 
-    report = render_report(manifest, parse_manifest(manifest))
+    artifact = render_artifact(manifest, parse_manifest(manifest))
 
-    assert "data-toc-tree" in report
-    assert 'data-toc-action="collapse" aria-label="Collapse all" title="Collapse all"' in report
-    assert 'data-toc-action="expand" aria-label="Expand all" title="Expand all"' in report
+    assert "data-toc-tree" in artifact
+    assert 'data-toc-action="collapse" aria-label="Collapse all" title="Collapse all"' in artifact
+    assert 'data-toc-action="expand" aria-label="Expand all" title="Expand all"' in artifact
 
 
 def test_stylesheet_keeps_color_literals_in_semantic_tokens() -> None:
@@ -768,14 +768,14 @@ def test_table_resize_handles_do_not_create_horizontal_overflow() -> None:
 
 
 def test_table_reference_contract_covers_headers_groups_and_footer(tmp_path: Path) -> None:
-    from test_browser import run_report_dom_contract
+    from test_browser import run_artifact_dom_contract
 
     manifest = tmp_path / "manifest.md"
     manifest.write_text("- [[chapter]]\n", encoding="utf-8")
     (tmp_path / "chapter.md").write_text("# Chapter\n", encoding="utf-8")
-    report = tmp_path / "report.html"
-    report.write_text(render_report(manifest, parse_manifest(manifest)), encoding="utf-8")
-    run_report_dom_contract(report, "--table-controls-only")
+    artifact = tmp_path / "artifact.html"
+    artifact.write_text(render_artifact(manifest, parse_manifest(manifest)), encoding="utf-8")
+    run_artifact_dom_contract(artifact, "--table-controls-only")
 
 
 def test_table_popover_resets_native_insets_to_stay_next_to_its_button() -> None:
@@ -791,12 +791,12 @@ def test_table_popover_resets_native_insets_to_stay_next_to_its_button() -> None
 
 def test_filter_badges_follow_applied_queries_and_share_funnel_styling() -> None:
     stylesheet = files("obs_html").joinpath("base.css").read_text(encoding="utf-8")
-    script = files("obs_html").joinpath("report.js").read_text(encoding="utf-8")
+    script = files("obs_html").joinpath("artifact.js").read_text(encoding="utf-8")
     table = files("obs_html").joinpath("table.js").read_text(encoding="utf-8")
 
     assert "menuButton.dataset.filterActive" not in script
     assert 'optionsToggle.dataset.filterActive = String(!query.empty)' in table
-    assert "Open bars menu; report filter active" not in script
+    assert "Open bars menu; artifact filter active" not in script
     assert "Table options; filter active" in table
     apply = table.split("const apply = () => {", 1)[1].split(
         'previousPage.addEventListener', 1,
@@ -809,7 +809,7 @@ def test_filter_badges_follow_applied_queries_and_share_funnel_styling() -> None
 
 def test_disclosures_share_bare_icon_styling_across_surfaces() -> None:
     stylesheet = files("obs_html").joinpath("base.css").read_text(encoding="utf-8")
-    script = files("obs_html").joinpath("report.js").read_text(encoding="utf-8")
+    script = files("obs_html").joinpath("artifact.js").read_text(encoding="utf-8")
     table = files("obs_html").joinpath("table.js").read_text(encoding="utf-8")
     from obs_html.bars.toc import BAR
 
@@ -832,8 +832,8 @@ def test_disclosures_share_bare_icon_styling_across_surfaces() -> None:
     assert ".disclosure-toggle:focus-visible" in stylesheet
 
 
-def test_report_runtime_derives_breadcrumb_navigation_from_chapters() -> None:
-    script = files("obs_html").joinpath("report.js").read_text(encoding="utf-8")
+def test_artifact_runtime_derives_breadcrumb_navigation_from_chapters() -> None:
+    script = files("obs_html").joinpath("artifact.js").read_text(encoding="utf-8")
 
     assert "chapterParentIndex" in script
     assert "chapterChildren" in script
@@ -871,7 +871,7 @@ def test_media_strip_centers_logos_and_separators_on_both_axes() -> None:
 def test_explicit_image_caption_has_one_owner_and_preserves_links(tmp_path):
     import yaml
     from obs_html.content import parse_manifest
-    from obs_html.renderer import render_report
+    from obs_html.renderer import render_artifact
     (tmp_path / "manifest.md").write_text("- [[one]]\n", encoding="utf-8")
     (tmp_path / "reference.md").write_text("# Reference\n\nCanonical source.\n", encoding="utf-8")
     (tmp_path / "image.svg").write_text(
@@ -884,8 +884,8 @@ def test_explicit_image_caption_has_one_owner_and_preserves_links(tmp_path):
         encoding="utf-8",
     )
     path = tmp_path / "manifest.md"
-    report = render_report(path, parse_manifest(path))
-    data = decode_report_data(report)
+    artifact = render_artifact(path, parse_manifest(path))
+    data = decode_artifact_data(artifact)
     assert any(item["slug"] == "reference" for item in data["notes"])
     html = next(item["html"] for item in data["notes"] if item["slug"] == "one")
     assert html.count("<figcaption>") == 1

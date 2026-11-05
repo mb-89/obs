@@ -35,13 +35,13 @@
     let archiveSnapshotRevision = -1;
 
     const currentSnapshot = () => {
-        const revision = globalThis.obsReport?.revision ?? 0;
+        const revision = globalThis.obsArtifact?.revision ?? 0;
         if (modelSnapshotRevision !== revision) {
-            const report = globalThis.obsReport?.serializeModel
-                ? JSON.parse(globalThis.obsReport.serializeModel()) : "";
-            report.notes?.forEach((note) => delete note.frontmatterHtml);
-            delete report.readerState;
-            modelSnapshot = JSON.stringify(report);
+            const artifact = globalThis.obsArtifact?.serializeModel
+                ? JSON.parse(globalThis.obsArtifact.serializeModel()) : "";
+            artifact.notes?.forEach((note) => delete note.frontmatterHtml);
+            delete artifact.readerState;
+            modelSnapshot = JSON.stringify(artifact);
             modelSnapshotRevision = revision;
         }
         return JSON.stringify(data) + modelSnapshot;
@@ -49,14 +49,14 @@
 
     const isDirty = () => savedSnapshot !== null && currentSnapshot() !== savedSnapshot;
     const currentDocumentSnapshot = () => {
-        const revision = globalThis.obsReport.revision;
+        const revision = globalThis.obsArtifact.revision;
         if (archiveSnapshotRevision !== revision) {
             archiveSnapshot = document.getElementById("obs-source-archive")?.textContent || "";
             archiveSnapshotRevision = revision;
         }
         return {
             semantic: currentSnapshot(),
-            reader: JSON.stringify(globalThis.obsReport.readerState()),
+            reader: JSON.stringify(globalThis.obsArtifact.readerState()),
             archive: archiveSnapshot,
         };
     };
@@ -363,7 +363,7 @@
     };
 
     const navigateTo = async (annotation) => {
-        const opened = await globalThis.obsReport?.activateChapter(annotation.target.chapter);
+        const opened = await globalThis.obsArtifact?.activateChapter(annotation.target.chapter);
         if (opened === false) return;
         if (annotation.target.table) {
             const table = [...chapterBody.querySelectorAll("[data-data-table]")].find(
@@ -616,7 +616,7 @@
     };
 
     const chapterRecord = (slug) =>
-        globalThis.obsReport?.records?.find((record) => record.slug === slug);
+        globalThis.obsArtifact?.records?.find((record) => record.slug === slug);
 
     const pageForTarget = (target) => {
         if (target.chapter !== activeChapter?.dataset.chapter ||
@@ -664,8 +664,8 @@
     };
 
     const formatComments = () => {
-        const report = JSON.parse(document.querySelector("[data-report-data]").textContent);
-        const metadata = report.document?.metadata || {};
+        const artifact = JSON.parse(document.querySelector("[data-artifact-data]").textContent);
+        const metadata = artifact.document?.metadata || {};
         const identity = [
             document.title,
             metadata.product?.name,
@@ -955,7 +955,7 @@
     };
 
     const reviewItemsForRecord = (record) => {
-        const isDocument = globalThis.obsReport.isDocument(record);
+        const isDocument = globalThis.obsArtifact.isDocument(record);
         const cached = reviewItemsCache.get(record.slug);
         if (cached && cached.html === record.html && cached.isDocument === isDocument) return cached.items;
         if (!isDocument || (!record.html.trim() && !record.tables?.length)) {
@@ -963,7 +963,7 @@
             return [];
         }
         const root = document.createElement("div");
-        globalThis.obsReport.renderStatic(record.slug, root, false);
+        globalThis.obsArtifact.renderStatic(record.slug, root, false);
         const identities = new Map(identifiedReviewElements(root).map((item) => [item.element, item.id]));
         const items = [];
         let headings = [];
@@ -985,14 +985,14 @@
     };
 
     const chapterSlugs = new Set(JSON.parse(
-        document.querySelector("[data-report-data]").textContent,
+        document.querySelector("[data-artifact-data]").textContent,
     ).toc);
-    const allReviewItems = () => globalThis.obsReport.records
+    const allReviewItems = () => globalThis.obsArtifact.records
         .filter((record) => chapterSlugs.has(record.slug)).flatMap(reviewItemsForRecord);
 
     const setBatchDecision = (chapter, item, state, target, documentScope) => {
         const chapterItems = reviewItemsForRecord(
-            globalThis.obsReport.records.find((record) => record.slug === chapter),
+            globalThis.obsArtifact.records.find((record) => record.slug === chapter),
         );
         const anchor = chapterItems.find((candidate) => candidate.id === item);
         if (!anchor) throw new Error("The review item is not in the canonical chapter.");
@@ -1015,7 +1015,7 @@
     };
 
     const syncReviewFields = () => {
-        globalThis.obsReport.records.forEach((record) => {
+        globalThis.obsArtifact.records.forEach((record) => {
             const states = [...new Set(reviewItemsForRecord(record).map((item) =>
                 reviewerState(item.chapter, item.id)
             ))];
@@ -1043,7 +1043,7 @@
         });
         if (!activeReviewFilter.fields.includes("review")) return;
         const chapter = activeChapter?.dataset.chapter;
-        const record = globalThis.obsReport.records.find((candidate) => candidate.slug === chapter);
+        const record = globalThis.obsArtifact.records.find((candidate) => candidate.slug === chapter);
         if (!record) return;
         items.forEach((item) => {
             const state = reviewerState(chapter, item.id);
@@ -1198,8 +1198,8 @@
         const clonedIsland = clone.querySelector("[data-comment-island]");
         const reviewedData = {...data, reviewers: [...new Set([...data.reviewers, currentAuthor()])]};
         clonedIsland.textContent = escapeJson(reviewedData);
-        const reportIsland = clone.querySelector("[data-report-data]");
-        const model = globalThis.obsReport?.serializeModel?.() || reportIsland.textContent;
+        const artifactIsland = clone.querySelector("[data-artifact-data]");
+        const model = globalThis.obsArtifact?.serializeModel?.() || artifactIsland.textContent;
         globalThis.obsRunningHeader.snapshot(clone, JSON.parse(model).document.metadata);
         clone.querySelectorAll("[data-review-gutter]").forEach((gutter) => gutter.remove());
         clone.querySelectorAll("[data-review-item]").forEach((item) => {
@@ -1217,21 +1217,21 @@
         clone.querySelectorAll("[data-dock-bar]").forEach((button) =>
             button.setAttribute("aria-pressed", "false"));
         clone.querySelectorAll("[data-bar-resize]").forEach((separator) => separator.remove());
-        globalThis.obsReportTransport.restoreScripts(clone);
-        delete clone.dataset.reportStatus;
+        globalThis.obsArtifactTransport.restoreScripts(clone);
+        delete clone.dataset.artifactStatus;
         return {
             clone, model, savedState: currentSnapshot(),
             savedDocumentState: currentDocumentSnapshot(),
-            contentBaseline: globalThis.obsReport.contentBaseline?.(),
+            contentBaseline: globalThis.obsArtifact.contentBaseline?.(),
         };
     };
 
     const reviewedHtml = async (snapshot) => {
         await globalThis.obsHtmlReady;
-        await globalThis.obsReport.whenChapterReady?.();
+        await globalThis.obsArtifact.whenChapterReady?.();
         snapshot ||= captureReviewedCopy();
-        await globalThis.obsReportTransport.writeIsland(
-            snapshot.clone.querySelector("[data-report-data]"), snapshot.model,
+        await globalThis.obsArtifactTransport.writeIsland(
+            snapshot.clone.querySelector("[data-artifact-data]"), snapshot.model,
         );
         return `<!doctype html>\n${snapshot.clone.outerHTML}`;
     };
@@ -1246,7 +1246,7 @@
                 }).then(handle => ({handle}), error => ({error}))
                 : null;
             await globalThis.obsHtmlReady;
-            await globalThis.obsReport.whenChapterReady?.();
+            await globalThis.obsArtifact.whenChapterReady?.();
             const snapshot = captureReviewedCopy();
             const picked = picker ? await picker : null;
             let fileError = picked?.error;
@@ -1259,7 +1259,7 @@
                     await writable.close();
                     savedSnapshot = snapshot.savedState;
                     savedDocumentSnapshot = snapshot.savedDocumentState;
-                    globalThis.obsReport.adoptContentBaseline?.(snapshot.contentBaseline);
+                    globalThis.obsArtifact.adoptContentBaseline?.(snapshot.contentBaseline);
                     updateSaveGuidance();
                     announcer.textContent = "HTML saved.";
                     return;
@@ -1381,7 +1381,7 @@
         repaintHighlights();
     });
     document.addEventListener("obs-table-definition-change", (event) => {
-        globalThis.obsReport.records.forEach((record) => {
+        globalThis.obsArtifact.records.forEach((record) => {
             if (record.tables?.some((table) => table.key === event.detail?.key)) {
                 reviewItemsCache.delete(record.slug);
             }
@@ -1410,16 +1410,16 @@
         activeReviewFilter = event.detail?.query || globalThis.obsQuery.compile("");
         updateReviewMode();
     });
-    document.addEventListener("obs-report-filter", updateSaveGuidance);
+    document.addEventListener("obs-artifact-filter", updateSaveGuidance);
     document.addEventListener("obs-reader-state-change", updateSaveGuidance);
 
     document.addEventListener("obs-canonical-property-change", () => {
-        const slugs = new Set(globalThis.obsReport.records.map((record) => record.slug));
+        const slugs = new Set(globalThis.obsArtifact.records.map((record) => record.slug));
         reviewItemsCache.forEach((_, slug) => {
             if (!slugs.has(slug)) reviewItemsCache.delete(slug);
         });
         // A Base may select rows from any canonical note, including a newly matching one.
-        globalThis.obsReport.records.forEach((record) => {
+        globalThis.obsArtifact.records.forEach((record) => {
             if (record.tables?.length) reviewItemsCache.delete(record.slug);
         });
         syncReviewFields();
@@ -1432,14 +1432,14 @@
         const button = event.target.closest("[data-review-summary-state]");
         if (!button) return;
         syncReviewFields();
-        globalThis.obsReport.openBar("filter", "right");
+        globalThis.obsArtifact.openBar("filter", "right");
         globalThis.obsFilter?.setExpression(`review: /^${button.dataset.reviewSummaryState}$/`);
     });
 
     chapterBody.addEventListener("click", (event) => {
         const annotation = annotationAtPoint(event);
         if (!annotation) return;
-        globalThis.obsReport?.openBar?.("comments", "right");
+        globalThis.obsArtifact?.openBar?.("comments", "right");
         filterInput.value = "";
         activeFilter = globalThis.obsQuery.compile("");
         renderComments();
@@ -1457,8 +1457,8 @@
     updateSaveGuidance();
     renderComments();
     const prepareReview = async () => {
-        for (const record of globalThis.obsReport.records) {
-            if (globalThis.obsReport.isDocument(record) && record.html.trim()) {
+        for (const record of globalThis.obsArtifact.records) {
+            if (globalThis.obsArtifact.isDocument(record) && record.html.trim()) {
                 if (globalThis.obsStartup) await globalThis.obsStartup.yield();
                 reviewItemsForRecord(record);
             }

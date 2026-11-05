@@ -20,8 +20,8 @@ from obs_html.comments import CommentError, extract_comments
 from obs_html.config import Config, load_config
 from obs_html.content import ContentError, read_manifest
 from obs_html.commands import run_command
-from obs_html.renderer import render_report
-from obs_html.report_data import chapter_html, html_text, same_document_content
+from obs_html.renderer import render_artifact
+from obs_html.artifact_data import chapter_html, html_text, same_document_content
 from obs_html.reproduction import (
     embed_archive, embed_payload_runtime, embedded_archive, source_archive,
 )
@@ -135,11 +135,11 @@ PDF operations:
   --export-pdf HTML renders existing HTML with local Chrome/Edge/Chromium
   or Playwright Chromium, carrying its embedded source ZIP into the PDF.
   If no browser is installed: uv run playwright install chromium
-  --attach-source-to-pdf PDF requires --source-report HTML with an embedded ZIP.
+  --attach-source-to-pdf PDF requires --source-artifact HTML with an embedded ZIP.
   It attaches that ZIP to a saved PDF without rerendering its pages.
   Both operations require explicit --output file.pdf and preserve their inputs.
   They cannot be combined with --source, --config, --check, --execute-commands,
-  --embed-source or --extract-comments. --source-report is attachment-only.
+  --embed-source or --extract-comments. --source-artifact is attachment-only.
   Encrypted/signed PDFs and duplicate source-attachment names are rejected when
   attaching. Viewer support for ZIP attachments varies; PDF/A is not promised.
   Generation refuses an --output ending in .pdf; export the generated HTML instead.
@@ -158,8 +158,8 @@ Rendered check:
 
 Printing a chapter:
   --print-chapter HTML ID prints the chapter whose id is ID from an existing built
-  report to stdout, as the generator stored it, without starting a browser. Chapter
-  ids are the note slugs of the report's table of contents. --chapter-format text
+  artifact to stdout, as the generator stored it, without starting a browser. Chapter
+  ids are the note slugs of the artifact's table of contents. --chapter-format text
   prints plain text, one line per block, instead of HTML. An unknown ID fails (exit 2)
   and lists the available ids. It writes nothing and cannot be combined with
   generation, PDF, rendered-check or extraction options.
@@ -177,7 +177,7 @@ Examples:
   obs-html --export-pdf document.html --output document.pdf
   obs-html --check-rendered document.html
   obs-html --print-chapter document.html intro --chapter-format text
-  obs-html --attach-source-to-pdf document.pdf --source-report document.html --output with-source.pdf
+  obs-html --attach-source-to-pdf document.pdf --source-artifact document.html --output with-source.pdf
   obs-html --extract-comments reviewed.html
 
 Exit status:
@@ -205,7 +205,7 @@ Exit status:
         help="Attach an HTML document's source ZIP to an already printed PDF.",
     )
     parser.add_argument(
-        "--source-report", type=Path, metavar="HTML",
+        "--source-artifact", type=Path, metavar="HTML",
         help="HTML containing the archive for --attach-source-to-pdf.",
     )
     parser.add_argument(
@@ -219,7 +219,7 @@ Exit status:
     )
     parser.add_argument(
         "--print-chapter", nargs=2, metavar=("HTML", "ID"),
-        help="Print one chapter of an existing report by id.",
+        help="Print one chapter of an existing artifact by id.",
     )
     parser.add_argument(
         "--chapter-format", choices=("html", "text"),
@@ -281,21 +281,21 @@ def main(argv: Sequence[str] | None = None) -> int:
             parser.error("--chapter-format requires --print-chapter HTML ID.")
         if options.print_chapter:
             if (options.check_rendered or options.export_pdf or options.attach_source_to_pdf
-                    or options.source_report or options.check or options.execute_commands
+                    or options.source_artifact or options.check or options.execute_commands
                     or options.embed_source or options.embed_attachments or options.extract_comments
                     or options.trusted_runtime_bundle or options.source or options.output
                     or options.timings):
                 parser.error("--print-chapter cannot be combined with generation, PDF, "
                              "rendered-check or extraction options.")
-            report_path, chapter_id = Path(options.print_chapter[0]), options.print_chapter[1]
+            artifact_path, chapter_id = Path(options.print_chapter[0]), options.print_chapter[1]
             try:
-                html = chapter_html(report_path.read_text(encoding="utf-8"), chapter_id)
+                html = chapter_html(artifact_path.read_text(encoding="utf-8"), chapter_id)
             except (ContentError, OSError) as error:
-                raise ContentError(f"--print-chapter {report_path}: {error}") from error
+                raise ContentError(f"--print-chapter {artifact_path}: {error}") from error
             print(html_text(html) if options.chapter_format == "text" else html, end="")
             return 0
         if options.check_rendered:
-            if (options.export_pdf or options.attach_source_to_pdf or options.source_report
+            if (options.export_pdf or options.attach_source_to_pdf or options.source_artifact
                     or options.check or options.execute_commands or options.embed_source
                     or options.embed_attachments
                     or options.extract_comments or options.trusted_runtime_bundle
@@ -329,20 +329,20 @@ def main(argv: Sequence[str] | None = None) -> int:
             output = options.output[0]
             from obs_html.pdf import attach_archive, export_pdf
             if options.export_pdf:
-                if options.source_report:
-                    parser.error("--source-report is only used with --attach-source-to-pdf.")
+                if options.source_artifact:
+                    parser.error("--source-artifact is only used with --attach-source-to-pdf.")
                 if output.resolve() == options.export_pdf.resolve():
                     parser.error("PDF output must not overwrite the source HTML.")
-            elif not options.source_report:
-                parser.error("--attach-source-to-pdf requires --source-report HTML.")
-            elif output.resolve() in {options.attach_source_to_pdf.resolve(), options.source_report.resolve()}:
+            elif not options.source_artifact:
+                parser.error("--attach-source-to-pdf requires --source-artifact HTML.")
+            elif output.resolve() in {options.attach_source_to_pdf.resolve(), options.source_artifact.resolve()}:
                 parser.error("PDF output must be a new file, not an input.")
             _print_timings(options, {"imports": _IMPORTED - _STARTED})
             with recording() as recorded:
                 if options.export_pdf:
                     pdf = export_pdf(options.export_pdf)
                 else:
-                    archive = embedded_archive(options.source_report.read_text(encoding="utf-8"))
+                    archive = embedded_archive(options.source_artifact.read_text(encoding="utf-8"))
                     if archive is None:
                         raise ContentError("Source HTML has no embedded source archive.")
                     pdf = attach_archive(options.attach_source_to_pdf.read_bytes(), archive)
@@ -351,8 +351,8 @@ def main(argv: Sequence[str] | None = None) -> int:
             _print_timings(options, recorded.durations, output.resolve())
             _print_timings(options, {"total": _total(started)})
             return 0
-        if options.source_report:
-            parser.error("--source-report requires --attach-source-to-pdf.")
+        if options.source_artifact:
+            parser.error("--source-artifact requires --attach-source-to-pdf.")
         if options.extract_comments and options.embed_source:
             parser.error("--embed-source cannot be combined with comment extraction.")
         if options.check and (options.execute_commands or options.extract_comments is not None):
@@ -470,7 +470,7 @@ def _build_document(
     with stage("provenance"):
         target = _repository_provenance(vault_root)
     with stage("render"):
-        report = render_report(
+        artifact = render_artifact(
             manifest_path,
             chapters,
             command_runner,
@@ -504,17 +504,17 @@ def _build_document(
             embed_attachments=options.embed_attachments,
         )
         if trusted_runtime_source:
-            report = embed_payload_runtime(report)
+            artifact = embed_payload_runtime(artifact)
     if options.embed_source:
         with stage("source-archive"):
-            report = embed_archive(report, source_archive(
+            artifact = embed_archive(artifact, source_archive(
                 vault_root, manifest_path, PROJECT_ROOT, config, options.execute_commands,
                 (trusted_runtime_id, resolved_runtime.relative_to(vault_root).as_posix())
                 if trusted_runtime_source else None,
                 options.embed_attachments,
             ))
     if not options.check:
-        _write_if_changed(output_path, report, partial(_same_document, report))
+        _write_if_changed(output_path, artifact, partial(_same_document, artifact))
     return len(chapters), output_path, config
 
 
@@ -537,9 +537,9 @@ def _check_command(command: str) -> str:
     return ""
 
 
-def _same_document(report: str, existing: bytes) -> bool:
+def _same_document(artifact: str, existing: bytes) -> bool:
     try:
-        return same_document_content(report, existing.decode("utf-8"))
+        return same_document_content(artifact, existing.decode("utf-8"))
     except UnicodeDecodeError:
         return False
 

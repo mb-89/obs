@@ -8,8 +8,8 @@ import pytest
 import yaml
 
 from obs_html.content import parse_manifest
-from obs_html.renderer import render_report
-from obs_html.report_data import decode_report_data
+from obs_html.renderer import render_artifact
+from obs_html.artifact_data import decode_artifact_data
 from test_reader_controls import _declare_query, _write_reader_fixture, reader_browser  # noqa: F401
 
 
@@ -27,7 +27,7 @@ def opening_browser():
         browser.close()
 
 
-def _hold_opening(page, report: Path, *, install: bool = True) -> None:
+def _hold_opening(page, artifact: Path, *, install: bool = True) -> None:
     if install:
         page.add_init_script("""(() => {
         const frame = requestAnimationFrame;
@@ -50,9 +50,9 @@ def _hold_opening(page, report: Path, *, install: bool = True) -> None:
     # Navigation deliberately stops before the normal fixture's ready boundary.
     navigation = page.context.new_cdp_session(page)
     with page.expect_navigation(wait_until="load"):
-        navigation.send("Page.navigate", {"url": report.as_uri()})
+        navigation.send("Page.navigate", {"url": artifact.as_uri()})
     navigation.detach()
-    page.wait_for_function("document.documentElement.dataset.reportStatus === 'loading'")
+    page.wait_for_function("document.documentElement.dataset.artifactStatus === 'loading'")
 
 
 @pytest.mark.parametrize("width", [1440, 390])
@@ -83,22 +83,22 @@ def test_opening_reuses_centered_running_header_before_decode(
         "---\n" + yaml.safe_dump(metadata, allow_unicode=True) + "---\n- [[one]]\n",
         encoding="utf-8",
     )
-    report = tmp_path / "report.html"
-    report.write_text(render_report(manifest, parse_manifest(manifest)), encoding="utf-8")
+    artifact = tmp_path / "artifact.html"
+    artifact.write_text(render_artifact(manifest, parse_manifest(manifest)), encoding="utf-8")
     context = opening_browser.new_context(viewport={"width": width, "height": 900})
     page = context.new_page()
     errors = []
     page.on("pageerror", lambda error: errors.append(str(error)))
     try:
-        _hold_opening(page, report)
+        _hold_opening(page, artifact)
         opening = page.locator(".reader-opening")
         expect(opening).to_be_visible()
         assert opening.locator(".paper-header > span").all_text_contents() == expected
         assert opening.locator(".paper-header > span:empty").count() == 0
         assert page.locator("[data-chapter-body] h1").count() == 0
         assert page.evaluate("openingHeadings") == []
-        assert page.evaluate("typeof obsReport") == "undefined"
-        assert page.locator("[data-report-data]").get_attribute("data-encoding") == "gzip"
+        assert page.evaluate("typeof obsArtifact") == "undefined"
+        assert page.locator("[data-artifact-data]").get_attribute("data-encoding") == "gzip"
         assert page.locator(".app-shell").get_attribute("inert") is not None
         assert page.locator("[data-menu-button]").is_disabled()
         status = opening.locator('[role="status"]')
@@ -123,7 +123,7 @@ def test_opening_reuses_centered_running_header_before_decode(
         )
         page.screenshot(path=str(tmp_path / f"opening-{width}.png"))
         page.evaluate("releaseOpening()")
-        page.wait_for_function("document.documentElement.dataset.reportStatus === 'ready'")
+        page.wait_for_function("document.documentElement.dataset.artifactStatus === 'ready'")
         assert page.title() == metadata["title"]
         header = page.locator('.paged-reader [data-page-chapter="home"] .paper-header').first
         assert [text for text in header.locator("span").all_text_contents() if text] == expected
@@ -138,16 +138,16 @@ def test_opening_reuses_centered_running_header_before_decode(
                 encoding="utf-8",
             )
             updated = tmp_path / "updated.html"
-            updated.write_text(render_report(manifest, parse_manifest(manifest)), encoding="utf-8")
+            updated.write_text(render_artifact(manifest, parse_manifest(manifest)), encoding="utf-8")
             expected = ["Example <&> · Revised matrix", "Internal <&>, Review"]
             _hold_opening(page, updated, install=False)
             assert page.locator(".reader-opening .paper-header > span").all_text_contents() == expected
             page.evaluate("releaseOpening()")
-            page.wait_for_function("document.documentElement.dataset.reportStatus === 'ready'")
+            page.wait_for_function("document.documentElement.dataset.artifactStatus === 'ready'")
             assert page.locator(
                 '.paged-reader [data-page-chapter="home"] .paper-header',
             ).first.locator("span").all_text_contents() == expected
-        page.evaluate("obsReport.commitCanonicalProjection([{slug:'one',fields:{status:'reviewed'}}])")
+        page.evaluate("obsArtifact.commitCanonicalProjection([{slug:'one',fields:{status:'reviewed'}}])")
         page.evaluate("""() => {
             document.querySelector("#running-header-script").dataset.headerMetadata =
                 JSON.stringify({product: {name: "Stale product"}});
@@ -158,8 +158,8 @@ def test_opening_reuses_centered_running_header_before_decode(
         assert page.locator(".reader-opening .paper-header > span").all_text_contents() == expected
         expect(page.locator(".reader-opening [role=status]")).to_be_visible()
         page.evaluate("releaseOpening()")
-        page.wait_for_function("document.documentElement.dataset.reportStatus === 'ready'")
-        assert next(note for note in decode_report_data(saved.read_text(encoding="utf-8"))["notes"]
+        page.wait_for_function("document.documentElement.dataset.artifactStatus === 'ready'")
+        assert next(note for note in decode_artifact_data(saved.read_text(encoding="utf-8"))["notes"]
                     if note["slug"] == "one")["frontmatter"]["status"] == "reviewed"
         assert errors == []
     finally:
@@ -172,11 +172,11 @@ def test_removed_reading_startup_settings_are_rejected(tmp_path: Path, removed) 
     manifest = tmp_path / "manifest.md"
     manifest.write_text("- [[one]]\n", encoding="utf-8")
     reading = json.loads(files("obs_html").joinpath("cfg.json").read_text(encoding="utf-8"))[
-        "report"
+        "artifact"
     ]["reading"] | removed
 
-    with pytest.raises(ValueError, match=rf"report\.reading\.{next(iter(removed))} was removed"):
-        render_report(manifest, parse_manifest(manifest), reading=reading)
+    with pytest.raises(ValueError, match=rf"artifact\.reading\.{next(iter(removed))} was removed"):
+        render_artifact(manifest, parse_manifest(manifest), reading=reading)
 
 
 @pytest.mark.parametrize(("profile", "paged"), [("", True), ("layout: paged", True),
@@ -186,12 +186,12 @@ def test_manifest_layout_declares_the_opening_view(tmp_path: Path, profile, page
     manifest = tmp_path / "manifest.md"
     frontmatter = f"---\nobsHtml: {{{profile}}}\n---\n" if profile else ""
     manifest.write_text(f"{frontmatter}- [[one]]\n", encoding="utf-8")
-    report = render_report(manifest, parse_manifest(manifest))
-    data = decode_report_data(report)
+    artifact = render_artifact(manifest, parse_manifest(manifest))
+    data = decode_artifact_data(artifact)
 
     assert data["reading"]["theme"] == "light"
     assert data["reading"]["paged"] is paged
-    assert f'classList.toggle("paged-mode", {str(paged).lower()})' in report
+    assert f'classList.toggle("paged-mode", {str(paged).lower()})' in artifact
     assert "obsHtml" not in data["document"]["metadata"]
 
 
@@ -205,8 +205,8 @@ def test_dark_os_saved_dark_and_reviewed_copy_start_light_and_paged(tmp_path: Pa
     (tmp_path / "one.md").write_text("# One\n\nReviewable content.\n", encoding="utf-8")
     manifest = tmp_path / "manifest.md"
     manifest.write_text("- [[one]]\n", encoding="utf-8")
-    report = tmp_path / "report.html"
-    report.write_text(render_report(manifest, parse_manifest(manifest)), encoding="utf-8")
+    artifact = tmp_path / "artifact.html"
+    artifact.write_text(render_artifact(manifest, parse_manifest(manifest)), encoding="utf-8")
 
     with sync_playwright() as playwright:
         browser = playwright.chromium.launch(
@@ -224,7 +224,7 @@ def test_dark_os_saved_dark_and_reviewed_copy_start_light_and_paged(tmp_path: Pa
         errors = []
         page.on("pageerror", lambda error: errors.append(str(error)))
         try:
-            page.goto(report.as_uri() + "#one")
+            page.goto(artifact.as_uri() + "#one")
             expect(page.locator("html")).to_have_attribute("data-theme", "light")
             expect(page.locator("html")).to_have_class(re.compile(r"\bpaged-mode\b"))
             expect(page.locator("[data-chapter-body]")).to_contain_text("Reviewable content.")
@@ -234,7 +234,7 @@ def test_dark_os_saved_dark_and_reviewed_copy_start_light_and_paged(tmp_path: Pa
             assert page.evaluate("localStorage.getItem('obs-html.appearance')") == "dark"
             light_color = page.locator("body").evaluate("el => getComputedStyle(el).color")
             page.screenshot(path=str(tmp_path / "startup-light-pages.png"))
-            page.evaluate("obsReport.openBar('settings', 'right')")
+            page.evaluate("obsArtifact.openBar('settings', 'right')")
             page.locator("[data-theme-select]").select_option("dark")
             expect(page.locator("html")).to_have_attribute("data-theme", "dark")
             dark_color = page.locator("body").evaluate("el => getComputedStyle(el).color")
@@ -248,7 +248,7 @@ def test_dark_os_saved_dark_and_reviewed_copy_start_light_and_paged(tmp_path: Pa
             expect(page.locator("html")).to_have_attribute("data-theme", "light")
             page.locator("[data-theme-select]").select_option("dark")
             assert page.evaluate("localStorage.getItem('obs-html.appearance')") == "dark"
-            page.evaluate("obsReport.openBar('comments', 'right')")
+            page.evaluate("obsArtifact.openBar('comments', 'right')")
             expect(page.locator("[data-comment-author]")).to_have_value("Remembered Reviewer")
             page.locator("[data-chapter-body] .review-action--accept").first.click()
             saved = tmp_path / "reviewed.html"
@@ -262,7 +262,7 @@ def test_dark_os_saved_dark_and_reviewed_copy_start_light_and_paged(tmp_path: Pa
             assert page.evaluate("firstPaintTheme") == "light"
             assert page.locator("body").evaluate("el => getComputedStyle(el).color") == light_color
             assert page.evaluate("obsComments.data.reviews.length") == 1
-            page.evaluate("obsReport.openBar('comments', 'right')")
+            page.evaluate("obsArtifact.openBar('comments', 'right')")
             expect(page.locator("[data-comment-author]")).to_have_value("Remembered Reviewer")
             assert errors == []
         finally:
@@ -272,8 +272,8 @@ def test_dark_os_saved_dark_and_reviewed_copy_start_light_and_paged(tmp_path: Pa
 @pytest.mark.parametrize("fail", [False, True])
 def test_native_progressive_pending_readiness_and_latest_filter(tmp_path, reader_browser, fail):
     manifest = _write_reader_fixture(tmp_path)
-    report = tmp_path / "progressive.html"
-    html = render_report(manifest, parse_manifest(manifest))
+    artifact = tmp_path / "progressive.html"
+    html = render_artifact(manifest, parse_manifest(manifest))
     html = html.replace('<script id="cards-script"', '''<script type="application/x-obs-html-script" data-obs-runtime>
         obsStartup.defer("Controlled calculation", () => new Promise((resolve,reject) => {
             window.finishCalculation = () => ''' + (
@@ -284,10 +284,10 @@ def test_native_progressive_pending_readiness_and_latest_filter(tmp_path, reader
     html = html.replace("</body>", '''<script type="application/x-obs-html-script" data-obs-runtime>
         window.lateRegistrationWasGated = document.querySelector(".app-shell").inert;
         </script></body>''')
-    report.write_text(html, encoding="utf-8")
+    artifact.write_text(html, encoding="utf-8")
     page = reader_browser.new_page(viewport={"width": 1500, "height": 1000})
     try:
-        page.main_frame.goto(report.as_uri(), wait_until="domcontentloaded")
+        page.main_frame.goto(artifact.as_uri(), wait_until="domcontentloaded")
         page.wait_for_function("!!window.finishCalculation")
         assert page.evaluate("lateRegistrationWasGated") is True
         assert page.locator("[data-chapter-body]").inner_text().strip()
@@ -313,12 +313,12 @@ def test_native_progressive_pending_readiness_and_latest_filter(tmp_path, reader
         assert page.evaluate("printCalls") == 0
         page.evaluate("finishCalculation()")
         if fail:
-            page.wait_for_function("document.documentElement.dataset.reportStatus === 'error'")
+            page.wait_for_function("document.documentElement.dataset.artifactStatus === 'error'")
             assert "Controlled startup failure" in page.locator("[role='alert']").inner_text()
             assert page.evaluate("saved") is False
         else:
-            page.wait_for_function("document.documentElement.dataset.reportStatus === 'ready'")
-            assert page.evaluate("obsReport.filterSummary().expression") == "title:does-not-exist"
+            page.wait_for_function("document.documentElement.dataset.artifactStatus === 'ready'")
+            assert page.evaluate("obsArtifact.filterSummary().expression") == "title:does-not-exist"
             page.wait_for_function("saved")
             page.wait_for_function("printCalls >= 1")
             page.evaluate("repeatedPrint")
@@ -335,11 +335,11 @@ def test_native_pending_destination_paints_and_repeated_intent_cannot_skip(tmp_p
         "- [[chapter]]", "- [[chapter]]\n- [[peer]]"), encoding="utf-8")
     (tmp_path / "peer.md").write_text("# Deliberate different destination\n\nStatic peer.", encoding="utf-8")
     _declare_query(manifest, {"scope": "records", "where": [{"field": "kind", "equals": "relation"}]})
-    report = tmp_path / "navigation.html"
-    report.write_text(render_report(manifest, parse_manifest(manifest)), encoding="utf-8")
+    artifact = tmp_path / "navigation.html"
+    artifact.write_text(render_artifact(manifest, parse_manifest(manifest)), encoding="utf-8")
     page = reader_browser.new_page(viewport={"width":1500,"height":1000})
     try:
-        page.goto(report.as_uri())
+        page.goto(artifact.as_uri())
         page.evaluate("""() => {
             window.originalStartup = obsStartup;
             window.releaseNavigation = [];
@@ -359,7 +359,7 @@ def test_native_pending_destination_paints_and_repeated_intent_cannot_skip(tmp_p
         page.screenshot(path=str(tmp_path / "pending-destination.png"))
         page.keyboard.press("ArrowLeft")
         assert page.locator("[data-active-chapter]").get_attribute("data-chapter") == "home"
-        page.evaluate("obsFilter.setExpression('title:no-match'); obsReport.activateChapter('peer')")
+        page.evaluate("obsFilter.setExpression('title:no-match'); obsArtifact.activateChapter('peer')")
         assert "Static peer." in page.locator("[data-active-chapter]").inner_text()
         page.evaluate("""() => {
             window.obsStartup = originalStartup;
@@ -368,9 +368,9 @@ def test_native_pending_destination_paints_and_repeated_intent_cannot_skip(tmp_p
         page.wait_for_timeout(100)
         assert page.locator("[data-active-chapter]").get_attribute("data-chapter") == "peer"
         assert page.locator("[data-active-chapter] [data-data-table]").count() == 0
-        assert page.evaluate("obsReport.filterSummary().expression") == "title:no-match"
-        page.evaluate("obsFilter.setExpression(''); obsReport.activateChapter('chapter')")
-        page.evaluate("obsReport.whenChapterReady()")
+        assert page.evaluate("obsArtifact.filterSummary().expression") == "title:no-match"
+        page.evaluate("obsFilter.setExpression(''); obsArtifact.activateChapter('chapter')")
+        page.evaluate("obsArtifact.whenChapterReady()")
         assert page.locator("[data-active-chapter] [data-data-table]").count() == 1
         page.screenshot(path=str(tmp_path / "destination.png"))
     finally:

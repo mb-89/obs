@@ -37,8 +37,8 @@ def reach_page(tmp_path_factory):
         "```base\nfilters: 'kind == \"item\"'\nviews:\n"
         "  - type: table\n    order: [route, group]\n```\n", encoding="utf-8",
     )
-    report = root / "report.html"
-    main(["--source", str(vault), "--output", str(report)])
+    artifact = root / "artifact.html"
+    main(["--source", str(vault), "--output", str(artifact)])
     from playwright.sync_api import sync_playwright
     with sync_playwright() as playwright:
         browser = playwright.chromium.launch(executable_path=executable)
@@ -46,8 +46,8 @@ def reach_page(tmp_path_factory):
         page.set_default_timeout(5000)
         errors = []
         page.on("pageerror", lambda error: errors.append(str(error)))
-        page.goto(report.as_uri())
-        page.wait_for_function("document.documentElement.dataset.reportStatus === 'ready'"
+        page.goto(artifact.as_uri())
+        page.wait_for_function("document.documentElement.dataset.artifactStatus === 'ready'"
                                " && globalThis.obsPages")
         try:
             yield page
@@ -61,7 +61,7 @@ def _table(page):
 
 
 def _search(page, text):
-    page.evaluate("obsReport.openBar('search')")
+    page.evaluate("obsArtifact.openBar('search')")
     page.locator("[data-search-input]").fill(text)
 
 
@@ -69,7 +69,7 @@ def _search(page, text):
 def test_search_finds_and_reveals_a_cell_on_a_later_table_page(reach_page, paged):
     from playwright.sync_api import expect
     page = reach_page
-    page.evaluate("paged=>{obsPages.setPaged(paged); obsReport.activateChapter('home')}", paged)
+    page.evaluate("paged=>{obsPages.setPaged(paged); obsArtifact.activateChapter('home')}", paged)
     _search(page, '"Zebra late cell"')
     expect(page.locator("[data-search-status]")).to_have_text("1 result.")
     page.locator("[data-search-results] a").first.click()
@@ -97,7 +97,7 @@ def test_search_finds_and_expands_collapsed_row_details(reach_page):
 def test_table_filter_matches_all_pages_and_reachable_through_the_pager(reach_page):
     from playwright.sync_api import expect
     page = reach_page
-    page.evaluate("obsPages.setPaged(false); obsReport.activateChapter('results')")
+    page.evaluate("obsPages.setPaged(false); obsArtifact.activateChapter('results')")
     table = _table(page)
     set_filter = ("expression=>document.querySelector('[data-chapter-body] [data-data-table]')"
                   ".dispatchEvent(new CustomEvent('obs-table-set-filter',{detail:{expression}}))")
@@ -118,23 +118,23 @@ def test_table_filter_matches_all_pages_and_reachable_through_the_pager(reach_pa
 def test_global_filter_counts_and_search_respect_the_full_row_population(reach_page):
     from playwright.sync_api import expect
     page = reach_page
-    page.evaluate("obsPages.setPaged(false); obsReport.activateChapter('results')")
-    page.evaluate("obsReport.setFilter(obsQuery.compile('route: /Zebra|Route 4/'))")
+    page.evaluate("obsPages.setPaged(false); obsArtifact.activateChapter('results')")
+    page.evaluate("obsArtifact.setFilter(obsQuery.compile('route: /Zebra|Route 4/'))")
     table = _table(page)
     expect(table.locator(".data-table-count")).to_have_text(re.compile(r"^7 of "))
     expect(table.locator(".data-table-page")).to_have_text("Page 1 of 1")
     _search(page, '"Zebra late cell"')
     expect(page.locator("[data-search-status]")).to_have_text("1 result.")
-    page.evaluate("obsReport.setFilter(obsQuery.compile('route: /Route 4/'))")
+    page.evaluate("obsArtifact.setFilter(obsQuery.compile('route: /Route 4/'))")
     _search(page, '"Zebra late cell"')
     expect(page.locator("[data-search-status]")).to_have_text("0 results.")
-    page.evaluate("obsReport.setFilter(obsQuery.compile(''))")
+    page.evaluate("obsArtifact.setFilter(obsQuery.compile(''))")
 
 
 def test_keyboard_shortcuts_open_step_and_close_search(reach_page):
     from playwright.sync_api import expect
     page = reach_page
-    page.evaluate("obsPages.setPaged(true); obsReport.closeBar('search'); obsReport.activateChapter('home')")
+    page.evaluate("obsPages.setPaged(true); obsArtifact.closeBar('search'); obsArtifact.activateChapter('home')")
     search = page.locator("[data-search-input]")
     page.locator("body").press("Control+f")
     expect(search).to_be_focused()

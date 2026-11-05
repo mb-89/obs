@@ -6,7 +6,7 @@ from zipfile import ZipFile
 import pytest
 
 from obs_html.cli import main
-from obs_html.report_data import decode_report_data
+from obs_html.artifact_data import decode_artifact_data
 from obs_html.reproduction import embedded_archive
 
 
@@ -24,7 +24,7 @@ def _vault(root: Path, body: str, frontmatter: str = "", manifest: str = "") -> 
 def _build(tmp_path: Path, vault: Path, *flags: str) -> dict:
     output = tmp_path / "document.html"
     assert main(["--source", str(vault), "--output", str(output), *flags]) == 0
-    return decode_report_data(output.read_text(encoding="utf-8"))
+    return decode_artifact_data(output.read_text(encoding="utf-8"))
 
 
 def _note(data: dict) -> dict:

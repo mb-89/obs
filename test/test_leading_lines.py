@@ -6,7 +6,7 @@ import pytest
 
 from obs_html.content import ContentError, validate_base_definition
 from test_browser import run_browser_script
-from test_reader_controls import _write_reader_report, reader_browser  # noqa: F401
+from test_reader_controls import _write_reader_artifact, reader_browser  # noqa: F401
 
 
 def _lead_status(spec):
@@ -45,7 +45,7 @@ def test_leading_lines_schema_matches_browser():
     """, {"valid": valid, "invalid": invalid})
 
 
-def _leading_report(tmp_path):
+def _leading_artifact(tmp_path):
     def configure(spec):
         _lead_status(spec)
         first = tmp_path / "relation-000.md"
@@ -55,7 +55,7 @@ def _leading_report(tmp_path):
         blank.write_text(blank.read_text(encoding="utf-8").replace(
             "status: Complete 2\n", "status: Complete 2\nstamp: '  '\n"), encoding="utf-8")
 
-    return _write_reader_report(tmp_path, configure)
+    return _write_reader_artifact(tmp_path, configure)
 
 
 def test_native_leading_line_precedes_value_on_screen_and_in_pdf(tmp_path, reader_browser):
@@ -64,13 +64,13 @@ def test_native_leading_line_precedes_value_on_screen_and_in_pdf(tmp_path, reade
     from playwright.sync_api import expect
     from pypdf import PdfReader
 
-    output = _leading_report(tmp_path)
+    output = _leading_artifact(tmp_path)
     page = reader_browser.new_page(viewport={"width": 1500, "height": 1000})
     try:
         page.goto(output.as_uri())
         page.evaluate("obsHtmlReady")
-        page.evaluate("obsPages.setPaged(false); obsReport.activateChapter('chapter')")
-        page.evaluate("obsReport.whenChapterReady()")
+        page.evaluate("obsPages.setPaged(false); obsArtifact.activateChapter('chapter')")
+        page.evaluate("obsArtifact.whenChapterReady()")
         table = page.locator("[data-active-chapter] [data-data-table='chapter-base-1']")
         expect(table.locator("tbody tr[data-row-key]")).to_have_count(65)
         cells = table.locator("tbody tr[data-row-key]").evaluate_all("""rows => rows.map(row => {

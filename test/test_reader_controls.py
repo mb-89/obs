@@ -8,8 +8,8 @@ import pytest
 import yaml
 
 from obs_html.content import ContentError, parse_manifest, validate_base_definition
-from obs_html.renderer import render_report
-from obs_html.report_data import decode_report_data
+from obs_html.renderer import render_artifact
+from obs_html.artifact_data import decode_artifact_data
 
 
 def definition():
@@ -102,13 +102,13 @@ def test_detail_font_configuration_is_bounded_and_reproduced(tmp_path):
 
     manifest = _write_reader_fixture(tmp_path / "source")
     override = tmp_path / "config.json"
-    override.write_text('{"report":{"tableDetailFontSizePoints":11}}', encoding="utf-8")
+    override.write_text('{"artifact":{"tableDetailFontSizePoints":11}}', encoding="utf-8")
     config = load_config(files("obs_html").joinpath("cfg.json"), override)
     assert config.table_detail_font_size_points == 11
     with ZipFile(BytesIO(source_archive(manifest.parent, manifest, PROJECT_ROOT, config, False))) as archive:
-        assert json.loads(archive.read("build-config.json"))["report"]["tableDetailFontSizePoints"] == 11
+        assert json.loads(archive.read("build-config.json"))["artifact"]["tableDetailFontSizePoints"] == 11
     for unsupported in (7, 15):
-        override.write_text(json.dumps({"report": {"tableDetailFontSizePoints": unsupported}}), encoding="utf-8")
+        override.write_text(json.dumps({"artifact": {"tableDetailFontSizePoints": unsupported}}), encoding="utf-8")
         with pytest.raises(ValidationError):
             load_config(files("obs_html").joinpath("cfg.json"), override)
 
@@ -219,16 +219,16 @@ def test_native_reader_controls_and_compact_metrics(tmp_path, reader_browser):
         "scope": "records", "where": [{"field": "kind", "equals": "relation"}],
         "fields": [{"field": "kind"}, {"field": "status", "label": "State"}],
     })
-    report = tmp_path / "reader.html"
-    report.write_text(render_report(
+    artifact = tmp_path / "reader.html"
+    artifact.write_text(render_artifact(
         manifest, parse_manifest(manifest), table_page_size=5,
     ), encoding="utf-8")
     page = reader_browser.new_page(viewport={"width": 1500, "height": 1000})
     errors = []
     page.on("pageerror", lambda error: errors.append(str(error)))
     try:
-        page.goto(report.as_uri() + "#chapter")
-        page.evaluate("obsPages.setPaged(false); obsReport.activateChapter('chapter')")
+        page.goto(artifact.as_uri() + "#chapter")
+        page.evaluate("obsPages.setPaged(false); obsArtifact.activateChapter('chapter')")
         table = page.locator('[data-active-chapter] [data-data-table="chapter-base-1"]')
         expect(table.locator("tbody tr[data-row-key]")).to_have_count(65)
         expect(table.locator(".data-table-footer")).to_be_hidden()
@@ -255,7 +255,7 @@ def test_native_reader_controls_and_compact_metrics(tmp_path, reader_browser):
         ).locator(".filter-pill").all_text_contents()
         assert property_names[:3] == ["Subject", "Status", "Actions"]
         assert "internalIndex" not in property_names and "sourcePath" not in property_names
-        page.evaluate("obsReport.activateChapter('home')")
+        page.evaluate("obsArtifact.activateChapter('home')")
         cards = page.locator(".chapter-body .markdown-columns")
         positions = cards.locator(":scope > .markdown-column").evaluate_all(
             "nodes => nodes.map(node => node.getBoundingClientRect().toJSON())",
@@ -264,7 +264,7 @@ def test_native_reader_controls_and_compact_metrics(tmp_path, reader_browser):
         metrics = page.locator(".record-metric")
         assert metrics.count() == 1
         assert metrics.evaluate("node => node.scrollWidth <= node.clientWidth + 1")
-        assert page.evaluate("obsReport.navigationChapters().every(record => record.slug !== 'home')")
+        assert page.evaluate("obsArtifact.navigationChapters().every(record => record.slug !== 'home')")
         assert page.locator(".chapter-home-link").get_attribute("title").endswith("Document Identity")
         overview = []
         for paged in (False, True):
@@ -288,16 +288,16 @@ def test_cli_reader_fixture_generation_does_not_write_live_paths(tmp_path):
     from obs_html.cli import main
 
     manifest = _write_reader_fixture(tmp_path / "source")
-    output = tmp_path / "report.html"
+    output = tmp_path / "artifact.html"
     assert main(["--source", str(manifest), "--output", str(output)]) == 0
     html = output.read_text(encoding="utf-8")
-    data = decode_report_data(html)
+    data = decode_artifact_data(html)
     assert data["tableDetailFontSizePoints"] == 10
     chapter = next(note for note in data["notes"] if note["slug"] == "chapter")
     assert chapter["tables"][0]["definition"]["views"][0]["obsHtml"]["pagination"] is False
 
 
-def _control_report(root, *, subject_text=""):
+def _control_artifact(root, *, subject_text=""):
     output = root / "control.html"
     root = root / "source"
     manifest = _write_reader_fixture(root)
@@ -330,22 +330,22 @@ def _control_report(root, *, subject_text=""):
         ],
     })
     from obs_html.cli import main
-    report = output
-    assert main(["--source", str(manifest), "--output", str(report)]) == 0
-    return report
+    artifact = output
+    assert main(["--source", str(manifest), "--output", str(artifact)]) == 0
+    return artifact
 
 
 def test_native_discovered_bar_close_and_record_facet_scope(tmp_path, reader_browser):
     from playwright.sync_api import expect
 
-    report = _control_report(tmp_path)
+    artifact = _control_artifact(tmp_path)
     page = reader_browser.new_page(viewport={"width": 1500, "height": 1000})
     try:
-        page.goto(report.as_uri())
-        page.evaluate("obsPages.setPaged(false); obsReport.activateChapter('chapter')")
+        page.goto(artifact.as_uri())
+        page.evaluate("obsPages.setPaged(false); obsArtifact.activateChapter('chapter')")
         bar_names = page.locator("[data-bar]").evaluate_all("nodes => nodes.map(n => n.dataset.bar)")
         for name in bar_names:
-            page.evaluate("name => obsReport.openBar(name, 'left')", name)
+            page.evaluate("name => obsArtifact.openBar(name, 'left')", name)
             bar = page.locator(f'[data-bar="{name}"]')
             close = bar.get_by_role("button", name=f"Close {bar.get_attribute('aria-label')}", exact=True)
             expect(close).to_be_visible()
@@ -357,15 +357,15 @@ def test_native_discovered_bar_close_and_record_facet_scope(tmp_path, reader_bro
             close.press("Enter")
             expect(bar).to_be_hidden()
             assert page.evaluate("document.activeElement.matches('[data-menu-button], [data-dock-bar]')")
-        page.evaluate("obsReport.openBar('filter', 'left')")
+        page.evaluate("obsArtifact.openBar('filter', 'left')")
         facets = page.locator("[data-filter-fields] .filter-field")
         expect(facets).to_have_count(1)
         expect(facets).to_have_attribute("data-field", "status")
         page.evaluate("obsFilter.selectExpression('identifier: /^ID-1$/')")
-        assert page.evaluate("obsReport.navigationChapters().map(r => r.slug)") == [
+        assert page.evaluate("obsArtifact.navigationChapters().map(r => r.slug)") == [
             "intro", "chapter", "after",
         ]
-        assert page.evaluate("obsReport.exportChapters().map(r => r.slug)") == [
+        assert page.evaluate("obsArtifact.exportChapters().map(r => r.slug)") == [
             "intro", "chapter", "after",
         ]
         expect(page.locator("[data-filter-warning]")).to_contain_text("1/65 records")
@@ -386,7 +386,7 @@ def test_native_discovered_bar_close_and_record_facet_scope(tmp_path, reader_bro
         ordinary.get_by_role("button", name="Table options", exact=True).click()
         ordinary.get_by_role("button", name="Properties", exact=True).click()
         assert "privateField" in ordinary.locator('[aria-label="Properties"] .filter-pill').all_text_contents()
-        page.evaluate("obsReport.openBar('toc')")
+        page.evaluate("obsArtifact.openBar('toc')")
         expect(page.locator('[data-toc-link="home"]')).to_have_count(0)
         (tmp_path / "discovered-bars.json").write_text(json.dumps(bar_names), encoding="utf-8")
     finally:
@@ -396,11 +396,11 @@ def test_native_discovered_bar_close_and_record_facet_scope(tmp_path, reader_bro
 def test_native_local_filter_warning_clear_is_scoped_and_survives_continuations(tmp_path, reader_browser):
     from playwright.sync_api import expect
 
-    report = _control_report(tmp_path)
+    artifact = _control_artifact(tmp_path)
     page = reader_browser.new_page(viewport={"width": 1500, "height": 1000})
     try:
-        page.goto(report.as_uri() + "#chapter")
-        page.evaluate("obsPages.setPaged(false); obsReport.activateChapter('chapter')")
+        page.goto(artifact.as_uri() + "#chapter")
+        page.evaluate("obsPages.setPaged(false); obsArtifact.activateChapter('chapter')")
         first = page.locator('[data-active-chapter] [data-data-table="chapter-base-1"]')
         second = page.locator('[data-active-chapter] [data-data-table="chapter-base-2"]')
         page.evaluate("""() => {
@@ -475,14 +475,14 @@ def test_native_actual_subject_shares_stable_tabs_and_computed_detail_font(tmp_p
     relation.write_text(relation.read_text(encoding="utf-8").replace(
         "kind: relation", "kind: relation\npeer: '[[peer]]'\nabsent: '[[empty]]'",
     ), encoding="utf-8")
-    report = tmp_path / "font.html"
-    report.write_text(render_report(manifest, parse_manifest(manifest)), encoding="utf-8")
+    artifact = tmp_path / "font.html"
+    artifact.write_text(render_artifact(manifest, parse_manifest(manifest)), encoding="utf-8")
     page = reader_browser.new_page(viewport={"width": 1500, "height": 1000})
     errors = []
     page.on("pageerror", lambda error: errors.append(str(error)))
     try:
-        page.goto(report.as_uri() + "#chapter")
-        page.evaluate("obsPages.setPaged(false); obsReport.activateChapter('chapter')")
+        page.goto(artifact.as_uri() + "#chapter")
+        page.evaluate("obsPages.setPaged(false); obsArtifact.activateChapter('chapter')")
         table = page.locator('[data-active-chapter] [data-data-table="chapter-base-1"]')
         widths = table.locator(":scope > .data-table-scroll > table > thead th").evaluate_all(
             "nodes => nodes.slice(0, -1).map(n => n.getBoundingClientRect().width)",
@@ -543,10 +543,10 @@ def test_native_actual_subject_shares_stable_tabs_and_computed_detail_font(tmp_p
 def test_native_screen_relayout_cannot_clear_pending_print_sheets(tmp_path, reader_browser):
     from playwright.sync_api import expect
 
-    report = _control_report(tmp_path)
+    artifact = _control_artifact(tmp_path)
     page = reader_browser.new_page(viewport={"width": 1500, "height": 1000})
     try:
-        page.goto(report.as_uri() + "#chapter")
+        page.goto(artifact.as_uri() + "#chapter")
         page.evaluate("""() => {
             let preparations = 0;
             window.obsFigures = {
@@ -580,25 +580,25 @@ def test_native_screen_relayout_cannot_clear_pending_print_sheets(tmp_path, read
 def test_native_continuation_numbering_and_resize_from_last_sheet(tmp_path, reader_browser):
     from playwright.sync_api import expect
 
-    report = _control_report(tmp_path)
+    artifact = _control_artifact(tmp_path)
     page = reader_browser.new_page(viewport={"width": 1500, "height": 1000})
     try:
-        page.goto(report.as_uri() + "#chapter")
-        page.evaluate("obsReport.activateChapter('chapter'); obsPages.setPaged(true)")
-        page.wait_for_function("document.documentElement.dataset.reportStatus === 'ready'")
-        page.evaluate("obsReport.whenChapterReady()")
+        page.goto(artifact.as_uri() + "#chapter")
+        page.evaluate("obsArtifact.activateChapter('chapter'); obsPages.setPaged(true)")
+        page.wait_for_function("document.documentElement.dataset.artifactStatus === 'ready'")
+        page.evaluate("obsArtifact.whenChapterReady()")
         initial_labels = page.locator(".paged-reader .paper-page-number").all_text_contents()
         initial_numbers = [int(label.split()[1]) for label in initial_labels]
         total = int(initial_labels[0].split()[-1])
         assert initial_numbers == list(range(initial_numbers[0], initial_numbers[-1] + 1))
         assert 1 <= initial_numbers[0] <= initial_numbers[-1] <= total
         assert all(label.endswith(f" of {total}") for label in initial_labels)
-        page.evaluate("obsReport.activateChapter('after')")
+        page.evaluate("obsArtifact.activateChapter('after')")
         next_before = page.locator(".paged-reader .paper-page-number").first.inner_text()
         assert int(next_before.split()[1]) == initial_numbers[-1] + 1
         assert next_before.endswith(f" of {total}")
-        page.evaluate("obsReport.activateChapter('chapter')")
-        page.evaluate("obsReport.whenChapterReady()")
+        page.evaluate("obsArtifact.activateChapter('chapter')")
+        page.evaluate("obsArtifact.whenChapterReady()")
         assert page.locator(".paged-reader .paper-page-number").all_text_contents() == initial_labels
         projections = page.locator('.paged-reader [data-data-table="chapter-base-1"]')
         assert projections.count() > 1
@@ -635,17 +635,17 @@ def test_native_continuation_numbering_and_resize_from_last_sheet(tmp_path, read
             )
             assert len(keys) == len(set(keys)) == 65
         last_number = int(page.locator(".paged-reader .paper-page-number").last.inner_text().split()[1])
-        page.evaluate("obsReport.activateChapter('after')")
+        page.evaluate("obsArtifact.activateChapter('after')")
         expect(page.locator(".paged-reader .paper-page-number").first).to_have_text(next_before)
         number = int(page.locator(".paged-reader .paper-page-number").first.inner_text().split()[1])
         assert number == last_number + 1
-        page.evaluate("obsReport.activateChapter('home')")
+        page.evaluate("obsArtifact.activateChapter('home')")
         contents = page.locator('.paged-reader [data-contents-chapter="after"]')
         expect(contents).to_have_text(str(number))
         expect(page.locator('.paged-reader [data-contents-chapter="home"]')).to_have_count(0)
         page.evaluate("obsFilter.selectExpression('identifier: /^ID-1$/')")
-        page.evaluate("obsReport.activateChapter('chapter')")
-        page.evaluate("obsReport.whenChapterReady()")
+        page.evaluate("obsArtifact.activateChapter('chapter')")
+        page.evaluate("obsArtifact.whenChapterReady()")
         page.wait_for_function("""() => [...document.querySelectorAll(
             '.paged-reader .paper-page-number')].every(node => /^Page \\d+ of \\d+$/.test(node.textContent))""")
         filtered_labels = page.locator(".paged-reader .paper-page-number").all_text_contents()
@@ -654,12 +654,12 @@ def test_native_continuation_numbering_and_resize_from_last_sheet(tmp_path, read
             expect(page.locator(
                 f'.paged-reader [data-data-table="{key}"] tr[data-row-key]',
             )).to_have_count(1)
-        page.evaluate("obsReport.activateChapter('after')")
+        page.evaluate("obsArtifact.activateChapter('after')")
         assert int(page.locator(".paged-reader .paper-page-number").first.inner_text().split()[1]) == (
             int(filtered_labels[-1].split()[1]) + 1
         )
-        page.evaluate("obsReport.activateChapter('chapter')")
-        page.evaluate("obsReport.whenChapterReady()")
+        page.evaluate("obsArtifact.activateChapter('chapter')")
+        page.evaluate("obsArtifact.whenChapterReady()")
         assert page.locator(".paged-reader .paper-page-number").all_text_contents() == filtered_labels
         (tmp_path / "continuation-layout.json").write_text(json.dumps({
             "widthBefore": before, "keyboardWidths": after, "pointerWidths": pointer_widths,
@@ -677,14 +677,14 @@ def test_native_frozen_table_allocation_survives_detail_growth_and_pdf(tmp_path,
 
     text = "\n\n".join(f"Stable detail {index}: " + "Canonical detail remains accessible. " * 8
                        for index in range(24))
-    report = _control_report(tmp_path, subject_text="\n\n" + text)
+    artifact = _control_artifact(tmp_path, subject_text="\n\n" + text)
     page = reader_browser.new_page(viewport={"width": 1500, "height": 1000})
     errors = []
     page.on("pageerror", lambda error: errors.append(str(error)))
     try:
-        page.goto(report.as_uri() + "#chapter")
-        page.wait_for_function("document.documentElement.dataset.reportStatus === 'ready'")
-        page.evaluate("obsReport.whenChapterReady()")
+        page.goto(artifact.as_uri() + "#chapter")
+        page.wait_for_function("document.documentElement.dataset.artifactStatus === 'ready'")
+        page.evaluate("obsArtifact.whenChapterReady()")
         initial = page.locator(".paged-reader .paper-page-number").all_text_contents()
         fragments = {
             key: page.locator(f'.paged-reader [data-data-table="{key}"]').count()
@@ -713,12 +713,12 @@ def test_native_frozen_table_allocation_survives_detail_growth_and_pdf(tmp_path,
             return sheet.classList.contains('paper-sheet-flexible') &&
                 content.scrollHeight <= content.clientHeight + 1;
         }""")
-        page.evaluate("obsReport.activateChapter('after')")
+        page.evaluate("obsArtifact.activateChapter('after')")
         assert int(page.locator(".paged-reader .paper-page-number").first.inner_text().split()[1]) == (
             int(initial[-1].split()[1]) + 1
         )
-        page.evaluate("obsReport.activateChapter('chapter')")
-        page.evaluate("obsReport.whenChapterReady()")
+        page.evaluate("obsArtifact.activateChapter('chapter')")
+        page.evaluate("obsArtifact.whenChapterReady()")
         assert page.locator(".paged-reader .paper-page-number").all_text_contents() == initial
         expect(detail).to_contain_text("Stable detail 23:")
         page.evaluate("async () => {window.print = () => {}; await obsPages.exportPDF();}")
@@ -757,7 +757,7 @@ def test_native_frozen_table_allocation_survives_detail_growth_and_pdf(tmp_path,
 def test_native_expanded_figure_filter_updates_in_top_layer_without_disappearing(tmp_path, reader_browser):
     from playwright.sync_api import expect
 
-    report = _control_report(tmp_path)
+    artifact = _control_artifact(tmp_path)
     chapter = tmp_path / "source" / "chapter.md"
     chapter.write_text(chapter.read_text(encoding="utf-8") +
         "\n```figure\nversion: 1\nkind: sankey\nsource: graph.json\nalt: Small graph\n```\n",
@@ -771,10 +771,10 @@ def test_native_expanded_figure_filter_updates_in_top_layer_without_disappearing
                    "where": [{"field": "status", "equals": "Complete"}]}],
     }), encoding="utf-8")
     from obs_html.cli import main
-    assert main(["--source", str(tmp_path / "source" / "manifest.md"), "--output", str(report)]) == 0
+    assert main(["--source", str(tmp_path / "source" / "manifest.md"), "--output", str(artifact)]) == 0
     page = reader_browser.new_page(viewport={"width": 1500, "height": 1000})
     try:
-        page.goto(report.as_uri() + "#chapter")
+        page.goto(artifact.as_uri() + "#chapter")
         page.get_by_role("button", name="Expand figure", exact=True).click()
         dialog = page.get_by_role("dialog", name="Enlarged figure")
         expect(dialog.locator("figure")).to_be_visible()
@@ -823,14 +823,14 @@ def test_native_joined_empty_tabs_metadata_properties_and_counted_scoped_filters
         relation.write_text(relation.read_text(encoding="utf-8").replace(
             f"status: Complete {index}", f"status: {'Complete' if index < 8 else 'Pending'}",
         ), encoding="utf-8")
-    report = tmp_path / "table-controls.html"
-    report.write_text(render_report(manifest, parse_manifest(manifest)), encoding="utf-8")
+    artifact = tmp_path / "table-controls.html"
+    artifact.write_text(render_artifact(manifest, parse_manifest(manifest)), encoding="utf-8")
     page = reader_browser.new_page(viewport={"width": 1500, "height": 1000})
     errors = []
     page.on("pageerror", lambda error: errors.append(str(error)))
     try:
-        page.goto(report.as_uri())
-        page.evaluate("obsPages.setPaged(false); obsReport.activateChapter('chapter')")
+        page.goto(artifact.as_uri())
+        page.evaluate("obsPages.setPaged(false); obsArtifact.activateChapter('chapter')")
         table = page.locator("[data-active-chapter] [data-data-table='chapter-base-1']")
         expect(table).to_have_attribute("data-screen-page-breaks", "false")
         expect(table.locator("thead th").last).to_have_attribute("aria-label", "actions")
@@ -859,9 +859,9 @@ def test_native_joined_empty_tabs_metadata_properties_and_counted_scoped_filters
         expect(value.locator("small")).to_have_text("8")
         value.click()
         expect(table).to_have_attribute("data-filter-active", "true")
-        assert page.evaluate("obsReport.filterSummary().empty") is True
+        assert page.evaluate("obsArtifact.filterSummary().empty") is True
         assert table.locator("[aria-label='Filter table']").input_value().startswith("status:")
-        page.evaluate("obsReport.openBar('filter')")
+        page.evaluate("obsArtifact.openBar('filter')")
         page.locator("[data-filter-fields] .filter-field-button").filter(has_text="Status").click()
         global_picker = page.locator("[data-filter-fields] .filter-values:popover-open")
         expect(global_picker.locator("[data-filter-value='Complete'] small")).to_have_text("8")
@@ -876,7 +876,7 @@ def test_native_joined_empty_tabs_metadata_properties_and_counted_scoped_filters
         page.close()
 
 
-def _write_reader_report(root, spec=None, page_size=20):
+def _write_reader_artifact(root, spec=None, page_size=20):
     manifest = _write_reader_fixture(root)
     if spec:
         chapter = root / "chapter.md"
@@ -889,7 +889,7 @@ def _write_reader_report(root, spec=None, page_size=20):
     manifest.write_text(manifest.read_text(encoding="utf-8").replace(
         "- [[chapter]]", "- [[chapter]]\n- [[after]]"), encoding="utf-8")
     output = root / "reader.html"
-    output.write_text(render_report(manifest, parse_manifest(manifest), table_page_size=page_size),
+    output.write_text(render_artifact(manifest, parse_manifest(manifest), table_page_size=page_size),
                       encoding="utf-8")
     return output
 
@@ -901,14 +901,14 @@ def test_native_mounted_pagination_and_stable_logical_numbers(tmp_path, reader_b
         spec["views"][0]["obsHtml"].pop("pagination")
         spec["views"][0]["obsHtml"].update(wide=True, screenPageBreaks=False)
 
-    output = _write_reader_report(tmp_path, configure)
+    output = _write_reader_artifact(tmp_path, configure)
     page = reader_browser.new_page(viewport={"width": 1500, "height": 1000})
     try:
         page.goto(output.as_uri())
-        page.evaluate("obsPages.setPaged(true); obsReport.activateChapter('after')")
+        page.evaluate("obsPages.setPaged(true); obsArtifact.activateChapter('after')")
         page.wait_for_function("!document.querySelector('[data-active-chapter] [aria-busy=true]')")
         after = page.locator(".paged-reader .paper-page-number").all_text_contents()
-        page.evaluate("obsReport.activateChapter('chapter')")
+        page.evaluate("obsArtifact.activateChapter('chapter')")
         table = page.locator(".paged-reader [data-data-table='chapter-base-1']")
         expect(table.locator(".data-table-page")).to_have_text("Page 1 of 4")
         numbers = page.locator(".paged-reader .paper-page-number").all_text_contents()
@@ -940,9 +940,9 @@ def test_native_mounted_pagination_and_stable_logical_numbers(tmp_path, reader_b
         size.press("Tab")
         expect(table.locator(".data-table-page")).to_have_text("Page 1 of 13")
         assert page.locator(".paged-reader .paper-page-number").all_text_contents() == numbers
-        page.evaluate("obsReport.activateChapter('after')")
+        page.evaluate("obsArtifact.activateChapter('after')")
         expect(page.locator(".paged-reader .paper-page-number")).to_have_text(after)
-        page.evaluate("obsReport.activateChapter('chapter')")
+        page.evaluate("obsArtifact.activateChapter('chapter')")
         expect(table.locator(".data-table-page")).to_have_text("Page 1 of 4")
     finally:
         page.close()

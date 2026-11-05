@@ -2,12 +2,12 @@
     const inertType = "application/x-obs-html-script";
     const fail = (error) => {
         const message = document.createElement("p");
-        message.id = "report-initialization-error";
+        message.id = "artifact-initialization-error";
         message.setAttribute("role", "alert");
         message.textContent = `HTML could not be opened: ${error.message}`;
         document.querySelector("[data-chapter-body]")?.replaceChildren(message);
         if (!message.isConnected || message.closest("[inert]")) document.body.prepend(message);
-        document.documentElement.dataset.reportStatus = "error";
+        document.documentElement.dataset.artifactStatus = "error";
     };
     const streamBytes = async (bytes, Stream) => {
         const source = new ReadableStream({
@@ -59,11 +59,11 @@
         ? new Promise((resolve) => document.addEventListener("DOMContentLoaded", resolve, {once: true}))
         : Promise.resolve();
     const dataReady = parsed.then(async () => {
-        document.documentElement.dataset.reportStatus = "loading";
+        document.documentElement.dataset.artifactStatus = "loading";
         document.querySelector(".app-shell")?.setAttribute("inert", "");
         document.querySelector("[data-menu-button]")?.setAttribute("disabled", "");
         await paint();
-        const island = document.querySelector("[data-report-data]");
+        const island = document.querySelector("[data-artifact-data]");
         if (!island) throw new Error("Canonical document data is missing.");
         let text = island.textContent;
         if (island.dataset.encoding === "gzip") {
@@ -85,7 +85,7 @@
         delete island.dataset.encoding;
         return data;
     });
-    globalThis.obsReportTransport = Object.freeze({encode, writeIsland, restoreScripts});
+    globalThis.obsArtifactTransport = Object.freeze({encode, writeIsland, restoreScripts});
     globalThis.obsHtmlDataReady = dataReady;
     globalThis.obsHtmlReady = dataReady.then(async () => {
         for (const original of document.querySelectorAll(`script[type="${inertType}"]`)) {
@@ -114,7 +114,7 @@
             if (loaded) await loaded;
         }
         const selected = document.querySelector('meta[name="obs-trusted-runtime"]')?.content || "";
-        globalThis.obsReport?.validateApplicationRuntime?.(selected);
+        globalThis.obsArtifact?.validateApplicationRuntime?.(selected);
         document.querySelector(".app-shell")?.removeAttribute("inert");
         document.querySelector("[data-menu-button]")?.removeAttribute("disabled");
         document.dispatchEvent(new CustomEvent("obs-html-interactive"));
@@ -123,7 +123,7 @@
             await task.run();
         }
         opening = false;
-        document.documentElement.dataset.reportStatus = "ready";
+        document.documentElement.dataset.artifactStatus = "ready";
         document.dispatchEvent(new CustomEvent("obs-html-ready"));
     });
     globalThis.obsHtmlReady.catch(fail);

@@ -12,8 +12,8 @@ import pytest
 from obs_html.cli import main
 from obs_html.config import load_config
 from obs_html.content import parse_manifest
-from obs_html.renderer import render_report
-from obs_html.report_data import decode_report_data
+from obs_html.renderer import render_artifact
+from obs_html.artifact_data import decode_artifact_data
 from obs_html.reproduction import embedded_archive
 
 
@@ -56,10 +56,10 @@ def icon_fixture(root):
 
 def test_custom_catalog_resolves_base_and_framework_icons(tmp_path):
     manifest = icon_fixture(tmp_path)
-    report = render_report(manifest, parse_manifest(manifest), asset_index="assets.json")
-    data = decode_report_data(report)
+    artifact = render_artifact(manifest, parse_manifest(manifest), asset_index="assets.json")
+    data = decode_artifact_data(artifact)
     assert data["assets"]["project.evidence"]["value"] == {"glyph": "🧪\ufe0f"}
-    assert 'data-icon="menu" aria-hidden="true">CAT</span>' in report
+    assert 'data-icon="menu" aria-hidden="true">CAT</span>' in artifact
     chapter = next(note for note in data["notes"] if note["slug"] == "chapter")
     assert 'data-icon="mark.decision" aria-hidden="true">DEC</span>' in chapter["html"]
     assert chapter["tables"][0]["definition"]["properties"]["evidence"]["obsHtml"]["icon"]["name"] == "project.evidence"
@@ -102,8 +102,8 @@ def test_invalid_resources_fail_real_build_and_check(tmp_path, capsys, case, exp
             '<svg xmlns="http://www.w3.org/2000/svg"><script>alert(1)</script></svg>'
             if case == "script" else "<svg", encoding="utf-8",
         )
-    (source / "cfg.json").write_text('{"report":{"assetIndex":"assets.json"}}', encoding="utf-8")
-    output = tmp_path / "report.html"
+    (source / "cfg.json").write_text('{"artifact":{"assetIndex":"assets.json"}}', encoding="utf-8")
+    output = tmp_path / "artifact.html"
     with pytest.raises(SystemExit) as failure:
         main(["--source", str(manifest), "--output", str(output)] + (["--check"] if check else []))
     assert failure.value.code == 2
@@ -119,24 +119,24 @@ def test_local_asset_and_catalog_survive_actual_cli_extraction_and_rebuild(tmp_p
         "project.evidence": {"asset": "pixel.png"}, "icon.menu": {"glyph": "<🧪>"},
     })
     (source / "cfg.json").write_text(
-        '{"report":{"assetIndex":"assets.json","inactiveIconOpacity":0.3}}', encoding="utf-8",
+        '{"artifact":{"assetIndex":"assets.json","inactiveIconOpacity":0.3}}', encoding="utf-8",
     )
     config = load_config(ROOT / "src" / "obs_html" / "cfg.json", source / "cfg.json")
     assert config.asset_index == "assets.json"
-    output = tmp_path / "report.html"
+    output = tmp_path / "artifact.html"
     assert main(["--source", str(source), "--output", str(output), "--embed-source"]) == 0
-    report = output.read_text(encoding="utf-8")
-    assert "&lt;🧪&gt;" in report
-    data = decode_report_data(report)
+    artifact = output.read_text(encoding="utf-8")
+    assert "&lt;🧪&gt;" in artifact
+    data = decode_artifact_data(artifact)
     resource = data["assets"]["project.evidence"]["value"]["asset"]
     assert resource.startswith("obs-asset:")
     descriptor = data["embeddedAssets"][resource.split(":")[1]]
     assert descriptor["archivePath"] == "vault/pixel.png"
     assert base64.b64encode(PIXEL).decode() not in json.dumps(data)
     extracted = tmp_path / "extracted"
-    with ZipFile(BytesIO(embedded_archive(report))) as archive:
-        assert json.loads(archive.read("build-config.json"))["report"]["assetIndex"] == "assets.json"
-        assert json.loads(archive.read("build-config.json"))["report"]["inactiveIconOpacity"] == 0.3
+    with ZipFile(BytesIO(embedded_archive(artifact))) as archive:
+        assert json.loads(archive.read("build-config.json"))["artifact"]["assetIndex"] == "assets.json"
+        assert json.loads(archive.read("build-config.json"))["artifact"]["inactiveIconOpacity"] == 0.3
         assert archive.read("vault/pixel.png") == PIXEL
         assert "generator/src/obs_html/icons/filter.svg" in archive.namelist()
         assert "generator/src/obs_html/running-header.js" in archive.namelist()
@@ -147,7 +147,7 @@ def test_local_asset_and_catalog_survive_actual_cli_extraction_and_rebuild(tmp_p
         cwd=extracted, env=environment, capture_output=True, text=True, timeout=60,
     )
     assert rebuilt.returncode == 0, rebuilt.stdout + rebuilt.stderr
-    rebuilt_data = decode_report_data((extracted / "document.html").read_text(encoding="utf-8"))
+    rebuilt_data = decode_artifact_data((extracted / "document.html").read_text(encoding="utf-8"))
     assert rebuilt_data["assets"] == data["assets"]
     assert rebuilt_data["inactiveIconOpacity"] == 0.3
 
@@ -164,7 +164,7 @@ def test_download_compatibility_is_normalized_before_browser_projection(tmp_path
         "        linkProperty: url\n        unavailable: Missing\n        download: false\n"
         "views: [{type: table, order: [old, explicit]}]\n```\n", encoding="utf-8",
     )
-    data = decode_report_data(render_report(manifest, parse_manifest(manifest)))
+    data = decode_artifact_data(render_artifact(manifest, parse_manifest(manifest)))
     note = next(note for note in data["notes"] if note["slug"] == "chapter")
     properties = note["tables"][0]["definition"]["properties"]
     assert properties["old"]["obsHtml"]["icon"]["download"] is True
@@ -221,7 +221,7 @@ def test_native_resources_cover_static_late_disabled_saved_and_print_controls(tm
         )
     (source / "missing.md").write_text("---\nkind: evidence\ntitle: Missing evidence\nstatus: Ready\n---\n",
                                        encoding="utf-8")
-    (source / "cfg.json").write_text('{"report":{"assetIndex":"assets.json","tablePageSize":2}}',
+    (source / "cfg.json").write_text('{"artifact":{"assetIndex":"assets.json","tablePageSize":2}}',
                                    encoding="utf-8")
     output = tmp_path / "resources.html"
     assert main(["--source", str(source), "--output", str(output), "--embed-source",
@@ -237,8 +237,8 @@ def test_native_resources_cover_static_late_disabled_saved_and_print_controls(tm
         try:
             page.goto(output.as_uri() + "#chapter")
             page.evaluate("obsHtmlReady")
-            page.evaluate("obsPages.setPaged(false); obsReport.activateChapter('chapter')")
-            page.evaluate("obsReport.whenChapterReady()")
+            page.evaluate("obsPages.setPaged(false); obsArtifact.activateChapter('chapter')")
+            page.evaluate("obsArtifact.whenChapterReady()")
             menu_image = page.locator('[data-menu-button] [data-icon="menu"] img')
             expect(menu_image).to_have_count(1)
             assert menu_image.evaluate("image => image.complete && image.naturalWidth === 1")
@@ -270,7 +270,7 @@ def test_native_resources_cover_static_late_disabled_saved_and_print_controls(tm
             expect(table.locator('[data-clear-table-filter] [data-icon="close"]')).to_have_text("⊗")
             table.locator("[data-clear-table-filter]").click()
             table.locator(".data-table-options-toggle").click()
-            page.evaluate("obsReport.openBar('comments')")
+            page.evaluate("obsArtifact.openBar('comments')")
             expect(page.locator('.review-action--accept [data-icon="accept"]').first).to_have_text("✓")
             page.locator('[data-bar-close="comments"]').click()
             figure = page.locator("[data-active-chapter] figure")
@@ -283,8 +283,8 @@ def test_native_resources_cover_static_late_disabled_saved_and_print_controls(tm
             saved.write_text(page.evaluate("obsComments.reviewedHtml()"), encoding="utf-8")
             page.goto(saved.as_uri() + "#chapter")
             page.evaluate("obsHtmlReady")
-            page.evaluate("obsPages.setPaged(false); obsReport.activateChapter('chapter')")
-            page.evaluate("obsReport.whenChapterReady()")
+            page.evaluate("obsPages.setPaged(false); obsArtifact.activateChapter('chapter')")
+            page.evaluate("obsArtifact.whenChapterReady()")
             assert page.locator('[data-menu-button] img').evaluate("image => image.complete && image.naturalWidth > 0")
             assert page.locator('[data-bar-close] [data-icon="close"]').all_text_contents() == ["⊗"] * 5
             page.evaluate("window.print = () => {}; obsPages.exportPDF()")
@@ -300,7 +300,7 @@ def test_native_resources_cover_static_late_disabled_saved_and_print_controls(tm
             assert any("Named resources" in sheet.extract_text() for sheet in document.pages)
             assert any(sheet.images for sheet in document.pages)
             assert errors == []
-            data = decode_report_data(output.read_text(encoding="utf-8"))
+            data = decode_artifact_data(output.read_text(encoding="utf-8"))
             content_placeholders = {
                 f"obs-asset:{key}" for key, asset in data["embeddedAssets"].items()
                 if isinstance(asset, dict) and asset.get("archivePath") == "vault/figure.svg"

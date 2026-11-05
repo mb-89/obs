@@ -110,13 +110,13 @@ def test_static_sankey_declared_sinks_are_compact_above_and_below_flow(tmp_path)
 
 
 @pytest.fixture
-def parity_report(tmp_path):
+def parity_artifact(tmp_path):
     vault = tmp_path / "vault"
     vault.mkdir()
     (vault / "manifest.md").write_text(_manifest(QUERY, "- [[flow]]\n- [[results]]\n"), encoding="utf-8")
     # Route is near-unique (4 values / 4 records); the project ratio override keeps it a facet.
     (vault / "cfg.json").write_text(
-        json.dumps({"schemaVersion": 1, "report": {"facetDistinctRatio": 1}}),
+        json.dumps({"schemaVersion": 1, "artifact": {"facetDistinctRatio": 1}}),
         encoding="utf-8",
     )
     nodes = [
@@ -153,16 +153,16 @@ def parity_report(tmp_path):
         "```base\nfilters: 'kind == \"path\"'\nviews:\n"
         "  - type: table\n    order: [route, subject.name]\n```\n", encoding="utf-8",
     )
-    report = tmp_path / "report.html"
-    args = ["--source", str(vault), "--output", str(report)]
+    artifact = tmp_path / "artifact.html"
+    args = ["--source", str(vault), "--output", str(artifact)]
     assert main([*args, "--check"]) == 0
-    assert not report.exists()
+    assert not artifact.exists()
     assert main(args) == 0
-    return report, vault
+    return artifact, vault
 
 
 @pytest.fixture
-def parity_browser(parity_report):
+def parity_browser(parity_artifact):
     executable = os.environ.get("OBS_HTML_TEST_NATIVE_BROWSER")
     if not executable:
         pytest.skip("Set OBS_HTML_TEST_NATIVE_BROWSER for native filter/navigation checks.")
@@ -173,10 +173,10 @@ def parity_browser(parity_report):
         page.set_default_timeout(5000)
         errors = []
         page.on("pageerror", lambda error: errors.append(str(error)))
-        page.goto(parity_report[0].as_uri() + "#flow")
+        page.goto(parity_artifact[0].as_uri() + "#flow")
         page.evaluate("obsPages.setPaged(false)")
         try:
-            yield page, parity_report
+            yield page, parity_artifact
             assert errors == []
         finally:
             browser.close()
@@ -200,10 +200,10 @@ def test_native_sankey_selection_is_exact_visible_editable_and_clearable(parity_
     expression = input_box.input_value()
     assert "route:" in expression and "OR" in expression
     assert page.evaluate(
-        "obsReport.records.filter(obsReport.matchesFilter).filter(r=>r.fields.kind?.includes('path')).length"
+        "obsArtifact.records.filter(obsArtifact.matchesFilter).filter(r=>r.fields.kind?.includes('path')).length"
     ) == 2
     expect(graph.locator(".sankey-node")).to_have_count(2)
-    assert page.evaluate("obsReport.exportChapters().map(r=>r.slug)") == ["flow", "results"]
+    assert page.evaluate("obsArtifact.exportChapters().map(r=>r.slug)") == ["flow", "results"]
     fields = page.locator(".filter-field-button").evaluate_all(
         "buttons => buttons.map(button => button.firstChild.nodeValue)")
     assert fields == ["Route"]  # constant Subject is not discriminative
@@ -211,7 +211,7 @@ def test_native_sankey_selection_is_exact_visible_editable_and_clearable(parity_
     page.keyboard.press("Enter")
     expression = input_box.input_value()
     assert page.evaluate(
-        "obsReport.records.filter(obsReport.matchesFilter).filter(r=>r.fields.kind?.includes('path'))"
+        "obsArtifact.records.filter(obsArtifact.matchesFilter).filter(r=>r.fields.kind?.includes('path'))"
         ".map(r=>r.frontmatter.route)"
     ) == ["A.1"]
     token = page.locator("[data-filter-warning]")
@@ -220,7 +220,7 @@ def test_native_sankey_selection_is_exact_visible_editable_and_clearable(parity_
     expect(token).to_contain_text("2/2 chapters")
     expect(token).to_contain_text("3/3 paragraphs")
     expect(token).to_contain_text("1/4 records")
-    page.evaluate("obsReport.activateChapter('results')")
+    page.evaluate("obsArtifact.activateChapter('results')")
     expect(page.locator("[data-chapter-body] tbody tr[data-row-key]")).to_have_count(1)
     page.locator('[data-step="-1"]').click()
     expect(page.locator("[data-active-chapter]")).to_have_attribute("data-chapter", "flow")
@@ -244,14 +244,14 @@ def test_native_sankey_selection_is_exact_visible_editable_and_clearable(parity_
     expect(graph.locator(".sankey-node")).to_have_count(4)
 
 
-def test_native_default_chapter_filter_keeps_home_navigation(parity_report, parity_browser, tmp_path):
+def test_native_default_chapter_filter_keeps_home_navigation(parity_artifact, parity_browser, tmp_path):
     from playwright.sync_api import expect
-    page, (report, vault) = parity_browser
+    page, (artifact, vault) = parity_browser
     (vault / "cfg.json").write_text('{"schemaVersion":1}', encoding="utf-8")
     (vault / "manifest.md").write_text("- [[flow]]\n- [[results]]\n", encoding="utf-8")
-    chapter_report = tmp_path / "chapter-report.html"
-    assert main(["--source", str(vault), "--output", str(chapter_report)]) == 0
-    page.goto(chapter_report.as_uri() + "#flow")
+    chapter_artifact = tmp_path / "chapter-artifact.html"
+    assert main(["--source", str(vault), "--output", str(chapter_artifact)]) == 0
+    page.goto(chapter_artifact.as_uri() + "#flow")
     page.evaluate("obsPages.setPaged(false); obsFilter.setExpression('title: /^Results$/')")
     expect(page.locator("[data-active-chapter]")).to_have_attribute("data-chapter", "home")
     assert page.url.endswith("#home")
@@ -266,10 +266,10 @@ def test_native_default_chapter_filter_keeps_home_navigation(parity_report, pari
     assert page.locator('.chapter-breadcrumb-menu a[href="#flow"]').evaluate("(link)=>link.hidden")
     page.locator('[data-step="-1"]').click()
     expect(page.locator("[data-active-chapter]")).to_have_attribute("data-chapter", "home")
-    page.evaluate("obsReport.openBar('toc')")
+    page.evaluate("obsArtifact.openBar('toc')")
     assert page.locator('[data-toc-link="home"]').count() == 0
     page.evaluate("obsFilter.setExpression('title: /^Absent$/')")
-    assert page.evaluate("obsReport.exportChapters().length") == 0
+    assert page.evaluate("obsArtifact.exportChapters().length") == 0
     expect(page.locator("[data-active-chapter]")).to_have_attribute("data-chapter", "home")
     assert page.locator('[data-step="-1"]').is_disabled()
     assert page.locator('[data-step="1"]').is_disabled()
@@ -278,7 +278,7 @@ def test_native_default_chapter_filter_keeps_home_navigation(parity_report, pari
     assert page.locator('.page-contents a[href="#results"]').count() == 0
 
 
-def test_native_canonical_reference_alias_union_facets_and_edits(parity_report, parity_browser, tmp_path):
+def test_native_canonical_reference_alias_union_facets_and_edits(parity_artifact, parity_browser, tmp_path):
     from playwright.sync_api import expect
     page, (_, vault) = parity_browser
     query = {
@@ -290,7 +290,7 @@ def test_native_canonical_reference_alias_union_facets_and_edits(parity_report, 
     manifest = vault / "manifest.md"
     manifest.write_text(_manifest(query, manifest.read_text(encoding="utf-8").split("---\n", 2)[2]),
                         encoding="utf-8")
-    (vault / "cfg.json").write_text(json.dumps({"report": {}}), encoding="utf-8")
+    (vault / "cfg.json").write_text(json.dumps({"artifact": {}}), encoding="utf-8")
     for role, discipline in [("origin", "Design"), ("target", "Safety")]:
         (vault / f"{role}.md").write_text(
             f"---\nkind: subject\ndisciplines: [{discipline}]\n---\n", encoding="utf-8",
@@ -299,31 +299,31 @@ def test_native_canonical_reference_alias_union_facets_and_edits(parity_report, 
         text = path.read_text(encoding="utf-8")
         path.write_text(text.replace("kind: path", "kind: path\nroles:\n"
             "  origin: '[[origin]]'\n  target: ['[[target]]']"), encoding="utf-8")
-    report = tmp_path / "references.html"
-    assert main(["--source", str(vault), "--output", str(report)]) == 0
-    page.goto(report.as_uri() + "#flow")
-    page.evaluate("obsPages.setPaged(false); obsReport.openBar('filter')")
+    artifact = tmp_path / "references.html"
+    assert main(["--source", str(vault), "--output", str(artifact)]) == 0
+    page.goto(artifact.as_uri() + "#flow")
+    page.evaluate("obsPages.setPaged(false); obsArtifact.openBar('filter')")
     assert page.locator(".filter-field-button").evaluate_all(
         "buttons => buttons.map(button => button.firstChild.nodeValue)") == ["Discipline"]
     assert page.evaluate(
-        "obsReport.records.find(r=>r.frontmatter.kind==='path').fields.discipline"
+        "obsArtifact.records.find(r=>r.frontmatter.kind==='path').fields.discipline"
     ) == ["Design", "Safety"]
     page.locator(".filter-field-button").click()
     page.locator('[role="menuitemcheckbox"][data-filter-value="Safety"]').click()
     expect(page.locator("[data-filter-warning]")).to_contain_text("4/4 records")
     assert "discipline:" in page.locator("[data-filter-input]").input_value()
-    page.evaluate("""obsReport.commitCanonicalProjection([{
+    page.evaluate("""obsArtifact.commitCanonicalProjection([{
         slug:'target',fields:{disciplines:['Assurance']}
     }])""")
     expect(page.locator("[data-filter-warning]")).to_contain_text("0/4 records")
     expect(page.locator("[data-filter-status]")).to_have_text("0/4 records.")
     assert page.evaluate(
-        "obsReport.records.find(r=>r.frontmatter.kind==='path').fields.discipline"
+        "obsArtifact.records.find(r=>r.frontmatter.kind==='path').fields.discipline"
     ) == ["Design", "Assurance"]
     assert page.locator(".filter-value span").all_text_contents() == ["Assurance", "Design"]
     page.evaluate("obsFilter.setExpression('discipline: /^Assurance$/')")
     expect(page.locator("[data-filter-warning]")).to_contain_text("4/4 records")
-    state = json.loads(page.evaluate("obsReport.serializeModel()"))
+    state = json.loads(page.evaluate("obsArtifact.serializeModel()"))
     assert all("discipline" not in note["frontmatter"]
                for note in state["notes"] if note["frontmatter"].get("kind") == "path")
 
@@ -378,15 +378,15 @@ def test_native_programmatic_filter_updates_the_same_editable_owner_but_reapply_
     from playwright.sync_api import expect
     page, _ = parity_browser
     source = "route: /^A\\.1$/"
-    page.evaluate("source=>obsReport.setFilter(obsQuery.compile(source))", source)
+    page.evaluate("source=>obsArtifact.setFilter(obsQuery.compile(source))", source)
     input_box = page.locator("[data-filter-input]")
     expect(input_box).to_be_visible()
     expect(input_box).to_have_value(source)
     input_box.fill("route: /[")
-    page.evaluate("source=>obsReport.setFilter(obsQuery.compile(source))", source)
+    page.evaluate("source=>obsArtifact.setFilter(obsQuery.compile(source))", source)
     expect(input_box).to_have_value("route: /[")
     expect(page.locator("[data-filter-warning]")).to_contain_text("1/4 records")
-    page.evaluate("obsReport.setFilter(obsQuery.compile('route: /^B$/'))")
+    page.evaluate("obsArtifact.setFilter(obsQuery.compile('route: /^B$/'))")
     expect(input_box).to_have_value("route: /^B$/")
     expect(page.locator("[data-filter-status]")).to_have_text("1/4 records.")
 
@@ -427,23 +427,23 @@ def test_native_pointer_strand_and_existence_node_selection_use_ordinary_query(p
     expression = page.locator("[data-filter-input]").input_value()
     assert "subject.name" in expression and r"/\S/" in expression
     assert page.evaluate(
-        "obsReport.records.filter(obsReport.matchesFilter).filter(r=>r.frontmatter.kind==='path')"
+        "obsArtifact.records.filter(obsArtifact.matchesFilter).filter(r=>r.frontmatter.kind==='path')"
         ".map(r=>r.frontmatter.route)"
     ) == ["B"]
 
 
 def test_native_record_only_notes_stay_queryable_without_document_search_or_navigation(parity_browser):
     from playwright.sync_api import expect
-    page, (report, _) = parity_browser
-    page.evaluate("obsReport.openBar('search')")
+    page, (artifact, _) = parity_browser
+    page.evaluate("obsArtifact.openBar('search')")
     page.locator("[data-search-input]").fill('"Path paragraph"')
     expect(page.locator("[data-search-status]")).to_have_text("0 results.")
-    assert page.evaluate("obsReport.documentRecords().map(r=>r.slug)") == ["home", "flow", "results"]
-    assert page.evaluate("obsReport.records.filter(r=>r.frontmatter.kind==='path').length") == 4
-    page.evaluate("obsReport.activateChapter('results')")
+    assert page.evaluate("obsArtifact.documentRecords().map(r=>r.slug)") == ["home", "flow", "results"]
+    assert page.evaluate("obsArtifact.records.filter(r=>r.frontmatter.kind==='path').length") == 4
+    page.evaluate("obsArtifact.activateChapter('results')")
     expect(page.locator("[data-chapter-body] .data-table-tree-toggle")).to_have_count(0)
-    page.evaluate("obsReport.activateChapter('flow')")
-    page.evaluate("obsReport.openBar('search')")
+    page.evaluate("obsArtifact.activateChapter('flow')")
+    page.evaluate("obsArtifact.openBar('search')")
     link = page.get_by_role("link", name="Projection reference", exact=True)
     # A record-only note has a hover card and opens as context, never as a page
     # (input-model.md "Reference notes and link text").
@@ -456,8 +456,8 @@ def test_native_record_only_notes_stay_queryable_without_document_search_or_navi
     expect(page.locator("[data-guided-card] [data-guided-card-use]")).to_have_text("Context")
     expect(page.locator("[data-active-chapter]")).to_have_attribute("data-chapter", chapter)
     page.locator("[data-guided-card] [data-guided-card-close]").click()
-    slug = page.evaluate("obsReport.records.find(r=>r.frontmatter.kind==='path').slug")
-    page.evaluate("slug=>obsReport.activateChapter(slug)", slug)
+    slug = page.evaluate("obsArtifact.records.find(r=>r.frontmatter.kind==='path').slug")
+    page.evaluate("slug=>obsArtifact.activateChapter(slug)", slug)
     expect(page.locator("[data-active-chapter]")).to_have_attribute("data-chapter", "home")
-    page.goto(report.as_uri() + "#" + slug)
+    page.goto(artifact.as_uri() + "#" + slug)
     expect(page.locator("[data-active-chapter]")).to_have_attribute("data-chapter", "home")

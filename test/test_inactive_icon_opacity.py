@@ -4,7 +4,7 @@ import os
 import pytest
 
 from obs_html.cli import main
-from obs_html.report_data import decode_report_data
+from obs_html.artifact_data import decode_artifact_data
 from test_named_icons import PIXEL
 
 
@@ -16,7 +16,7 @@ def test_inactive_icon_opacity_rejects_invalid_config(tmp_path, value, check):
     (source / "manifest.md").write_text("- [[chapter]]\n", encoding="utf-8")
     (source / "chapter.md").write_text("# Chapter\n", encoding="utf-8")
     (source / "cfg.json").write_text(
-        json.dumps({"report": {"inactiveIconOpacity": value}}), encoding="utf-8",
+        json.dumps({"artifact": {"inactiveIconOpacity": value}}), encoding="utf-8",
     )
     with pytest.raises(SystemExit) as failure:
         main(["--source", str(source), "--output", str(tmp_path / "invalid.html")] +
@@ -53,13 +53,13 @@ def test_native_inactive_icon_opacity_is_icon_only_across_media(tmp_path, overri
     settings = {"assetIndex": "assets.json"}
     if override is not None:
         settings["inactiveIconOpacity"] = override
-    (source / "cfg.json").write_text(json.dumps({"report": settings}), encoding="utf-8")
+    (source / "cfg.json").write_text(json.dumps({"artifact": settings}), encoding="utf-8")
     output = tmp_path / "icons.html"
     args = ["--source", str(source), "--output", str(output)]
     assert main(args + ["--check"]) == 0
     assert main(args) == 0
     expected = override if override is not None else 0.45
-    assert decode_report_data(output.read_text(encoding="utf-8"))["inactiveIconOpacity"] == expected
+    assert decode_artifact_data(output.read_text(encoding="utf-8"))["inactiveIconOpacity"] == expected
     with sync_playwright() as playwright:
         browser = playwright.chromium.launch(executable_path=os.environ["OBS_HTML_TEST_NATIVE_BROWSER"])
         page = browser.new_page()

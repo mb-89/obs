@@ -6,7 +6,7 @@ from pathlib import Path
 from zipfile import ZipFile
 
 import pytest
-from obs_html.report_data import decode_report_data
+from obs_html.artifact_data import decode_artifact_data
 from producer_commands import python_command
 
 from obs_html.cli import (
@@ -43,14 +43,14 @@ def test_help_is_the_complete_cli_reference() -> None:
 @pytest.mark.parametrize("argument", ["--source=vault", "--config=cfg.json"])
 def test_pdf_rejects_generation_options_in_equals_form(argument, capsys) -> None:
     with pytest.raises(SystemExit, match="2"):
-        main(["--export-pdf", "report.html", "--output=report.pdf", argument])
+        main(["--export-pdf", "artifact.html", "--output=artifact.pdf", argument])
     assert "cannot be combined" in capsys.readouterr().err
 
 
 def test_pdf_accepts_equals_output(tmp_path, monkeypatch) -> None:
-    output = tmp_path / "report.pdf"
+    output = tmp_path / "artifact.pdf"
     monkeypatch.setattr("obs_html.pdf.export_pdf", lambda _path: b"pdf fixture")
-    assert main(["--export-pdf=report.html", f"--output={output}"]) == 0
+    assert main(["--export-pdf=artifact.html", f"--output={output}"]) == 0
     assert output.read_bytes() == b"pdf fixture"
 
 
@@ -65,10 +65,10 @@ def test_parser_defaults_to_the_tools_spec_folder() -> None:
 def test_parser_accepts_path_overrides() -> None:
     parser = build_parser()
     args = parser.parse_args(
-        ["--source", "vault", "--output", "report", "--config", "custom.json"]
+        ["--source", "vault", "--output", "artifact", "--config", "custom.json"]
     )
 
-    assert _documents(parser, args) == [(Path("vault"), Path("report"), None)]
+    assert _documents(parser, args) == [(Path("vault"), Path("artifact"), None)]
     assert args.config == Path("custom.json")
 
 
@@ -88,12 +88,12 @@ def test_cli_generates_one_html_file(tmp_path, capsys) -> None:
     vault.mkdir()
     (vault / "chapter.md").write_text("# Generated\n\nBody.", encoding="utf-8")
     (vault / "manifest.md").write_text("- [[chapter]]\n", encoding="utf-8")
-    output = tmp_path / "output" / "report.html"
+    output = tmp_path / "output" / "artifact.html"
 
     assert main(["--source", str(vault), "--output", str(output)]) == 0
 
     assert output.read_text(encoding="utf-8").startswith("<!doctype html>")
-    assert "Generated" in decode_report_data(output.read_text(encoding="utf-8"))["notes"][1]["html"]
+    assert "Generated" in decode_artifact_data(output.read_text(encoding="utf-8"))["notes"][1]["html"]
     assert "from 1 chapters" in capsys.readouterr().out
 
 
@@ -102,7 +102,7 @@ def test_cli_records_generator_and_target_repository_provenance(tmp_path, monkey
     vault.mkdir(parents=True)
     (vault / "chapter.md").write_text("# Generated\n", encoding="utf-8")
     (vault / "manifest.md").write_text("- [[chapter]]\n", encoding="utf-8")
-    output = tmp_path / "report.html"
+    output = tmp_path / "artifact.html"
     calls = []
 
     def provenance(path):
@@ -114,7 +114,7 @@ def test_cli_records_generator_and_target_repository_provenance(tmp_path, monkey
     monkeypatch.setattr("obs_html.cli._repository_provenance", provenance)
     monkeypatch.setattr("obs_html.cli.version", lambda _name: "1.2.3")
     assert main(["--source", str(vault), "--output", str(output)]) == 0
-    generation = decode_report_data(output.read_text(encoding="utf-8"))["document"]["generation"]
+    generation = decode_artifact_data(output.read_text(encoding="utf-8"))["document"]["generation"]
     assert list(generation) == ["timestamp", "generator", "target"]
     assert generation["generator"] == {
         "name": "obs-html", "version": "generator-git-description", "commit": "a" * 40,
@@ -159,7 +159,7 @@ def test_trusted_runtime_can_be_embedded_without_source_archive(tmp_path) -> Non
     (vault / "chapter.md").write_text("# Generated", encoding="utf-8")
     (vault / "manifest.md").write_text("- [[chapter]]\n", encoding="utf-8")
     (vault / "runtime.js").write_text("globalThis.trustedFixture = true;", encoding="utf-8")
-    output = tmp_path / "report.html"
+    output = tmp_path / "artifact.html"
     assert main([
         "--source", str(vault), "--output", str(output),
         "--trusted-runtime-bundle", "fixture-v1=" + str(vault / "runtime.js"),
@@ -184,7 +184,7 @@ def test_cli_embeds_only_the_explicit_trusted_runtime(tmp_path, monkeypatch) -> 
     with ZipFile(archive, "w"):
         pass
     monkeypatch.setattr("obs_html.cli.source_archive", lambda *_args: archive.getvalue())
-    output = tmp_path / "report.html"
+    output = tmp_path / "artifact.html"
     assert main([
         "--source", str(vault), "--output", str(output), "--embed-source",
         "--trusted-runtime-bundle", f"fixture-v1={runtime}",
@@ -204,7 +204,7 @@ def test_cli_rejects_runtime_outside_the_selected_vault(tmp_path, monkeypatch, c
     runtime.write_text("globalThis.trustedFixture = true;", encoding="utf-8")
     with pytest.raises(SystemExit, match="2"):
         main([
-            "--source", str(vault), "--output", str(tmp_path / "report.html"),
+            "--source", str(vault), "--output", str(tmp_path / "artifact.html"),
             "--embed-source", "--trusted-runtime-bundle", f"fixture-v1={runtime}",
         ])
     assert "must be a regular file inside the selected vault" in capsys.readouterr().err
@@ -219,13 +219,13 @@ def test_cli_checks_and_generates_explicitly_empty_cover_title(tmp_path, capsys)
         "---\ntitle: ''\nsubtitle: Source → Target\n---\n- [[chapter]]\n",
         encoding="utf-8",
     )
-    output = tmp_path / "report.html"
+    output = tmp_path / "artifact.html"
     assert main(["--source", str(manifest), "--output", str(output), "--check"]) == 0
     assert not output.exists()
     assert main(["--source", str(manifest), "--output", str(output)]) == 0
-    report = output.read_text(encoding="utf-8")
-    data = decode_report_data(report)
-    assert "<title>My document</title>" in report
+    artifact = output.read_text(encoding="utf-8")
+    data = decode_artifact_data(artifact)
+    assert "<title>My document</title>" in artifact
     assert "document-title" not in data["notes"][0]["html"]
     assert "Source → Target" in data["notes"][0]["html"]
     assert "from 1 chapters" in capsys.readouterr().out
@@ -241,7 +241,7 @@ def test_cli_check_rejects_protected_editor_projection(tmp_path, capsys) -> None
         "projection:\n  blank: {title: Changed}\n  nonblank: {title: Original}\n```\n",
         encoding="utf-8",
     )
-    output = tmp_path / "report.html"
+    output = tmp_path / "artifact.html"
     with pytest.raises(SystemExit, match="2"):
         main(["--source", str(vault), "--output", str(output), "--check"])
     assert "Property editor" in capsys.readouterr().err
@@ -256,7 +256,7 @@ def test_check_validates_commands_without_execution_or_output(tmp_path, monkeypa
     def unexpected_execution(*args, **kwargs):
         pytest.fail("Check mode executed an authored command.")
     monkeypatch.setattr("obs_html.cli.run_command", unexpected_execution)
-    output = tmp_path / "not-created" / "report.html"
+    output = tmp_path / "not-created" / "artifact.html"
     assert main(["--source", str(vault), "--output", str(output), "--check"]) == 0
     assert not output.parent.exists()
     assert "no commands executed" in capsys.readouterr().out
@@ -283,20 +283,20 @@ def test_authorized_silent_producers_create_inputs_before_conversion(tmp_path) -
     (vault / "template.md").write_text(
         "# Generated\n\nGenerated note.\n\n![Producer figure](generated.svg)\n", encoding="utf-8",
     )
-    output = tmp_path / "report.html"
+    output = tmp_path / "artifact.html"
 
     assert main(["--source", str(vault), "--output", str(output), "--execute-commands"]) == 0
 
-    report = output.read_text(encoding="utf-8")
-    data = decode_report_data(report)
+    artifact = output.read_text(encoding="utf-8")
+    data = decode_artifact_data(artifact)
     generated = next(note for note in data["notes"] if note["slug"] == "generated")
     assert "Generated note." in generated["html"]
     assert 'src="data:image/svg+xml;base64,PHN2Zy8+" alt="Producer figure" />' in generated["html"]
-    assert "shutil.copyfile" not in report
+    assert "shutil.copyfile" not in artifact
 
 
 @pytest.mark.parametrize("check", [False, True])
-def test_unauthorized_silent_producers_use_existing_artifacts_without_execution(
+def test_unauthorized_silent_producers_use_existing_files_without_execution(
     tmp_path, check,
 ) -> None:
     vault = tmp_path / "vault"
@@ -305,8 +305,8 @@ def test_unauthorized_silent_producers_use_existing_artifacts_without_execution(
     (vault / "producer.md").write_text(
         "# Producer\n\n```cmd silent\nmust-not-run\n```\n", encoding="utf-8",
     )
-    (vault / "generated.md").write_text("# Generated\n\nExisting artifact.\n", encoding="utf-8")
-    output = tmp_path / "report.html"
+    (vault / "generated.md").write_text("# Generated\n\nExisting file.\n", encoding="utf-8")
+    output = tmp_path / "artifact.html"
     arguments = ["--source", str(vault), "--output", str(output)]
     if check:
         arguments.append("--check")
@@ -316,12 +316,12 @@ def test_unauthorized_silent_producers_use_existing_artifacts_without_execution(
     if check:
         assert not output.exists()
     else:
-        data = decode_report_data(output.read_text(encoding="utf-8"))
+        data = decode_artifact_data(output.read_text(encoding="utf-8"))
         generated = next(note for note in data["notes"] if note["slug"] == "generated")
-        assert "Existing artifact." in generated["html"]
+        assert "Existing file." in generated["html"]
 
 
-def test_unauthorized_silent_producer_missing_artifact_fails_clearly(tmp_path, capsys) -> None:
+def test_unauthorized_silent_producer_missing_file_fails_clearly(tmp_path, capsys) -> None:
     vault = tmp_path / "vault"
     vault.mkdir()
     (vault / "manifest.md").write_text("- [[producer]]\n- [[generated]]\n", encoding="utf-8")
@@ -330,7 +330,7 @@ def test_unauthorized_silent_producer_missing_artifact_fails_clearly(tmp_path, c
     )
 
     with pytest.raises(SystemExit, match="2"):
-        main(["--source", str(vault), "--output", str(tmp_path / "report.html")])
+        main(["--source", str(vault), "--output", str(tmp_path / "artifact.html")])
 
     assert "Manifest target does not exist: generated" in capsys.readouterr().err
 
@@ -348,14 +348,14 @@ def test_conversion_failure_after_authorized_producer_preserves_previous_output(
         encoding="utf-8",
     )
     (vault / "template.md").write_text("# Generated\n\n[[missing]]\n", encoding="utf-8")
-    output = tmp_path / "report.html"
-    output.write_text("previous report", encoding="utf-8")
+    output = tmp_path / "artifact.html"
+    output.write_text("previous artifact", encoding="utf-8")
 
     with pytest.raises(SystemExit, match="2"):
         main(["--source", str(vault), "--output", str(output), "--execute-commands"])
 
     assert "Unresolved note reference" in capsys.readouterr().err
-    assert output.read_text(encoding="utf-8") == "previous report"
+    assert output.read_text(encoding="utf-8") == "previous artifact"
 
 
 def test_cli_checks_and_renders_card_metric_links_and_base_queries(tmp_path, capsys) -> None:
@@ -392,13 +392,13 @@ def test_cli_checks_and_renders_card_metric_links_and_base_queries(tmp_path, cap
         "---\nkind: evidence\nlabel: Canonical evidence\n---\nEvidence details.\n",
         encoding="utf-8",
     )
-    output = tmp_path / "output" / "report.html"
+    output = tmp_path / "output" / "artifact.html"
 
     assert main(["--source", str(vault), "--check"]) == 0
     assert not output.exists()
     assert main(["--source", str(vault), "--output", str(output)]) == 0
-    report = output.read_text(encoding="utf-8")
-    data = decode_report_data(report)
+    artifact = output.read_text(encoding="utf-8")
+    data = decode_artifact_data(artifact)
     home = next(note for note in data["notes"] if note["slug"] == "home")
     assert 'data-base-table="home-base-1"' in home["html"]
     assert any(note["slug"] == "evidence" for note in data["notes"])
@@ -452,15 +452,15 @@ def test_cli_checks_and_renders_quantity_notes(tmp_path, capsys) -> None:
         encoding="utf-8",
     )
     (vault / "drawing.md").write_text("# Drawing\n", encoding="utf-8")
-    output = tmp_path / "report.html"
+    output = tmp_path / "artifact.html"
 
     assert main(["--source", str(vault), "--check"]) == 0
     assert not output.exists()
     assert main(["--source", str(vault), "--output", str(output)]) == 0
-    report = output.read_text(encoding="utf-8")
-    store = re.search(r'<script id="report-data"[^>]*>(.*?)</script>', report, re.DOTALL)
+    artifact = output.read_text(encoding="utf-8")
+    store = re.search(r'<script id="artifact-data"[^>]*>(.*?)</script>', artifact, re.DOTALL)
     assert store
-    data = decode_report_data(store[0])
+    data = decode_artifact_data(store[0])
     chapter = next(note for note in data["notes"] if note["slug"] == "chapter")
     assert '<a href="#flatness">20 µm</a>' in chapter["html"]
     capsys.readouterr()
@@ -481,18 +481,18 @@ def test_check_rejects_command_execution(capsys) -> None:
     assert "cannot be combined" in capsys.readouterr().err
 
 
-def test_atomic_write_failure_preserves_previous_report_and_removes_temporary_file(
+def test_atomic_write_failure_preserves_previous_artifact_and_removes_temporary_file(
     tmp_path, monkeypatch,
 ) -> None:
-    output = tmp_path / "report.html"
-    output.write_text("previous report", encoding="utf-8")
+    output = tmp_path / "artifact.html"
+    output.write_text("previous artifact", encoding="utf-8")
     def fail_replace(_source, _destination):
         raise OSError("Replacement denied")
     monkeypatch.setattr(Path, "replace", fail_replace)
     with pytest.raises(OSError, match="Replacement denied"):
-        _write_if_changed(output, "new report")
-    assert output.read_text(encoding="utf-8") == "previous report"
-    assert sorted(path.name for path in tmp_path.iterdir()) == ["report.html"]
+        _write_if_changed(output, "new artifact")
+    assert output.read_text(encoding="utf-8") == "previous artifact"
+    assert sorted(path.name for path in tmp_path.iterdir()) == ["artifact.html"]
 
 
 def test_second_identical_build_writes_no_files(tmp_path, monkeypatch) -> None:
@@ -533,7 +533,7 @@ def test_second_identical_build_writes_no_files(tmp_path, monkeypatch) -> None:
     assert temporary_files == []
     assert output.stat().st_mtime_ns == 1_000_000_000
     assert output.read_bytes() == first
-    assert decode_report_data(first.decode("utf-8"))["document"]["generation"]["timestamp"] == (
+    assert decode_artifact_data(first.decode("utf-8"))["document"]["generation"]["timestamp"] == (
         "2026-01-01T00:00:00+00:00")
     assert sorted(path.name for path in output.parent.iterdir()) == ["document.html"]
 
@@ -541,7 +541,7 @@ def test_second_identical_build_writes_no_files(tmp_path, monkeypatch) -> None:
     assert main(arguments) == 0
 
     assert len(temporary_files) == 1
-    changed = decode_report_data(output.read_text(encoding="utf-8"))
+    changed = decode_artifact_data(output.read_text(encoding="utf-8"))
     assert changed["document"]["generation"]["timestamp"] == "2026-01-03T00:00:00+00:00"
     assert "Changed body." in changed["notes"][1]["html"]
 
@@ -564,7 +564,7 @@ def test_project_config_replaces_default_filter_presets(tmp_path, capsys) -> Non
     (vault / "cfg.json").write_text(
         json.dumps({
             "schemaVersion": 1,
-            "report": {
+            "artifact": {
                 "filterPresets": [
                     {"label": "Generated only", "expression": "title: Generated"}
                 ]
@@ -572,14 +572,14 @@ def test_project_config_replaces_default_filter_presets(tmp_path, capsys) -> Non
         }),
         encoding="utf-8",
     )
-    output = tmp_path / "report.html"
+    output = tmp_path / "artifact.html"
 
     assert main(["--source", str(vault), "--output", str(output)]) == 0
 
-    report = output.read_text(encoding="utf-8")
-    store = re.search(r'<script id="report-data"[^>]*>(.*?)</script>', report, re.DOTALL)
+    artifact = output.read_text(encoding="utf-8")
+    store = re.search(r'<script id="artifact-data"[^>]*>(.*?)</script>', artifact, re.DOTALL)
     assert store
-    data = decode_report_data(store[0])
+    data = decode_artifact_data(store[0])
     assert data["filterPresets"] == [
         {"label": "Generated only", "expression": "title: Generated"}
     ]
@@ -587,15 +587,15 @@ def test_project_config_replaces_default_filter_presets(tmp_path, capsys) -> Non
 
 
 def test_cli_extracts_comments_without_generating(tmp_path, capsys) -> None:
-    report = tmp_path / "reviewed.html"
-    report.write_text(
+    artifact = tmp_path / "reviewed.html"
+    artifact.write_text(
         '<script id="obs-comments" type="application/json">'
         '{"version":2,"annotations":[],"reviewers":[],"reviews":[]}'
         "</script>",
         encoding="utf-8",
     )
 
-    assert main(["--extract-comments", str(report)]) == 0
+    assert main(["--extract-comments", str(artifact)]) == 0
 
     assert capsys.readouterr().out == "comment candidates: 0\n"
 
@@ -605,7 +605,7 @@ def test_cli_rejects_output_inside_source_vault(tmp_path, capsys) -> None:
     (tmp_path / "manifest.md").write_text("- [[chapter]]\n", encoding="utf-8")
 
     with pytest.raises(SystemExit, match="2"):
-        main(["--source", str(tmp_path), "--output", str(tmp_path / "report.html")])
+        main(["--source", str(tmp_path), "--output", str(tmp_path / "artifact.html")])
 
     assert "Output must be outside the source vault" in capsys.readouterr().err
 
@@ -618,19 +618,19 @@ def test_project_can_enable_a_tag_border(tmp_path) -> None:
     )
     (vault / "manifest.md").write_text("- [[chapter]]\n", encoding="utf-8")
     (vault / "cfg.json").write_text(
-        json.dumps({"report": {"borderedTags": ["risk"]}}), encoding="utf-8"
+        json.dumps({"artifact": {"borderedTags": ["risk"]}}), encoding="utf-8"
     )
-    output = tmp_path / "report.html"
+    output = tmp_path / "artifact.html"
 
     assert main(["--source", str(vault), "--output", str(output)]) == 0
 
     store = re.search(
-        r'<script id="report-data"[^>]*>(.*?)</script>',
+        r'<script id="artifact-data"[^>]*>(.*?)</script>',
         output.read_text(encoding="utf-8"),
         re.DOTALL,
     )
     assert store
-    chapter = decode_report_data(store[0])["notes"][1]
+    chapter = decode_artifact_data(store[0])["notes"][1]
     assert '<section class="content-card">' in chapter["html"]
     assert '<header class="content-card-title">Risk</header>' in chapter["html"]
 
@@ -640,11 +640,11 @@ def test_project_rejects_invalid_bordered_tags(tmp_path, capsys, tags) -> None:
     (tmp_path / "chapter.md").write_text("# Chapter", encoding="utf-8")
     (tmp_path / "manifest.md").write_text("- [[chapter]]\n", encoding="utf-8")
     (tmp_path / "cfg.json").write_text(
-        json.dumps({"report": {"borderedTags": tags}}), encoding="utf-8"
+        json.dumps({"artifact": {"borderedTags": tags}}), encoding="utf-8"
     )
 
     with pytest.raises(SystemExit, match="2"):
-        main(["--source", str(tmp_path), "--output", str(tmp_path.parent / "report.html")])
+        main(["--source", str(tmp_path), "--output", str(tmp_path.parent / "artifact.html")])
 
     assert "borderedTags" in capsys.readouterr().err
 
@@ -653,16 +653,16 @@ def test_project_overrides_initial_table_page_size(tmp_path) -> None:
     (tmp_path / "chapter.md").write_text("# Chapter", encoding="utf-8")
     (tmp_path / "manifest.md").write_text("- [[chapter]]\n", encoding="utf-8")
     (tmp_path / "cfg.json").write_text(
-        json.dumps({"report": {"tablePageSize": 7}}), encoding="utf-8"
+        json.dumps({"artifact": {"tablePageSize": 7}}), encoding="utf-8"
     )
     output = tmp_path.parent / f"{tmp_path.name}.html"
 
     assert main(["--source", str(tmp_path), "--output", str(output)]) == 0
     store = re.search(
-        r'<script id="report-data"[^>]*>(.*?)</script>',
+        r'<script id="artifact-data"[^>]*>(.*?)</script>',
         output.read_text(encoding="utf-8"), re.DOTALL,
     )
-    assert store and decode_report_data(store[0])["tablePageSize"] == 7
+    assert store and decode_artifact_data(store[0])["tablePageSize"] == 7
 
 
 @pytest.mark.parametrize("size", [0, -1, 1.5, "20"])
@@ -670,7 +670,7 @@ def test_project_rejects_invalid_table_page_size(tmp_path, size, capsys) -> None
     (tmp_path / "chapter.md").write_text("# Chapter", encoding="utf-8")
     (tmp_path / "manifest.md").write_text("- [[chapter]]\n", encoding="utf-8")
     (tmp_path / "cfg.json").write_text(
-        json.dumps({"report": {"tablePageSize": size}}), encoding="utf-8"
+        json.dumps({"artifact": {"tablePageSize": size}}), encoding="utf-8"
     )
     with pytest.raises(SystemExit, match="2"):
         main(["--source", str(tmp_path), "--output", str(tmp_path.parent / "out.html")])
@@ -681,17 +681,17 @@ def test_project_overrides_hover_card_limits(tmp_path) -> None:
     (tmp_path / "chapter.md").write_text("# Chapter", encoding="utf-8")
     (tmp_path / "manifest.md").write_text("- [[chapter]]\n", encoding="utf-8")
     (tmp_path / "cfg.json").write_text(
-        json.dumps({"report": {"hoverCard": {"excerptCharacters": 100, "metadataEntries": 0}}}),
+        json.dumps({"artifact": {"hoverCard": {"excerptCharacters": 100, "metadataEntries": 0}}}),
         encoding="utf-8",
     )
     output = tmp_path.parent / f"{tmp_path.name}.html"
     assert main(["--source", str(tmp_path), "--output", str(output)]) == 0
     store = re.search(
-        r'<script id="report-data"[^>]*>(.*?)</script>',
+        r'<script id="artifact-data"[^>]*>(.*?)</script>',
         output.read_text(encoding="utf-8"), re.DOTALL,
     )
     assert store
-    preview = decode_report_data(store[0])["hoverCard"]
+    preview = decode_artifact_data(store[0])["hoverCard"]
     assert preview["excerptCharacters"] == 100
     assert preview["metadataEntries"] == 0
     assert preview["showDelayMilliseconds"] >= 0
@@ -701,7 +701,7 @@ def test_project_overrides_reading_and_print_readiness(tmp_path, capsys) -> None
     (tmp_path / "chapter.md").write_text("# Chapter", encoding="utf-8")
     (tmp_path / "manifest.md").write_text("- [[chapter]]\n", encoding="utf-8")
     (tmp_path / "cfg.json").write_text(
-        json.dumps({"report": {
+        json.dumps({"artifact": {
             "printReadyTimeoutMilliseconds": 8000,
             "reading": {"paragraphWarningLines": 4, "headingSpaceBeforeEm": 1,
                         "headingSpaceAfterEm": 0.25, "paragraphMinimumLines": 3},
@@ -711,14 +711,14 @@ def test_project_overrides_reading_and_print_readiness(tmp_path, capsys) -> None
     output = tmp_path.parent / f"{tmp_path.name}.html"
     assert main(["--source", str(tmp_path), "--output", str(output)]) == 0
     store = re.search(
-        r'<script id="report-data"[^>]*>(.*?)</script>',
+        r'<script id="artifact-data"[^>]*>(.*?)</script>',
         output.read_text(encoding="utf-8"), re.DOTALL,
     )
     assert store
-    paper = decode_report_data(store[0])["paper"]
+    paper = decode_artifact_data(store[0])["paper"]
     assert paper == {"widthMillimeters": 210, "heightMillimeters": 297, "marginMillimeters": 20}
-    assert decode_report_data(store[0])["printReadyTimeoutMilliseconds"] == 8000
-    assert decode_report_data(store[0])["reading"] == {
+    assert decode_artifact_data(store[0])["printReadyTimeoutMilliseconds"] == 8000
+    assert decode_artifact_data(store[0])["reading"] == {
         "theme": "light", "paged": True, "codeFontPoints": 8,
         "headingSpaceBeforeEm": 1, "headingSpaceAfterEm": 0.25, "paragraphMinimumLines": 3,
         "pingPeriodMilliseconds": 250, "pingCount": 4, "pingScale": 6,
@@ -729,18 +729,18 @@ def test_project_accepts_ping_scale_at_configured_limit(tmp_path) -> None:
     (tmp_path / "chapter.md").write_text("# Chapter", encoding="utf-8")
     (tmp_path / "manifest.md").write_text("- [[chapter]]\n", encoding="utf-8")
     (tmp_path / "cfg.json").write_text(
-        json.dumps({"report": {"reading": {"pingScale": 10}}}),
+        json.dumps({"artifact": {"reading": {"pingScale": 10}}}),
         encoding="utf-8",
     )
     output = tmp_path.parent / f"{tmp_path.name}.html"
 
     assert main(["--source", str(tmp_path), "--output", str(output)]) == 0
     store = re.search(
-        r'<script id="report-data"[^>]*>(.*?)</script>',
+        r'<script id="artifact-data"[^>]*>(.*?)</script>',
         output.read_text(encoding="utf-8"), re.DOTALL,
     )
     assert store
-    assert decode_report_data(store[0])["reading"]["pingScale"] == 10
+    assert decode_artifact_data(store[0])["reading"]["pingScale"] == 10
 
 
 @pytest.mark.parametrize("embed", [True, False])
@@ -749,11 +749,11 @@ def test_pdf_embedding_can_be_disabled_without_affecting_other_assets(tmp_path, 
     (tmp_path / "manifest.md").write_text("- [[chapter]]\n")
     (tmp_path / "source.pdf").write_bytes(b"%PDF-example")
     (tmp_path / "source.txt").write_text("Other attachment")
-    (tmp_path / "cfg.json").write_text(json.dumps({"report": {"embedPdfs": embed}}))
+    (tmp_path / "cfg.json").write_text(json.dumps({"artifact": {"embedPdfs": embed}}))
     output = tmp_path.parent / f"{tmp_path.name}.html"
     assert main(["--source", str(tmp_path), "--output", str(output), "--embed-attachments"]) == 0
-    report = output.read_text(encoding="utf-8")
-    decoded = json.dumps(decode_report_data(report))
+    artifact = output.read_text(encoding="utf-8")
+    decoded = json.dumps(decode_artifact_data(artifact))
     assert ("data:application/pdf;base64," in decoded) == embed
     assert "data:application/octet-stream;base64," in decoded
     if not embed:
@@ -764,7 +764,7 @@ def test_project_figure_dimensions_are_configurable_and_bounded(tmp_path, capsys
     (tmp_path / "chapter.md").write_text("# Chapter", encoding="utf-8")
     (tmp_path / "manifest.md").write_text("- [[chapter]]\n", encoding="utf-8")
     (tmp_path / "cfg.json").write_text(
-        json.dumps({"report": {"figures": {
+        json.dumps({"artifact": {"figures": {
             "proseWidthMultiplier": 1.8, "viewportGutterRem": 1.25, "viewportHeightRatio": 0.65,
         }}}),
         encoding="utf-8",
@@ -772,8 +772,8 @@ def test_project_figure_dimensions_are_configurable_and_bounded(tmp_path, capsys
     output = tmp_path.parent / f"{tmp_path.name}.html"
 
     assert main(["--source", str(tmp_path), "--output", str(output)]) == 0
-    report = output.read_text(encoding="utf-8")
-    data = decode_report_data(report)
+    artifact = output.read_text(encoding="utf-8")
+    data = decode_artifact_data(artifact)
     assert {key: data["figures"][key] for key in (
         "proseWidthMultiplier", "viewportGutterRem", "viewportHeightRatio",
     )} == {
@@ -784,7 +784,7 @@ def test_project_figure_dimensions_are_configurable_and_bounded(tmp_path, capsys
     for invalid in ({"proseWidthMultiplier": 2.6}, {"viewportHeightRatio": 0.2},
                     {"viewportHeightRatio": 1.1}):
         (tmp_path / "cfg.json").write_text(
-            json.dumps({"report": {"figures": invalid}}), encoding="utf-8",
+            json.dumps({"artifact": {"figures": invalid}}), encoding="utf-8",
         )
         with pytest.raises(SystemExit, match="2"):
             main(["--source", str(tmp_path), "--output", str(output)])
@@ -803,7 +803,7 @@ def test_project_figure_dimensions_are_configurable_and_bounded(tmp_path, capsys
 def test_project_rejects_invalid_reading_settings(tmp_path, reading, capsys) -> None:
     (tmp_path / "chapter.md").write_text("# Chapter", encoding="utf-8")
     (tmp_path / "manifest.md").write_text("- [[chapter]]\n", encoding="utf-8")
-    (tmp_path / "cfg.json").write_text(json.dumps({"report": {"reading": reading}}), encoding="utf-8")
+    (tmp_path / "cfg.json").write_text(json.dumps({"artifact": {"reading": reading}}), encoding="utf-8")
     with pytest.raises(SystemExit, match="2"):
         main(["--source", str(tmp_path), "--output", str(tmp_path.parent / "out.html")])
     assert "reading" in capsys.readouterr().err
@@ -817,11 +817,11 @@ def test_project_rejects_removed_startup_settings_with_replacement(
 ) -> None:
     (tmp_path / "chapter.md").write_text("# Chapter", encoding="utf-8")
     (tmp_path / "manifest.md").write_text("- [[chapter]]\n", encoding="utf-8")
-    (tmp_path / "cfg.json").write_text(json.dumps({"report": {"reading": removed}}), encoding="utf-8")
+    (tmp_path / "cfg.json").write_text(json.dumps({"artifact": {"reading": removed}}), encoding="utf-8")
     with pytest.raises(SystemExit, match="2"):
         main(["--source", str(tmp_path), "--output", str(tmp_path.parent / "out.html")])
     error = capsys.readouterr().err
-    assert f"report.reading.{next(iter(removed))} was removed" in error
+    assert f"artifact.reading.{next(iter(removed))} was removed" in error
     assert replacement in error
 
 
@@ -838,7 +838,7 @@ def test_paragraph_warnings_are_converter_only_and_source_located(tmp_path, caps
     assert main(["--source", str(tmp_path), "--check"]) == 0
     warning = capsys.readouterr().err
     assert f"{note}:6: long paragraph (6 estimated lines" in warning
-    assert not (tmp_path / "report.html").exists()
+    assert not (tmp_path / "artifact.html").exists()
     output = tmp_path.parent / f"{tmp_path.name}.html"
     assert main(["--source", str(tmp_path), "--output", str(output)]) == 0
     assert "Warning:" in capsys.readouterr().err
@@ -925,11 +925,11 @@ def test_project_paper_setting_is_rejected_with_manifest_migration(tmp_path, cap
     (tmp_path / "chapter.md").write_text("# Chapter", encoding="utf-8")
     (tmp_path / "manifest.md").write_text("- [[chapter]]\n", encoding="utf-8")
     (tmp_path / "cfg.json").write_text(
-        json.dumps({"report": {"paper": {"widthMillimeters": 216}}}), encoding="utf-8",
+        json.dumps({"artifact": {"paper": {"widthMillimeters": 216}}}), encoding="utf-8",
     )
     with pytest.raises(SystemExit, match="2"):
         main(["--source", str(tmp_path), "--output", str(tmp_path.parent / "out.html")])
-    assert "report.paper was removed" in capsys.readouterr().err
+    assert "artifact.paper was removed" in capsys.readouterr().err
 
 
 @pytest.mark.parametrize("timeout", [0, -1, "15000", 120001])
@@ -937,7 +937,7 @@ def test_project_rejects_invalid_print_readiness_timeout(tmp_path, timeout, caps
     (tmp_path / "chapter.md").write_text("# Chapter", encoding="utf-8")
     (tmp_path / "manifest.md").write_text("- [[chapter]]\n", encoding="utf-8")
     (tmp_path / "cfg.json").write_text(
-        json.dumps({"report": {"printReadyTimeoutMilliseconds": timeout}}), encoding="utf-8",
+        json.dumps({"artifact": {"printReadyTimeoutMilliseconds": timeout}}), encoding="utf-8",
     )
     with pytest.raises(SystemExit, match="2"):
         main(["--source", str(tmp_path), "--output", str(tmp_path.parent / "out.html")])
@@ -955,7 +955,7 @@ def test_project_rejects_invalid_hover_card_limits(tmp_path, settings, capsys) -
     (tmp_path / "chapter.md").write_text("# Chapter", encoding="utf-8")
     (tmp_path / "manifest.md").write_text("- [[chapter]]\n", encoding="utf-8")
     (tmp_path / "cfg.json").write_text(
-        json.dumps({"report": {"hoverCard": settings}}), encoding="utf-8",
+        json.dumps({"artifact": {"hoverCard": settings}}), encoding="utf-8",
     )
     with pytest.raises(SystemExit, match="2"):
         main(["--source", str(tmp_path), "--output", str(tmp_path.parent / "out.html")])

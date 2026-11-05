@@ -8,9 +8,9 @@ are the first consumer, not a separate resource system. Colors and stateful
 appearances use the same index, reference rules, validation and resolution owner.
 
 One packaged JSON index and adjacent schema own the default resources. An
-optional project `report.assetIndex` selects a vault-local override index;
+optional project `artifact.assetIndex` selects a vault-local override index;
 configuration defaults, path constraints and limits belong in cfg/schema.
-This replaces the unreleased icon-only `report.iconCatalog` proposal. Do not
+This replaces the unreleased icon-only `artifact.iconCatalog` proposal. Do not
 ship two registries, configuration knobs or competing reference mechanisms.
 
 Assets describe reusable presentation, not authored content. Text and sections
@@ -189,7 +189,7 @@ dependent appearances without editing their declarations or action handlers.
 Select the project index in vault `cfg.json`:
 
 ```json
-{"report": {"assetIndex": "presentation/assets.json"}}
+{"artifact": {"assetIndex": "presentation/assets.json"}}
 ```
 
 With that index's example definitions, an ordinary Obsidian Base can declare:
@@ -222,7 +222,7 @@ the note containing the Base. Override concrete definitions such as
 ## State and conditional-color boundaries
 
 Asset resolution consumes a semantic ID, a declared state and the existing theme
-context; it does not inspect arbitrary report records or decide business truth.
+context; it does not inspect arbitrary artifact records or decide business truth.
 
 The existing control/action owner determines availability, expansion or selection.
 The asset changes appearance only. An inactive icon does not enable/disable an
@@ -270,7 +270,7 @@ the existing payload owner; derived DOM and CSS variables are projections.
 
 Saving/reopening and physical printing preserve selected resources and state
 semantics; source reproduction retains the authored index and file dependencies.
-Keep canonical report data, actions and query populations unchanged.
+Keep canonical artifact data, actions and query populations unchanged.
 
 ## Delivery order
 

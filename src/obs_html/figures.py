@@ -352,7 +352,7 @@ def _render_sankey(graph, nodes, caption, source_name, caption_html, alt="", sou
         link_centers = {id(link): center for link, center in zip(graph["links"], centers)}
     accessible_name = alt or caption or source_name
     parts = [
-        f'<figure class="engineering-figure figure-sankey" data-report-figure data-engineering-figure data-figure-kind="sankey" data-figure-spec="{encoded}"{identity}>'
+        f'<figure class="engineering-figure figure-sankey" data-artifact-figure data-engineering-figure data-figure-kind="sankey" data-figure-spec="{encoded}"{identity}>'
         f'<svg xmlns="http://www.w3.org/2000/svg" class="sankey-canvas" width="{width}" height="{height}" viewBox="0 0 {width} {height}" '
         f'role="img" aria-label="{escape(accessible_name, quote=True)}" style="--sankey-width:{width}px">'
         f'<title>{escape(accessible_name)}</title>'
@@ -490,7 +490,7 @@ def render_figure(
                 raise FigureError("An image figure source must be an image asset.")
             uri = f"data:{mime};base64," + base64.b64encode(source.read_bytes()).decode("ascii")
             return (
-                f'<figure class="report-figure" data-report-figure{identity}>'
+                f'<figure class="artifact-figure" data-artifact-figure{identity}>'
                 f'<img src="{uri}" alt="{escape(spec.get("alt") or caption or spec["source"], quote=True)}">'
                 f'{caption_element}</figure>\n'
             )
@@ -541,7 +541,7 @@ def render_figure(
             if spec["kind"] != "plot" or include_plot_fallback else ""
         )
         return (
-            f'<figure class="engineering-figure" data-report-figure data-engineering-figure data-figure-kind="{spec["kind"]}" data-figure-spec="{encoded}"{identity}>'
+            f'<figure class="engineering-figure" data-artifact-figure data-engineering-figure data-figure-kind="{spec["kind"]}" data-figure-spec="{encoded}"{identity}>'
             f'{static_image}'
             '<div class="figure-live" aria-label="Interactive figure"></div>'
             f'{caption_element}</figure>\n'
