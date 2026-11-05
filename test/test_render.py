@@ -331,3 +331,28 @@ def test_a_link_to_a_chapter_the_document_lacks_names_its_chapter_and_the_remedy
     link = node("wikilinks", target="gone", chapter="gone", heading="", label="gone")
     with pytest.raises(RenderError, match="Chapter index: a link names chapter 'gone'.*regenerate"):
         _render(_linking(link))
+
+
+def _unlisted(*links: dict) -> dict:
+    """A listed chapter linking to a note the core included with toc: false."""
+    unlisted = chapter("reached", "Reached by a link", paragraph("Unlisted prose."))
+    unlisted["toc"] = False
+    return build("Unlisted", chapter("index", "Index", paragraph(*links)), unlisted)
+
+
+def test_a_toc_false_chapter_is_a_note_outside_the_contents_and_reading_order() -> None:
+    link = node("wikilinks", target="reached", chapter="reached", heading="", label="reached")
+    model = _model(_unlisted(link))
+    notes = {note["slug"]: note for note in model["notes"]}
+    assert model["toc"] == ["home", "index"]
+    assert notes["reached"]["html"] == "<p>Unlisted prose.</p>\n"
+    assert "record" not in notes["reached"] and "obsHtml" not in notes["reached"]["frontmatter"]
+    assert '<a class="internal-link" href="#reached">Reached by a link</a>' in notes["index"]["html"]
+
+
+def test_a_toc_false_chapter_links_home() -> None:
+    document = _unlisted()
+    document["chapters"][1]["content"].append(paragraph(
+        node("wikilinks", target="manifest", chapter="home", heading="", label="manifest")))
+    html = _notes(document)["reached"]["html"]
+    assert '<a class="internal-link" href="#home">Unlisted</a>' in html
