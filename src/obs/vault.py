@@ -14,7 +14,16 @@ import yaml
 _MANIFEST_ITEM = re.compile(
     r"^(?P<indent> *)[-*+] \[\[(?P<target>[^\]|#]+)(?:\|(?P<label>[^\]]+))?\]\]$"
 )
-_WIKILINK = re.compile(r"(?<!!)\[\[(?P<target>[^\]|#]+)(?:#[^\]|]+)?(?:\|(?P<label>[^\]]+))?\]\]")
+_WIKILINK = re.compile(
+    r"(?<!!)\[\[(?P<target>[^\]|#]+)(?:#(?P<heading>[^\]|]+))?(?:\|(?P<label>[^\]]+))?\]\]"
+)
+_EMBED = re.compile(r"!\[\[(?P<target>[^\]|#]+)(?:#[^\]|]+)?(?:\|[^\]]+)?\]\]")
+_MARK = re.compile(r"#mark/(?P<category>[a-z_]+)/(?P<id>[a-z0-9_]+)")
+_CALLOUT = re.compile(r"^\[!(?P<kind>[^\]]+)\](?:\s*(?P<title>.*))?$")
+_SEMANTIC = re.compile(
+    r"(?P<embed>!)?\[\[(?P<target>[^\]|#]+)(?:#(?P<heading>[^\]|]+))?"
+    r"(?:\|(?P<label>[^\]]+))?\]\]|#mark/(?P<category>[a-z_]+)/(?P<id>[a-z0-9_]+)"
+)
 
 
 class VaultError(ValueError):
@@ -44,8 +53,8 @@ def build_document(
         chapter["metadata"] = _json_value(chapter_metadata)
         chapter["content"] = _nodes(
             chapter_body, path, vault_root, links, assets, link_ids, asset_ids,
+            capability_ids or set(), capabilities,
         )
-        chapter["content"].extend(_capability_nodes(chapter_body, capability_ids or set(), capabilities))
         for child in chapter["children"]:
             parse_chapter(child)
 
@@ -56,7 +65,10 @@ def build_document(
         "manifest": {
             "title": title,
             "metadata": _json_value(metadata),
-            "abstract": _nodes(body[abstract:], manifest_path, vault_root, links, assets, link_ids, asset_ids),
+            "abstract": _nodes(
+                body[abstract:], manifest_path, vault_root, links, assets, link_ids, asset_ids,
+                capability_ids or set(), capabilities,
+            ),
         },
         "chapters": chapters,
         "links": links,
@@ -159,6 +171,7 @@ def _parse_manifest(
 def _nodes(
     source: str, source_path: Path, vault_root: Path, links: list[dict[str, str]],
     assets: list[dict[str, str]], link_ids: set[str], asset_ids: set[str],
+    capability_ids: set[str], capabilities: set[str],
 ) -> list[dict[str, object]]:
     tokens = MarkdownIt("commonmark", {"html": False, "linkify": False}).parse(source)
     result: list[dict[str, object]] = []
@@ -168,38 +181,70 @@ def _nodes(
         if token.type == "heading_open" and position + 1 < len(tokens):
             result.append({
                 "type": "section", "attrs": {"level": int(token.tag[1:])},
-                "children": _inline_nodes(tokens[position + 1], source_path, vault_root, links, assets, link_ids, asset_ids),
+                "children": _inline_nodes(tokens[position + 1], source_path, vault_root, links, assets, link_ids, asset_ids, capability_ids, capabilities),
             })
             position += 3
         elif token.type == "paragraph_open" and position + 1 < len(tokens):
             result.append({
                 "type": "paragraph", "attrs": {},
-                "children": _inline_nodes(tokens[position + 1], source_path, vault_root, links, assets, link_ids, asset_ids),
+                "children": _inline_nodes(tokens[position + 1], source_path, vault_root, links, assets, link_ids, asset_ids, capability_ids, capabilities),
             })
             position += 3
         elif token.type in {"bullet_list_open", "ordered_list_open"}:
             node, position = _list_node(
-                tokens, position, source_path, vault_root, links, assets, link_ids, asset_ids,
+                tokens, position, source_path, vault_root, links, assets, link_ids, asset_ids, capability_ids, capabilities,
             )
             result.append(node)
         elif token.type == "fence":
-            result.append({
-                "type": "code", "attrs": {"language": token.info.strip().split(maxsplit=1)[0]},
-                "children": [], "text": token.content,
-            })
+            language = token.info.strip().split(maxsplit=1)[0]
+            fence_type = {"base": "bases", "figure": "figures", "cmd": "command-fences"}.get(language)
+            if fence_type in capability_ids:
+                attrs: dict[str, object] = {"source": token.content}
+                if language in {"base", "figure"}:
+                    try:
+                        spec = yaml.safe_load(token.content)
+                    except yaml.YAMLError as error:
+                        raise VaultError(f"Invalid {language} fence in {source_path}: {error}") from error
+                    if spec is not None:
+                        attrs["spec"] = _json_value(spec)
+                result.append({"type": fence_type, "attrs": attrs, "children": []})
+                capabilities.add(fence_type)
+            else:
+                result.append({
+                    "type": "code", "attrs": {"language": language},
+                    "children": [], "text": token.content,
+                })
             position += 1
+        elif token.type == "blockquote_open" and position + 2 < len(tokens):
+            inline = next((item for item in tokens[position:] if item.type == "inline"), None)
+            lines = inline.content.splitlines() if inline else []
+            match = _CALLOUT.match(lines[0].strip()) if lines else None
+            closing = next(
+                (index for index in range(position + 1, len(tokens)) if tokens[index].type == "blockquote_close"),
+                position,
+            )
+            if match and "callouts" in capability_ids:
+                body = "\n".join(lines[1:]).strip()
+                result.append({
+                    "type": "callouts",
+                    "attrs": {"kind": match["kind"].lower(), "title": match["title"] or ""},
+                    "children": [] if not body else [{"type": "paragraph", "attrs": {}, "children": _semantic_text_nodes(
+                        body, source_path, vault_root, links, link_ids, capability_ids, capabilities,
+                    )}],
+                })
+                capabilities.add("callouts")
+                position = closing + 1
+            else:
+                position += 1
         else:
             position += 1
-    for match in _WIKILINK.finditer(source):
-        target = match["target"].strip()
-        _resolve_note(target, source_path, vault_root)
-        _resource(links, link_ids, match["label"] or target, target)
     return result
 
 
 def _list_node(
     tokens: list[Token], position: int, source_path: Path, vault_root: Path,
     links: list[dict[str, str]], assets: list[dict[str, str]], link_ids: set[str], asset_ids: set[str],
+    capability_ids: set[str], capabilities: set[str],
 ) -> tuple[dict[str, object], int]:
     opening = tokens[position]
     items: list[dict[str, object]] = []
@@ -215,12 +260,12 @@ def _list_node(
             if token.type == "paragraph_open" and position + 1 < len(tokens):
                 children.append({
                     "type": "paragraph", "attrs": {},
-                    "children": _inline_nodes(tokens[position + 1], source_path, vault_root, links, assets, link_ids, asset_ids),
+                    "children": _inline_nodes(tokens[position + 1], source_path, vault_root, links, assets, link_ids, asset_ids, capability_ids, capabilities),
                 })
                 position += 3
             elif token.type in {"bullet_list_open", "ordered_list_open"}:
                 child, position = _list_node(
-                    tokens, position, source_path, vault_root, links, assets, link_ids, asset_ids,
+                    tokens, position, source_path, vault_root, links, assets, link_ids, asset_ids, capability_ids, capabilities,
                 )
                 children.append(child)
             else:
@@ -233,6 +278,7 @@ def _list_node(
 def _inline_nodes(
     token: Token, source_path: Path, vault_root: Path, links: list[dict[str, str]],
     assets: list[dict[str, str]], link_ids: set[str], asset_ids: set[str],
+    capability_ids: set[str], capabilities: set[str],
 ) -> list[dict[str, object]]:
     result: list[dict[str, object]] = []
     link: dict[str, str] | None = None
@@ -252,8 +298,46 @@ def _inline_nodes(
         elif child.type in {"text", "softbreak", "hardbreak"}:
             attrs = {"link": link["id"]} if link else {}
             text = "\n" if child.type != "text" else child.content
-            result.append({"type": "text", "attrs": attrs, "children": [], "text": text})
+            if attrs:
+                result.append({"type": "text", "attrs": attrs, "children": [], "text": text})
+            else:
+                result.extend(_semantic_text_nodes(
+                    text, source_path, vault_root, links, link_ids, capability_ids, capabilities,
+                ))
     return result
+
+
+def _semantic_text_nodes(
+    text: str, source_path: Path, vault_root: Path, links: list[dict[str, str]],
+    link_ids: set[str], capability_ids: set[str], capabilities: set[str],
+) -> list[dict[str, object]]:
+    nodes: list[dict[str, object]] = []
+    position = 0
+    for match in _SEMANTIC.finditer(text):
+        if match.start() > position:
+            nodes.append({"type": "text", "attrs": {}, "children": [], "text": text[position:match.start()]})
+        value = match.group(0)
+        if match["embed"] and "embeds" in capability_ids:
+            target = match["target"].strip()
+            _resolve_note(target, source_path, vault_root)
+            nodes.append({"type": "embeds", "attrs": {"target": target}, "children": []})
+            capabilities.add("embeds")
+        elif value.startswith("[[") and "wikilinks" in capability_ids:
+            target = match["target"].strip()
+            _resolve_note(target, source_path, vault_root)
+            attrs = {"target": target, "heading": match["heading"] or "", "label": match["label"] or target}
+            nodes.append({"type": "wikilinks", "attrs": attrs, "children": []})
+            _resource(links, link_ids, attrs["label"], target)
+            capabilities.add("wikilinks")
+        elif "marks" in capability_ids:
+            nodes.append({"type": "marks", "attrs": {"category": match["category"], "id": match["id"]}, "children": []})
+            capabilities.add("marks")
+        else:
+            nodes.append({"type": "text", "attrs": {}, "children": [], "text": value})
+        position = match.end()
+    if position < len(text):
+        nodes.append({"type": "text", "attrs": {}, "children": [], "text": text[position:]})
+    return nodes
 
 
 def _link_label(children: list[Token]) -> str:
