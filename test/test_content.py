@@ -769,6 +769,27 @@ def test_note_links_in_code_remain_literal_and_heading_links_resolve(tmp_path: P
         render_chapter(chapters[0], chapters, tmp_path)
 
 
+def test_silent_command_fence_renders_nothing_and_is_not_a_display_command(tmp_path: Path) -> None:
+    (tmp_path / "chapter.md").write_text(
+        "# Chapter\n\nBefore.\n\n```cmd silent\nproduce-artifact\n```\n\nAfter.\n",
+        encoding="utf-8",
+    )
+    manifest = tmp_path / "manifest.md"
+    manifest.write_text("- [[chapter]]\n", encoding="utf-8")
+    chapters = parse_manifest(manifest)
+
+    rendered = render_chapter(
+        chapters[0],
+        chapters,
+        tmp_path,
+        command_runner=lambda _command: pytest.fail("Silent fence was rendered as a display command."),
+    )
+
+    assert "Before." in rendered
+    assert "After." in rendered
+    assert "produce-artifact" not in rendered
+
+
 def test_note_links_resolve_canonical_paragraph_mark_anchors(tmp_path: Path) -> None:
     (tmp_path / "one.md").write_text(
         "[[02_system_description.md#mark-02-system-description-open-point-datum-a-continuity]]",

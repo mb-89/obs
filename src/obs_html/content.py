@@ -1005,6 +1005,8 @@ def render_chapter(
             return render_base_table_placeholder()
         if not info or info[0] != "cmd":
             return default_fence(tokens, index, options, env)
+        if info == ["cmd", "silent"]:
+            return ""
         if command_runner is None:
             raise ContentError("A cmd fence requires explicit command execution authorization.")
         output = command_runner(token.content.strip())
