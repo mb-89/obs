@@ -1,4 +1,5 @@
 ---
+kind: capability
 capability:
   id: markdown
   summary: Render standard Markdown chapter content safely.

@@ -1,4 +1,5 @@
 ---
+kind: capability
 capability:
   id: floating-actions
   summary: Expose trusted actions from an authored floating-content view.

@@ -1,4 +1,5 @@
 ---
+kind: capability
 capability:
   id: trusted-projections
   summary: Project trusted source data into declared presentation views.

@@ -1,4 +1,5 @@
 ---
+kind: capability
 capability:
   id: profiles
   summary: Select constrained note and document presentation profiles.

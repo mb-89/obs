@@ -1,4 +1,5 @@
 ---
+kind: capability
 capability:
   id: queries
   summary: Define reusable, declarative selections and aggregates.

@@ -1,4 +1,5 @@
 ---
+kind: capability
 capability:
   id: registers
   summary: Reuse authored table views as named registers.

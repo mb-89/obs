@@ -1,4 +1,5 @@
 ---
+kind: capability
 capability:
   id: chapter-inclusion
   summary: Include and navigate source notes through manifest and query references.

@@ -1,4 +1,5 @@
 ---
+kind: capability
 capability:
   id: cards-metrics
   summary: Author data-only cards and query-backed document metrics.

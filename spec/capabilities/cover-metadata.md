@@ -1,4 +1,5 @@
 ---
+kind: capability
 capability:
   id: cover-metadata
   summary: Supply constrained cover metadata and document history.

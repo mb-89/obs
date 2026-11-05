@@ -1,4 +1,5 @@
 ---
+kind: capability
 capability:
   id: quantities
   summary: Express named numeric values and their canonical sources.

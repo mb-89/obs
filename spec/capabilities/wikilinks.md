@@ -1,4 +1,5 @@
 ---
+kind: capability
 capability:
   id: wikilinks
   summary: Resolve local Markdown and Obsidian note links.

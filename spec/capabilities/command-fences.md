@@ -1,4 +1,5 @@
 ---
+kind: capability
 capability:
   id: command-fences
   summary: Request authorized command-derived document content.

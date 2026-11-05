@@ -1,4 +1,5 @@
 ---
+kind: capability
 capability:
   id: trusted-actions
   summary: Invoke declared trusted runtime actions against canonical source state.

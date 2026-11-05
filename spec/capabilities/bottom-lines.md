@@ -1,4 +1,5 @@
 ---
+kind: capability
 capability:
   id: bottom-lines
   summary: Declare a chapter conclusion and glossary content.

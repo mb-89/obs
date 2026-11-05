@@ -1,4 +1,5 @@
 ---
+kind: capability
 capability:
   id: source-archive
   summary: Include reproducible source material in an authored report.

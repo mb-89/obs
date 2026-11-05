@@ -1,4 +1,5 @@
 ---
+kind: capability
 capability:
   id: document-presentation
   summary: Set document-level layout, page, and bottom-line presentation.
