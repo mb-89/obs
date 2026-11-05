@@ -19,6 +19,7 @@ from typing import Callable
 
 from obs_html.bars import BarDefinition, discover_bars
 from obs_html.config import Config, paper
+from obs_html.figures import FigureError, render_descriptor
 from obs_html.report_data import encode_report_data, prepare_report_scripts, serialize_report_data
 from obs_html.semantic_assets import SemanticAssets, markup
 from obs_html.styles import load_style
@@ -116,11 +117,20 @@ def _base(node: dict[str, object], context: Context) -> str:
     return f'<div class="data-table-placeholder" data-base-table="{escape(key, quote=True)}"></div>\n'
 
 
+def _figure(node: dict[str, object], context: Context) -> str:
+    descriptor = node["attrs"]["descriptor"]
+    try:
+        return render_descriptor(descriptor, f"{context.chapter or HOME}--figure-{descriptor['id']}")
+    except FigureError as error:
+        raise RenderError(f"Chapter {context.chapter or HOME}: {error}") from error
+
+
 CAPABILITIES: dict[str, Renderer] = {
     "bases": _base,
     "chapter-inclusion": _nothing,
     "command-fences": _command,
     "document-presentation": _nothing,
+    "figure-descriptor": _figure,
     "manifest": _nothing,
     "markdown": _nothing,
     "markdown-frontmatter": _frontmatter,
@@ -408,7 +418,24 @@ def _shell(model: dict[str, object], stylesheet: str, assets: SemanticAssets, co
 
     bars = discover_bars()
     bar_scripts = "\n".join(f"\n{bar.script}" for bar in bars if bar.script)
+    data = serialize_report_data(model)
     title = model["document"]["title"]
+    figure_assets = ""
+    if "data-report-figure" in data:
+        plotly = ""
+        if 'data-figure-kind=\\"plot\\"' in data:
+            figures = config.report["figures"]
+            if figures["plotlyDelivery"] == "cdn":
+                plotly = (f'<script id="plotly-script" src="{figures["plotlyCdnUrl"]}" '
+                          f'integrity="{figures["plotlyCdnIntegrity"]}" crossorigin="anonymous" '
+                          "data-optional-runtime></script>")
+            else:
+                plotly = ('<script id="plotly-script">/* ' + read("vendor", "plotly.LICENSE") + " */\n"
+                          + read("vendor", "plotly-basic.min.js.LICENSE.txt") + "\n"
+                          + read("vendor", "plotly-basic.min.js").replace("</script", "<\\/script")
+                          + "</script>")
+        figure_assets = (f'<style id="figure-styles">{read("figures.css")}</style>{plotly}'
+                         f'<script id="figure-script">{read("figures.js")}</script>')
     startup = model["reading"]
     reader_startup = "".join(
         f"    {line}\n" for line in read("reader-startup.js")
@@ -519,6 +546,7 @@ def _shell(model: dict[str, object], stylesheet: str, assets: SemanticAssets, co
 {read("guided-card.js")}
 {read("report.js")}
   </script>
+  {figure_assets}
   <script id="pages-script">
 {read("pages.js")}
   </script>

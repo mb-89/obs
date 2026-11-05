@@ -127,7 +127,7 @@ def test_failed_write_preserves_the_previous_output(tmp_path, monkeypatch) -> No
 def test_timings_print_one_line_per_stage(tmp_path, capsys) -> None:
     _run(FIXTURE, tmp_path / "document.html", "--execute-commands", "--command-root", tmp_path, "--timings")
     stages = [line.split()[1] for line in capsys.readouterr().out.splitlines() if line.startswith("Timing:")]
-    assert stages == ["render", "commands", "write", "total"]
+    assert stages == ["render", "commands", "figures", "write", "total"]
 
 
 def test_trusted_runtime_is_embedded_only_when_named(tmp_path) -> None:
