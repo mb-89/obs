@@ -69,7 +69,9 @@ def test_top_band_is_one_row_of_equal_squares() -> None:
     shell = _flat(_section(artifact_ui, "## Reading shell"))
 
     assert "The top band is one row and holds every top control: Home, the breadcrumbs, " \
-        "the chapter controls, the notice icons and the menu." in shell
+        "the frontmatter chevron, the notice icons and the menu." in shell
+    assert "Home, the breadcrumbs, the chapter controls," not in shell, (
+        "artifact-ui.md, Reading shell: the top band names the frontmatter chevron, not 'the chapter controls'")
     assert "The notice icons sit directly left of the menu." in shell
     assert "Every control in the band is a square of one size." in shell
     assert "No control takes a row of its own." in shell
@@ -93,3 +95,29 @@ def test_no_text_appears_twice_in_one_view_is_stated_once() -> None:
     assert after.startswith(" The title page shows the document type once, under the title; "
                             "it has no running header that repeats it. "
                             "A chapter's running header never repeats its own visible heading.")
+
+
+def test_only_used_features_ship_and_canaries_decide_or_stay_silent() -> None:
+    artifact_ui = _flat((ROOT / "spec" / "design_input" / "artifact-ui.md").read_text(encoding="utf-8"))
+    notice_center = _flat(_section((ROOT / "spec" / "design_input" / "artifact-ui.md").read_text(encoding="utf-8"),
+                                   "## Dock menu"))
+
+    for replaced in ("a refused or unknown result counts as limited",
+                     "Each capability canary that reports limited raises its own warning entry",
+                     "(history updates, storage, printing, modal dialogs, downloads, clipboard, popups)",
+                     "run before any feature is used"):
+        assert replaced not in artifact_ui, (
+            f"artifact-ui.md: replace '{replaced}' with the feature model and canary rule of the notice center")
+    for rule in (
+        "The artifact includes a host-dependent feature, with its code, controls and canary, only when "
+        "its Document uses it or the artifact always offers it. A feature that is not included raises nothing.",
+        "A canary decides or stays silent.",
+        "A canary that observes a refusal raises one warning entry: the feature, why the host refuses it, "
+        "what was observed and the remedy,",
+        "A canary that cannot decide raises nothing at load. The feature is tried on use, and an observed "
+        "failure then shows the reason and remedy inline and raises the warning.",
+        "No feature uses a browser dialog; its messages are inline.",
+        "The registry and its entries are owned by obs-html's `capabilities.js`; the list of abilities "
+        "is not repeated here.",
+    ):
+        assert rule in notice_center, f"artifact-ui.md, Dock menu: state '{rule}' in the notice center"
