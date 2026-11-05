@@ -1,0 +1,487 @@
+{
+  "schemaVersion": 1,
+  "manifest": {
+    "title": "Manifest",
+    "metadata": {},
+    "abstract": [
+      {
+        "type": "manifest",
+        "attrs": {},
+        "children": []
+      }
+    ]
+  },
+  "chapters": [
+    {
+      "id": "registers",
+      "title": "Registers",
+      "content": [
+        {
+          "type": "chapter-inclusion",
+          "attrs": {
+            "id": "registers"
+          },
+          "children": []
+        },
+        {
+          "type": "markdown",
+          "attrs": {},
+          "children": []
+        },
+        {
+          "type": "section",
+          "attrs": {
+            "level": 1
+          },
+          "children": [
+            {
+              "type": "text",
+              "attrs": {},
+              "children": [],
+              "text": "Registers"
+            }
+          ]
+        },
+        {
+          "type": "paragraph",
+          "attrs": {},
+          "children": [
+            {
+              "type": "text",
+              "attrs": {},
+              "children": [],
+              "text": "Check the register. "
+            },
+            {
+              "type": "marks",
+              "attrs": {
+                "category": "risk",
+                "id": "register_check"
+              },
+              "children": []
+            }
+          ]
+        },
+        {
+          "type": "bases",
+          "attrs": {
+            "source": "filters:\n  and: ['status == \"approved\"']\nviews:\n  - type: table\n    order: [term]\nobsHtml: {records: glossary}\n",
+            "spec": {
+              "filters": {
+                "and": [
+                  "status == \"approved\""
+                ]
+              },
+              "views": [
+                {
+                  "type": "table",
+                  "order": [
+                    "term"
+                  ]
+                }
+              ],
+              "obsHtml": {
+                "records": "glossary"
+              }
+            }
+          },
+          "children": []
+        },
+        {
+          "type": "bases",
+          "attrs": {
+            "source": "filters:\n  and: ['sourcePath == \"extra/located.md\"']\nviews:\n  - type: table\n    order: [title]\nobsHtml: {records: note}\n",
+            "spec": {
+              "filters": {
+                "and": [
+                  "sourcePath == \"extra/located.md\""
+                ]
+              },
+              "views": [
+                {
+                  "type": "table",
+                  "order": [
+                    "title"
+                  ]
+                }
+              ],
+              "obsHtml": {
+                "records": "note"
+              }
+            }
+          },
+          "children": []
+        },
+        {
+          "type": "bases",
+          "attrs": {
+            "source": "filters:\n  and: ['slug == \"custom\"']\nviews:\n  - type: table\n    order: [title]\nobsHtml: {records: note}\n",
+            "spec": {
+              "filters": {
+                "and": [
+                  "slug == \"custom\""
+                ]
+              },
+              "views": [
+                {
+                  "type": "table",
+                  "order": [
+                    "title"
+                  ]
+                }
+              ],
+              "obsHtml": {
+                "records": "note"
+              }
+            }
+          },
+          "children": []
+        },
+        {
+          "type": "bases",
+          "attrs": {
+            "source": "filters:\n  and: ['slug == \"slugged\"']\nviews:\n  - type: table\n    order: [title]\nobsHtml: {records: note}\n",
+            "spec": {
+              "filters": {
+                "and": [
+                  "slug == \"slugged\""
+                ]
+              },
+              "views": [
+                {
+                  "type": "table",
+                  "order": [
+                    "title"
+                  ]
+                }
+              ],
+              "obsHtml": {
+                "records": "note"
+              }
+            }
+          },
+          "children": []
+        },
+        {
+          "type": "bases",
+          "attrs": {
+            "source": "filters:\n  and: ['type == \"open_point\"']\nviews:\n  - type: table\n    order: [label]\nobsHtml: {records: tag}\n",
+            "spec": {
+              "filters": {
+                "and": [
+                  "type == \"open_point\""
+                ]
+              },
+              "views": [
+                {
+                  "type": "table",
+                  "order": [
+                    "label"
+                  ]
+                }
+              ],
+              "obsHtml": {
+                "records": "tag"
+              }
+            }
+          },
+          "children": []
+        },
+        {
+          "type": "bases",
+          "attrs": {
+            "source": "filters:\n  and: ['kind == \"evidence\"']\nviews:\n  - type: table\n    order: [file.name]\n",
+            "spec": {
+              "filters": {
+                "and": [
+                  "kind == \"evidence\""
+                ]
+              },
+              "views": [
+                {
+                  "type": "table",
+                  "order": [
+                    "file.name"
+                  ]
+                }
+              ]
+            }
+          },
+          "children": []
+        },
+        {
+          "type": "bases",
+          "attrs": {
+            "source": "filters:\n  and: ['type == \"risk\"']\nviews:\n  - type: table\n    order: [label]\nobsHtml: {records: tag}\n",
+            "spec": {
+              "filters": {
+                "and": [
+                  "type == \"risk\""
+                ]
+              },
+              "views": [
+                {
+                  "type": "table",
+                  "order": [
+                    "label"
+                  ]
+                }
+              ],
+              "obsHtml": {
+                "records": "tag"
+              }
+            }
+          },
+          "children": []
+        }
+      ],
+      "children": [],
+      "metadata": {}
+    },
+    {
+      "id": "marked",
+      "title": "Marked",
+      "content": [
+        {
+          "type": "markdown-frontmatter",
+          "attrs": {
+            "metadata": {
+              "type": "risk"
+            }
+          },
+          "children": []
+        },
+        {
+          "type": "chapter-inclusion",
+          "attrs": {
+            "id": "marked"
+          },
+          "children": []
+        },
+        {
+          "type": "markdown",
+          "attrs": {},
+          "children": []
+        },
+        {
+          "type": "section",
+          "attrs": {
+            "level": 1
+          },
+          "children": [
+            {
+              "type": "text",
+              "attrs": {},
+              "children": [],
+              "text": "Marked"
+            }
+          ]
+        },
+        {
+          "type": "paragraph",
+          "attrs": {},
+          "children": [
+            {
+              "type": "text",
+              "attrs": {},
+              "children": [],
+              "text": "Watch the datum. "
+            },
+            {
+              "type": "marks",
+              "attrs": {
+                "category": "open_point",
+                "id": "datum_watch"
+              },
+              "children": []
+            }
+          ]
+        }
+      ],
+      "children": [],
+      "metadata": {
+        "type": "risk"
+      }
+    },
+    {
+      "id": "slugged",
+      "title": "Slugged",
+      "toc": false,
+      "content": [
+        {
+          "type": "markdown-frontmatter",
+          "attrs": {
+            "metadata": {
+              "kind": "evidence",
+              "slug": "custom",
+              "tags": [
+                "a",
+                "b"
+              ],
+              "nested": {
+                "owner": "Ann"
+              },
+              "empty": [],
+              "blank": {},
+              "items": [
+                {
+                  "name": "x"
+                },
+                {
+                  "name": "y"
+                }
+              ]
+            }
+          },
+          "children": []
+        },
+        {
+          "type": "chapter-inclusion",
+          "attrs": {
+            "id": "slugged"
+          },
+          "children": []
+        },
+        {
+          "type": "markdown",
+          "attrs": {},
+          "children": []
+        },
+        {
+          "type": "section",
+          "attrs": {
+            "level": 1
+          },
+          "children": [
+            {
+              "type": "text",
+              "attrs": {},
+              "children": [],
+              "text": "Slugged"
+            }
+          ]
+        }
+      ],
+      "children": [],
+      "metadata": {
+        "kind": "evidence",
+        "slug": "custom",
+        "tags": [
+          "a",
+          "b"
+        ],
+        "nested": {
+          "owner": "Ann"
+        },
+        "empty": [],
+        "blank": {},
+        "items": [
+          {
+            "name": "x"
+          },
+          {
+            "name": "y"
+          }
+        ]
+      }
+    }
+  ],
+  "links": [],
+  "assets": [],
+  "records": [
+    {
+      "id": "draft-term",
+      "type": "note",
+      "path": "draft-term.md",
+      "fields": {
+        "kind": "glossary",
+        "term": "Draft",
+        "definition": "Not yet.",
+        "status": "draft"
+      }
+    },
+    {
+      "id": "extra-elsewhere",
+      "type": "note",
+      "path": "extra/elsewhere.md",
+      "fields": {
+        "kind": "other"
+      }
+    },
+    {
+      "id": "extra-located",
+      "type": "note",
+      "path": "extra/located.md",
+      "fields": {
+        "kind": "other"
+      }
+    },
+    {
+      "id": "glossary",
+      "type": "note",
+      "path": "glossary.md",
+      "fields": {
+        "kind": "glossary",
+        "term": "Datum",
+        "definition": "A reference.",
+        "status": "approved"
+      }
+    },
+    {
+      "id": "manifest",
+      "type": "note",
+      "path": "manifest.md",
+      "fields": {}
+    },
+    {
+      "id": "marked",
+      "type": "note",
+      "path": "marked.md",
+      "fields": {
+        "type": "risk"
+      }
+    },
+    {
+      "id": "registers",
+      "type": "note",
+      "path": "registers.md",
+      "fields": {}
+    },
+    {
+      "id": "slugged",
+      "type": "note",
+      "path": "slugged.md",
+      "fields": {
+        "kind": "evidence",
+        "slug": "custom",
+        "tags": [
+          "a",
+          "b"
+        ],
+        "nested": {
+          "owner": "Ann"
+        },
+        "empty": [],
+        "blank": {},
+        "items": [
+          {
+            "name": "x"
+          },
+          {
+            "name": "y"
+          }
+        ]
+      }
+    }
+  ],
+  "semanticResources": [],
+  "diagnostics": [],
+  "capabilities": [
+    "bases",
+    "chapter-inclusion",
+    "manifest",
+    "markdown",
+    "markdown-frontmatter",
+    "marks"
+  ]
+}
