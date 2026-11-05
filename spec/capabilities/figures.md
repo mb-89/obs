@@ -4,8 +4,18 @@ capability:
   id: figures
   summary: Render declared figures from canonical records.
   authoring: Declare a supported figure mapping in Markdown frontmatter or a fenced block.
-  dependsOn: [markdown-frontmatter, queries]
+  dependsOn: ["[[capabilities/markdown-frontmatter]]", "[[capabilities/queries]]"]
   inputModel: "[[input-model#Remaining chapter content]]"
 ---
 
-The register presents the owning metadata as the capability reference.
+## What it does
+
+Render declared figures from canonical records.
+
+## Authoring example
+
+```markdown
+```figure
+source: records
+```
+```

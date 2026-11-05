@@ -4,8 +4,17 @@ capability:
   id: queries
   summary: Define reusable, declarative selections and aggregates.
   authoring: Give a supported query mapping a stable name and reference that name.
-  dependsOn: [markdown-frontmatter]
+  dependsOn: ["[[capabilities/markdown-frontmatter]]"]
   inputModel: "[[input-model#Reusable query ownership]]"
 ---
 
-The register presents the owning metadata as the capability reference.
+## What it does
+
+Define reusable, declarative selections and aggregates.
+
+## Authoring example
+
+```markdown
+query:
+  where: [{field: status, equals: open}]
+```

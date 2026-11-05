@@ -4,8 +4,16 @@ capability:
   id: wikilinks
   summary: Resolve local Markdown and Obsidian note links.
   authoring: Link a vault note with a Markdown link or a double-bracket wikilink.
-  dependsOn: [markdown]
+  dependsOn: ["[[capabilities/markdown]]"]
   inputModel: "[[input-model#Chapter content]]"
 ---
 
-The register presents the owning metadata as the capability reference.
+## What it does
+
+Resolve local Markdown and Obsidian note links.
+
+## Authoring example
+
+```markdown
+See [[chapter#Details]].
+```

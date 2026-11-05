@@ -1,10 +1,10 @@
 ---
-kind: capability
+kind: adapter-behavior
 capability:
   id: source-updates
   summary: Project current canonical source after a trusted update.
   authoring: Use the trusted update flow with declared canonical source identifiers.
-  dependsOn: [trusted-actions, source-archive]
+  dependsOn: ["[[capabilities/trusted-actions]]", "[[capabilities/source-archive]]"]
   inputModel: "[[input-model#Current source projection after a trusted update]]"
 ---
 

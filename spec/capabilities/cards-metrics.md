@@ -4,8 +4,18 @@ capability:
   id: cards-metrics
   summary: Author data-only cards and query-backed document metrics.
   authoring: Use a cards fence with bounded card and metric mappings.
-  dependsOn: [markdown-frontmatter, queries]
+  dependsOn: ["[[capabilities/markdown-frontmatter]]", "[[capabilities/queries]]"]
   inputModel: "[[input-model#Document home and abstract]]"
 ---
 
-The register presents the owning metadata as the capability reference.
+## What it does
+
+Author data-only cards and query-backed document metrics.
+
+## Authoring example
+
+```markdown
+```cards
+{"version": 1, "cards": [{"title": "Coverage", "body": "Current state."}]}
+```
+```

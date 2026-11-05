@@ -1,10 +1,10 @@
 ---
-kind: capability
+kind: adapter-behavior
 capability:
   id: floating-actions
   summary: Expose trusted actions from an authored floating-content view.
   authoring: Declare a supported action identifier in the trusted runtime mapping.
-  dependsOn: [trusted-actions, canonical-references]
+  dependsOn: ["[[capabilities/trusted-actions]]", "[[capabilities/canonical-references]]"]
   inputModel: "[[input-model#Trusted floating-content actions]]"
 ---
 
