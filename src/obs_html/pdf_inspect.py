@@ -9,13 +9,15 @@ from pathlib import Path
 from typing import Sequence
 
 import pypdfium2 as pdfium
-from PIL import Image, ImageColor, ImageDraw, ImageFont, UnidentifiedImageError
 import pypdfium2.raw as pdfium_c
+from PIL import Image, ImageColor, ImageDraw, ImageFont, UnidentifiedImageError
 
 PROG = "obs-html-inspect"
 
-EPILOG = """Pages are numbered from 1. Coordinates are PDF points (1/72 inch) from the top-left
-corner of the page, x to the right and y down; a raster pixel at --scale S is S points wide.
+EPILOG = """Every input and output is a path you name: nothing is written anywhere else, no folder
+is created, and text and paths print to stdout unless --output names a file. Pages are numbered
+from 1. Coordinates are PDF points (1/72 inch) from the top-left corner of the page, x to the
+right and y down; at --scale S one point is S raster pixels.
 
 Examples:
   obs-html-inspect render document.pdf --page 1 --output page-1.png
@@ -222,6 +224,23 @@ def parse_mark(text: str) -> tuple[Box, str]:
     return parse_box(box, "--box"), label
 
 
+def check_paths(source: Path, output: Path | None, raster: bool) -> None:
+    """Refuse before any work when SOURCE or OUTPUT is not a path this command may use."""
+    if not source.is_file():
+        raise InspectError(f"input {source} does not exist or is not a file. Remedy: pass an existing file.")
+    if output is None:
+        return
+    if not output.parent.is_dir():
+        raise InspectError(f"the folder of output {output} does not exist; nothing creates it. "
+                           f"Remedy: create {output.parent} or name an output in an existing folder.")
+    if output.resolve() == source.resolve():
+        raise InspectError(f"output {output} is the input. Remedy: name a different output file.")
+    Image.init()
+    if raster and output.suffix.lower() not in Image.registered_extensions():
+        raise InspectError(f"output {output} has no image suffix Pillow writes. "
+                           f"Remedy: name a .png output (or another image suffix such as .jpg).")
+
+
 def _number_list(values: Sequence[float]) -> str:
     return ",".join(f"{value:g}" for value in values)
 
@@ -280,6 +299,8 @@ def _deliver_text(content: str, output: Path | None, what: str) -> None:
 def main(argv: Sequence[str] | None = None) -> None:
     arguments = _parser().parse_args(argv)
     try:
+        check_paths(arguments.raster if arguments.command == "annotate" else arguments.pdf,
+                    arguments.output, raster=arguments.command in {"render", "crop", "annotate"})
         if arguments.command == "render":
             width, height = render_page(arguments.pdf, arguments.page, arguments.scale, arguments.output)
             print(f"Wrote {arguments.output} ({width}x{height} px, page {arguments.page}, "

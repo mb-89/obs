@@ -136,3 +136,42 @@ def test_annotate_refuses_marks_it_cannot_draw(printed, tmp_path, capsys, option
                           "--output", str(tmp_path / "marked.png")])
     error = capsys.readouterr().err
     assert error.startswith("obs-html-inspect annotate: ") and problem in error and "Remedy:" in error
+
+
+def test_every_tool_writes_only_the_files_it_is_named(printed, tmp_path, capsys) -> None:
+    folder = tmp_path / "out"
+    folder.mkdir()
+    pdf_inspect.main(["render", str(printed), "--page", "1", "--output", str(folder / "page.png")])
+    pdf_inspect.main(["crop", str(printed), "--page", "1", "--box", "0,0,100,100", "--output", str(folder / "c.png")])
+    pdf_inspect.main(["text", str(printed), "--page", "1"])
+    pdf_inspect.main(["paths", str(printed), "--page", "1"])
+    pdf_inspect.main(["annotate", str(folder / "page.png"), "--box", "1,1,9,9", "--output", str(folder / "a.png")])
+    assert sorted(path.name for path in folder.iterdir()) == ["a.png", "c.png", "page.png"]
+    assert sorted(path.name for path in printed.parent.iterdir()) == ["document.pdf", "images"]
+
+
+def test_raster_tools_need_an_output(printed, capsys) -> None:
+    with pytest.raises(SystemExit) as exit_info:
+        pdf_inspect.main(["render", str(printed), "--page", "1"])
+    assert exit_info.value.code == 2 and "--output" in capsys.readouterr().err
+
+
+@pytest.mark.parametrize("arguments, problem", [
+    (["text", "{tmp}/missing.pdf", "--page", "1"], "input {tmp}/missing.pdf does not exist"),
+    (["render", "{pdf}", "--page", "1", "--output", "{tmp}/absent/page.png"],
+     "the folder of output {tmp}/absent/page.png does not exist"),
+    (["render", "{pdf}", "--page", "1", "--output", "{tmp}/page.raster"],
+     "output {tmp}/page.raster has no image suffix Pillow writes"),
+    (["paths", "{pdf}", "--page", "1", "--output", "{pdf}"], "output {pdf} is the input"),
+])
+def test_paths_are_explicit_and_checked(printed, tmp_path, capsys, arguments, problem) -> None:
+    def fill(text: str) -> str:
+        return text.format(tmp=tmp_path, pdf=printed)
+
+    with pytest.raises(SystemExit) as exit_info:
+        pdf_inspect.main([fill(argument) for argument in arguments])
+    assert exit_info.value.code == 2
+    error = capsys.readouterr().err
+    assert error.startswith(f"obs-html-inspect {arguments[0]}: {fill(problem)}") and "Remedy:" in error
+    assert sorted(path.name for path in tmp_path.iterdir()) == []
+    assert printed.stat().st_size > 0
