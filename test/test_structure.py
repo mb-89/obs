@@ -156,3 +156,8 @@ def test_width_rule_has_one_owner() -> None:
     input_model = (design / "input-model.md").read_text(encoding="utf-8")
 
     assert "column or width changes" not in input_model
+
+    generic_tables = (design / "generic-tables.md").read_text(encoding="utf-8")
+    assert "never mark the" not in generic_tables
+    assert "never show the change notice" not in generic_tables
+    assert "[[artifact-ui#What counts as a change" in generic_tables
