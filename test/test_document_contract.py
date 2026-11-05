@@ -34,7 +34,7 @@ def document_fixture(capabilities: list[str] | None = None) -> dict[str, object]
         }],
         "links": [{"id": "reference", "href": "https://example.test/reference", "label": "Reference"}],
         "assets": [{"id": "asset", "href": "assets/figure.svg", "mediaType": "image/svg+xml"}],
-        "records": [{"id": "record", "type": "finding", "fields": {"status": "open"}}],
+        "records": [{"id": "record", "type": "note", "path": "record.md", "fields": {"status": "open"}}],
         "semanticResources": [{"id": "resource", "type": "finding", "attrs": {}}],
         "diagnostics": [],
         "capabilities": capabilities or ["manifest"],

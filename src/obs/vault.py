@@ -32,7 +32,9 @@ from obs.input import (
     validate_project_config,
     validate_quantity,
 )
-from obs.selection import IGNORED, base_selects, conditions_select, note_marks, view_selectors
+from obs.selection import (
+    IGNORED, Record, base_selects, conditions_select, note_marks, paragraph_marks, view_selectors,
+)
 
 
 _MANIFEST_ITEM = re.compile(
@@ -83,6 +85,13 @@ class _Vault:
     warnings: list[str] = field(default_factory=list)
     validated: set[Path] = field(default_factory=set)
     files: dict[str, list[Path]] | None = None
+    records: list[Record] = field(default_factory=list)
+    notes_by_id: dict[str, tuple[Path, Record]] = field(default_factory=dict)
+
+    def note_of(self, record: Record) -> tuple[Path, Record] | None:
+        """The path and note record a record comes from; None for a row without a note."""
+        identifier = record["id"] if record["type"] == "note" else record.get("note")
+        return None if identifier is None else self.notes_by_id[identifier]
 
     def relative(self, path: Path) -> str:
         return path.relative_to(self.root).as_posix()
@@ -137,6 +146,7 @@ def build_document(
     vault = _read_vault(manifest_path, metadata, body)
     _validate_note(manifest_path, vault)
     chapters, abstract = _parse_manifest(body, manifest_path, vault_root, vault.identities)
+    _add_records(vault, chapters, title)
     links: list[dict[str, str]] = []
     assets: list[dict[str, str]] = []
     link_ids: set[str] = set()
@@ -209,11 +219,7 @@ def build_document(
         "chapters": chapters,
         "links": links,
         "assets": assets,
-        "records": [
-            {"id": vault.identities[path], "type": "note", "path": vault.relative(path),
-             "fields": _json_value(note_metadata), **({IGNORED: True} if note_metadata.get(IGNORED) else {})}
-            for path, (note_metadata, _) in vault.notes.items()
-        ],
+        "records": vault.records,
         "semanticResources": [],
         "diagnostics": [{"level": "warning", "message": message} for message in vault.warnings],
         "capabilities": sorted(capabilities),
@@ -241,11 +247,72 @@ def _read_vault(manifest_path: Path, metadata: dict[str, object], body: str) -> 
     return _Vault(vault_root, manifest_path, notes, identities)
 
 
-def _unlisted_chapter(path: Path, vault: _Vault) -> dict[str, object]:
-    """An included note the manifest does not list; see input-model "Chapter content"."""
+def _note_title(path: Path, vault: _Vault) -> object:
+    """A note's title as authored: its title or term, else its first heading, else its file name."""
     metadata, body = vault.notes[path]
     heading = next((line[2:].strip() for line in body.splitlines() if line.startswith("# ")), None)
-    title = metadata.get("title") or metadata.get("term") or heading or path.stem.replace("-", " ").title()
+    return metadata.get("title") or metadata.get("term") or heading or path.stem.replace("-", " ").title()
+
+
+def _add_records(vault: _Vault, chapters: list[dict[str, object]], title: str) -> None:
+    """Every record a Base view can select, of each type; see document.schema.json ($defs/record)."""
+    used = set(vault.identities.values()) | {HOME}
+    titles: dict[Path, str] = {vault.manifest: title}
+    toc: list[tuple[dict[str, object], int]] = []
+
+    def walk(items: list[dict[str, object]], depth: int) -> None:
+        for chapter in items:
+            toc.append((chapter, depth))
+            titles[chapter["_path"]] = str(chapter["title"])
+            walk(chapter["children"], depth + 1)
+    walk(chapters, 0)
+
+    def add(kind: str, key: str, fields: dict[str, object], note: str | None = None) -> None:
+        """Add a record; its id is the kebab-cased type and key, unique among all records."""
+        prefix = re.sub(r"(?<=[a-z])(?=[A-Z])", "-", kind)
+        vault.records.append({
+            "id": _unique_identifier(f"{prefix}-{key}", used), "type": kind,
+            **({"note": note} if note else {}), "fields": fields,
+        })
+
+    for path, (metadata, _) in vault.notes.items():
+        record = {"id": vault.identities[path], "type": "note", "path": vault.relative(path),
+                  "fields": _json_value(metadata), **({IGNORED: True} if metadata.get(IGNORED) else {})}
+        vault.records.append(record)
+        vault.notes_by_id[record["id"]] = (path, record)
+    for chapter, depth in toc:
+        path = chapter["_path"]
+        add("chapter", vault.identities[path], {
+            "chapter": chapter["title"], "title": chapter["title"], "depth": str(depth),
+            "slug": chapter["id"], "sourcePath": vault.relative(path),
+        }, vault.identities[path])
+    for path, (metadata, body) in vault.notes.items():
+        note, source = vault.identities[path], vault.relative(path)
+        name = titles.get(path) or _note_title(path, vault)
+        for category, identifier, text in paragraph_marks(body):
+            add("tag", f"{note}-{category}-{identifier}", {
+                "sourcePath": source, "type": category, "label": identifier, "text": text,
+                "source": name if isinstance(name, str) else path.stem,
+            }, note)
+        if metadata.get("kind") == "glossary":
+            add("glossary", note, {
+                "sourcePath": source, "term": _json_value(metadata.get("term")),
+                "definition": _json_value(metadata.get("definition")),
+                "aliases": _json_value(metadata.get("aliases") or []),
+            }, note)
+    manifest = vault.notes[vault.manifest][0]
+    for key, value in manifest.items():
+        if key not in {"history", "obsHtml"}:
+            add("documentMetadata", str(key), {"key": str(key), "value": _json_value(value)})
+    history = manifest.get("history")
+    for index, entry in enumerate(history if isinstance(history, list) else [], 1):
+        if isinstance(entry, dict):
+            add("documentHistory", str(index), {**_json_value(entry), "date": _json_value(entry.get("date") or "")})
+
+
+def _unlisted_chapter(path: Path, vault: _Vault) -> dict[str, object]:
+    """An included note the manifest does not list; see input-model "Chapter content"."""
+    title = _note_title(path, vault)
     if not isinstance(title, str) or not title.strip():
         raise VaultError(
             f"Note title must be a non-empty string: {vault.relative(path)}; "
@@ -343,7 +410,7 @@ def _card_selection(card: dict[str, object], source_path: Path, vault: _Vault) -
 
 
 def _base_selection(definition: object, source_path: Path, vault: _Vault, place: str) -> None:
-    """Include the notes a Base definition selects."""
+    """Include the notes a Base definition selects and the notes of the rows it selects."""
     if not isinstance(definition, dict):
         return
     try:
@@ -353,7 +420,10 @@ def _base_selection(definition: object, source_path: Path, vault: _Vault, place:
             f"{error} ({place} in {vault.relative(source_path)}); "
             "use the Bases filter grammar of generic-tables."
         ) from error
-    _select(lambda fields, path, _body: selects(fields, path), vault)
+    for record in vault.records:
+        owner = vault.note_of(record)
+        if owner is not None and selects(record, owner[1]):
+            vault.reached.append(owner[0])
 
 
 def _read_note(path: Path) -> tuple[dict[str, object], str]:
@@ -886,10 +956,8 @@ def _register_attrs(
             )
         view = names.index(heading)
     rows = [
-        None if selects is None else [
-            vault.identities[path] for path, (fields, _) in vault.notes.items()
-            if selects(fields, vault.relative(path))
-        ]
+        [record["id"] for record in vault.records
+         if selects(record, None if (owner := vault.note_of(record)) is None else owner[1])]
         for selects in view_selectors(definition)
     ]
     return {
