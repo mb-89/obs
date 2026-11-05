@@ -1,4 +1,5 @@
 import json
+import subprocess
 import sys
 from pathlib import Path
 
@@ -94,3 +95,42 @@ def test_core_rejects_mismatched_adapter_contracts(
 
     with pytest.raises(AdapterError, match=message):
         call_adapter("fixture", configuration, document, tmp_path / "output.txt")
+
+
+def test_node_adapter_receives_the_document_and_writes_output(tmp_path) -> None:
+    document = tmp_path / "document.json"
+    write_document(document_fixture(), document)
+    manifest = tmp_path / "adapter.json"
+    fixture = ROOT / "test" / "fixtures" / "document-adapter.js"
+    manifest.write_text(json.dumps({
+        "name": "node-fixture",
+        "command": ["node", str(fixture)],
+        "contractVersion": 1,
+        "capabilities": ["manifest"],
+    }), encoding="utf-8")
+    configuration = tmp_path / "adapters.json"
+    configuration.write_text(json.dumps({"adapters": {"node-fixture": "adapter.json"}}), encoding="utf-8")
+    destination = tmp_path / "output.json"
+
+    call_adapter("node-fixture", configuration, document, destination)
+
+    assert json.loads(destination.read_text(encoding="utf-8")) == {
+        "schemaVersion": 1,
+        "capabilities": ["manifest"],
+    }
+
+
+def test_document_core_import_has_no_renderer_or_browser_dependencies() -> None:
+    result = subprocess.run(
+        [sys.executable, "-c",
+         "import sys; import obs_html.document; "
+         "print(','.join(name for name in sys.modules if name.startswith('obs_html.')))"],
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+
+    assert set(result.stdout.strip().split(",")) == {
+        "obs_html.document",
+        "obs_html.adapter",
+    }
