@@ -80,6 +80,8 @@ def test_every_inline_construct_of_a_note_survives_into_the_document(tmp_path) -
     for token_type in ("em_open", "strong_open", "s_open", "code_inline", "image"):
         assert kinds[TOKEN_KINDS[token_type]] == sum(child.type == token_type for child in tokens)
     assert kinds["math"] == sum(child.type.startswith("math_inline") for child in tokens)
+    display = [node["attrs"]["display"] for node in nodes if node["type"] == "math"]
+    assert display.count(True) == sum(child.type == "math_inline_double" for child in tokens) == 1
     assert {"wikilinks", "embeds", "marks"} <= kinds.keys()
     thematic_breaks = sum(token.type == "hr" for token in _parser().parse(NOTE))
     assert thematic_breaks == 1
