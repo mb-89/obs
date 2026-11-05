@@ -34,7 +34,7 @@ A `registers` node carries everything an adapter needs to render the register, s
 reads nothing from the vault. Its attributes are defined by `src/obs/document.schema.json`:
 
 - `target` and `heading`: the embed as authored, `heading` empty when it names no view.
-- `base`: the embedded Base definition (filters, properties, views and `obsHtml`), validated
+- `base`: the embedded Base definition (filters, properties, views, `obs` and any adapter namespace), validated
   like a `base` fence ([[generic-tables#Bases filter grammar]]).
 - `view`: the index in `base.views` of the view `heading` names, or `null` when the embed names
   none and embeds all views with a selector ([[input-model#Registers]]).
@@ -43,7 +43,7 @@ reads nothing from the vault. Its attributes are defined by `src/obs/document.sc
   rules of [[capabilities/bases#Comparisons]], the same that decide which notes the Document
   includes.
 
-The view's `obsHtml.records`, else the base's, names the record type its rows have: `note`,
+The view's `obs.records`, else the base's, names the record type its rows have: `note`,
 `chapter`, `tag`, `glossary`, `documentMetadata` or `documentHistory`, `note` when neither
 names one. `src/obs/document.schema.json` (`$defs/record`) defines each record type and its
 fields; [[generic-tables#Bases filter grammar]] owns how a filter resolves them.

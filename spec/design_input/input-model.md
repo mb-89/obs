@@ -66,6 +66,19 @@ and runtime defaults are owned by [[cli]] and [[configuration]], respectively.
 - The manifest owns document metadata, authored navigation, and abstract prose. It is not
   additionally rendered as an ordinary chapter.
 
+## Core and adapter namespaces
+
+Decided by the user, 5 Nov 2026: obs makes no statement about an adapter; it treats an adapter
+like any other outside specification. Every key the core reads lives in the core's namespace
+`obs`, and the core validates every key there: a Base's and a view's `obs.records`, a view's
+`obs.members` ([[generic-tables]]), a card's `obs.metricsFrom` and a metric's `obs.projection`
+([[capabilities/cards-metrics#Fields]]), and a note's `obs.document`
+([[capabilities/profiles]]). An adapter's options live in its own namespace, `obs` followed
+by its name in camelCase (`obsHtml` for obs-html, [[capabilities/trusted-actions]]); the core
+neither reads nor validates it, and keeps it out of document metadata rows. A key the core
+used to read in an adapter's namespace is an input error naming the note, the old key and the
+new key; there is no compatibility layer.
+
 ## Document home and abstract
 
 A `cards` fence is a version-1 data-only mapping with a bounded `cards` list. Each card
@@ -287,10 +300,12 @@ alone) and `heading: compact` in the presentation profile below.
 ### Artifact presentation profile
 
 Author presentation decisions live in the manifest frontmatter's reserved `obsHtml`
-mapping, the same namespace that notes and Bases fences use for obs-html-only options.
+mapping, the same namespace that notes and Bases fences use for obs-html-only options. The
+core does not read it ([[#Core and adapter namespaces]]).
 
 Obsidian keeps it as ordinary frontmatter, so the author edits it in Properties or source.
-The packaged `note-profile.schema.json` constrains it and owns the defaults; the converter
+The adapter's packaged profile schema (the interim's `note-profile.schema.json`, obs-html's
+`profile.schema.json`) constrains it and owns the defaults; the converter
 contains no front-page titles, labels or opening mode of its own.
 
 ```yaml
@@ -383,7 +398,7 @@ Optional authored introduction.
 - A vault may keep all its registers as views of one `.base` file, so they are easy to find.
   `![[file.base#View]]` embeds one view; `![[file.base]]` embeds all views with a selector.
 - Registers are a superset of Bases. Each view is valid Bases YAML that Obsidian renders as a
-  plain table of notes. Keys under `obsHtml:`, which Obsidian ignores, make obs_html render
+  plain table of notes. Keys under `obs:` and `obsHtml:`, which Obsidian ignores, make obs_html render
   the rich register, for example one row per marked paragraph instead of one per note.
 - The view's own filter is the fallback and must select something sensible in Obsidian: notes
   with the mark tag, notes with `kind: glossary`, notes with a `url`, numeric-value notes.
@@ -391,7 +406,7 @@ Optional authored introduction.
   columns or filters for registers; the spec vault's `.base` file is the documented starter.
 - Rows that are not notes (marked paragraphs, glossary terms, chapters with a callout,
   document metadata) come from the shared record projections, selected by the view's
-  `obsHtml.records`; a base-level `obsHtml.records` is the default for all its views.
+  `obs.records`; a base-level `obs.records` is the default for all its views.
   There is no second dataset.
 - Open: the supported filter grammar has no `file.hasTag`, so a marks view filters its rows by
   `type` and its Obsidian fallback cannot yet select the notes carrying the mark tag.
@@ -450,7 +465,7 @@ Optional authored introduction.
   authored chapters; that scope preserves chapter navigation and PDF chapter inclusion.
   The ordinary artifact's chapter-filter behavior remains the default.
 - The manifest frontmatter's `obsHtml.query` owns the optional global query profile
-  (schema: `note-profile.schema.json`); project configuration rejects a `artifact.query`.
+  (schema: the adapter's profile schema); project configuration rejects a `artifact.query`.
 
   Instead of the profile, the manifest may name one internal note link, such as an
   adapter's generated configuration note, whose own `obsHtml.query` holds the profile.
@@ -638,7 +653,7 @@ Revision labels and dates appear in History, not on the cover.
 
 Both normal HTML
 and document/PDF views render the same canonical history through the shared query-table engine
-(`obsHtml.records: documentHistory`, columns `version`, `date`, `author`, `change`).
+(`obs.records: documentHistory`, columns `version`, `date`, `author`, `change`).
 
 History is not repeated as raw JSON in metadata.
 
@@ -665,7 +680,7 @@ Generation time remains separate from document revision dates.
 
   A contract failure names where it comes from and its remedy, in one form:
   `<note path>: <field path>: <what is wrong>. <remedy>`. The field path is the frontmatter
-  field (`obsHtml.document`, `query.where[0].field`), or the fence, numbered by kind within
+  field (`obs.document`, `query.where[0].field`), or the fence, numbered by kind within
   the note, followed by the field inside it (`cards fence 1, cards[0].title`); a file's own
   top level is `top level`. The remedy says what to write and names the note that owns the
   contract. One formatter in the core turns every schema validation failure, of
@@ -682,8 +697,8 @@ Generation time remains separate from document revision dates.
   `where` condition ([[capabilities/queries#Conditions]]), narrowed by its `from` owner's
   selection; the `from` and `secondary` owner notes
   are included too. A metric's `denominator` selects its population the same way, and a
-  card's `obsHtml.metricsFrom.where` the records its series counts. A card's
-  `obsHtml.metricsFrom.sourceNote` and `obsHtml.metricsFrom.link.note`
+  card's `obs.metricsFrom.where` the records its series counts. A card's
+  `obs.metricsFrom.sourceNote` and `obs.metricsFrom.link.note`
   ([[capabilities/cards-metrics#Fields]]) are explicit references, included like links.
   Each note is included once, so cycles end.
 
@@ -710,9 +725,9 @@ Generation time remains separate from document revision dates.
   omitted at generation; generation resolves the authored queries to establish inclusion.
 - Each source path has one stable note identity and one stored record, even with repeated links,
   aliases, cycles, or multiple table projections. Links stay references, not recursive copies.
-- Optional note frontmatter `obsHtml: {document: false}` declares a canonical record-only
-  projection. `document` is boolean and defaults to true; the reserved mapping is constrained
-  by `note-profile.schema.json`.
+- Optional note frontmatter `obs: {document: false}` declares a canonical record-only
+  projection. `document` is boolean and defaults to true; the core's `obs` mapping is constrained
+  by its `note-profile.schema.json`.
 
   Record-only notes remain queryable and available to figures and explicit canonical
   reference/detail tabs, but do not appear in generic Search, chapter activation or
@@ -1349,12 +1364,12 @@ the per-kind register is the `marks` [register](#registers).
   change, never a renderer fallback.
 
   A Base normally evaluates canonical note rows once, as native Bases does.
-  `obsHtml.records` explicitly selects an artifact-only row projection: `note`, `chapter`,
+  `obs.records` explicitly selects an artifact-only row projection: `note`, `chapter`,
   `tag`, `glossary`, `documentHistory` or `documentMetadata`. A `note` projection adds
   the artifact's own note fields to the canonical note rows (see [[generic-tables]]).
 
   A filter comparison on a bare `recordType` is rejected with a migration message naming
-  `obsHtml.records`. View filters intersect global Base filters during discovery and rendering.
+  `obs.records`. View filters intersect global Base filters during discovery and rendering.
 
   Filter syntax and comparison semantics are owned by the Bases filter grammar in
   [[generic-tables]]. The separate artifact UI's notion of an assigned
@@ -1379,7 +1394,7 @@ the per-kind register is the `marks` [register](#registers).
   each referenced note's current array, preserving index-specific rich metadata.
 
   Cards retain the existing bounded count contract, not an Obsidian formula
-  claim. A card may declare `obsHtml.metricsFrom` with `sourceNote`, `property`,
+  claim. A card may declare `obs.metricsFrom` with `sourceNote`, `property`,
   `labelProperty`, `distinctProperty` and an ordinary count `where`. Each object
   in that canonical data list supplies a label and the field whose distinct
   values are counted.
@@ -1392,7 +1407,7 @@ the per-kind register is the `marks` [register](#registers).
   This is a typed presentation projection, not string interpolation, arbitrary
   template syntax, a new predicate evaluator or a numeric/formula engine.
 
-  An authored metric's `obsHtml.projection` selects an opaque trusted
+  An authored metric's `obs.projection` selects an opaque trusted
   application-provided field projection. A Base's `obsHtml.viewProjection`
   similarly opts into an application presentation; optional `fallbackColumns`
   declares its all-hidden column view. These declarations do not grant trust.
@@ -1431,13 +1446,14 @@ the per-kind register is the `marks` [register](#registers).
   they are rejected rather than evaluated as file metadata.
 
   Artifact-only additions live under
-  a top-level `obsHtml` mapping so normal Bases syntax remains portable and can expand independently.
+  a top-level `obsHtml` mapping so normal Bases syntax remains portable and can expand independently;
+  what the core reads lives under `obs` ([[#Core and adapter namespaces]]).
 
   For a view whose membership or order cannot be expressed by canonical note properties,
-  `obsHtml.members` is an ordered list of `{path, label?}` entries. `path` is a unique,
+  `obs.members` is an ordered list of `{path, label?}` entries. `path` is a unique,
   vault-relative Markdown filename; `label` is optional view-local display text, exposed only
-  as the derived `obsHtml.label` cell. The list belongs to the view's `obsHtml`; a Base-level
-  `obsHtml.members` fails the build, naming the note, with the remedy to move it into the view.
+  as the derived `obsHtml.label` cell. The list belongs to the view's `obs`; a Base-level
+  `obs.members` fails the build, naming the note, with the remedy to move it into the view.
 
   The list never writes membership, rank, or labels into a note. It intersects the standard
   Base filter and initializes row order; interactive filters

@@ -196,7 +196,7 @@
               "base": {"description": "The embedded Base definition; base.schema.json validates it.", "type": "object", "required": ["views"]},
               "view": {"description": "The index in base.views of the view heading names; null embeds all views.", "oneOf": [{"type": "integer", "minimum": 0}, {"type": "null"}]},
               "rows": {
-                "description": "Per view of base.views, in order: the ids of the records it selects, of the record type its obsHtml.records names.",
+                "description": "Per view of base.views, in order: the ids of the records it selects, of the record type its obs.records names, in the order of its obs.members where it declares them.",
                 "type": "array", "items": {"type": "array", "items": {"$ref": "#/$defs/id"}}
               }
             }
@@ -237,7 +237,7 @@
       "then": {"properties": {"href": {"pattern": "^[Hh][Tt][Tt][Pp][Ss]?://"}}}
     },
     "record": {
-      "description": "A selectable row for Bases and queries, of one record type; a Base view selects one type with obsHtml.records (capabilities/registers). The fields of a row other than a note are its own fields (generic-tables, Bases filter grammar).",
+      "description": "A selectable row for Bases and queries, of one record type; a Base view selects one type with obs.records (capabilities/registers). The fields of a row other than a note are its own fields (generic-tables, Bases filter grammar).",
       "type": "object", "additionalProperties": false, "required": ["id", "type", "fields"],
       "properties": {
         "id": {"$ref": "#/$defs/id"},
@@ -285,7 +285,7 @@
           }}}
         },
         {
-          "description": "A document metadata entry: one manifest frontmatter key other than history and obsHtml, its value as authored.",
+          "description": "A document metadata entry: one manifest frontmatter key other than history, obs and an adapter's namespace (obs followed by a capital letter), its value as authored.",
           "if": {"properties": {"type": {"const": "documentMetadata"}}},
           "then": {"not": {"required": ["note"]}, "properties": {"fields": {
             "additionalProperties": false, "required": ["key", "value"], "properties": {"key": {"type": "string"}, "value": {}}
