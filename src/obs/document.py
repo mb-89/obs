@@ -10,6 +10,7 @@ from jsonschema.exceptions import ValidationError
 from referencing import Registry, Resource
 
 from obs.adapter import AdapterError, load_adapter
+from obs.vault import VaultError, build_document as _build_document
 
 
 DOCUMENT_SCHEMA_PATH = Path(__file__).with_name("document.schema.json")
@@ -20,6 +21,17 @@ STRUCTURAL_NODE_TYPES = {"document", "section", "paragraph", "text", "list", "li
 
 class DocumentError(ValueError):
     """Raised when a Document violates the neutral contract."""
+
+
+def build_document(manifest_path: Path, reference: dict[str, object]) -> dict[str, object]:
+    """Parse a vault into a schema-valid neutral Document."""
+    try:
+        known = {item["id"] for item in reference["capabilities"]}
+        document = _build_document(manifest_path, known)
+        validate_document(document, reference)
+    except VaultError as error:
+        raise DocumentError(str(error)) from error
+    return document
 
 
 def read_capability_reference(path: Path) -> dict[str, object]:
@@ -134,18 +146,28 @@ def build_parser() -> argparse.ArgumentParser:
         prog="obs-document",
         description="Validate a JSON Document and deliver it to a configured adapter.",
     )
-    parser.add_argument("--document", type=Path, required=True, help="Schema-valid JSON Document.")
-    parser.add_argument("--adapter", required=True, help="Configured adapter name.")
-    parser.add_argument("--adapter-config", type=Path, required=True, help="Adapter configuration JSON.")
+    parser.add_argument("--document", type=Path, required=True, help="JSON Document to read or write.")
+    parser.add_argument("--source", type=Path, help="Manifest note to parse into --document.")
+    parser.add_argument("--adapter", help="Configured adapter name.")
+    parser.add_argument("--adapter-config", type=Path, help="Adapter configuration JSON.")
     parser.add_argument("--capability-reference", type=Path, required=True,
                         help="Capability reference JSON.")
-    parser.add_argument("--destination", type=Path, required=True, help="Adapter output destination.")
+    parser.add_argument("--destination", type=Path, help="Adapter output destination.")
     return parser
 
 
 def main(argv: Sequence[str] | None = None) -> int:
     options = build_parser().parse_args(argv)
     try:
+        reference = read_capability_reference(options.capability_reference)
+        if options.source:
+            write_document(build_document(options.source, reference), options.document, reference)
+        if not options.adapter:
+            if options.source:
+                return 0
+            raise DocumentError("--adapter is required when --source is not supplied.")
+        if options.adapter_config is None or options.destination is None:
+            raise DocumentError("--adapter-config and --destination are required with --adapter.")
         call_adapter(options.adapter, options.adapter_config, options.document, options.destination,
                      options.capability_reference)
     except (AdapterError, DocumentError) as error:
