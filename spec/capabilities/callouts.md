@@ -24,8 +24,9 @@ A callout is one `callouts` node, and a Document that holds one names `callouts`
 capabilities. A callout is not an [[capabilities/extensions|extension]]: it adds no
 `extensions` node.
 
-The node's `attrs` hold the canonical type as `kind` and the authored title as `title` (empty
-when none is authored); `document.schema.json` owns the node's shape.
+The node's `attrs` hold the canonical type as `kind` and the title as `title`: the authored
+title, or without one the default title [[input-model#Callouts]] names, so every adapter shows
+the same title; `document.schema.json` owns the node's shape.
 
 Its `children` are the callout body parsed like chapter content: paragraphs, lists, code,
 links, wikilinks (with `attrs.chapter`), marks and nested callouts arrive as the same node
