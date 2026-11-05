@@ -1,0 +1,7 @@
+.se/
+.venv/
+.pytest_cache/
+__pycache__/
+*.py[cod]
+data/data_output/
+spec/design_output/
