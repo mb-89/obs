@@ -1130,7 +1130,8 @@ separate from document presentation.
 
   Changed HTML and the applied filter are information, each limited capability is a
   warning, and errors are reserved for real failures. Notices are transient UI, not printed
-  content or a dirty warning embedded into a newly reopened saved HTML.
+  content or a dirty warning embedded into a newly reopened saved HTML. The entries, icons
+  and layout are owned by obs-html's `notices.js`, not repeated here.
 
   The changed-HTML information entry is present whenever persisted artifact state differs
   from the last confirmed saved snapshot. It says that this HTML has changed, and its
