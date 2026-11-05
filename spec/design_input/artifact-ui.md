@@ -107,6 +107,13 @@ failures have their form in [[input-model#Chapter content]].
   Choosing an appearance updates every semantic token, including browser-native controls,
   without changing content or individual component rules.
 
+  The root's `color-scheme` is the chosen appearance: `light`, `dark`, or `light dark` for
+  System; no `color-scheme` meta overrides it. `html` and `body` paint an opaque background
+  and a text colour from the semantic tokens in every appearance, so nothing the reader sees
+  inherits a colour from the host, such as Claude's artifact viewer in a dark scheme. Light is
+  a white page with black text; Dark is a near-black page with white headings, light grey body
+  text and thin grey rules. The token values are owned by [[semantic-assets]].
+
   Every opening starts in Light appearance and in the manifest's declared `obsHtml.layout`
   (paged by default), regardless of the operating-system theme or previously selected reader
   appearance. Reader controls may switch appearance and viewing mode during the current
