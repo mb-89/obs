@@ -149,3 +149,10 @@ def test_artifact_ui_alone_owns_what_counts_as_a_change() -> None:
     assert "[[artifact-ui#What counts as a change" in input_model
     for restatement in ("Persisted reader-state changes do", "changed-HTML state", "as changed.", "or an artifact change"):
         assert restatement not in input_model
+
+
+def test_width_rule_has_one_owner() -> None:
+    design = ROOT / "spec" / "design_input"
+    input_model = (design / "input-model.md").read_text(encoding="utf-8")
+
+    assert "column or width changes" not in input_model
