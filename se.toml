@@ -3,4 +3,4 @@ authored_content = ["README.md", "AGENTS.md"]
 
 [modules.obs]
 url = "https://github.com/mb-89/obs.git"
-ref = "95a25cbcefb17c7fd0513fda5cc865cf8a369e3c"
+ref = "e4d379d69c2529421369bfc4755e6deaa10fcb48"
