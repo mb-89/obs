@@ -100,6 +100,19 @@
             const entry = limit(key);
             return entry ? `${entry.feature} is limited here: ${entry.reason} ${entry.remedy}` : "";
         },
+        // Shows a message inline right after the control that was used, in place of alert().
+        note(control, message) {
+            let note = control.nextElementSibling;
+            if (!note?.hasAttribute("data-capability-message")) {
+                note = view.document.createElement("span");
+                note.className = "capability-message";
+                note.dataset.capabilityMessage = "";
+                note.dataset.transientView = "";
+                note.setAttribute("role", "status");
+                control.after(note);
+            }
+            note.textContent = message;
+        },
     });
 
     // The notice joins the shared heading notice area that report.js creates.

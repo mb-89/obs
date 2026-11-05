@@ -130,3 +130,42 @@ def test_the_same_report_opened_normally_shows_no_notice(tmp_path: Path, reader_
     expect(page.locator("[data-capability-notice]")).to_have_count(0)
     assert errors == []
 
+@pytest.mark.browser
+def test_print_to_pdf_in_a_sandboxed_frame_ends_in_an_inline_message(tmp_path: Path, reader_browser) -> None:
+    from playwright.sync_api import expect
+
+    errors: list[str] = []
+    _page, frame = open_sandboxed(tmp_path, reader_browser, errors)
+    frame.locator("[data-menu-button]").click()
+    frame.locator('[data-dock-bar="settings"]').first.click()
+    frame.locator("[data-export-pdf]").click()
+    status = frame.locator("[data-export-status]")
+    expect(status).to_be_visible()
+    expect(status).to_contain_text("PDF export failed: Print to PDF is limited here")
+    expect(status).to_contain_text("Open the HTML file directly in a browser to print.")
+    expect(frame.locator("html")).not_to_have_class(re.compile("preparing-print"))
+    # The browser reports the ignored print() call itself; the export logs its own inline failure.
+    assert [error for error in errors if "print" not in error.lower()] == []
+
+
+@pytest.mark.browser
+def test_a_message_without_modal_dialogs_appears_beside_its_control(tmp_path: Path, reader_browser) -> None:
+    from playwright.sync_api import expect
+
+    errors: list[str] = []
+    dialogs: list[str] = []
+    page, frame = open_sandboxed(tmp_path, reader_browser, errors)
+    page.on("dialog", lambda dialog: dialogs.append(dialog.message))
+    frame.locator("[data-chapter-body]").evaluate("""(body) => {
+        const link = document.createElement("a");
+        link.href = "#tag";
+        link.dataset.tagKind = "nothing";
+        link.dataset.tagLabel = "nowhere";
+        link.textContent = "untabled tag";
+        body.append(link);
+    }""")
+    frame.get_by_text("untabled tag").dispatch_event("click")
+    expect(frame.locator("[data-capability-message]")).to_have_text("No table in this document includes this tag.")
+    assert dialogs == []
+    assert errors == []
+

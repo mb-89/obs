@@ -739,6 +739,11 @@
             return;
         }
         const clipboard = globalThis.navigator?.clipboard;
+        const clipboardLimit = globalThis.obsCapabilities?.limit("clipboard");
+        if (clipboardLimit?.refused) {
+            showCopyFeedback(`Comments were not copied. ${globalThis.obsCapabilities.explain("clipboard")}`, true);
+            return;
+        }
         if (typeof clipboard?.writeText !== "function") {
             showCopyFeedback("Clipboard is unavailable; comments were not copied.", true);
             return;
@@ -1274,7 +1279,9 @@
             link.click();
             URL.revokeObjectURL(link.href);
             announcer.textContent = (fileError ? `File save failed: ${fileError.message}. ` : "") +
-                "Download started. The browser cannot confirm it was saved; unsaved changes remain.";
+                "Download started. The browser cannot confirm it was saved; unsaved changes remain." +
+                (globalThis.obsCapabilities?.limit("downloads")
+                    ? ` ${globalThis.obsCapabilities.explain("downloads")}` : "");
         } catch (error) {
             if (error?.name === "AbortError") return;
             announcer.textContent = `HTML could not be saved: ${error.message}`;
