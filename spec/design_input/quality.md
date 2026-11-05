@@ -66,6 +66,10 @@ definitions alike. Keeping the same fact in two places is an anti-pattern (user,
 - Give browser features independently selectable tests and small fixtures. Share expensive
   adapter startup within a selected module; do not require the end-to-end scenario to test a
   local interaction. Prefer extracting pure transformations only when they have a cohesive owner.
+- The suite passes on Windows and Linux alike. Tests build paths with the platform's path
+  API, run real producer commands through the test interpreter rather than shell builtins,
+  and compare exact bytes the test itself wrote. A test that genuinely needs one platform
+  (PowerShell, native pickers) is skipped elsewhere with a reason, never failed.
 - Tier names and meanings are owned by the pytest markers in `pyproject.toml`; assignment from
   dependency evidence is owned by `test/tiers.py`.
 - Unit, dom and browser tiers run without a paired checkout: representative data comes from
