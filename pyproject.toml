@@ -1,17 +1,18 @@
 [project]
 name = "obs-html"
 version = "0.1.0"
-description = "Portable HTML document output adapter."
+description = "Render a JSON Document as portable HTML or PDF."
 requires-python = ">=3.11"
 license = "MIT"
 license-files = ["LICENSE"]
 dependencies = [
-    "jsonschema>=4.0",
-    "PyYAML>=6.0",
+    "jsonschema>=4.26.0",
+    "playwright>=1.64.0",
+    "pypdf>=6.21.2",
 ]
 
 [project.scripts]
-obs-html-smoke = "obs_html.smoke:main"
+obs-html = "obs_html.cli:main"
 
 [dependency-groups]
 dev = [
