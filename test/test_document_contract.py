@@ -47,6 +47,24 @@ def test_document_schema_validates_a_core_document() -> None:
     validate(document_fixture(), schema)
 
 
+def test_document_cli_writes_a_vault_document(tmp_path) -> None:
+    vault = tmp_path / "vault"
+    vault.mkdir()
+    (vault / "manifest.md").write_text("- [[chapter]]\n", encoding="utf-8")
+    (vault / "chapter.md").write_text("Content.\n", encoding="utf-8")
+    reference = write_reference(tmp_path / "capabilities.json")
+    output = tmp_path / "document.json"
+
+    assert main([
+        "--source", str(vault / "manifest.md"),
+        "--document", str(output),
+        "--capability-reference", str(reference),
+    ]) == 0
+
+    document = json.loads(output.read_text(encoding="utf-8"))
+    assert document["chapters"][0]["content"][0]["children"][0]["text"] == "Content."
+
+
 def test_adapter_is_discovered_by_name_from_configuration(tmp_path) -> None:
     manifest = tmp_path / "adapter.json"
     manifest.write_text(json.dumps({
