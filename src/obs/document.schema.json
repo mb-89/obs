@@ -151,7 +151,8 @@
       "properties": {
         "id": {"$ref": "#/$defs/id"}, "type": {"type": "string", "minLength": 1},
         "path": {"type": "string", "pattern": "^(?!/)(?!.*(^|/)\\.\\.?(/|$)).+\\.md$"},
-        "fields": {"type": "object"}
+        "fields": {"type": "object"},
+        "ignored": {"const": true, "description": "Present on an ignored note: queries and Bases never select it (markdown-frontmatter, Ignored notes)."}
       },
       "if": {"properties": {"type": {"const": "note"}}},
       "then": {"required": ["path"]}

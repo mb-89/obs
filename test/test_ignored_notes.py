@@ -67,6 +67,18 @@ def test_an_ignored_note_listed_in_the_manifest_or_linked_from_an_included_note_
     assert document["diagnostics"] == []
 
 
+def test_the_record_of_an_ignored_note_says_so(tmp_path) -> None:
+    manifest = _vault(tmp_path, {
+        "manifest.md": "---\nignored: true\n---\n- [[chapter]]\n",
+        "chapter.md": "Chapter.\n",
+    })
+
+    records = {record["path"]: record for record in build_document(manifest, capability_reference())["records"]}
+
+    assert records["manifest.md"]["ignored"] is True
+    assert "ignored" not in records["chapter.md"]
+
+
 def test_the_spec_manifest_is_not_selected_by_a_query_or_base_matching_all_notes() -> None:
     records = build_document(ROOT / "spec" / "manifest.md", capability_reference())["records"]
     every_query = _selected(records, lambda fields, path: conditions_select([], fields, path))
