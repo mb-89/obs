@@ -163,8 +163,8 @@ reopened locally, and PDF export. Mark host-restricted actions explicitly with
 the download-and-open remedy.
 
 The artifact now does this itself: in a limited host its capability canaries
-raise the Limited functionality notice; see
-[Artifact UI](artifact-ui.md#dock-menu) (the shared heading notice area) for the notice and
+raise Limited functionality warnings; see
+[Artifact UI](artifact-ui.md#dock-menu) (the notice center) for the warnings and
 the registry that lists the browser capabilities the artifact depends on. Defer minification until compatibility works so
 format transformations do not obscure diagnosis.
 
