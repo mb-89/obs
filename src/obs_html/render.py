@@ -565,6 +565,9 @@ def _shell(model: dict[str, object], stylesheet: str, assets: SemanticAssets, co
 
   {encode_report_data(model, config.report["dataCompression"])}
   <script id="obs-comments" type="application/json" data-comment-island>{_empty_comment_island()}</script>
+  <script id="capabilities-script">
+{read("capabilities.js")}
+  </script>
   <script id="query-script">
 {read("query.js")}
   </script>
