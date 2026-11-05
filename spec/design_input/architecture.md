@@ -20,9 +20,9 @@ The system is a Python package managed and executed by `uv`.
 1. Load cross-project configuration, then the selected vault's optional project configuration,
    and resolve CLI runtime paths.
 2. Resolve a source folder to its conventional manifest note, or accept an explicit note.
-3. The core parses the selected manifest into a schema-valid JSON Document with document metadata, an ordered chapter tree, semantic Markdown nodes, links, and assets.
+3. The core parses the selected manifest into a schema-valid JSON [[quality#Glossary|Document]] with document metadata, an ordered chapter tree, semantic Markdown nodes, links, and assets.
 4. The core resolves every manifest link within the containing vault and validates frontmatter and supported input syntax.
-5. Adapters project the Document into their output formats; HTML rendering remains in obs-html.
+5. Adapters project the Document into their output formats, each an [[quality#Glossary|artifact]]; HTML rendering remains in obs-html.
 6. Resolve authorized derived-content providers, including command fences.
 7. Resolve content links and assets within the vault boundary.
 8. Render one self-contained HTML file with an embedded chapter navigator.
