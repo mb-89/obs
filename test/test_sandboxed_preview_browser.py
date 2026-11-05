@@ -258,3 +258,25 @@ def test_home_and_the_chapter_chooser_are_not_covered_by_the_previous_arrow(
             click_where_visible(page, frame, ".chapter-home-link")
             expect(chapter_element).to_have_attribute("data-chapter", "home")
     assert errors == []
+
+
+@pytest.mark.browser
+@pytest.mark.parametrize("frame_kind", SANDBOXES)
+def test_applying_or_clearing_a_filter_does_not_claim_the_html_changed(
+        tmp_path: Path, reader_browser, frame_kind: str) -> None:
+    """A filter is reader state, not a content change (obs report-ui.md, input-model.md)."""
+    from playwright.sync_api import expect
+
+    errors: list[str] = []
+    with http_origin(tmp_path) as origin:
+        page, frame = open_preview(tmp_path, reader_browser, errors, preview_report(), frame_kind,
+                                   origin if frame_kind == "same-origin" else None)
+        frame.locator("html").evaluate("() => globalThis.obsReport.openBar('filter')")
+        frame.locator("[data-filter-input]").fill("file.name == 'nothing'")
+        expect(frame.locator("[data-filter-warning]")).to_be_visible()
+        expect(frame.locator("[data-document-warning]")).to_be_hidden()
+        frame.locator(".filter-warning-clear").click()
+        expect(frame.locator("[data-filter-warning]")).to_be_hidden()
+        expect(frame.locator("[data-document-warning]")).to_be_hidden()
+        keep_screenshot(page, f"filtered-without-changed-notice-{frame_kind}")
+    assert errors == []

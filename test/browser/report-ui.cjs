@@ -164,12 +164,12 @@ if (process.argv[7] === "--document-change-only") {
     context.obsReport.commitProperty("one", "explanation", "Original");
     assert.equal(documentDirty(), false, "No-op canonical editors do not dirty HTML.");
     context.obsFilter.setExpression("status:draft");
-    assert.equal(documentDirty(), true);
+    assert.equal(documentDirty(), false, "Applying a filter is not a change of the HTML.");
     assert.equal(semanticDirty(), false, "Saved reader state is not a semantic review edit.");
     context.obsFilter.setExpression("status: /[");
-    assert.equal(documentDirty(), true, "Invalid drafts preserve the saved applied query.");
+    assert.equal(documentDirty(), false, "An invalid filter draft is not a change of the HTML.");
     click(document.querySelector("[data-filter-warning] button"));
-    assert.equal(documentDirty(), false, "Reverting the serialized query clears document state.");
+    assert.equal(documentDirty(), false, "Clearing a filter is not a change of the HTML.");
     context.obsReport.setViewSelection("proof", ["a"], ["a", "b"]);
     assert.equal(documentDirty(), true);
     assert.equal(semanticDirty(), false);
@@ -189,6 +189,8 @@ if (process.argv[7] === "--document-change-only") {
     const saved = parseHTML(output).document;
     assert.equal(saved.querySelector("[data-header-notices]"), null, "Notice DOM is never saved.");
     context.obsFilter.setExpression("status:draft");
+    assert.equal(documentDirty(), false, "A filter after a save is not a change of the HTML.");
+    context.obsReport.setViewSelection("proof", ["b"], ["a", "b"]);
     context.showSaveFilePicker = async () => {throw Object.assign(new Error("cancel"), {name: "AbortError"});};
     await context.obsComments.saveReviewedCopy();
     assert.equal(documentDirty(), true, "Cancel is not a save.");
@@ -217,7 +219,7 @@ if (process.argv[7] === "--document-change-only") {
     const pending = context.obsComments.saveReviewedCopy();
     while (!resume) await new Promise(setImmediate);
     context.obsReport.commitProperty("one", "explanation", "Newer edit");
-    context.obsFilter.setExpression("");
+    context.obsReport.setViewSelection("proof", ["a"], ["a", "b"]);
     resume();
     await pending;
     assert.equal(documentDirty(), true, "A confirmed capture cannot clean later canonical or reader edits.");
@@ -226,7 +228,7 @@ if (process.argv[7] === "--document-change-only") {
     context.obsReport.commitProperty("one", "explanation", "Changed");
     assert.equal(documentDirty(), true, "Later reader-only edits remain unsaved.");
     assert.equal(semanticDirty(), false);
-    context.obsFilter.setExpression("status:draft");
+    context.obsReport.setViewSelection("proof", ["b"], ["a", "b"]);
     assert.equal(documentDirty(), false, "Reverting to the confirmed capture is clean.");
     console.log("PASS document/review dirty, revert, invalid draft, save/cancel/failure/download/newer edits.");
     return;
