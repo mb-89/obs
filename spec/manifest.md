@@ -30,6 +30,7 @@ obsHtml:
 - [[overview|Overview]]
 - [[design_input/product|Product]]
   - [[design_input/input-model|Input model]]
+    - [[capability-reference|Capability reference]]
 - [[design_input/architecture|Architecture]]
   - [[design_input/quality|Quality]]
   - [[design_input/report-ui|Report UI]]

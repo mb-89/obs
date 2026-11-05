@@ -1,5 +1,9 @@
 # Input model
 
+[[capability-reference|Capability reference]] owns the supported capability identifiers,
+their dependencies, summaries, and authoring examples. This note owns the corresponding
+input semantics.
+
 ## Trusted presentation projections
 
 Trusted application runtimes may save a named selection through
