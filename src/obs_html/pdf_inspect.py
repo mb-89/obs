@@ -20,10 +20,10 @@ from 1. Coordinates are PDF points (1/72 inch) from the top-left corner of the p
 right and y down; at --scale S one point is S raster pixels.
 
 Examples:
-  obs-html-inspect render document.pdf --page 1 --output page-1.png
-  obs-html-inspect crop document.pdf --page 1 --box 72,72,300,200 --output title.png
-  obs-html-inspect text document.pdf --page 2
-  obs-html-inspect paths document.pdf --page 2 --output page-2-paths.json
+  obs-html-inspect render artifact.pdf --page 1 --output page-1.png
+  obs-html-inspect crop artifact.pdf --page 1 --box 72,72,300,200 --output title.png
+  obs-html-inspect text artifact.pdf --page 2
+  obs-html-inspect paths artifact.pdf --page 2 --output page-2-paths.json
   obs-html-inspect annotate page-1.png --box 72,72,300,200=title --scale 2 --output marked.png
 
 paths prints JSON: the page size and, per path, its bounds, fill and stroke colour (RGBA
@@ -180,10 +180,10 @@ def page_paths(pdf: Path, number: int) -> dict:
     return {"pdf": str(pdf), "page": number, "size": [width, height], "paths": paths}
 
 
-def _paths_json(report: dict) -> str:
-    """The paths report as JSON with one path per line, so it reads and diffs line by line."""
-    head = json.dumps({key: value for key, value in report.items() if key != "paths"})[:-1]
-    lines = ",\n".join(json.dumps(path) for path in report["paths"])
+def _paths_json(inspection: dict) -> str:
+    """The paths inspection as JSON with one path per line, so it reads and diffs line by line."""
+    head = json.dumps({key: value for key, value in inspection.items() if key != "paths"})[:-1]
+    lines = ",\n".join(json.dumps(path) for path in inspection["paths"])
     return f'{head}, "paths": [\n{lines}\n]}}\n'
 
 
@@ -315,9 +315,9 @@ def main(argv: Sequence[str] | None = None) -> None:
             _deliver_text(page_text(arguments.pdf, arguments.page), arguments.output,
                           f"page {arguments.page} text")
         elif arguments.command == "paths":
-            report = page_paths(arguments.pdf, arguments.page)
-            _deliver_text(_paths_json(report), arguments.output,
-                          f"{len(report['paths'])} paths of page {arguments.page}")
+            inspection = page_paths(arguments.pdf, arguments.page)
+            _deliver_text(_paths_json(inspection), arguments.output,
+                          f"{len(inspection['paths'])} paths of page {arguments.page}")
         elif arguments.command == "annotate":
             marks = [parse_mark(text) for text in arguments.box]
             annotate(arguments.raster, marks, arguments.scale, arguments.colour, arguments.line_width,

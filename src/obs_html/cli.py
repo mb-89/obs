@@ -14,11 +14,11 @@ from typing import Sequence
 from obs_html.commands import CommandError, run_command
 from obs_html.comments import CommentError, extract_comments
 from obs_html.config import ConfigError, load_config
-from obs_html.exposure import check_report
+from obs_html.exposure import check_artifact
 from obs_html.figure_svg import document_figures, figure_svg
 from obs_html.figures import FigureError
 from obs_html.render import RenderError, render
-from obs_html.report_data import same_document_content
+from obs_html.artifact_data import same_artifact_content
 from obs_html.timings import recording, stage
 
 
@@ -28,7 +28,7 @@ EPILOG = """Rendering:
   The core calls this command as an adapter with exactly DOCUMENT and DESTINATION.
   Command fences require --execute-commands and --command-root; review the commands first.
   They run with --command-root as working directory, normally the source vault root.
-  Their output never carries the build machine's absolute paths, and a report that names the
+  Their output never carries the build machine's absolute paths, and an artifact that names the
   home folder, user name or command root fails before writing (README, "Command fences").
   --check renders without writing output or executing commands.
   Document diagnostics are printed to stderr, never into the HTML.
@@ -43,17 +43,17 @@ Settings:
 
 Trusted runtime:
   --trusted-runtime-bundle ID=PATH explicitly trusts one local JavaScript application
-  bundle (a regular .js file, not a link) and embeds it in the HTML after the report
+  bundle (a regular .js file, not a link) and embeds it in the HTML after the artifact
   runtime. The Document itself can never opt into executable code.
 
 Figures:
   DOCUMENT --export-figures FOLDER writes each figure of the Document as a standalone SVG,
-  FOLDER/<chapter>--figure-<id>.svg, named like the figure's anchor in the HTML report. The
+  FOLDER/<chapter>--figure-<id>.svg, named like the figure's anchor in the HTML artifact. The
   same figure descriptor always gives the same bytes, so exports can be committed, diffed and
   cached; unchanged files are not rewritten and other files in FOLDER are left alone.
 
 Comments:
-  --extract-comments HTML reads the comment JSON island of a returned, reviewed report
+  --extract-comments HTML reads the comment JSON island of a returned, reviewed artifact
   without executing its scripts and prints deterministic comment candidates to stdout.
 
 PDF operations:
@@ -68,13 +68,13 @@ Timings:
   --timings prints "Timing: STAGE SECONDS s" for render, commands, figures, print and write.
 
 Examples:
-  obs-html document.json document.html
-  obs-html document.json document.pdf
-  obs-html document.json document.html --execute-commands --command-root vault
+  obs-html document.json artifact.html
+  obs-html document.json artifact.pdf
+  obs-html document.json artifact.html --execute-commands --command-root vault
   obs-html document.json --check
-  obs-html document.json document.html --style styles/corporate
-  obs-html --export-pdf document.html --output document.pdf
-  obs-html --check-rendered document.html
+  obs-html document.json artifact.html --style styles/corporate
+  obs-html --export-pdf artifact.html --output artifact.pdf
+  obs-html --check-rendered artifact.html
   obs-html --extract-comments reviewed.html
   obs-html document.json --export-figures figures
 
@@ -109,7 +109,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--export-figures", type=Path, metavar="FOLDER",
                         help="Write each figure of DOCUMENT as a byte-stable SVG into FOLDER.")
     parser.add_argument("--extract-comments", type=Path, metavar="HTML",
-                        help="Print comment candidates from a returned, reviewed report.")
+                        help="Print comment candidates from a returned, reviewed artifact.")
     parser.add_argument("--export-pdf", type=Path, metavar="HTML", help="Print existing HTML to PDF.")
     parser.add_argument("--output", type=Path, metavar="PDF", help="PDF written by --export-pdf.")
     parser.add_argument("--check-rendered", type=Path, metavar="HTML",
@@ -165,9 +165,9 @@ def _render(parser: argparse.ArgumentParser, options: argparse.Namespace, config
                          timeout_seconds=config.command_timeout_seconds)
     else:
         runner = None
-    report = render(document, config, runner, style_folder=options.style,
+    artifact = render(document, config, runner, style_folder=options.style,
                     trusted_runtime=_trusted_runtime(parser, options.trusted_runtime_bundle))
-    check_report(report, options.command_root.resolve() if options.command_root else None)
+    check_artifact(artifact, options.command_root.resolve() if options.command_root else None)
     for diagnostic in document["diagnostics"]:
         print(f"{diagnostic['level'].title()}: {diagnostic['message']}", file=sys.stderr)
     if options.check:
@@ -181,7 +181,7 @@ def _render(parser: argparse.ArgumentParser, options: argparse.Namespace, config
         with tempfile.NamedTemporaryFile("w", encoding="utf-8", dir=destination.parent,
                                          prefix=f".{destination.stem}.", suffix=".html",
                                          delete=False) as temporary:
-            temporary.write(report)
+            temporary.write(artifact)
         html = Path(temporary.name)
         try:
             pdf = export_pdf(html)
@@ -190,8 +190,8 @@ def _render(parser: argparse.ArgumentParser, options: argparse.Namespace, config
         _write_if_changed(destination, pdf)
     else:
         existing = _read_existing(destination)
-        if existing is None or not same_document_content(report, existing):
-            _write_if_changed(destination, report.encode("utf-8"))
+        if existing is None or not same_artifact_content(artifact, existing):
+            _write_if_changed(destination, artifact.encode("utf-8"))
     print(f"Generated {destination}.")
 
 

@@ -20,22 +20,22 @@ def _style(root: Path, css: str, assets: str | None = None) -> Path:
 
 
 def test_default_style_is_packaged_generic_and_has_no_external_module(document) -> None:
-    report = render(document, CONFIG, lambda command: "")
+    artifact = render(document, CONFIG, lambda command: "")
 
-    assert 'font-content: Georgia, "Times New Roman", serif' in report
-    assert ".paper-sheet" in report  # The base stylesheet always precedes the module overlay.
-    assert "file:///" not in report
-    assert '<link rel="stylesheet"' not in report
+    assert 'font-content: Georgia, "Times New Roman", serif' in artifact
+    assert ".paper-sheet" in artifact  # The base stylesheet always precedes the module overlay.
+    assert "file:///" not in artifact
+    assert '<link rel="stylesheet"' not in artifact
 
 
 def test_explicit_style_module_overrides_the_default(document, tmp_path: Path) -> None:
     style = _style(tmp_path, ":root { --module-style: selected; }")
 
-    report = render(document, CONFIG, lambda command: "", style_folder=style)
+    artifact = render(document, CONFIG, lambda command: "", style_folder=style)
 
-    assert "--module-style: selected" in report
-    assert 'font-content: Georgia, "Times New Roman", serif' not in report
-    assert ".paper-sheet" in report
+    assert "--module-style: selected" in artifact
+    assert 'font-content: Georgia, "Times New Roman", serif' not in artifact
+    assert ".paper-sheet" in artifact
 
 
 @pytest.mark.parametrize("geometry", ["@page { size: A4; }", ":root { --paper-width: 1mm; }"])
@@ -59,7 +59,7 @@ def test_cli_style_option_selects_an_external_style_folder(document, tmp_path: P
     style = _style(tmp_path, ":root { --cli-style: chosen; }")
     source = tmp_path / "document.json"
     source.write_text(json.dumps(document), encoding="utf-8")
-    output = tmp_path / "report.html"
+    output = tmp_path / "artifact.html"
 
     assert main([str(source), str(output), "--style", str(style),
                  "--execute-commands", "--command-root", str(tmp_path)]) == 0

@@ -37,18 +37,18 @@ The adapter's own features are documented as capability notes in
 [spec/capabilities](spec/capabilities), for example the trusted extension
 [attachment replacement](spec/capabilities/attachment-replacement.md).
 
-The report runtime's DOM tests run in Node over a test-only DOM adapter; install it once with
+The artifact runtime's DOM tests run in Node over a test-only DOM adapter; install it once with
 `npm --prefix test/browser ci`, then `uv run pytest -m dom` runs that tier alone.
 
-The report verification harness, `test/browser/report-harness.cjs`, opens a rendered report in that
+The artifact verification harness, `test/browser/artifact-harness.cjs`, opens a rendered artifact in that
 DOM and drives it step by step (data, chapter, table, page mode, print and presentation geometry);
 its header comment is its reference.
 
 ## Command fences
 
-Reader: whoever builds a report with `--execute-commands` or reads captured command output in one.
+Reader: whoever builds an artifact with `--execute-commands` or reads captured command output in one.
 
-A generated report never contains the build machine's absolute paths. Before captured command
+A generated artifact never contains the build machine's absolute paths. Before captured command
 output (stdout and stderr) is embedded, obs-html replaces:
 
 - paths inside `--command-root` with paths relative to it (the root itself becomes `.`);
@@ -62,7 +62,7 @@ beyond the paths replaced above. They inherit only `PATH`, `PATHEXT`, `SYSTEMROO
 tool settings and caches), `TMPDIR`, `TEMP`, `TMP` (temporary folders) and `LANG`, `LC_ALL` (text
 encoding), where they are set; a command that needs more sets it itself.
 
-Every build then checks the finished report, the HTML and the decoded report data, for the home
+Every build then checks the finished artifact, the HTML and the decoded artifact data, for the home
 folder, the user name as a path component and the command root, and fails naming where it found
 one and the remedy, before anything is written. A hit in captured output is an obs-html defect;
 a hit in authored content is fixed in the source.

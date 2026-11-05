@@ -579,7 +579,7 @@ input[data-property-single-line]:focus {
     margin-block-end: 0;
 }
 
-/* Callout tone: soft fill, border and title share one semantic color (report-ui.md). */
+/* Callout tone: soft fill, border and title share one semantic color (artifact-ui.md). */
 .content-callout {
     --callout-tone: var(--color-accent);
     --callout-fill: var(--color-accent-soft);
@@ -948,13 +948,13 @@ math {
     width: var(--sheet-width);
     font-size: 11pt;
     line-height: 1.5;
-    page: report-portrait;
+    page: artifact-portrait;
 }
 
 .paper-sheet[data-page-orientation="landscape"] {
     --sheet-width: var(--paper-height);
     --sheet-height: var(--paper-width);
-    page: report-landscape;
+    page: artifact-landscape;
 }
 
 .paper-content {
@@ -3105,10 +3105,12 @@ math {
 }
 
 /* Review mode lets tables overflow for their row rails. The body grows to hold what overflows, so
-   its end padding still clears Next's pointer area once scrolled there. */
+   its end padding still clears Next's pointer area once scrolled there. Its start padding holds
+   the review gutter (4.35rem, beyond the rail's 0.5rem gap) clear of Previous's pointer area. */
 .chapter-body.review-mode {
+    --review-clearance-start: calc(var(--chapter-nav-width) + 4.85rem);
     min-width: min-content;
-    padding-inline-start: 6.4rem;
+    padding-inline-start: var(--review-clearance-start);
 }
 
 .paged-mode .chapter-body.review-mode {
@@ -3116,7 +3118,7 @@ math {
 }
 
 .paged-mode [data-chapter-body].review-mode {
-    padding-inline: 6.4rem var(--chapter-clearance-end);
+    padding-inline: var(--review-clearance-start) var(--chapter-clearance-end);
     width: max-content;
 }
 

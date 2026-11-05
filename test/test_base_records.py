@@ -6,7 +6,7 @@ import pytest
 from documents import chapter, document, node
 from obs_html.config import load_config
 from obs_html.render import render
-from test_report_harness import run_harness
+from test_artifact_harness import run_harness
 
 
 pytestmark = pytest.mark.dom
@@ -33,9 +33,9 @@ def base(filters: object, order: list[str], sort: list[dict] | None = None) -> d
 
 def table(tmp_path: Path, spec: dict, records: tuple[dict, ...] = RECORDS) -> dict:
     source = document("Records", chapter("items", "Items", spec), records=records)
-    report = tmp_path / "report.html"
-    report.write_text(render(source, load_config()), encoding="utf-8")
-    _, result = run_harness(report, tmp_path, {"step": "activate", "chapter": "items"},
+    artifact = tmp_path / "artifact.html"
+    artifact.write_text(render(source, load_config()), encoding="utf-8")
+    _, result = run_harness(artifact, tmp_path, {"step": "activate", "chapter": "items"},
                             {"step": "table", "key": "items-base-1"})
     return result
 
@@ -69,7 +69,7 @@ def test_an_ignored_record_that_matches_is_neither_listed_nor_counted(tmp_path: 
 def test_the_runtime_query_population_does_not_count_an_ignored_record(tmp_path: Path) -> None:
     source = document("Records", chapter("items", "Items"), records=(*RECORDS, IGNORED),
                       abstract=(node("profiles", profile={"query": {"scope": "records"}}),))
-    report = tmp_path / "report.html"
-    report.write_text(render(source, load_config()), encoding="utf-8")
-    [summary] = run_harness(report, tmp_path, {"step": "summary"})
+    artifact = tmp_path / "artifact.html"
+    artifact.write_text(render(source, load_config()), encoding="utf-8")
+    [summary] = run_harness(artifact, tmp_path, {"step": "summary"})
     assert summary == {"records": 5, "totalRecords": 5}  # The chapter and four records.

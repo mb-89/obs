@@ -1,9 +1,9 @@
-"""Parity gate: this adapter's report against the interim reference, in Claude-preview-like frames.
+"""Parity gate: this adapter's artifact against the interim reference, in Claude-preview-like frames.
 
 Until obs removes its interim adapter, obs's spec is built both ways: the Document from the
 pinned core (`obs` in se.toml) rendered by this adapter, and the same spec sources rendered by
 the interim adapter of that same pinned obs. One interaction script then runs against both
-reports in both preview-like frames (test/preview.py): Home, previous/next by pointer and
+artifacts in both preview-like frames (test/preview.py): Home, previous/next by pointer and
 keyboard, the contents menu, the filter, and icon counts per region in every chapter. Any
 difference fails and names the step and both observations.
 
@@ -13,13 +13,13 @@ Where the reference itself is wrong by obs's design notes, the step is checked a
 for this adapter alone: Home by pointer (the reference's arrow area covers Home) and the filter
 (the reference marks the HTML changed).
 
-A second check sweeps both reports in the same frames for covered controls
+A second check sweeps both artifacts in the same frames for covered controls
 (test/browser/control-coverage.js) at four widths, in both views and with the bars open and
 closed. It holds this adapter to the design notes alone: a covered control fails, and the failure
 says where the reference has the same fault, which is not a parity difference.
 
 Run it alone with `uv run pytest test/test_parity_browser.py`; it needs both modules synchronized
-(README, "Core module") and builds the reports once per session.
+(README, "Core module") and builds the artifacts once per session.
 """
 import json
 import os
@@ -106,7 +106,7 @@ def require_reference(core: Path) -> Path:
 
 
 @pytest.fixture(scope="session")
-def parity_reports(tmp_path_factory) -> dict[str, str]:
+def parity_artifacts(tmp_path_factory) -> dict[str, str]:
     """obs's spec built by this adapter and by the interim reference."""
     core = require_core(CORE_ROOT)
     reference = require_reference(core)
@@ -148,7 +148,7 @@ def interact(page, frame) -> tuple[list[tuple[str, object]], list[str]]:
         """Click where the element is shown; report what covers it, if anything."""
         element = frame.locator(selector).first
         spot = element.evaluate(POINTER)
-        box = page.locator("#report").bounding_box()
+        box = page.locator("#artifact").bounding_box()
         page.mouse.click(box["x"] + spot["x"], box["y"] + spot["y"])
         settle()
         return f"covered by {spot['covered']}, then {chapter()}" if spot["covered"] else chapter()
@@ -158,7 +158,7 @@ def interact(page, frame) -> tuple[list[tuple[str, object]], list[str]]:
 
     def changed() -> bool:
         """The changed-HTML notice, in this adapter's notice center or the reference's banner."""
-        return frame.locator('[data-notice="changed-html"]').count() > 0 or visible("[data-document-warning]")
+        return frame.locator('[data-notice="changed-html"]').count() > 0 or visible("[data-artifact-warning]")
 
     steps.append(("start", chapter()))
     steps.append(("icons on start", root.evaluate(ICONS)))
@@ -204,7 +204,7 @@ def interact(page, frame) -> tuple[list[tuple[str, object]], list[str]]:
     steps.append(("Home by keyboard from the contents", chapter()))
     steps.append(("icons with the contents open", root.evaluate(ICONS)))
 
-    root.evaluate("() => globalThis.obsReport.openBar('filter')")
+    root.evaluate("() => globalThis.obsArtifact.openBar('filter')")
     frame.locator("[data-filter-input]").fill(FILTER)
     settle()
     expect(frame.locator('[data-filter-status]')).not_to_have_text(re.compile(r"^All "))
@@ -229,12 +229,12 @@ def interact(page, frame) -> tuple[list[tuple[str, object]], list[str]]:
     return steps, violations
 
 
-def observe(tmp_path: Path, reader_browser, report: str, frame_kind: str, name: str):
+def observe(tmp_path: Path, reader_browser, artifact: str, frame_kind: str, name: str):
     errors: list[str] = []
     folder = tmp_path / name
     folder.mkdir()
     with http_origin(folder) as origin:
-        page, frame = open_preview(folder, reader_browser, errors, report, frame_kind,
+        page, frame = open_preview(folder, reader_browser, errors, artifact, frame_kind,
                                    origin if frame_kind == "same-origin" else None)
         try:
             steps, violations = interact(page, frame)
@@ -245,12 +245,12 @@ def observe(tmp_path: Path, reader_browser, report: str, frame_kind: str, name: 
 
 @pytest.mark.browser
 @pytest.mark.parametrize("frame_kind", SANDBOXES)
-def test_the_report_behaves_as_the_interim_reference_in_preview_frames(
-        tmp_path: Path, reader_browser, parity_reports: dict[str, str], frame_kind: str) -> None:
-    adapter, violations, errors = observe(tmp_path, reader_browser, parity_reports["adapter"],
+def test_the_artifact_behaves_as_the_interim_reference_in_preview_frames(
+        tmp_path: Path, reader_browser, parity_artifacts: dict[str, str], frame_kind: str) -> None:
+    adapter, violations, errors = observe(tmp_path, reader_browser, parity_artifacts["adapter"],
                                           frame_kind, "adapter")
     reference, _reference_violations, _reference_errors = observe(
-        tmp_path, reader_browser, parity_reports["reference"], frame_kind, "reference")
+        tmp_path, reader_browser, parity_artifacts["reference"], frame_kind, "reference")
     assert [step for step, _ in adapter] == [step for step, _ in reference], (
         "test/test_parity_browser.py: the script took different steps; first steps differ at "
         + next((f"{a!r} / {r!r}" for (a, _), (r, _) in zip(adapter, reference) if a != r), "the end"))
@@ -294,7 +294,7 @@ def layout_name(layout: list[str] | None) -> str:
     return f"the {layout[0]} bar docked {layout[1]}" if layout else "no bar open"
 
 
-def covered_controls(tmp_path: Path, browser, report: str, frame_kind: str,
+def covered_controls(tmp_path: Path, browser, artifact: str, frame_kind: str,
                      name: str) -> dict[tuple[str, str], dict[str, list[str]]]:
     """Every covered control at every width, view and bar layout, in one preview frame.
 
@@ -306,7 +306,7 @@ def covered_controls(tmp_path: Path, browser, report: str, frame_kind: str,
     folder.mkdir()
     faults: dict[tuple[str, str], dict[str, list[str]]] = {}
     with http_origin(folder) as origin:
-        page, frame = open_preview(folder, browser, errors, report, frame_kind,
+        page, frame = open_preview(folder, browser, errors, artifact, frame_kind,
                                    origin if frame_kind == "same-origin" else None)
         try:
             page.set_viewport_size({"width": max(WIDTHS) + 100, "height": 800})
@@ -321,7 +321,7 @@ def covered_controls(tmp_path: Path, browser, report: str, frame_kind: str,
                        *([bar, "right"] for bar in bars if bar == "comments")]
             first = [[bar, "right"] for bar in bars if [bar, "right"] not in layouts]
             for width in WIDTHS:
-                page.evaluate("width => document.getElementById('report').style.width = width", f"{width}px")
+                page.evaluate("width => document.getElementById('artifact').style.width = width", f"{width}px")
                 results = root.evaluate(COVERAGE.read_text(encoding="utf-8"),
                                         {"views": list(VIEWS), "layouts": layouts, "firstChapterLayouts": first})
                 for result in results:
@@ -339,14 +339,14 @@ def covered_controls(tmp_path: Path, browser, report: str, frame_kind: str,
 @pytest.mark.browser
 @pytest.mark.parametrize("frame_kind", SANDBOXES)
 def test_no_control_is_covered_in_preview_frames(
-        tmp_path: Path, coverage_browser, parity_reports: dict[str, str], frame_kind: str) -> None:
+        tmp_path: Path, coverage_browser, parity_artifacts: dict[str, str], frame_kind: str) -> None:
     """No visible control lies under another element's pointer area (test/browser/control-coverage.js).
 
     The interim reference is swept in the same frames. Its faults are not parity differences:
     where this adapter shares one, the failure says so.
     """
-    ours = covered_controls(tmp_path, coverage_browser, parity_reports["adapter"], frame_kind, "adapter")
-    theirs = covered_controls(tmp_path, coverage_browser, parity_reports["reference"], frame_kind, "reference")
+    ours = covered_controls(tmp_path, coverage_browser, parity_artifacts["adapter"], frame_kind, "adapter")
+    theirs = covered_controls(tmp_path, coverage_browser, parity_artifacts["reference"], frame_kind, "reference")
     problems = [
         (f"page error: {where}" if control == "page error" else f"{control} is covered {where} by "
          + "; ".join(f"{covering} (in {', '.join(chapters)})" for covering, chapters in coverings.items()))
@@ -355,5 +355,5 @@ def test_no_control_is_covered_in_preview_frames(
     ]
     assert not problems, (
         f"test/test_parity_browser.py: controls covered by another element's pointer area, {frame_kind} "
-        "frame. Remedy: give the control clearance from what covers it (obs report-ui.md, chapter "
+        "frame. Remedy: give the control clearance from what covers it (obs artifact-ui.md, chapter "
         "controls):\n" + "\n".join(problems))

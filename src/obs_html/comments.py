@@ -33,9 +33,9 @@ class _CommentIslandParser(HTMLParser):
             self._chunks = None
 
 
-def extract_comments(report_path: Path) -> str:
+def extract_comments(artifact_path: Path) -> str:
     parser = _CommentIslandParser()
-    parser.feed(report_path.read_text(encoding="utf-8-sig"))
+    parser.feed(artifact_path.read_text(encoding="utf-8-sig"))
     parser.close()
     if len(parser.islands) != 1:
         raise CommentError(

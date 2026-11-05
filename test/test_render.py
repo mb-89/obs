@@ -4,7 +4,7 @@ import pytest
 
 from obs_html.config import load_config
 from obs_html.render import RenderError, render
-from obs_html.report_data import decode_report_data
+from obs_html.artifact_data import decode_artifact_data
 
 from documents import chapter, document as build, heading, node, paragraph
 
@@ -17,22 +17,22 @@ def _render(document, runner=lambda command: f"ran {command}") -> str:
 
 
 def _model(document, runner=lambda command: f"ran {command}") -> dict:
-    return decode_report_data(_render(document, runner))
+    return decode_artifact_data(_render(document, runner))
 
 
 def _notes(document, runner=lambda command: f"ran {command}") -> dict:
     return {note["slug"]: note for note in _model(document, runner)["notes"]}
 
 
-def test_the_report_shell_carries_the_runtime_and_the_island(document) -> None:
+def test_the_artifact_shell_carries_the_runtime_and_the_island(document) -> None:
     html = _render(document)
     assert "<title>Fixture document</title>" in html
-    for script in ("report-bootstrap-script", "report-data", "obs-comments", "query-script",
-                   "base-script", "data-table-script", "report-script", "pages-script",
+    for script in ("artifact-bootstrap-script", "artifact-data", "obs-comments", "query-script",
+                   "base-script", "data-table-script", "artifact-script", "pages-script",
                    "storage-script", "bar-scripts"):
         assert f'id="{script}"' in html
     assert html.count('class="dock-bar ') == 5  # comments, filter, search, settings, toc
-    assert 'data-report-data' in html
+    assert 'data-artifact-data' in html
 
 
 def test_front_pages_follow_the_profile_order(document) -> None:
@@ -98,7 +98,7 @@ def test_chapter_frontmatter_feeds_the_note_not_its_body(document) -> None:
 
 def test_marks_render_a_semantic_paragraph_with_a_named_icon_rail(document) -> None:
     html = _render(document)
-    intro = decode_report_data(html)["notes"][1]
+    intro = decode_artifact_data(html)["notes"][1]
     assert intro["marks"][0]["kind"] == "risk" and intro["marks"][0]["label"] == "limit"
     assert intro["marks"][0]["anchor"] == "mark-intro-risk-limit"
     assert 'class="semantic-mark semantic-mark--risk" data-mark-kind="risk"' in intro["html"]
@@ -240,7 +240,7 @@ def test_a_minimal_document_renders(document) -> None:
     minimal = {"schemaVersion": 1, "manifest": {"title": "Only", "metadata": {}}, "chapters": [],
                "links": [], "assets": [], "records": [], "semanticResources": [], "diagnostics": [],
                "capabilities": []}
-    model = decode_report_data(render(minimal, CONFIG))
+    model = decode_artifact_data(render(minimal, CONFIG))
     assert '<h1 class="document-title">Only</h1>' in model["notes"][0]["html"]
     assert model["toc"] == ["home"]
 
@@ -248,9 +248,9 @@ def test_a_minimal_document_renders(document) -> None:
 def test_island_compression_follows_the_settings(document, tmp_path) -> None:
     import json
     settings = tmp_path / "settings.json"
-    settings.write_text(json.dumps({"report": {"dataCompression": "none"}}), encoding="utf-8")
+    settings.write_text(json.dumps({"artifact": {"dataCompression": "none"}}), encoding="utf-8")
     html = render(document, load_config(settings), lambda command: "")
-    assert re.search(r'<script id="report-data" type="application/json"[^>]*data-compression="none"', html)
+    assert re.search(r'<script id="artifact-data" type="application/json"[^>]*data-compression="none"', html)
 
 
 def test_metadata_markdown_renders_inline_on_the_cover_and_in_the_frontmatter_panel(document) -> None:

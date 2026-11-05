@@ -80,14 +80,14 @@ def test_trace_export_is_a_standalone_svg_of_the_panels(document) -> None:
     assert points[0][1] > points[2][1]
 
 
-def test_sankey_export_is_the_reports_static_drawing(document) -> None:
+def test_sankey_export_is_the_artifacts_static_drawing(document) -> None:
     root = ElementTree.fromstring(figure_svg(_descriptors(document)["flow"]))
     assert root.tag == f"{SVG}svg"
     assert len(root.findall(f"{SVG}g[@class='sankey-node']")) == 3
     assert len(root.findall(f"{SVG}path[@class='sankey-link']")) == 2
 
 
-def test_document_figures_are_named_like_their_report_anchors(document) -> None:
+def test_document_figures_are_named_like_their_artifact_anchors(document) -> None:
     assert [name for name, _ in document_figures(document)] == [
         "appendix--figure-response", "appendix--figure-flow"]
 

@@ -8,7 +8,7 @@ import pytest
 
 from obs_html.config import load_config
 from obs_html.render import RenderError, render
-from obs_html.report_data import decode_report_data
+from obs_html.artifact_data import decode_artifact_data
 
 from documents import chapter, document as build, node, paragraph, text
 
@@ -25,7 +25,7 @@ CALLOUTS = {
 def _html(*content: dict, assets: list[dict] | None = None, records: tuple[dict, ...] = ()) -> str:
     document = build("Doc", chapter("one", "One", *content), chapter("two", "Two"), records=records)
     document["assets"] = assets or []
-    notes = decode_report_data(render(document, CONFIG))["notes"]
+    notes = decode_artifact_data(render(document, CONFIG))["notes"]
     return next(note for note in notes if note["slug"] == "one")["html"]
 
 
@@ -142,14 +142,14 @@ def test_callout_tones_are_distinct_titled_cards_in_the_reader(tmp_path, reader_
     title takes the border colour, in the paged reader and the print book alike."""
     kinds = ["note", "success", "warning", "danger", "quote"]
     document = build("Doc", chapter("one", "One", *(_callout(kind, "", f"{kind} body.") for kind in kinds)))
-    report = tmp_path / "report.html"
-    report.write_text(render(document, CONFIG), encoding="utf-8")
+    artifact = tmp_path / "artifact.html"
+    artifact.write_text(render(document, CONFIG), encoding="utf-8")
     page = reader_browser.new_page(viewport={"width": 1200, "height": 1000})
     errors = []
     page.on("pageerror", lambda error: errors.append(str(error)))
-    page.goto(report.as_uri())
-    page.wait_for_function("document.documentElement.dataset.reportStatus === 'ready'")
-    page.evaluate("obsReport.activateChapter('one')")
+    page.goto(artifact.as_uri())
+    page.wait_for_function("document.documentElement.dataset.artifactStatus === 'ready'")
+    page.evaluate("obsArtifact.activateChapter('one')")
     page.evaluate("window.print = () => {}; globalThis.obsPages.exportPDF()")
     for root in ("[data-chapter-body]", ".print-book"):
         cards = page.locator(f"{root} aside.content-callout").evaluate_all("""nodes => nodes.map(node => {
