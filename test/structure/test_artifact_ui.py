@@ -47,7 +47,10 @@ def test_exactly_one_note_classifies_resized_widths() -> None:
     artifact_ui = (design / "artifact-ui.md").read_text(encoding="utf-8")
     rule = artifact_ui.split("## What counts as a change", 1)[1].split("\n## ", 1)[0]
     assert "table columns and their widths" not in rule
-    assert " ".join(artifact_ui.split()).count("session-only view state") == 1
+    flat = " ".join(artifact_ui.split())
+    assert flat.count("session-only view state") == 1
+    assert "resized widths are session-only" not in flat
+    assert " a artifact" not in flat
     assert "session-only view state" in " ".join(rule.split())
     for note in ("input-model.md", "generic-tables.md"):
         assert "[[artifact-ui#What counts as a change" in (design / note).read_text(encoding="utf-8")
