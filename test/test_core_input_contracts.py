@@ -159,6 +159,9 @@ def test_core_and_adapter_contract_errors_match_for_shared_inputs(tmp_path) -> N
     assert _error_message(lambda: validate_note_profile(profile, tmp_path)) == _error_message(
         lambda: _validate_note_profile(profile, tmp_path)
     )
+    assert _error_message(lambda: validate_note_profile({"document": "maybe"}, tmp_path)) == _error_message(
+        lambda: _validate_note_profile({"document": "maybe"}, tmp_path)
+    )
     assert _error_message(lambda: parse_property_editor(property_editor, tmp_path)) == _error_message(
         lambda: property_editors([token], Chapter(), {})
     )
@@ -333,6 +336,18 @@ def test_an_invalid_quantity_query_names_the_note_the_field_and_a_remedy(tmp_pat
     )
 
 
+def test_a_non_boolean_document_profile_names_the_note_the_field_and_a_remedy(tmp_path) -> None:
+    (tmp_path / "chapter.md").write_text("---\nobsHtml: {document: maybe}\n---\nBody.\n",
+                                         encoding="utf-8")
+
+    message = _build_message(tmp_path)
+
+    assert message == (
+        f"{tmp_path / 'chapter.md'}: obsHtml.document: must be true or false, not \"maybe\". "
+        "Write true or false; see capabilities/profiles."
+    )
+
+
 INVALID_CONTRACTS = {
     "quantity": ("load.md", f"---\n{VALID_QUANTITY}query: {{where: [{{field: 1, exists: true}}]}}\n---\n",
                  "query.where[0].field", "capabilities/queries"),
@@ -475,3 +490,8 @@ def test_the_adapter_names_a_nested_cards_fence_by_note_fence_and_card() -> None
         "note.md: cards fence, cards[0].body: contains a nested cards fence. Move the inner cards "
         "fence out of the card body; see capabilities/cards-metrics."
     )
+
+
+@pytest.mark.parametrize("document", [True, False])
+def test_a_boolean_document_profile_is_accepted(tmp_path, document) -> None:
+    validate_note_profile({"document": document}, tmp_path / "chapter.md")
