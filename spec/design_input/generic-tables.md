@@ -200,9 +200,7 @@ view `filters`. Anything outside it is unsupported.
 - A property resolves to an exact frontmatter key first. Otherwise its dots walk nested
   mappings. A numeric segment selects a list item; other segments collect the values of
   every list item. Segments never read text or list members such as Bases' `.length`.
-- Equality is typed and case-sensitive. Whole numbers equal their decimal form; text,
-  numbers and booleans never equal each other. A list never equals a single literal.
-  Missing values and `null` equal `null`; empty text and empty collections do not.
+- Equality follows [[capabilities/bases#Comparisons]] (case, types, missing properties).
 - Functions, methods, other operators, `formula.*`, `this.*`, other `file.*`
   properties and frontmatter names starting with `file.` are unsupported.
 

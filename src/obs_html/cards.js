@@ -12,11 +12,6 @@
     const value = record.fields[field.toLocaleLowerCase()];
     return (Array.isArray(value) ? value : [value]).filter(item => item !== undefined && item !== null);
   };
-  const matches = (record, conditions) => conditions.every(condition => {
-    const selected = values(record, condition.field);
-    return "exists" in condition ? selected.some(value => String(value).trim() !== "") :
-      selected.some(value => String(value).toLocaleLowerCase() === condition.equals.toLocaleLowerCase());
-  });
   function owner(path) {
     owners ||= new Map(report.records.map(record => [record.sourcePath, record]));
     return owners.get(path);
@@ -35,7 +30,9 @@
     const projection = projections.get(projectionKey);
     const result = upstream.filter(record => {
       const fields = projection?.[record.sourcePath];
-      return matches(fields ? {...record, fields: {...record.fields, ...fields}} : record, query.where);
+      return globalThis.obsQuery.conditionsMatch(fields ? {
+        ...record, frontmatter: {...record.frontmatter, ...fields}, fields: {...record.fields, ...fields},
+      } : record, query.where);
     });
     selections.set(cacheKey, result);
     return result;
