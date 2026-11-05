@@ -286,6 +286,29 @@ def _query_selection(query: object, source_path: Path, vault: _Vault, owners: tu
         conditions_select(where, fields, path, note_marks(body)) for where in chain), vault)
 
 
+def _card_selection(card: dict[str, object], source_path: Path, vault: _Vault) -> None:
+    """Include the notes a card references and the records its metrics count and divide by."""
+    series = card.get("obsHtml", {}).get("metricsFrom")
+    if series:
+        references = [("metricsFrom.sourceNote", series["sourceNote"])]
+        if "link" in series:
+            references.append(("metricsFrom.link.note", series["link"]["note"]))
+        for field_name, identity in references:
+            path = (vault.root / f"{identity}.md").resolve()
+            if path not in vault.notes:
+                raise VaultError(
+                    f"Card {field_name} does not resolve in {vault.relative(source_path)}: "
+                    f"{identity}; name a vault note by its path without .md."
+                )
+            vault.reached.append(path)
+        _query_selection({"where": series["where"]}, source_path, vault)
+    for metric in card.get("metrics", []):
+        _query_selection(metric, source_path, vault)
+        if "denominator" in metric:
+            population = {key: metric[key] for key in ("from",) if key in metric}
+            _query_selection({**population, "where": metric["denominator"]}, source_path, vault)
+
+
 def _base_selection(definition: object, source_path: Path, vault: _Vault, place: str) -> None:
     """Include the notes a Base definition selects."""
     if not isinstance(definition, dict):
@@ -608,8 +631,7 @@ def _fence_node(token: Token, context: _Context) -> dict[str, object]:
             card_bodies = []
             body_context = replace(context, capabilities=set(), base_fences=0)
             for card in specification["cards"]:
-                for metric in card.get("metrics", []):
-                    _query_selection(metric, source_path, vault)
+                _card_selection(card, source_path, vault)
                 card_bodies.append({
                     "type": "document", "attrs": {}, "children": _nodes(card["body"], body_context),
                 })

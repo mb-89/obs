@@ -222,3 +222,51 @@ def test_an_invalid_quantity_note_an_included_note_links_fails_with_its_message(
         f"Quantity note {tmp_path / 'stray.md'}: value must be a finite number, not '12 kN'; "
         "write the bare number and put the unit in unit."
     )
+
+
+def test_a_card_includes_its_source_notes_and_populations(tmp_path) -> None:
+    """input-model "Chapter content": card references are inclusion edges."""
+    cards = json.dumps({"version": 1, "cards": [{
+        "title": "Series", "body": "",
+        "obsHtml": {"metricsFrom": {
+            "sourceNote": "lists/categories", "property": "categories", "labelProperty": "name",
+            "distinctProperty": "field", "where": [{"field": "kind", "equals": "counted"}],
+            "link": {"note": "register", "groupProperty": "category"},
+        }},
+        "metrics": [{
+            "label": "Closed", "where": [{"field": "status", "equals": "closed"}],
+            "denominator": [{"field": "status", "exists": True}],
+        }],
+    }]})
+    manifest = _vault(tmp_path, {
+        "manifest.md": "- [[dashboard]]\n",
+        "dashboard.md": f"```cards\n{cards}\n```\n",
+        "lists/categories.md": "---\nignored: true\ncategories: [{name: a, field: b}]\n---\n",
+        "register.md": "Register.\n",
+        "counted.md": "---\nkind: counted\n---\n",
+        "open.md": "---\nstatus: open\n---\n",
+        "unrelated.md": "Stays out.\n",
+    })
+
+    identifiers = [chapter["id"] for chapter in build_document(manifest, capability_reference())["chapters"]]
+
+    assert identifiers == ["dashboard", "counted", "lists-categories", "open", "register"]
+
+
+def test_a_card_source_note_that_does_not_resolve_names_card_field_and_remedy(tmp_path) -> None:
+    cards = json.dumps({"version": 1, "cards": [{"title": "Series", "body": "", "obsHtml": {
+        "metricsFrom": {"sourceNote": "missing", "property": "p", "labelProperty": "l",
+                        "distinctProperty": "d", "where": []},
+    }}]})
+    manifest = _vault(tmp_path, {
+        "manifest.md": "- [[dashboard]]\n",
+        "dashboard.md": f"```cards\n{cards}\n```\n",
+    })
+
+    with pytest.raises(ValueError) as error:
+        build_document(manifest, capability_reference())
+
+    assert str(error.value) == (
+        "Card metricsFrom.sourceNote does not resolve in dashboard.md: missing; "
+        "name a vault note by its path without .md."
+    )
