@@ -4,6 +4,21 @@ The system favors local reasoning and local changes. A feature owner should be a
 change one cohesive module while generic infrastructure discovers and integrates the
 result.
 
+## Glossary
+
+This glossary owns the project's vocabulary; other notes link here instead of redefining a
+term (user, 5 Nov 2026).
+
+- **Document**: the core's versioned JSON intermediate representation of one manifest. Its
+  shape is owned by [[architecture#Document-adapter contract|the Document-adapter contract]].
+- **artifact**: what an adapter puts out from a Document, such as obs-html's HTML file and
+  the PDF printed from it.
+- **note**: one Markdown file in a vault, with optional frontmatter, addressed by wikilinks.
+- **file**: any file on disk, whatever its role: a note, an attachment, a configuration or
+  schema file, or generated output.
+- **vault**: the folder of notes and attachments that a build reads. Links and assets
+  resolve within it, and nothing is written back into it.
+
 ## Knowledge ownership
 
 SPOT, single point of truth, everywhere: code, configuration, design, process and agent
