@@ -34,6 +34,8 @@ _WIKILINK = re.compile(
     r"(?<!!)\[\[(?P<target>[^\]|#]+)(?:#(?P<heading>[^\]|]+))?(?:\|(?P<label>[^\]]+))?\]\]"
 )
 _EMBED = re.compile(r"!\[\[(?P<target>[^\]|#]+)(?:#[^\]|]+)?(?:\|[^\]]+)?\]\]")
+_QUOTE_PREFIX = re.compile(r"^ {0,3}> ?")
+"""One level of blockquote prefix; a callout body is its blockquote's lines without it."""
 _MARK = re.compile(r"#mark/(?P<category>[a-z_]+)/(?P<id>[a-z0-9_]+)")
 _SEMANTIC = re.compile(
     r"(?P<embed>!)?\[\[(?P<target>[^\]|#]+)(?:#(?P<heading>[^\]|]+))?"
@@ -522,23 +524,20 @@ def _nodes(
             inline = next((item for item in tokens[position:] if item.type == "inline"), None)
             lines = inline.content.splitlines() if inline else []
             callout = parse_callout(lines[0].strip()) if lines else None
-            closing = next(
-                (index for index in range(position + 1, len(tokens)) if tokens[index].type == "blockquote_close"),
-                position,
-            )
             if callout and "callouts" in capability_ids:
-                body = "\n".join(lines[1:]).strip()
-                if "extensions" in capability_ids:
-                    result.append({
-                        "type": "extensions", "attrs": {"syntax": "callout"}, "children": [],
-                    })
-                    capabilities.add("extensions")
+                closing = next(
+                    index for index in range(position + 1, len(tokens))
+                    if tokens[index].type == "blockquote_close" and tokens[index].level == token.level
+                )
+                start, end = token.map
+                body = [_QUOTE_PREFIX.sub("", line, count=1) for line in source.splitlines()[start:end]]
                 result.append({
                     "type": "callouts",
                     "attrs": {"kind": callout["type"], "title": callout["title"]},
-                    "children": [] if not body else [{"type": "paragraph", "attrs": {}, "children": _semantic_text_nodes(
-                        body, source_path, vault, links, link_ids, capability_ids, capabilities,
-                    )}],
+                    "children": _nodes(
+                        "\n".join(body[1:]), source_path, vault, links, assets, link_ids, asset_ids,
+                        capability_ids, capabilities,
+                    ),
                 })
                 capabilities.add("callouts")
                 position = closing + 1

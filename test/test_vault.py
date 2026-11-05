@@ -2,7 +2,7 @@ import json
 import re
 from pathlib import Path
 
-from jsonschema import validate
+from jsonschema import ValidationError, validate
 import pytest
 
 from obs.capabilities import build_capability_reference
@@ -10,7 +10,8 @@ from obs.document import build_document
 
 
 ROOT = Path(__file__).parents[1]
-INPUT_CAPABILITY_GAPS: frozenset[str] = frozenset()
+INPUT_CAPABILITY_GAPS: frozenset[str] = frozenset({"extensions"})
+"""Capabilities no input syntax yields yet; capabilities/extensions owns why."""
 
 
 def capability_reference() -> dict[str, object]:
@@ -124,7 +125,7 @@ def test_core_places_recognized_capabilities_in_content_nodes(tmp_path) -> None:
     content = document["chapters"][0]["content"]
 
     assert [node["type"] for node in content] == [
-        "chapter-inclusion", "markdown", "section", "paragraph", "extensions", "callouts", "bases",
+        "chapter-inclusion", "markdown", "section", "paragraph", "callouts", "bases",
         "figures", "command-fences",
     ]
     assert content[3]["children"][1] == {
@@ -138,18 +139,89 @@ def test_core_places_recognized_capabilities_in_content_nodes(tmp_path) -> None:
     assert content[3]["children"][5] == {
         "type": "marks", "attrs": {"category": "risk", "id": "watch"}, "children": [],
     }
-    assert content[5]["attrs"] == {"kind": "warning", "title": "Be careful"}
-    assert content[5]["children"] == [{
+    assert content[4]["attrs"] == {"kind": "warning", "title": "Be careful"}
+    assert content[4]["children"] == [{
         "type": "paragraph", "attrs": {},
         "children": [{"type": "text", "attrs": {}, "children": [], "text": "Callout body."}],
     }]
-    assert content[6]["attrs"] == {"source": "views: []\n", "spec": {"views": []}}
-    assert content[7]["attrs"] == {"source": "caption: Diagram\n", "spec": {"caption": "Diagram"}}
-    assert content[8]["attrs"] == {"source": "echo example\n"}
+    assert content[5]["attrs"] == {"source": "views: []\n", "spec": {"views": []}}
+    assert content[6]["attrs"] == {"source": "caption: Diagram\n", "spec": {"caption": "Diagram"}}
+    assert content[7]["attrs"] == {"source": "echo example\n"}
     assert set(document["capabilities"]) == {
-        "bases", "callouts", "chapter-inclusion", "command-fences", "embeds", "extensions", "figures",
+        "bases", "callouts", "chapter-inclusion", "command-fences", "embeds", "figures",
         "manifest", "markdown", "marks", "wikilinks",
     }
+
+
+def test_a_vault_whose_only_special_syntax_is_a_callout_uses_callouts_not_extensions(
+    tmp_path,
+) -> None:
+    vault = tmp_path / "vault"
+    vault.mkdir()
+    (vault / "manifest.md").write_text("- [[chapter]]\n", encoding="utf-8")
+    (vault / "chapter.md").write_text("> [!warning] Check the limits\n> Body.\n", encoding="utf-8")
+
+    document = build_document(vault / "manifest.md", capability_reference())
+
+    assert "callouts" in document["capabilities"]
+    assert "extensions" not in document["capabilities"]
+    assert "extensions" not in node_types(document)
+
+
+def test_a_callout_body_arrives_as_parsed_nodes_like_chapter_content(tmp_path) -> None:
+    vault = tmp_path / "vault"
+    vault.mkdir()
+    (vault / "manifest.md").write_text("- [[chapter]]\n", encoding="utf-8")
+    (vault / "target.md").write_text("# Target\n", encoding="utf-8")
+    (vault / "chapter.md").write_text(
+        "> [!warning] Check the limits\n"
+        "> Read *carefully*, see [[target|Target]] and [site](https://example.test).\n"
+        ">\n> - item `one`\n>\n"
+        "> > [!note] Inner\n> > Nested body.\n",
+        encoding="utf-8",
+    )
+
+    document = build_document(vault / "manifest.md", capability_reference())
+
+    validate(document, json.loads((ROOT / "src" / "obs" / "document.schema.json").read_text(
+        encoding="utf-8",
+    )))
+    [callout] = [node for node in document["chapters"][0]["content"] if node["type"] == "callouts"]
+    assert callout["attrs"] == {"kind": "warning", "title": "Check the limits"}
+    paragraph, listing, nested = callout["children"]
+    assert paragraph == {"type": "paragraph", "attrs": {}, "children": [
+        {"type": "text", "attrs": {}, "children": [], "text": "Read "},
+        {"type": "text", "attrs": {}, "children": [], "text": "carefully"},
+        {"type": "text", "attrs": {}, "children": [], "text": ", see "},
+        {"type": "wikilinks", "attrs": {
+            "target": "target", "chapter": "target", "heading": "", "label": "Target",
+        }, "children": []},
+        {"type": "text", "attrs": {}, "children": [], "text": " and "},
+        {"type": "text", "attrs": {"link": "site"}, "children": [], "text": "site"},
+        {"type": "text", "attrs": {}, "children": [], "text": "."},
+    ]}
+    assert listing["type"] == "list"
+    assert listing["children"][0]["children"][0]["children"][1] == {
+        "type": "code", "attrs": {}, "children": [], "text": "one",
+    }
+    assert nested == {"type": "callouts", "attrs": {"kind": "note", "title": "Inner"}, "children": [
+        {"type": "paragraph", "attrs": {}, "children": [
+            {"type": "text", "attrs": {}, "children": [], "text": "Nested body."},
+        ]},
+    ]}
+    assert {"callouts", "wikilinks"} <= set(document["capabilities"])
+    assert {"id": "site", "href": "https://example.test", "label": "site"} in document["links"]
+
+
+def test_a_callout_document_node_has_only_kind_and_title_attrs() -> None:
+    schema = json.loads((ROOT / "src" / "obs" / "document.schema.json").read_text(encoding="utf-8"))
+    node_schema = {"$defs": schema["$defs"], "$ref": "#/$defs/node"}
+    node = {"type": "callouts", "attrs": {"kind": "warning", "title": ""}, "children": []}
+    validate(node, node_schema)
+    with pytest.raises(ValidationError):
+        validate({**node, "attrs": {"kind": "warning"}}, node_schema)
+    with pytest.raises(ValidationError):
+        validate({**node, "attrs": {**node["attrs"], "body": "x"}}, node_schema)
 
 
 def test_core_marks_silent_command_fences_as_non_rendering_producers(tmp_path) -> None:
@@ -264,7 +336,8 @@ def test_core_parses_the_spec_vault_as_neutral_document(tmp_path) -> None:
         additional_capability_document(tmp_path),
     )
     assert input_ids <= emitted | INPUT_CAPABILITY_GAPS
-    assert INPUT_CAPABILITY_GAPS == frozenset()
+    assert INPUT_CAPABILITY_GAPS == {"extensions"}
+    assert not INPUT_CAPABILITY_GAPS & emitted
     with pytest.raises(AssertionError):
         assert input_ids <= (emitted - {"attachments"}) | INPUT_CAPABILITY_GAPS
     assert "html" not in types
