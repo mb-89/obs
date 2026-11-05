@@ -278,6 +278,11 @@ def _validate_schema(name: str, value: object, source_path: object, reference: s
 
 
 def validate_base_definition(definition: object, source_path: object, place: str = "") -> None:
+    profile = definition.get("obsHtml") if isinstance(definition, dict) else None
+    if isinstance(profile, dict) and "members" in profile:
+        raise input_error(source_path, ", ".join(item for item in (place, "obsHtml.members") if item),
+                          "belongs to a view, not to the Base",
+                          "Move it into the obsHtml of each view it narrows; see capabilities/bases")
     _validate_schema("base.schema.json", definition, source_path, "capabilities/bases", place=place)
 
 

@@ -1436,7 +1436,8 @@ the per-kind register is the `marks` [register](#registers).
   For a view whose membership or order cannot be expressed by canonical note properties,
   `obsHtml.members` is an ordered list of `{path, label?}` entries. `path` is a unique,
   vault-relative Markdown filename; `label` is optional view-local display text, exposed only
-  as the derived `obsHtml.label` cell.
+  as the derived `obsHtml.label` cell. The list belongs to the view's `obsHtml`; a Base-level
+  `obsHtml.members` fails the build, naming the note, with the remedy to move it into the view.
 
   The list never writes membership, rank, or labels into a note. It intersects the standard
   Base filter and initializes row order; interactive filters

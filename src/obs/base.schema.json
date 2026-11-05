@@ -8,19 +8,9 @@
     "filters": {"type": ["object", "array", "string"]},
     "properties": {"type": "object"},
     "obsHtml": {
-      "$comment": "Adapter namespace; the core reads records and members to select notes (generic-tables).",
+      "$comment": "Adapter namespace; the core reads records to select notes, and rejects members here: they belong to a view (generic-tables).",
       "type": "object",
-      "additionalProperties": true,
-      "properties": {
-        "members": {
-          "type": "array",
-          "items": {
-            "type": "object",
-            "required": ["path"],
-            "properties": {"path": {"type": "string", "minLength": 1}, "label": {"type": "string"}}
-          }
-        }
-      }
+      "additionalProperties": true
     },
     "views": {
       "type": "array",
@@ -30,7 +20,22 @@
         "additionalProperties": true,
         "properties": {
           "type": {"const": "table"},
-          "order": {"type": "array", "minItems": 1, "items": {"type": "string", "pattern": "\\S"}}
+          "order": {"type": "array", "minItems": 1, "items": {"type": "string", "pattern": "\\S"}},
+          "obsHtml": {
+            "$comment": "Adapter namespace; the core reads records and members to select this view's notes (generic-tables).",
+            "type": "object",
+            "additionalProperties": true,
+            "properties": {
+              "members": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "required": ["path"],
+                  "properties": {"path": {"type": "string", "minLength": 1}, "label": {"type": "string"}}
+                }
+              }
+            }
+          }
         }
       }
     }
