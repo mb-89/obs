@@ -604,47 +604,47 @@ const abbreviationTable = body.querySelectorAll(".data-table-shell")[1];
 assert.equal(abbreviationTable.querySelectorAll("tbody tr[data-row-key]").length, 1);
 assert.equal(
     abbreviationTable.querySelector("tbody tr[data-row-key]").dataset.rowKey,
-    "glossary:bottom-line",
+    "glossary:conclusion",
 );
 const citation = abbreviationTable.querySelector("tbody tr[data-row-key] td:nth-child(2) a[href='#details']");
 assert.ok(citation);
 assert.equal(citation.textContent, "Extra details");
 assert.ok(abbreviationTable.querySelector("tbody tr td strong"));
 assert.ok(abbreviationTable.querySelector("tbody tr .data-table-tree-toggle"));
-assert.equal(body.querySelector('tr[data-row-key="glossary:bottom-line"] a[href="#bottom-line"]'), null);
+assert.equal(body.querySelector('tr[data-row-key="glossary:conclusion"] a[href="#conclusion"]'), null);
 assert.equal(body.querySelector('tr[data-row-key="glossary:bluf"] a[href="#bluf"]'), null);
-let bottomLine = body.querySelector('tr[data-row-key="glossary:bottom-line"] [data-table-detail-toggle]');
-assert.ok(bottomLine);
-const glossaryLink = body.querySelector('a[href="#bottom-line"]');
+let conclusion = body.querySelector('tr[data-row-key="glossary:conclusion"] [data-table-detail-toggle]');
+assert.ok(conclusion);
+const glossaryLink = body.querySelector('a[href="#conclusion"]');
 trigger(glossaryLink, "pointerover");
 runTimers();
 assert.equal(preview.hidden, false);
 assert.equal(preview.querySelector("p").textContent, "The conclusion.");
 // Glossary hover card: term and definition only (report-ui.md "Link hover card").
 assert.equal(preview.querySelectorAll("dt").length, 0);
-assert.equal(preview.querySelector(".hover-card-title").getAttribute("href"), "#bottom-line");
+assert.equal(preview.querySelector(".hover-card-title").getAttribute("href"), "#conclusion");
 assert.equal(preview.querySelector("h1, table, img, script"), null);
 trigger(glossaryLink, "keydown", null, {key: "Escape"});
-trigger(bottomLine, "pointerover");
+trigger(conclusion, "pointerover");
 runTimers();
 assert.equal(preview.hidden, true);
-assert.equal(bottomLine.getAttribute("aria-expanded"), "false");
+assert.equal(conclusion.getAttribute("aria-expanded"), "false");
 const glossaryHash = window.location.hash;
-click(bottomLine);
+click(conclusion);
 assert.equal(current(), "glossary");
 assert.equal(window.location.hash, glossaryHash);
-assert.ok(body.querySelector('tr[data-detail-owner="glossary:bottom-line"] h1'));
-assert.equal(body.querySelector('tr[data-row-key="glossary:bottom-line"] [data-table-detail-toggle]').getAttribute("aria-expanded"), "true");
-click(body.querySelector('tr[data-row-key="glossary:bottom-line"] .data-table-tree-toggle'));
-assert.equal(body.querySelector('tr[data-detail-owner="glossary:bottom-line"]'), null);
+assert.ok(body.querySelector('tr[data-detail-owner="glossary:conclusion"] h1'));
+assert.equal(body.querySelector('tr[data-row-key="glossary:conclusion"] [data-table-detail-toggle]').getAttribute("aria-expanded"), "true");
+click(body.querySelector('tr[data-row-key="glossary:conclusion"] .data-table-tree-toggle'));
+assert.equal(body.querySelector('tr[data-detail-owner="glossary:conclusion"]'), null);
 assert.equal(current(), "glossary");
-click(body.querySelector('tr[data-row-key="glossary:bottom-line"] [data-table-detail-toggle]'));
-assert.ok(body.querySelector('tr[data-detail-owner="glossary:bottom-line"]'));
-click(body.querySelector('tr[data-row-key="glossary:bottom-line"] [data-table-detail-toggle]'));
-assert.equal(body.querySelector('tr[data-detail-owner="glossary:bottom-line"]'), null);
-assert.ok(body.querySelector("tbody").textContent.includes("presenting the Bottom line"));
+click(body.querySelector('tr[data-row-key="glossary:conclusion"] [data-table-detail-toggle]'));
+assert.ok(body.querySelector('tr[data-detail-owner="glossary:conclusion"]'));
+click(body.querySelector('tr[data-row-key="glossary:conclusion"] [data-table-detail-toggle]'));
+assert.equal(body.querySelector('tr[data-detail-owner="glossary:conclusion"]'), null);
+assert.ok(body.querySelector("tbody").textContent.includes("presenting the Conclusion"));
 assert.equal(document.querySelector('[data-toc-link="bluf"]'), null);
-assert.equal(document.querySelector('[data-toc-link="bottom-line"]'), null);
+assert.equal(document.querySelector('[data-toc-link="conclusion"]'), null);
 assert.equal(context.obsReport.records.filter((record) => record.slug === "bluf").length, 1);
 assert.equal(context.obsReport.records.some((record) => record.slug === "unreferenced"), false);
 let entry = body.querySelector('tr[data-row-key="glossary:bluf"]');
@@ -663,9 +663,9 @@ assert.equal(body.querySelector(".chapter-home-link").getAttribute("href"), "#ho
 assert.ok(body.textContent.includes("Nested content."));
 assert.equal(document.querySelector('[data-step="1"]').disabled, true);
 assert.equal(document.querySelector('[data-step="-1"]').disabled, true);
-followToContext(body.querySelector('a[href="#bottom-line"]'), "bottom-line");
-assert.equal(current(), "bottom-line");
-assert.equal(body.querySelector("h1").textContent, "Bottom line");
+followToContext(body.querySelector('a[href="#conclusion"]'), "conclusion");
+assert.equal(current(), "conclusion");
+assert.equal(body.querySelector("h1").textContent, "Conclusion");
 const outsideHome = body.querySelector(".chapter-home-link");
 assert.equal(outsideHome.hasAttribute("data-breadcrumb-current"), false);
 click(outsideHome);
@@ -689,8 +689,8 @@ click(entry.querySelector("[data-table-detail-toggle]"));
 assert.equal(current(), "glossary");
 followToContext(body.querySelector('tr[data-detail-owner="glossary:bluf"] a[href="#details"]'), "details");
 assert.equal(current(), "details");
-followToContext(body.querySelector('a[href="#bottom-line"]'), "bottom-line");
-assert.equal(current(), "bottom-line");
+followToContext(body.querySelector('a[href="#conclusion"]'), "conclusion");
+assert.equal(current(), "conclusion");
 click(body.querySelector(".chapter-home-link"));
 assert.equal(current(), "home");
 navigate("child");
@@ -716,12 +716,12 @@ const chapterNote = shell.querySelector('tr[data-row-key="note:child"]');
 assert.equal(chapterNote.querySelector(".data-table-tree-toggle"), null);
 assert.equal(chapterNote.querySelector("[data-table-detail-toggle]"), null);
 assert.ok(chapterNote.querySelector('a[href="#child"]'));
-const nonChapterNote = shell.querySelector('tr[data-row-key="note:bottom-line"]');
+const nonChapterNote = shell.querySelector('tr[data-row-key="note:conclusion"]');
 assert.ok(nonChapterNote.querySelector(".data-table-tree-toggle"));
 assert.ok(nonChapterNote.querySelector("[data-table-detail-toggle]"));
 click(nonChapterNote.querySelector("[data-table-detail-toggle]"));
 assert.equal(current(), "home");
-assert.equal(shell.querySelector('tr[data-detail-owner="note:bottom-line"] h1').textContent, "Bottom line");
+assert.equal(shell.querySelector('tr[data-detail-owner="note:conclusion"] h1').textContent, "Conclusion");
 
 const nodeRows = ["A", "B"].map((name) => ({
     key: name, values: {name, type: "Group"}, fields: {name, type: "Group"}, noteId: name,
@@ -832,7 +832,7 @@ async function verifyPages() {
     assert.equal(current(), "child");
     click(pagedReader.querySelector('.chapter-breadcrumbs > a[href="#parent"]'));
     assert.equal(current(), "parent");
-    navigate("bottom-line");
+    navigate("conclusion");
     assert.ok(pagedReader.querySelector(".chapter-breadcrumbs"));
     click(pagedReader.querySelector(".chapter-home-link"));
     assert.equal(current(), "home");
@@ -940,7 +940,7 @@ async function verifyPages() {
     assert.equal(document.documentElement.dataset.theme, "dark");
     assert.ok(printBook.querySelector("#pdf-child"));
     assert.ok(printBook.querySelector("#pdf-parent"));
-    assert.equal(printBook.querySelector("#pdf-node, #pdf-bottom-line"), null);
+    assert.equal(printBook.querySelector("#pdf-node, #pdf-conclusion"), null);
     assert.deepEqual([...printBook.querySelectorAll(".page-contents a")].map(link =>
         link.getAttribute("href")), ["#pdf-parent", "#pdf-child"]);
     assert.equal(printBook.querySelector(".chapter-bluf .content-card-title a").getAttribute("href"), "report.html#bluf");
@@ -960,8 +960,8 @@ async function verifyPages() {
     );
     assert.deepEqual(documentPageNumbers, documentPageNumbers.map((_number, index) => index + 1));
     const pdfNodeFirstPage = printBook.querySelector("#pdf-node .paper-page-number").textContent;
-    assert.ok(printBook.querySelector('a[href="#pdf-bottom-line"]') === null);
-    assert.ok(printBook.querySelector('a[href="report.html#bottom-line"]'));
+    assert.ok(printBook.querySelector('a[href="#pdf-conclusion"]') === null);
+    assert.ok(printBook.querySelector('a[href="report.html#conclusion"]'));
     assert.ok(printBook.querySelector('a[href="#pdf-child"]'));
     assert.ok([...printBook.querySelectorAll('a[href="#pdf-tags"]')].some(
         (link) => link.textContent === "Number of open points",
