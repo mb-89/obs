@@ -47,8 +47,8 @@ def test_property_editor_projection_is_preserved_as_static_data(tmp_path):
 
 
 @pytest.mark.parametrize("field", [
-    "title", "kind", "aliases", "bottom line", "term", "definition",
-    "__proto__", "constructor", "prototype", "Title", "KiNd", "BOTTOM LINE",
+    "title", "kind", "aliases", "term", "definition",
+    "__proto__", "constructor", "prototype", "Title", "KiNd",
 ])
 @pytest.mark.parametrize("branch", ["blank", "nonblank"])
 def test_property_editor_projection_rejects_protected_fields(tmp_path, field, branch):

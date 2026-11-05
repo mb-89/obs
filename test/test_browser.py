@@ -128,7 +128,7 @@ def native_reader_report(tmp_path_factory):
         '# Glossary\n\n```base\nobsHtml: {records: glossary}\n'
         "views:\n  - type: table\n    order: [term, definition]\n```\n", encoding="utf-8",
     )
-    for name, term in (("bluf", "BLUF"), ("bottom-line", "Bottom line")):
+    for name, term in (("bluf", "BLUF"), ("conclusion", "Conclusion")):
         (vault / f"{name}.md").write_text(
             f"---\nkind: glossary\nterm: {term}\ndefinition: The conclusion.\n---\n"
             f"# {term}\n\nExplanation.\n", encoding="utf-8",
@@ -1244,7 +1244,7 @@ def test_reader_batch_generated_rows_ignore_local_view(native_reader_page) -> No
     shell.locator(".filter-pill").filter(has_text="Filter").first.click()
     shell.locator(".data-table-filter").first.fill("BLUF")
     shell.locator(".data-table-filter").first.dispatch_event("input")
-    expect(shell.locator('tr[data-row-key="glossary:bottom-line"]')).to_have_count(0)
+    expect(shell.locator('tr[data-row-key="glossary:conclusion"]')).to_have_count(0)
     row = shell.locator('tr[data-row-key="glossary:bluf"]')
     row.locator(".review-action--reject").click(modifiers=["Shift"])
     assert page.locator(".comment-text-editor").count() == 1
@@ -1253,7 +1253,7 @@ def test_reader_batch_generated_rows_ignore_local_view(native_reader_page) -> No
     assert len(annotation["batch"]["items"]) == 2
     assert {item["item"] for item in annotation["batch"]["items"]} == {
         "row-glossary-base-1:glossary%3Abluf",
-        "row-glossary-base-1:glossary%3Abottom-line",
+        "row-glossary-base-1:glossary%3Aconclusion",
     }
     assert page.locator('[data-review-summary-state="rejected"] strong').inner_text() == "2"
     assert row.locator(".review-action--comment").get_attribute("data-count") == "1"
@@ -1372,7 +1372,7 @@ def test_reader_table_width_includes_disclosure(native_reader_page) -> None:
             key: 'width-check',
             columns: [{key: 'term', label: 'Term'}, {key: 'definition', label: 'Definition'}],
             rows: [
-                {key: 'one', values: {term: 'Bottom line', definition: 'Conclusion'}},
+                {key: 'one', values: {term: 'Conclusion', definition: 'Conclusion'}},
                 {key: 'two', parentKey: 'one', depth: 1,
                     values: {term: 'Nested concept', definition: 'Detail'}},
             ],
@@ -1752,12 +1752,12 @@ def test_native_live_pages_and_split_pdf(tmp_path: Path, native_reader_report) -
 
 
 def test_browser_and_generation_share_definition_validation() -> None:
-    valid = {"views": [{"type": "table", "order": ["chapter", "bottom line"]}]}
+    valid = {"views": [{"type": "table", "order": ["chapter", "project status"]}]}
     viewport = {**valid, "obsHtml": {"maxRows": 10}}
     definitions = [
         valid,
         viewport,
-        {**valid, "filters": {"and": ['chapter != null', 'note["bottom line"] != null']}},
+        {**valid, "filters": {"and": ['chapter != null', 'note["project status"] != null']}},
         {**valid, "filters": {"not": {"or": ['type == "risk"', 'type != "issue"']}}},
         {**valid, "filters": "unsupported()"},
         {**valid, "filters": {"or": []}},
@@ -1811,18 +1811,18 @@ def test_browser_yaml_and_queries_handle_spaced_fields_and_errors() -> None:
 const yaml = `filters:
   and:
     - chapter == "One"
-    - note["bottom line"] != null
+    - note["project status"] != null
 views:
   - type: table
-    order: [chapter, bottom line]
+    order: [chapter, project status]
 `;
 const definition = context.obsBases.parse(yaml);
 const query = context.obsQuery.compile(context.obsBases.filterExpression(definition.filters));
-assert.equal(query.match({fields: {chapter: "One", "bottom line": "Result"}}), true);
+assert.equal(query.match({fields: {chapter: "One", "project status": "Result"}}), true);
 assert.equal(query.match({fields: {chapter: "One"}}), false);
-assert.equal(query.match({fields: {chapter: "Two", "bottom line": "Result"}}), false);
-assert.equal(context.obsQuery.compile('"bottom line": result').match({fields: {"bottom line": "RESULT"}}), true);
-assert.equal(context.obsQuery.compile('NOT "bottom line": result').match({fields: {"bottom line": "other"}}), true);
+assert.equal(query.match({fields: {chapter: "Two", "project status": "Result"}}), false);
+assert.equal(context.obsQuery.compile('"project status": result').match({fields: {"project status": "RESULT"}}), true);
+assert.equal(context.obsQuery.compile('NOT "project status": result').match({fields: {"project status": "other"}}), true);
 const exact = context.obsQuery.compile(context.obsBases.filterExpression('chapter == "One"'));
 assert.equal(exact.match({fields: {chapter: "One"}}), true);
 assert.equal(exact.match({fields: {chapter: "Someone"}}), false);
@@ -2015,13 +2015,13 @@ def test_complete_document_dom_interactions(tmp_path: Path) -> None:
             '# Tags\n\n```base\nobsHtml: {records: tag}\n'
             "views:\n  - type: table\n    order: [label, text, source]\n```\n"
         ),
-        "bottom-line": (
-            "---\nkind: glossary\nterm: Bottom line\naliases: [bottom line]\n"
+        "conclusion": (
+            "---\nkind: glossary\nterm: Conclusion\naliases: [bottom line]\n"
             "definition: The conclusion.\ntable: abbreviations\n"
-            "citation: 'See [[details]] **source note**.'\n---\n# Bottom line\n"
+            "citation: 'See [[details]] **source note**.'\n---\n# Conclusion\n"
         ),
         "bluf": (
-            "---\nkind: glossary\nterm: BLUF\naliases: [Bottom line upfront]\n"
+            "---\nkind: glossary\nterm: BLUF\naliases: [Conclusion upfront]\n"
             "definition: The principle of presenting the [[bottom line]] first.\n---\n# BLUF\n\n[[details]]\n"
             "\n```base\nobsHtml: {records: glossary}\n"
             "views:\n  - type: table\n    order: [term, definition]\n```\n"
@@ -2063,12 +2063,12 @@ def test_complete_document_dom_interactions(tmp_path: Path) -> None:
         "subtitle: 'Bridge **subtitle** ![Obsidian](https://example.invalid/obsidian.svg) "
         "![HTML](https://example.invalid/html.svg)'\n"
         "status: active\nowners: {team: [Ada, Lin]}\n"
-        "obsHtml: {bottomLine: {title: '[[bluf|Bottom line upfront]]'}}\n---\n"
+        "---\n"
         "- [[parent|Parent]]\n  - [[child|Child]]\n    - [[node|Node]]\n"
         "- [[glossary|Glossary]]\n- [[tags|Tags]]\n- [[references|References]]\n"
         "\n> [!important]\n> Abstract prose.\n"
         "\n```base\nfilters: 'note[\"bottom line\"] != null'\n"
-        "views:\n  - type: table\n    name: Bottom lines\n    order: [chapter, bottom line]\n"
+        "views:\n  - type: table\n    name: Conclusions\n    order: [chapter, bottom line]\n"
         "obsHtml: {records: chapter}\n```\n"
         "\n## Metadata\n"
         "\n```base\nfilters:\n  not:\n    or:\n      - 'key == \"title\"'\n      - 'key == \"subtitle\"'\n"

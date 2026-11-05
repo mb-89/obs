@@ -78,10 +78,6 @@ def test_spec_manifest_declares_generic_paged_presentation() -> None:
             {"page": "abstract", "title": "Abstract"},
             {"page": "contents", "title": "Contents"},
         ],
-        "bottomLine": {
-            "title": "Bottom line upfront",
-            "position": "beforeTitle",
-        },
     }
     assert manifest.presentation["layout"] == "paged"
     assert manifest.presentation["pages"] == [
@@ -89,10 +85,6 @@ def test_spec_manifest_declares_generic_paged_presentation() -> None:
         {"page": "abstract", "title": "Abstract"},
         {"page": "contents", "title": "Contents"},
     ]
-    assert manifest.presentation["bottomLine"] == {
-        "title": "Bottom line upfront",
-        "position": "beforeTitle",
-    }
     assert frontmatter["product"] == {"name": "", "version": ""}
     for field in (
         "organization", "template", "sap number", "authors", "reviewers", "approvers",
