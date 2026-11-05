@@ -1,10 +1,10 @@
-// The report verification harness: opens a generated report in a Node DOM (linkedom) with no
+// The artifact verification harness: opens a generated artifact in a Node DOM (linkedom) with no
 // native browser, runs its embedded runtime and drives it step by step.
 //
-// As a module: `open(reportPath, linkedomPath)` returns the opened report; report-ui.cjs and
+// As a module: `open(artifactPath, linkedomPath)` returns the opened artifact; artifact-ui.cjs and
 // the steps below build on it. As a command:
 //
-//   node report-harness.cjs <report.html> <linkedom module> <steps.json>
+//   node artifact-harness.cjs <artifact.html> <linkedom module> <steps.json>
 //
 // runs the JSON list of steps (each {"step": <name>, ...arguments}) and prints one JSON result
 // per step as a JSON list. A failed step exits 1 with a message naming the harness, the step and
@@ -12,10 +12,10 @@
 const fs = require("node:fs");
 const vm = require("node:vm");
 
-const NAME = "test/browser/report-harness.cjs";
-const STARTUP_SCRIPTS = ["reader-startup-script", "running-header-script", "report-bootstrap-script"];
+const NAME = "test/browser/artifact-harness.cjs";
+const STARTUP_SCRIPTS = ["reader-startup-script", "running-header-script", "artifact-bootstrap-script"];
 const RUNTIME_SCRIPTS = ["query-script", "yaml-script", "base-script", "data-table-script",
-    "assets-script", "notices-script", "canonical-transaction-script", "report-script", "pages-script"];
+    "assets-script", "notices-script", "canonical-transaction-script", "artifact-script", "pages-script"];
 
 class HarnessError extends Error {
     constructor(step, problem, remedy) {
@@ -33,7 +33,7 @@ function install(window, document) {
     });
     if (document.createElement("a").hash === undefined) {
         Object.defineProperty(window.HTMLAnchorElement.prototype, "hash", {
-            get() { return new URL(this.href, "https://report.invalid/").hash; },
+            get() { return new URL(this.href, "https://artifact.invalid/").hash; },
         });
     }
     window.HTMLCanvasElement.prototype.getContext = () => ({
@@ -52,7 +52,7 @@ function install(window, document) {
     Object.defineProperty(window.HTMLElement.prototype, "scrollHeight", {
         configurable: true, get() { return 0; },
     });
-    window.location = {hash: "", pathname: "/reports/report.html"};
+    window.location = {hash: "", pathname: "/artifacts/artifact.html"};
     window.history = {
         pushState(_state, _unused, hash) { window.location.hash = hash; },
         replaceState(_state, _unused, hash) { window.location.hash = hash; },
@@ -110,14 +110,14 @@ function textRange(document) {
 function runScript(document, context, id) {
     const script = document.getElementById(id);
     if (!script) {
-        throw new HarnessError("open", `the report has no <script id="${id}">.`,
-            "render the report with this repository's obs-html, not another adapter or an older build.");
+        throw new HarnessError("open", `the artifact has no <script id="${id}">.`,
+            "render the artifact with this repository's obs-html, not another adapter or an older build.");
     }
     vm.runInContext(script.textContent, context, {filename: id});
 }
 
-// Opens the report and runs its startup and runtime scripts in the order the browser does.
-async function open(reportPath, linkedomPath) {
+// Opens the artifact and runs its startup and runtime scripts in the order the browser does.
+async function open(artifactPath, linkedomPath) {
     let parseHTML;
     try {
         ({parseHTML} = require(linkedomPath));
@@ -127,10 +127,10 @@ async function open(reportPath, linkedomPath) {
     }
     let html;
     try {
-        html = fs.readFileSync(reportPath, "utf8");
+        html = fs.readFileSync(artifactPath, "utf8");
     } catch (error) {
-        throw new HarnessError("open", `the report ${reportPath} could not be read: ${error.message}`,
-            "pass the path of a report rendered with obs-html.");
+        throw new HarnessError("open", `the artifact ${artifactPath} could not be read: ${error.message}`,
+            "pass the path of an artifact rendered with obs-html.");
     }
     const {window, document} = parseHTML(html);
     install(window, document);
@@ -170,16 +170,16 @@ async function open(reportPath, linkedomPath) {
     return {window, document, context, parseHTML, TextRange, timers, runTimers};
 }
 
-const activeChapter = (report) => report.document.querySelector("[data-active-chapter]");
+const activeChapter = (artifact) => artifact.document.querySelector("[data-active-chapter]");
 // The paged screen reader; the runtime detaches it while page mode is off.
-const pagedReader = (report) => {
-    const screen = report.document.querySelector(".paged-reader");
+const pagedReader = (artifact) => {
+    const screen = artifact.document.querySelector(".paged-reader");
     return screen && !screen.hidden ? screen : null;
 };
 
 // Every sheet of a paged container, with the paper the runtime declares for it.
-function sheets(report, container) {
-    const paper = report.data.paper;
+function sheets(artifact, container) {
+    const paper = artifact.data.paper;
     return [...container.querySelectorAll(":scope > .paper-sheet")].map((sheet) => {
         const landscape = sheet.dataset.pageOrientation === "landscape";
         const number = sheet.querySelector(".paper-page-number")?.textContent.match(/\d+/);
@@ -196,44 +196,44 @@ function sheets(report, container) {
 }
 
 const STEPS = {
-    // The report's embedded data as the runtime parsed it.
-    async data(report) {
-        const island = report.document.querySelector("[data-report-data]");
-        report.data = JSON.parse(island.textContent);
+    // The artifact's embedded data as the runtime parsed it.
+    async data(artifact) {
+        const island = artifact.document.querySelector("[data-artifact-data]");
+        artifact.data = JSON.parse(island.textContent);
         return {
-            status: report.document.documentElement.dataset.reportStatus,
-            notes: report.data.notes.map(({slug, title}) => ({slug, title})),
-            toc: report.data.toc.length,
-            tables: report.data.notes.flatMap((note) => (note.tables || []).map(({key}) => ({note: note.slug, key}))),
-            paper: report.data.paper,
+            status: artifact.document.documentElement.dataset.artifactStatus,
+            notes: artifact.data.notes.map(({slug, title}) => ({slug, title})),
+            toc: artifact.data.toc.length,
+            tables: artifact.data.notes.flatMap((note) => (note.tables || []).map(({key}) => ({note: note.slug, key}))),
+            paper: artifact.data.paper,
         };
     },
     // The filter bar's summary of the active filter: the runtime query's counts.
-    async summary(report) {
-        const {records, totalRecords} = report.context.obsReport.filterSummary();
+    async summary(artifact) {
+        const {records, totalRecords} = artifact.context.obsArtifact.filterSummary();
         return {records, totalRecords};
     },
-    async activate(report, {chapter}) {
-        if (!report.context.obsReport.records.some((record) => record.slug === chapter)) {
-            throw new HarnessError("activate", `the report has no chapter "${chapter}".`,
+    async activate(artifact, {chapter}) {
+        if (!artifact.context.obsArtifact.records.some((record) => record.slug === chapter)) {
+            throw new HarnessError("activate", `the artifact has no chapter "${chapter}".`,
                 "name a slug the data step lists under notes.");
         }
-        report.context.obsReport.activateChapter(chapter);
-        await report.context.obsReport.whenChapterReady();
-        const active = activeChapter(report);
+        artifact.context.obsArtifact.activateChapter(chapter);
+        await artifact.context.obsArtifact.whenChapterReady();
+        const active = activeChapter(artifact);
         return {
             chapter: active.dataset.chapter,
-            hash: report.window.location.hash,
+            hash: artifact.window.location.hash,
             title: active.querySelector("h1")?.textContent.trim() || null,
         };
     },
     // The table the active chapter mounted for a key, as the reader sees it.
-    async table(report, {key}) {
-        const body = activeChapter(report).querySelector("[data-chapter-body]");
+    async table(artifact, {key}) {
+        const body = activeChapter(artifact).querySelector("[data-chapter-body]");
         const shell = [...body.querySelectorAll("[data-data-table]:not([data-page-continuation])")]
             .find((element) => element.dataset.dataTable === key);
         if (!shell) {
-            throw new HarnessError("table", `the active chapter "${activeChapter(report).dataset.chapter}" `
+            throw new HarnessError("table", `the active chapter "${activeChapter(artifact).dataset.chapter}" `
                 + `mounted no table "${key}".`, "activate the chapter the data step lists for that table first.");
         }
         return {
@@ -247,28 +247,28 @@ const STEPS = {
             count: shell.querySelector(".data-table-count")?.textContent.trim() || null,
         };
     },
-    async paged(report, {enabled}) {
-        report.context.obsPages.setPaged(enabled);
-        const screen = pagedReader(report);
+    async paged(artifact, {enabled}) {
+        artifact.context.obsPages.setPaged(enabled);
+        const screen = pagedReader(artifact);
         return {
-            paged: report.document.documentElement.classList.contains("paged-mode"),
+            paged: artifact.document.documentElement.classList.contains("paged-mode"),
             reader: Boolean(screen),
-            chapter: activeChapter(report).dataset.chapter,
+            chapter: activeChapter(artifact).dataset.chapter,
             sheets: screen ? screen.querySelectorAll(":scope > .paper-sheet").length : 0,
         };
     },
     // Presentation (the paged screen reader) and print (the print book and its media boxes).
-    async geometry(report) {
-        const {document, window, context} = report;
-        const screen = pagedReader(report);
-        const presentation = screen ? sheets(report, screen) : null;
+    async geometry(artifact) {
+        const {document, window, context} = artifact;
+        const screen = pagedReader(artifact);
+        const presentation = screen ? sheets(artifact, screen) : null;
         window.dispatchEvent(new window.Event("beforeprint"));
         try {
             const book = document.querySelector(".print-book");
             return {
                 presentation,
                 print: {
-                    sheets: sheets(report, book),
+                    sheets: sheets(artifact, book),
                     mediaBoxes: context.obsPages.printMediaBoxes,
                 },
             };
@@ -278,14 +278,14 @@ const STEPS = {
     },
 };
 
-async function runSteps(report, steps) {
+async function runSteps(artifact, steps) {
     const results = [];
-    if (!report.data) await STEPS.data(report);
+    if (!artifact.data) await STEPS.data(artifact);
     for (const {step, ...argumentsOfStep} of steps) {
         if (!Object.hasOwn(STEPS, step)) {
             throw new HarnessError(step, "unknown step.", `use one of ${Object.keys(STEPS).join(", ")}.`);
         }
-        results.push(await STEPS[step](report, argumentsOfStep));
+        results.push(await STEPS[step](artifact, argumentsOfStep));
     }
     return results;
 }
@@ -294,14 +294,14 @@ module.exports = {open, runSteps, HarnessError};
 
 if (require.main === module) {
     (async () => {
-        const [reportPath, linkedomPath, stepsPath] = process.argv.slice(2);
+        const [artifactPath, linkedomPath, stepsPath] = process.argv.slice(2);
         if (!stepsPath) {
-            throw new HarnessError("usage", "expected <report.html> <linkedom module> <steps.json>.",
+            throw new HarnessError("usage", "expected <artifact.html> <linkedom module> <steps.json>.",
                 "pass all three arguments.");
         }
-        const report = await open(reportPath, linkedomPath);
+        const artifact = await open(artifactPath, linkedomPath);
         const steps = JSON.parse(fs.readFileSync(stepsPath, "utf8"));
-        process.stdout.write(JSON.stringify(await runSteps(report, steps)));
+        process.stdout.write(JSON.stringify(await runSteps(artifact, steps)));
     })().catch((error) => {
         console.error(error instanceof HarnessError ? error.message : error);
         process.exitCode = 1;

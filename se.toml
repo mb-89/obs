@@ -4,4 +4,4 @@ identity = "mb <mb>"
 
 [modules.obs]
 url = "https://github.com/mb-89/obs.git"
-ref = "b08c205d7564cf03e64645a106df41d69c8434aa"
+ref = "3e39a9d076fef821c2d1f8cb905f1093ff3158f1"

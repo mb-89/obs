@@ -11,12 +11,12 @@ from obs_html.config import load_config
 from obs_html.render import render
 
 
-def _report(*chapters) -> str:
+def _artifact(*chapters) -> str:
     return render(document("Bars", *chapters), load_config())
 
 
 def _one_chapter() -> str:
-    return _report(chapter("one", "One", heading(1, "One")))
+    return _artifact(chapter("one", "One", heading(1, "One")))
 
 
 def test_adding_one_module_is_enough_to_discover_a_bar(
@@ -85,12 +85,12 @@ def test_shipped_bar_runtimes_are_their_sibling_scripts() -> None:
 
 
 def test_renderer_infers_menu_and_content_from_discovered_bars() -> None:
-    report = _one_chapter()
+    artifact = _one_chapter()
 
     for bar in discover_bars():
-        assert f'data-dock-bar="{bar.key}"' in report
-        assert f'data-bar="{bar.key}"' in report
-        assert bar.icon in report
+        assert f'data-dock-bar="{bar.key}"' in artifact
+        assert f'data-bar="{bar.key}"' in artifact
+        assert bar.icon in artifact
 
 
 def test_filter_and_search_are_separate_discovered_bars() -> None:
@@ -186,8 +186,8 @@ def test_settings_is_discovered_and_owns_appearance_selection() -> None:
 
 
 def test_dock_buttons_use_left_right_top_bottom_order() -> None:
-    report = _one_chapter()
-    positions = [report.index(f'data-dock-direction="{direction}"') for direction in (
+    artifact = _one_chapter()
+    positions = [artifact.index(f'data-dock-direction="{direction}"') for direction in (
         "left",
         "right",
         "top",
@@ -200,17 +200,17 @@ def test_dock_buttons_use_left_right_top_bottom_order() -> None:
 @pytest.mark.browser
 @pytest.mark.parametrize("edge", ["left", "right", "top", "bottom"])
 def test_native_splitter_anchors_and_neighbor_only_geometry(tmp_path, reader_browser, edge):
-    report = tmp_path / "dock.html"
-    report.write_text(_report(*(
+    artifact = tmp_path / "dock.html"
+    artifact.write_text(_artifact(*(
         chapter(name, name.title(), heading(1, name.title()), paragraph(f"{name.title()} prose."))
         for name in ("alpha", "beta", "gamma"))), encoding="utf-8")
     page = reader_browser.new_page(viewport={"width": 1800, "height": 1200})
     horizontal = edge in ("top", "bottom")
     axis, size = ("x", "width") if horizontal else ("y", "height")
     try:
-        page.goto(report.as_uri())
-        page.wait_for_function("document.documentElement.dataset.reportStatus === 'ready'")
-        page.evaluate("edge => ['toc','filter','search'].forEach(bar => obsReport.openBar(bar,edge))", edge)
+        page.goto(artifact.as_uri())
+        page.wait_for_function("document.documentElement.dataset.artifactStatus === 'ready'")
+        page.evaluate("edge => ['toc','filter','search'].forEach(bar => obsArtifact.openBar(bar,edge))", edge)
         region = page.locator(f"[data-dock-region='{edge}']")
         dividers = region.locator(":scope > [data-bar-resize]")
         panes = region.locator(":scope > .dock-bar")
@@ -227,7 +227,7 @@ def test_native_splitter_anchors_and_neighbor_only_geometry(tmp_path, reader_bro
         moved = [divider.bounding_box()[axis] for divider in dividers.all()]
         assert moved[0] - before[0] == pytest.approx(36, abs=1)
         assert moved[1] == pytest.approx(before[1], abs=1)
-        page.evaluate("edge => obsReport.openBar('settings',edge)", edge)
+        page.evaluate("edge => obsArtifact.openBar('settings',edge)", edge)
         page.wait_for_timeout(100)
         added = [divider.bounding_box()[axis] for divider in dividers.all()]
         assert added[0] == pytest.approx(moved[0], abs=1)

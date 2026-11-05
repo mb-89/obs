@@ -22,7 +22,7 @@ def printed(tmp_path_factory) -> Path:
     folder = tmp_path_factory.mktemp("printed")
     (folder / "images").mkdir()
     (folder / "images" / "logo.png").write_bytes(base64.b64decode(PIXEL))
-    pdf = folder / "document.pdf"
+    pdf = folder / "artifact.pdf"
     cli.main([str(FIXTURE), str(pdf), "--execute-commands", "--command-root", str(folder)])
     return pdf
 
@@ -93,9 +93,9 @@ def test_text_writes_the_named_file(printed, tmp_path, capsys) -> None:
 
 def test_paths_lists_the_vector_paths_in_points_from_the_top_left(printed, capsys) -> None:
     pdf_inspect.main(["paths", str(printed), "--page", "1"])
-    report = json.loads(capsys.readouterr().out)
-    assert (report["page"], report["size"]) == (1, list(LETTER))
-    paths = report["paths"]
+    inspection = json.loads(capsys.readouterr().out)
+    assert (inspection["page"], inspection["size"]) == (1, list(LETTER))
+    paths = inspection["paths"]
     assert paths and all(segment["type"] in {"move", "line", "curve", "close"}
                          for path in paths for segment in path["segments"])
     for path in paths:
@@ -149,7 +149,7 @@ def test_every_tool_writes_only_the_files_it_is_named(printed, tmp_path, capsys)
     pdf_inspect.main(["paths", str(printed), "--page", "1"])
     pdf_inspect.main(["annotate", str(folder / "page.png"), "--box", "1,1,9,9", "--output", str(folder / "a.png")])
     assert sorted(path.name for path in folder.iterdir()) == ["a.png", "c.png", "page.png"]
-    assert sorted(path.name for path in printed.parent.iterdir()) == ["document.pdf", "images"]
+    assert sorted(path.name for path in printed.parent.iterdir()) == ["artifact.pdf", "images"]
 
 
 def test_raster_tools_need_an_output(printed, capsys) -> None:
@@ -201,7 +201,7 @@ def test_paths_include_paths_inside_form_xobjects(tmp_path, capsys) -> None:
 
 
 def test_a_file_that_is_no_pdf_is_named(tmp_path, capsys) -> None:
-    html = tmp_path / "document.html"
+    html = tmp_path / "artifact.html"
     html.write_text("<!doctype html>", encoding="utf-8")
     with pytest.raises(SystemExit):
         pdf_inspect.main(["text", str(html), "--page", "1"])

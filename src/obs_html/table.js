@@ -245,12 +245,12 @@
         views = [], activeView = 0, onViewChange,
         maxRows, wide = false, columnDetails = false, pagination = true,
         compact = false, minimumColumnWidth = JSON.parse(
-            document.querySelector("[data-report-data]").textContent,
+            document.querySelector("[data-artifact-data]").textContent,
         )[compact ? "tableCompactColumnMinimumPixels" : "tableColumnMinimumPixels"],
         showEmptyDetailTabs = false, screenPageBreaks = true,
         initialRowKeys, onRowKeysChange,
         columnSizing, detailFontSize = JSON.parse(
-            document.querySelector("[data-report-data]").textContent,
+            document.querySelector("[data-artifact-data]").textContent,
         ).tableDetailFontSizePoints,
         baseExpression = "", initialExpression = "", initialGroup = [], initialSort = [],
         baseQuery = globalThis.obsQuery.compile(baseExpression),
@@ -259,7 +259,7 @@
         initialDetailState, onDetailStateChange,
         hasDetails: computeHasDetails = () => false, renderDetails, renderOwnerDetails,
         initialPageSize = JSON.parse(
-            document.querySelector("[data-report-data]").textContent,
+            document.querySelector("[data-artifact-data]").textContent,
         ).tablePageSize,
     }) => {
         const detailAvailability = new Map();
@@ -580,7 +580,7 @@
         const isMapping = value => value !== null && typeof value === "object" && !Array.isArray(value);
         let restoredPresentation;
         if (initialPresentation !== undefined) {
-            // Older reviewed copies also saved resized `widths`; widths are no longer document state.
+            // Older reviewed copies also saved resized `widths`; widths are no longer artifact state.
             const valid = isMapping(initialPresentation) &&
                 Object.keys(initialPresentation).every(name => name === "columns" || name === "widths") &&
                 Array.isArray(initialPresentation.columns) && initialPresentation.columns.length > 0 &&
@@ -599,7 +599,7 @@
         let projectedColumnKeys = initialColumns.map(column => column.key);
         const groups = initialGroup.map((item) => ({...item}));
         const sorts = initialSort.map((item) => ({...item}));
-        // Reader-resized widths are session view state only: never a document change.
+        // Reader-resized widths are session view state only: never an artifact change.
         const resizedWidths = new Map(Object.entries(isMapping(initialColumnWidths) ? initialColumnWidths : {})
             .filter(([column, width]) => catalogByKey.has(column) && !catalogByKey.get(column).fixed &&
                 Number.isSafeInteger(width) && width >= minimumColumnWidth));
@@ -686,7 +686,7 @@
         let selectionBase = "";
         const renderFacets = () => renderFilterFields({
             container: filterFields,
-            facets: globalThis.obsReport?.facetFields(baseRows, facetCatalog.map(column => ({
+            facets: globalThis.obsArtifact?.facetFields(baseRows, facetCatalog.map(column => ({
                 field: column.key, label: column.label,
             }))) || [],
             isSelected: (field, value) => (filterSelections.get(field) || []).includes(value),

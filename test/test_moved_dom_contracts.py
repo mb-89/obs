@@ -1,9 +1,9 @@
-"""The interim adapter's remaining DOM contracts (test/browser/report-ui.cjs modes), on Documents.
+"""The interim adapter's remaining DOM contracts (test/browser/artifact-ui.cjs modes), on Documents.
 
 Each contract runs on a Document the obs core built from the interim test's vault
 (test/fixtures/build_documents.py owns the vaults and says how to regenerate them). Moved from
-obs: test_browser.py (test_complete_document_dom_interactions), test_document_changes.py
-(test_document_change_owner_controlled_save_boundaries), test_record_projections.py and
+obs: test_browser.py (test_complete_document_dom_interactions), test_artifact_changes.py
+(test_artifact_change_owner_controlled_save_boundaries), test_record_projections.py and
 test_table_help_browser.py (test_table_help_reuses_shared_rich_hover_dom).
 """
 import json
@@ -14,8 +14,8 @@ import pytest
 
 from conftest import ROOT
 from obs_html.render import render
-from obs_html.report_data import decode_report_data
-from test_dom import CONFIG, run_report_dom_contract
+from obs_html.artifact_data import decode_artifact_data
+from test_dom import CONFIG, run_artifact_dom_contract
 
 
 DOCUMENTS = ROOT / "test" / "fixtures" / "documents"
@@ -25,10 +25,10 @@ def _document(name: str) -> dict:
     return json.loads((DOCUMENTS / f"{name}.json").read_text(encoding="utf-8"))
 
 
-def _report(tmp_path: Path, name: str) -> Path:
-    report = tmp_path / f"{name}.html"
-    report.write_text(render(_document(name), CONFIG), encoding="utf-8")
-    return report
+def _artifact(tmp_path: Path, name: str) -> Path:
+    artifact = tmp_path / f"{name}.html"
+    artifact.write_text(render(_document(name), CONFIG), encoding="utf-8")
+    return artifact
 
 
 @pytest.mark.parametrize("name", sorted(path.stem for path in DOCUMENTS.glob("*.json")))
@@ -44,24 +44,24 @@ def test_the_complete_document_uses_references_and_a_callout_extension() -> None
 @pytest.mark.dom
 def test_complete_document_dom_interactions(tmp_path: Path) -> None:
     package = files("obs_html")
-    run_report_dom_contract(_report(tmp_path, "complete"), "", package / "bars" / "comments.js",
+    run_artifact_dom_contract(_artifact(tmp_path, "complete"), "", package / "bars" / "comments.js",
                             package / "bars" / "settings.js", package / "storage.js")
 
 
 @pytest.mark.dom
-def test_document_change_owner_controlled_save_boundaries(tmp_path: Path) -> None:
+def test_artifact_change_owner_controlled_save_boundaries(tmp_path: Path) -> None:
     package = files("obs_html")
-    output = run_report_dom_contract(_report(tmp_path, "document-change"), "--document-change-only",
+    output = run_artifact_dom_contract(_artifact(tmp_path, "artifact-change"), "--artifact-change-only",
                                      package / "bars" / "filter.js", package / "bars" / "comments.js",
                                      package / "storage.js")
-    assert output.startswith("PASS document/review dirty")
+    assert output.startswith("PASS artifact/review dirty")
 
 
 @pytest.fixture(scope="module")
 def projected(tmp_path_factory) -> dict:
-    report = _report(tmp_path_factory.mktemp("projections"), "projections")
-    notes = decode_report_data(report.read_text(encoding="utf-8"))["notes"]
-    inspected = json.loads(run_report_dom_contract(report, "--inspect-json", arguments=(json.dumps(["registers"]),)))
+    artifact = _artifact(tmp_path_factory.mktemp("projections"), "projections")
+    notes = decode_artifact_data(artifact.read_text(encoding="utf-8"))["notes"]
+    inspected = json.loads(run_artifact_dom_contract(artifact, "--inspect-json", arguments=(json.dumps(["registers"]),)))
     return {"notes": {note["sourcePath"]: note["slug"] for note in notes}, **inspected}
 
 
@@ -104,5 +104,5 @@ def test_marked_paragraph_and_tag_table_row_have_unique_ids(projected) -> None:
 
 @pytest.mark.dom
 def test_table_help_reuses_shared_rich_hover_dom(tmp_path: Path) -> None:
-    output = run_report_dom_contract(_report(tmp_path, "table-help"), "--table-help-only")
+    output = run_artifact_dom_contract(_artifact(tmp_path, "table-help"), "--table-help-only")
     assert output.startswith("PASS: shared table help")

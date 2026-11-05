@@ -8,14 +8,14 @@ import pytest
 
 from obs_html.config import load_config
 from obs_html.render import RenderError, render
-from obs_html.report_data import decode_report_data
+from obs_html.artifact_data import decode_artifact_data
 
 
 CONFIG = load_config()
 
 
 def _appendix(document) -> str:
-    data = decode_report_data(render(document, CONFIG, lambda command: ""))
+    data = decode_artifact_data(render(document, CONFIG, lambda command: ""))
     return next(note for note in data["notes"] if note["slug"] == "appendix")["html"]
 
 
@@ -43,9 +43,9 @@ def test_trace_descriptors_become_plotly_figures_on_their_panel_axes(document) -
 
 
 def test_plot_figures_embed_plotly_with_its_licence_only_when_needed(document) -> None:
-    report = render(document, CONFIG, lambda command: "")
-    assert 'id="plotly-script"' in report and "Plotly" in report
-    assert 'id="figure-script"' in report and 'id="figure-styles"' in report
+    artifact = render(document, CONFIG, lambda command: "")
+    assert 'id="plotly-script"' in artifact and "Plotly" in artifact
+    assert 'id="figure-script"' in artifact and 'id="figure-styles"' in artifact
     without = copy.deepcopy(document)
     appendix = next(chapter for chapter in without["chapters"] if chapter["id"] == "appendix")
     appendix["content"] = [node for node in appendix["content"] if node["type"] != "figure-descriptor"]

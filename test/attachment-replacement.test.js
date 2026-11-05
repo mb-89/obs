@@ -13,9 +13,9 @@ const describeAsset = async (archivePath, bytes, mime) => {
 };
 const bytes = text => new TextEncoder().encode(text);
 
-// A report whose canonical state (notes, attachment descriptors, archive members) changes only
-// through the canonical transaction, as report.js and payloads.js own it.
-const fakeReport = async ({ fail } = {}) => {
+// An artifact whose canonical state (notes, attachment descriptors, archive members) changes only
+// through the canonical transaction, as artifact.js and payloads.js own it.
+const fakeArtifact = async ({ fail } = {}) => {
   const original = await describeAsset("assets/evidence/test.pdf", bytes("old"), "application/pdf");
   const reference = `obs-asset:${original.key}`;
   const { key: oldKey, ...oldDescriptor } = original;
@@ -54,18 +54,18 @@ const fakeReport = async ({ fail } = {}) => {
       state.changes += 1;
     },
   });
-  const report = {
+  const artifact = {
     get revision() { return state.revision; },
     canonicalNotes: () => structuredClone(state.notes),
     embeddedAssets: () => structuredClone(state.assets),
     serializeModel: () => JSON.stringify({ notes: state.notes, embeddedAssets: state.assets, toc: [state.outside] }),
     stageCanonicalTransaction: candidate => transactions.stage(candidate),
   };
-  return { state, report, oldKey };
+  return { state, artifact, oldKey };
 };
 
-const extension = (report, trusted = () => true) =>
-  replacement.create({ report, payload: { describeAsset }, trusted });
+const extension = (artifact, trusted = () => true) =>
+  replacement.create({ artifact, payload: { describeAsset }, trusted });
 
 const snapshot = state => structuredClone({
   revision: state.revision, notes: state.notes, assets: state.assets, members: state.members, changes: state.changes,
@@ -75,14 +75,14 @@ async function run() {
   assert.equal(replacement.namespace, "obsHtml.attachments");
 
   {
-    const { report } = await fakeReport();
-    assert.throws(() => extension(report, () => false),
+    const { artifact } = await fakeArtifact();
+    assert.throws(() => extension(artifact, () => false),
       /Trusted extension obsHtml\.attachments: .*--trusted-runtime-bundle ID=PATH/);
   }
 
   {
-    const { state, report, oldKey } = await fakeReport();
-    const result = await extension(report).replace({
+    const { state, artifact, oldKey } = await fakeArtifact();
+    const result = await extension(artifact).replace({
       expectedRevision: 2, key: oldKey, bytes: bytes("new"),
     });
     assert.notEqual(result.key, oldKey);
@@ -100,25 +100,25 @@ async function run() {
   }
 
   {
-    const { state, report, oldKey } = await fakeReport({ fail: "stage" });
+    const { state, artifact, oldKey } = await fakeArtifact({ fail: "stage" });
     const before = snapshot(state);
-    const error = await extension(report).replace({ expectedRevision: 2, key: oldKey, bytes: bytes("new") })
+    const error = await extension(artifact).replace({ expectedRevision: 2, key: oldKey, bytes: bytes("new") })
       .then(() => null, caught => caught);
     assert.match(error.message, /obsHtml\.attachments: staging failed, nothing was applied: Replacement ZIP member/);
     assert.deepEqual(snapshot(state), before, "a failure part-way leaves everything unchanged");
   }
 
   {
-    const { state, report, oldKey } = await fakeReport();
+    const { state, artifact, oldKey } = await fakeArtifact();
     const before = snapshot(state);
     const controller = new AbortController();
-    const staging = report.stageCanonicalTransaction;
-    report.stageCanonicalTransaction = async candidate => {
+    const staging = artifact.stageCanonicalTransaction;
+    artifact.stageCanonicalTransaction = async candidate => {
       const staged = await staging(candidate);
       controller.abort();
       return staged;
     };
-    const error = await extension(report).replace({
+    const error = await extension(artifact).replace({
       expectedRevision: 2, key: oldKey, bytes: bytes("new"), signal: controller.signal,
     }).then(() => null, caught => caught);
     assert.match(error.message, /cancelled after staging; nothing was applied/);
@@ -126,31 +126,31 @@ async function run() {
   }
 
   {
-    const { state, report, oldKey } = await fakeReport();
+    const { state, artifact, oldKey } = await fakeArtifact();
     const before = snapshot(state);
-    const error = await extension(report).replace({ expectedRevision: 1, key: oldKey, bytes: bytes("new") })
+    const error = await extension(artifact).replace({ expectedRevision: 1, key: oldKey, bytes: bytes("new") })
       .then(() => null, caught => caught);
-    assert.match(error.message, /revision 1 is stale \(current 2\); re-read report\.revision/);
+    assert.match(error.message, /revision 1 is stale \(current 2\); re-read artifact\.revision/);
     assert.deepEqual(snapshot(state), before, "a stale revision is refused before staging");
   }
 
   {
-    const { state, report, oldKey } = await fakeReport();
-    const staging = report.stageCanonicalTransaction;
-    report.stageCanonicalTransaction = async candidate => {
+    const { state, artifact, oldKey } = await fakeArtifact();
+    const staging = artifact.stageCanonicalTransaction;
+    artifact.stageCanonicalTransaction = async candidate => {
       const staged = await staging(candidate);
       state.revision += 1;
       return staged;
     };
     const before = snapshot(state);
-    const error = await extension(report).replace({ expectedRevision: 2, key: oldKey, bytes: bytes("new") })
+    const error = await extension(artifact).replace({ expectedRevision: 2, key: oldKey, bytes: bytes("new") })
       .then(() => null, caught => caught);
     assert.match(error.message, /obsHtml\.attachments: commit failed: Canonical transaction revision conflict at commit/);
     assert.deepEqual(snapshot(state), {...before, revision: 3}, "a source that moved on while staging is refused at commit");
   }
 
   {
-    const { state, report, oldKey } = await fakeReport();
+    const { state, artifact, oldKey } = await fakeArtifact();
     const before = snapshot(state);
     const refusals = [
       [{ expectedRevision: 2, key: "nope", bytes: bytes("new") }, /key must be the 64-hex key/],
@@ -160,16 +160,16 @@ async function run() {
       [{ expectedRevision: 2, key: oldKey, bytes: "new" }, /bytes must be a Uint8Array/],
     ];
     for (const [request, message] of refusals) {
-      await assert.rejects(extension(report).replace(request), message);
+      await assert.rejects(extension(artifact).replace(request), message);
     }
     state.outside = `obs-asset:${oldKey}`;
-    await assert.rejects(extension(report).replace({ expectedRevision: 2, key: oldKey, bytes: bytes("new") }),
+    await assert.rejects(extension(artifact).replace({ expectedRevision: 2, key: oldKey, bytes: bytes("new") }),
       /referenced outside the canonical notes/);
     state.outside = "";
     state.notes[1].frontmatter.evidence = "none";
     state.notes[1].html = "";
     state.notes[2].frontmatterHtml = {};
-    await assert.rejects(extension(report).replace({ expectedRevision: 2, key: oldKey, bytes: bytes("new") }),
+    await assert.rejects(extension(artifact).replace({ expectedRevision: 2, key: oldKey, bytes: bytes("new") }),
       /no canonical record references attachment/);
     assert.equal(state.changes, before.changes);
     assert.deepEqual(state.assets, before.assets);

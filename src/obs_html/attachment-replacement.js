@@ -25,10 +25,10 @@
 
     const noteId = note => typeof note.sourcePath === "string" ? note.sourcePath.replace(/\.md$/, "") : note.slug;
 
-    const create = ({report, payload, trusted}) => {
-        if (!report || typeof report.stageCanonicalTransaction !== "function" ||
+    const create = ({artifact, payload, trusted}) => {
+        if (!artifact || typeof artifact.stageCanonicalTransaction !== "function" ||
                 !payload || typeof payload.describeAsset !== "function" || typeof trusted !== "function") {
-            throw new TypeError(`Trusted extension ${namespace} needs the report, payload, and trust owners.`);
+            throw new TypeError(`Trusted extension ${namespace} needs the artifact, payload, and trust owners.`);
         }
         if (!trusted()) {
             throw failure("this HTML has no registered trusted runtime bundle; build it with " +
@@ -37,18 +37,18 @@
 
         const replace = async ({expectedRevision, key, bytes, mime, signal} = {}) => {
             if (!Number.isSafeInteger(expectedRevision) || expectedRevision < 0) {
-                throw failure("expectedRevision must be the report.revision the replacement was prepared against.");
+                throw failure("expectedRevision must be the artifact.revision the replacement was prepared against.");
             }
             if (typeof key !== "string" || !KEY.test(key)) {
                 throw failure("key must be the 64-hex key of the attachment's obs-asset: reference.");
             }
             if (!(bytes instanceof Uint8Array)) throw failure("bytes must be a Uint8Array.");
             if (signal?.aborted) throw failure("cancelled before staging; nothing was applied.");
-            if (report.revision !== expectedRevision) {
-                throw failure(`revision ${expectedRevision} is stale (current ${report.revision}); ` +
-                    "re-read report.revision and prepare the replacement again.");
+            if (artifact.revision !== expectedRevision) {
+                throw failure(`revision ${expectedRevision} is stale (current ${artifact.revision}); ` +
+                    "re-read artifact.revision and prepare the replacement again.");
             }
-            const current = report.embeddedAssets()[key];
+            const current = artifact.embeddedAssets()[key];
             if (current === undefined) throw failure(`no embedded attachment has key ${key}.`);
             if (typeof current !== "object" || typeof current.archivePath !== "string" ||
                     !current.archivePath.startsWith("vault/")) {
@@ -56,7 +56,7 @@
                     "only archive-backed attachments can be replaced.");
             }
             const reference = `obs-asset:${key}`;
-            const model = JSON.parse(report.serializeModel());
+            const model = JSON.parse(artifact.serializeModel());
             delete model.notes;
             delete model.embeddedAssets;
             if (JSON.stringify(model).includes(reference)) {
@@ -74,7 +74,7 @@
                 throw failure(`the replacement bytes equal attachment ${key}; nothing to replace.`);
             }
             const dependents = [];
-            const notes = report.canonicalNotes().map(note => {
+            const notes = artifact.canonicalNotes().map(note => {
                 if (!JSON.stringify(note).includes(reference)) return note;
                 dependents.push(noteId(note));
                 return replaceReferences(note, reference, `obs-asset:${descriptor.key}`);
@@ -82,7 +82,7 @@
             if (!dependents.length) throw failure(`no canonical record references attachment ${key}.`);
             let staged;
             try {
-                staged = await report.stageCanonicalTransaction({
+                staged = await artifact.stageCanonicalTransaction({
                     expectedRevision,
                     notes,
                     assetChanges: [{...descriptor, bytes}],
@@ -98,7 +98,7 @@
                 throw failure(`commit failed: ${error.message}`, error);
             }
             return Object.freeze({previousKey: key, key: descriptor.key, dependents,
-                revision: report.revision});
+                revision: artifact.revision});
         };
 
         return Object.freeze({namespace, replace});

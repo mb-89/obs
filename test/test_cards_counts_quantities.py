@@ -12,7 +12,7 @@ import pytest
 
 from obs_html.config import load_config
 from obs_html.render import RenderError, render
-from obs_html.report_data import decode_report_data
+from obs_html.artifact_data import decode_artifact_data
 
 from documents import chapter, document as build, node, paragraph
 
@@ -49,7 +49,7 @@ def _document(*content: dict) -> dict:
 
 
 def _notes(source: dict) -> dict[str, dict]:
-    return {note["slug"]: note for note in decode_report_data(render(source, CONFIG))["notes"]}
+    return {note["slug"]: note for note in decode_artifact_data(render(source, CONFIG))["notes"]}
 
 
 def _html(*content: dict) -> str:
