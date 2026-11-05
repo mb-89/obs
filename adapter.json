@@ -7,7 +7,9 @@
   ],
   "contractVersion": 1,
   "capabilities": [
+    "attachments",
     "bases",
+    "callouts",
     "chapter-inclusion",
     "command-fences",
     "document-presentation",
