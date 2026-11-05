@@ -7,9 +7,9 @@ from pathlib import Path
 import pytest
 import yaml
 
-from obs_html.content import ContentError, parse_manifest, validate_base_definition
-from obs_html.renderer import render_artifact
-from obs_html.artifact_data import decode_artifact_data
+from obs_html_interim.content import ContentError, parse_manifest, validate_base_definition
+from obs_html_interim.renderer import render_artifact
+from obs_html_interim.artifact_data import decode_artifact_data
 
 
 def definition():
@@ -96,21 +96,21 @@ def test_detail_font_configuration_is_bounded_and_reproduced(tmp_path):
     from io import BytesIO
     from zipfile import ZipFile
     from jsonschema import ValidationError
-    from obs_html.cli import PROJECT_ROOT
-    from obs_html.config import load_config
-    from obs_html.reproduction import source_archive
+    from obs_html_interim.cli import PROJECT_ROOT
+    from obs_html_interim.config import load_config
+    from obs_html_interim.reproduction import source_archive
 
     manifest = _write_reader_fixture(tmp_path / "source")
     override = tmp_path / "config.json"
     override.write_text('{"artifact":{"tableDetailFontSizePoints":11}}', encoding="utf-8")
-    config = load_config(files("obs_html").joinpath("cfg.json"), override)
+    config = load_config(files("obs_html_interim").joinpath("cfg.json"), override)
     assert config.table_detail_font_size_points == 11
     with ZipFile(BytesIO(source_archive(manifest.parent, manifest, PROJECT_ROOT, config, False))) as archive:
         assert json.loads(archive.read("build-config.json"))["artifact"]["tableDetailFontSizePoints"] == 11
     for unsupported in (7, 15):
         override.write_text(json.dumps({"artifact": {"tableDetailFontSizePoints": unsupported}}), encoding="utf-8")
         with pytest.raises(ValidationError):
-            load_config(files("obs_html").joinpath("cfg.json"), override)
+            load_config(files("obs_html_interim").joinpath("cfg.json"), override)
 
 
 @pytest.fixture(scope="module")
@@ -285,7 +285,7 @@ def test_native_reader_controls_and_compact_metrics(tmp_path, reader_browser):
 
 
 def test_cli_reader_fixture_generation_does_not_write_live_paths(tmp_path):
-    from obs_html.cli import main
+    from obs_html_interim.cli import main
 
     manifest = _write_reader_fixture(tmp_path / "source")
     output = tmp_path / "artifact.html"
@@ -329,7 +329,7 @@ def _control_artifact(root, *, subject_text=""):
             {"field": "identifier", "label": "Identifier"},
         ],
     })
-    from obs_html.cli import main
+    from obs_html_interim.cli import main
     artifact = output
     assert main(["--source", str(manifest), "--output", str(artifact)]) == 0
     return artifact
@@ -770,7 +770,7 @@ def test_native_expanded_figure_filter_updates_in_top_layer_without_disappearing
         "links": [{"source": "a", "target": "b", "value": 1,
                    "where": [{"field": "status", "equals": "Complete"}]}],
     }), encoding="utf-8")
-    from obs_html.cli import main
+    from obs_html_interim.cli import main
     assert main(["--source", str(tmp_path / "source" / "manifest.md"), "--output", str(artifact)]) == 0
     page = reader_browser.new_page(viewport={"width": 1500, "height": 1000})
     try:

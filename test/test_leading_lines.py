@@ -4,7 +4,7 @@ from pathlib import Path
 
 import pytest
 
-from obs_html.content import ContentError, validate_base_definition
+from obs_html_interim.content import ContentError, validate_base_definition
 from test_browser import run_browser_script
 from test_reader_controls import _write_reader_artifact, reader_browser  # noqa: F401
 

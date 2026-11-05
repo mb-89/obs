@@ -42,12 +42,12 @@ def _projection_matches(existing, projected):
 @cache
 def _schema():
     # Every note asks for editors; reading the packaged schema once avoids a file read per note.
-    schema = json.loads(files("obs_html").joinpath("property-editor.schema.json").read_text(encoding="utf-8"))
+    schema = json.loads(files("obs_html_interim").joinpath("property-editor.schema.json").read_text(encoding="utf-8"))
     return schema, Draft202012Validator(schema), frozenset(schema["$defs"]["editableField"]["not"]["enum"])
 
 
 def property_editors(tokens, chapter, frontmatter):
-    from obs_html.content import ContentError
+    from obs_html_interim.content import ContentError
 
     editors = {}
     for token in tokens:

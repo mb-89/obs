@@ -22,7 +22,7 @@ from obs.input import (
 
 def test_core_input_contracts_validate_without_loading_adapter(tmp_path) -> None:
     result = subprocess.run(
-        [sys.executable, "-c", "import obs.input; import sys; raise SystemExit('obs_html' in sys.modules)"],
+        [sys.executable, "-c", "import obs.input; import sys; raise SystemExit('obs_html_interim' in sys.modules)"],
         check=False,
     )
     assert result.returncode == 0
@@ -129,11 +129,11 @@ def _error_message(callback) -> str:
 
 
 def test_core_and_adapter_contract_errors_match_for_shared_inputs(tmp_path) -> None:
-    from obs_html.cards import parse_card_spec as parse_adapter_cards
-    from obs_html.cards import validate_count_query as validate_adapter_count_query
-    from obs_html.commands import run_command
-    from obs_html.content import _validate_note_profile, validate_base_definition as validate_adapter_base
-    from obs_html.properties import property_editors
+    from obs_html_interim.cards import parse_card_spec as parse_adapter_cards
+    from obs_html_interim.cards import validate_count_query as validate_adapter_count_query
+    from obs_html_interim.commands import run_command
+    from obs_html_interim.content import _validate_note_profile, validate_base_definition as validate_adapter_base
+    from obs_html_interim.properties import property_editors
     from markdown_it import MarkdownIt
 
     card = '{"version": 1, "cards": []}'
@@ -196,7 +196,7 @@ FULL_CARD_SPEC = {
 
 
 def test_core_cards_contract_accepts_the_full_card_metric_contract() -> None:
-    from obs_html.cards import parse_card_spec as parse_adapter_cards
+    from obs_html_interim.cards import parse_card_spec as parse_adapter_cards
 
     text = json.dumps(FULL_CARD_SPEC)
     assert parse_card_spec(text, "note.md") == FULL_CARD_SPEC == parse_adapter_cards(text, "note.md")
@@ -214,7 +214,7 @@ def test_core_cards_contract_accepts_the_full_card_metric_contract() -> None:
     ],
 )
 def test_core_cards_contract_rejects_what_the_adapter_rejects(metric) -> None:
-    from obs_html.cards import parse_card_spec as parse_adapter_cards
+    from obs_html_interim.cards import parse_card_spec as parse_adapter_cards
 
     text = json.dumps({"version": 1, "cards": [{
         "title": "Coverage", "body": "", "metrics": [{"label": "Open", "where": [], **metric}],
@@ -483,7 +483,7 @@ def test_an_unreadable_fence_names_the_note_and_the_fence(tmp_path, fence, expec
 
 
 def test_the_adapter_names_a_nested_cards_fence_by_note_fence_and_card() -> None:
-    from obs_html.cards import parse_card_spec as parse_adapter_cards
+    from obs_html_interim.cards import parse_card_spec as parse_adapter_cards
 
     body = "```cards\\n{}\\n```"
     text = f'{{"version": 1, "cards": [{{"title": "T", "body": "{body}", "metrics": []}}]}}'

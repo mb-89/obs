@@ -5,9 +5,9 @@ from pathlib import Path
 
 import pytest
 
-from obs_html.bars import discover_bars
-from obs_html.content import parse_manifest
-from obs_html.renderer import render_artifact
+from obs_html_interim.bars import discover_bars
+from obs_html_interim.content import parse_manifest
+from obs_html_interim.renderer import render_artifact
 from test_browser import run_artifact_dom_contract
 from test_reader_controls import _write_reader_fixture, reader_browser  # noqa: F401
 
@@ -19,7 +19,7 @@ def test_adding_one_module_is_enough_to_discover_a_bar(
     package.mkdir()
     (package / "__init__.py").write_text("", encoding="utf-8")
     (package / "notes.py").write_text(
-        "from obs_html.bars import BarDefinition\n"
+        "from obs_html_interim.bars import BarDefinition\n"
         "BAR = BarDefinition(key='notes', label='Notes', icon='N', "
         "help='Read notes', order=5, render=lambda chapters: '<p>Notes</p>')\n",
         encoding="utf-8",
@@ -39,7 +39,7 @@ def test_a_bar_runtime_is_discovered_from_its_sibling_script(tmp_path: Path, mon
     package.mkdir()
     (package / "__init__.py").write_text("", encoding="utf-8")
     (package / "notes.py").write_text(
-        "from obs_html.bars import BarDefinition\n"
+        "from obs_html_interim.bars import BarDefinition\n"
         "BAR = BarDefinition(key='notes', label='Notes', icon='N', "
         "help='Read notes', order=5, render=lambda chapters: '')\n",
         encoding="utf-8",
@@ -56,7 +56,7 @@ def test_a_bar_cannot_carry_its_runtime_as_a_python_string(tmp_path: Path, monke
     package.mkdir()
     (package / "__init__.py").write_text("", encoding="utf-8")
     (package / "notes.py").write_text(
-        "from obs_html.bars import BarDefinition\n"
+        "from obs_html_interim.bars import BarDefinition\n"
         "BAR = BarDefinition(key='notes', label='Notes', icon='N', "
         "help='Read notes', order=5, render=lambda chapters: '', script='alert(1)')\n",
         encoding="utf-8",
@@ -69,7 +69,7 @@ def test_a_bar_cannot_carry_its_runtime_as_a_python_string(tmp_path: Path, monke
 
 
 def test_shipped_bar_runtimes_are_their_sibling_scripts() -> None:
-    package = files("obs_html.bars")
+    package = files("obs_html_interim.bars")
     scripted = {bar.key: bar.script for bar in discover_bars() if bar.script}
 
     assert set(scripted) == {"comments", "filter", "search", "settings"}
@@ -116,7 +116,7 @@ def test_filter_and_search_are_separate_discovered_bars(tmp_path: Path) -> None:
         )
     artifact = tmp_path / "artifact.html"
     artifact.write_text(render_artifact(manifest, parse_manifest(manifest)), encoding="utf-8")
-    runtimes = [files("obs_html.bars") / f"{key}.js" for key in ("filter", "search")]
+    runtimes = [files("obs_html_interim.bars") / f"{key}.js" for key in ("filter", "search")]
     run_artifact_dom_contract(artifact, "--discovered-query-controls-only", *runtimes)
 
 

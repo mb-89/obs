@@ -1,7 +1,7 @@
 "use strict";
 
 const assert = require("node:assert/strict");
-const { createCanonicalTransaction } = require("../src/obs_html/canonical-transaction.js");
+const { createCanonicalTransaction } = require("../src/obs_html_interim/canonical-transaction.js");
 
 async function run() {
   let state = {

@@ -3,8 +3,8 @@ from pathlib import Path
 
 import pytest
 
-from obs_html.content import parse_manifest
-from obs_html.renderer import render_artifact
+from obs_html_interim.content import parse_manifest
+from obs_html_interim.renderer import render_artifact
 
 
 @pytest.mark.skipif(not os.environ.get("OBS_HTML_TEST_NATIVE_BROWSER"),
@@ -24,7 +24,7 @@ def test_document_metadata_rows_are_plain_keys_with_aligned_text_values(tmp_path
     artifact = tmp_path / "artifact.html"
     artifact.write_text(render_artifact(
         manifest, parse_manifest(manifest),
-        generator_provenance={"name": "obs_html", "version": "e95e452-dirty", "commit": "e95e452"},
+        generator_provenance={"name": "obs_html_interim", "version": "e95e452-dirty", "commit": "e95e452"},
         target_provenance={"name": "reference", "version": "ddde511", "commit": "ddde511"},
     ), encoding="utf-8")
     with sync_playwright() as playwright:
@@ -42,7 +42,7 @@ def test_document_metadata_rows_are_plain_keys_with_aligned_text_values(tmp_path
             assert {"timestamp", "generator", "target", "owners", "settings"} <= set(rows)
             assert not any("generation" in key or "(generated)" in key or key == "generatorVersion"
                            for key in rows)
-            assert rows["generator"] == "name:    obs_html\nversion: e95e452-dirty\ncommit:  e95e452"
+            assert rows["generator"] == "name:    obs_html_interim\nversion: e95e452-dirty\ncommit:  e95e452"
             assert rows["target"] == "name:    reference\nversion: ddde511\ncommit:  ddde511"
             assert rows["owners"] == "Ada, Lin"
             assert rows["settings"] == "review:    true\ndepth.max: 2"

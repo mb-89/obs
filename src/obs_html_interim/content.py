@@ -29,12 +29,12 @@ from latex2mathml import exceptions as math_errors
 from latex2mathml.converter import convert as mathml
 from obs import selection
 from obs.input import InputError, schema_error
-from obs_html.callouts import decorate_callouts, marker as callout_marker
-from obs_html.markdown import authoring_markdown, shared_authoring_markdown
+from obs_html_interim.callouts import decorate_callouts, marker as callout_marker
+from obs_html_interim.markdown import authoring_markdown, shared_authoring_markdown
 
 
 NOTE_PROFILE_SCHEMA = json.loads(
-    files("obs_html").joinpath("note-profile.schema.json").read_text(encoding="utf-8")
+    files("obs_html_interim").joinpath("note-profile.schema.json").read_text(encoding="utf-8")
 )
 NOTE_PROFILE_VALIDATOR = Draft202012Validator(NOTE_PROFILE_SCHEMA)
 MANIFEST_ITEM = re.compile(
@@ -299,7 +299,7 @@ class NoteReferenceIndex:
 @cache
 def _packaged_figure_references() -> dict[str, list[str]]:
     return json.loads(
-        files("obs_html").joinpath("cfg.json").read_text(encoding="utf-8")
+        files("obs_html_interim").joinpath("cfg.json").read_text(encoding="utf-8")
     )["input"]["figureReferences"]
 
 
@@ -526,7 +526,7 @@ def collect_notes(
                 documents[note.source_path] = replace(document, _body_tokens=tuple(tokens))
             for token in tokens:
                 if token.type == "fence" and token.info.strip() == "cards":
-                    from obs_html.cards import parse_card_spec
+                    from obs_html_interim.cards import parse_card_spec
                     for card in parse_card_spec(token.content, note.source_path)["cards"]:
                         texts.append(card["body"])
                         for metric in card.get("metrics", []):
@@ -610,7 +610,7 @@ def base_note_value(frontmatter: dict[str, object], path: str, field: str):
 
 @cache
 def _base_schema() -> dict[str, object]:
-    return json.loads(files("obs_html").joinpath("base.schema.json").read_text(encoding="utf-8"))
+    return json.loads(files("obs_html_interim").joinpath("base.schema.json").read_text(encoding="utf-8"))
 
 
 def compile_base_filter(filters: object) -> selection.BaseFilter:
@@ -895,10 +895,10 @@ def render_chapter(
         token = tokens[index]
         info = token.info.strip().split(maxsplit=1)
         if info and info[0] == "property-editor":
-            from obs_html.properties import render_property_editor
+            from obs_html_interim.properties import render_property_editor
             return render_property_editor(token.content, chapter, document.editable_properties)
         if info and info[0] == "cards":
-            from obs_html.cards import render_cards
+            from obs_html_interim.cards import render_cards
             def source_metadata(identity):
                 path = vault_root.joinpath(*PurePosixPath(identity + ".md").parts).resolve()
                 if not path.is_relative_to(vault_root) or reference_index is None \
@@ -907,7 +907,7 @@ def render_chapter(
                 return reference_index.metadata_by_path[path]
             return render_cards(token.content, render_card_body, chapter.source_path, source_metadata)
         if info and info[0] == "figure":
-            from obs_html.figures import FigureError, render_figure
+            from obs_html_interim.figures import FigureError, render_figure
             nonlocal figure_index
             entry = figure_entries[figure_index] if figure_index < len(figure_entries) else None
             figure_index += 1
@@ -1419,7 +1419,7 @@ def _markdown(
     def resolve_links(state) -> None:
         for token in state.tokens:
             if token.type == "fence" and token.info.strip() == "figure":
-                from obs_html.figures import FigureError, figure_spec
+                from obs_html_interim.figures import FigureError, figure_spec
                 try:
                     caption = figure_spec(token.content).get("caption", "")
                 except (FigureError, yaml.YAMLError) as error:
@@ -1857,7 +1857,7 @@ def _chapter_content(chapter: Chapter, source: _NoteSource) -> ChapterContent:
     marks: list[Mark] = []
     seen: set[tuple[str, str]] = set()
     tokens = source.tokens
-    from obs_html.properties import property_editors
+    from obs_html_interim.properties import property_editors
     editors = property_editors(tokens, chapter, frontmatter)
     tables = _parse_base_tables(tokens, chapter, chapter.vault_root)
     source_notes = []
@@ -1868,7 +1868,7 @@ def _chapter_content(chapter: Chapter, source: _NoteSource) -> ChapterContent:
         )
     for token in tokens:
         if token.type == "fence" and token.info.strip() == "cards":
-            from obs_html.cards import parse_card_spec
+            from obs_html_interim.cards import parse_card_spec
             for card in parse_card_spec(token.content, chapter.source_path)["cards"]:
                 series = card.get("obsHtml", {}).get("metricsFrom")
                 if series:
@@ -1877,7 +1877,7 @@ def _chapter_content(chapter: Chapter, source: _NoteSource) -> ChapterContent:
                         source_notes.append(series["link"]["note"])
         if token.type != "fence" or token.info.strip().casefold() != "figure":
             continue
-        from obs_html.figures import FigureError, figure_spec
+        from obs_html_interim.figures import FigureError, figure_spec
         try:
             source_note = figure_spec(token.content).get("sourceNote")
         except (FigureError, yaml.YAMLError) as error:
@@ -1936,7 +1936,7 @@ def _parse_base_tables(
                 )
                 tables.append(BaseTable(f"{chapter.slug}-base-{len(tables) + 1}", definition))
             elif token.type == "fence" and info and info[0] == "cards":
-                from obs_html.cards import parse_card_spec
+                from obs_html_interim.cards import parse_card_spec
 
                 for card in parse_card_spec(token.content, chapter.source_path)["cards"]:
                     add_tables(shared_authoring_markdown().parse(card["body"]))
@@ -2000,7 +2000,7 @@ def _base_file(target: str, chapter: Chapter, vault_root: Path | None) -> Path:
 
 @cache
 def _base_validator() -> Draft202012Validator:
-    assets = json.loads(files("obs_html").joinpath("assets.schema.json").read_text(encoding="utf-8"))
+    assets = json.loads(files("obs_html_interim").joinpath("assets.schema.json").read_text(encoding="utf-8"))
     registry = Registry().with_resource("assets.schema.json", Resource.from_contents(assets))
     return Draft202012Validator(_base_schema(), registry=registry)
 
@@ -2069,7 +2069,7 @@ def _validate_quantity_metadata(metadata: dict[str, object], source_path: Path) 
     if ("value" in metadata) == ("query" in metadata):
         raise ContentError(f"Quantity requires exactly one of value or query: {source_path}")
     if "query" in metadata:
-        from obs_html.cards import validate_count_query
+        from obs_html_interim.cards import validate_count_query
         validate_count_query(metadata["query"], source_path)
     value = metadata.get("value")
     if "value" in metadata and (
@@ -2107,7 +2107,7 @@ def quantity_label(metadata: dict[str, object]) -> str:
 
 
 def _validate_query_references(query, owner, notes, vault_root, reference_index, seen):
-    from obs_html.cards import validate_count_query
+    from obs_html_interim.cards import validate_count_query
 
     validate_count_query(query, owner.source_path)
     if owner.source_path in seen:
@@ -2223,7 +2223,7 @@ def _decorate_markers(
 
 
 def _render_mark_rail(markers: list[tuple[str, str, str]]) -> str:
-    from obs_html.semantic_assets import markup
+    from obs_html_interim.semantic_assets import markup
 
     icons = []
     for kind, label, _ in markers:

@@ -2,9 +2,9 @@ import json
 
 import pytest
 
-from obs_html.content import ContentError, parse_manifest
-from obs_html.renderer import render_artifact
-from obs_html.artifact_data import decode_artifact_data
+from obs_html_interim.content import ContentError, parse_manifest
+from obs_html_interim.renderer import render_artifact
+from obs_html_interim.artifact_data import decode_artifact_data
 
 
 def test_generic_filtered_cards_and_static_markdown(tmp_path):
@@ -116,7 +116,7 @@ def test_cards_reject_non_internal_metric_links(tmp_path, link):
 
 
 def test_card_compound_quantity_and_bounded_tone_declarations():
-    from obs_html.cards import parse_card_spec
+    from obs_html_interim.cards import parse_card_spec
 
     metric = {"label": "Findings (unexplained)", "from": "quantities/findings", "where": [],
               "secondary": "quantities/unexplained", "link": "#findings",

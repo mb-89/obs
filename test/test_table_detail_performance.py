@@ -2,8 +2,8 @@ import json
 
 import yaml
 
-from obs_html.content import parse_manifest
-from obs_html.renderer import render_artifact
+from obs_html_interim.content import parse_manifest
+from obs_html_interim.renderer import render_artifact
 from test_reader_controls import _write_reader_fixture, reader_browser
 
 

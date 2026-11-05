@@ -6,7 +6,7 @@ import re
 import pytest
 import yaml
 
-from obs_html.cli import main
+from obs_html_interim.cli import main
 
 
 ROWS = 45

@@ -44,7 +44,7 @@ def remembered_schema_validation():
     schemas; the answer never changes, yet ``jsonschema.validate`` re-checks the schema and
     collects all errors each time. Successes are remembered; failures always re-run.
     """
-    from obs_html import config, semantic_assets
+    from obs_html_interim import config, semantic_assets
 
     valid = set()
 
@@ -70,7 +70,7 @@ def remembered_generator_provenance():
 
     Other paths (the vaults tests create and modify) are still asked every time.
     """
-    from obs_html import cli
+    from obs_html_interim import cli
 
     describe = cli._repository_provenance
     checkout = cli.PROJECT_ROOT.resolve()
@@ -100,7 +100,7 @@ def remembered_written_artifacts():
     import io
     from collections import OrderedDict
 
-    from obs_html import cli
+    from obs_html_interim import cli
 
     written: OrderedDict[str, tuple[int, int, bytes]] = OrderedDict()
     write_if_changed = cli._write_if_changed

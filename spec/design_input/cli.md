@@ -4,7 +4,7 @@ The executable help is the CLI reference. Option semantics, examples, prerequisi
 diagnostics and operation restrictions belong to its parser, not this note.
 
 ````cmd
-uv run obs-html --help
+uv run obs-html-interim --help
 ````
 
 This command fence derives the artifact's reference from the running CLI.
@@ -21,7 +21,7 @@ and a source archive rebuilds with the flag it was built with.
 ## Several artifacts per call
 
 A caller that builds several artifacts passes repeated `--source`/`--output` pairs in one
-call rather than starting obs-html once per artifact. Each start pays the Python start with
+call rather than starting obs-html-interim once per artifact. Each start pays the Python start with
 its imports (about 1 s), uv's environment check (0.1–0.3 s) and the generator's git
 provenance.
 
@@ -37,18 +37,18 @@ order; every other option applies to all artifacts of the call.
 convert time goes. Durations are exclusive: a nested stage, such as figures inside
 rendering, is not counted again in its enclosing stage.
 
-Callers that start obs-html repeatedly use one `uv sync` and then the environment's
-`.venv\Scripts\obs-html.exe` (or `uv run --no-sync`), which skips uv's per-start check.
+Callers that start obs-html-interim repeatedly use one `uv sync` and then the environment's
+`.venv\Scripts\obs-html-interim.exe` (or `uv run --no-sync`), which skips uv's per-start check.
 `uv run --frozen` only skips lock resolution and saves little.
 
 ## Running from any folder
 
-Authors install the CLI once as a uv tool and then run `obs-html` from any folder:
+Authors install the CLI once as a uv tool and then run `obs-html-interim` from any folder:
 
 ```powershell
 uv tool install --editable C:\path\to\obs_html
 uv tool update-shell   # once, puts uv's tool folder on PATH
-obs-html --source C:\path\to\vault --output C:\path\to\document.html
+obs-html-interim --source C:\path\to\vault --output C:\path\to\document.html
 ```
 
 The editable install runs the checkout's sources, so `git pull` updates it, the
@@ -105,11 +105,11 @@ with `Continue` in scope and judge it by `$LASTEXITCODE`:
 $previous = $ErrorActionPreference
 $ErrorActionPreference = 'Continue'
 try {
-    & uv run --quiet obs-html --source $manifest --output $html
+    & uv run --quiet obs-html-interim --source $manifest --output $html
 } finally {
     $ErrorActionPreference = $previous
 }
-if ($LASTEXITCODE -ne 0) { throw "obs-html failed with exit code $LASTEXITCODE." }
+if ($LASTEXITCODE -ne 0) { throw "obs-html-interim failed with exit code $LASTEXITCODE." }
 ```
 
 `--quiet` keeps uv's own progress off stderr; warnings from the CLI still use it.
@@ -127,4 +127,4 @@ and Chrome for the browser tests. Every run installs uv when it is missing.
   `scripts/new-worktree.ps1` checks this list in its preflight and takes its default browser
   from it; no other script repeats a tool id or path.
 
-Both switches take no obs-html arguments. `RUNME.sh` has no setup mode; winget is Windows-only.
+Both switches take no obs-html-interim arguments. `RUNME.sh` has no setup mode; winget is Windows-only.

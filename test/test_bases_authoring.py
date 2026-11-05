@@ -8,8 +8,8 @@ import os
 
 import pytest
 
-from obs_html.cli import main
-from obs_html.artifact_data import decode_artifact_data
+from obs_html_interim.cli import main
+from obs_html_interim.artifact_data import decode_artifact_data
 
 QUERY = {
     "scope": "records", "where": [{"field": "kind", "equals": "item"}],
@@ -136,8 +136,8 @@ def test_manifest_declares_the_global_query_catalog(artifact, page):
     (QUERY, ""), ("[[one]]", "must declare obsHtml.query"),
 ])
 def test_manifest_query_profile_may_be_declared_by_one_linked_note(tmp_path, declared, error):
-    from obs_html.content import ContentError, parse_manifest
-    from obs_html.renderer import render_artifact
+    from obs_html_interim.content import ContentError, parse_manifest
+    from obs_html_interim.renderer import render_artifact
 
     manifest = tmp_path / "manifest.md"
     manifest.write_text('---\nobsHtml: {query: "[[profile]]"}\n---\n- [[one]]\n', encoding="utf-8")
@@ -165,7 +165,7 @@ def test_project_configuration_rejects_the_moved_query_profile(tmp_path, capsys)
 
 @pytest.mark.parametrize("view", [{"pageSize": 0}, {"pageSize": 2.5}, {"pageSize": 5, "pagination": False}])
 def test_page_size_must_be_a_positive_whole_number_with_pagination(tmp_path, view):
-    from obs_html.content import ContentError, validate_base_definition
+    from obs_html_interim.content import ContentError, validate_base_definition
 
     with pytest.raises(ContentError):
         validate_base_definition({"views": [{"type": "table", "order": ["x"], "obsHtml": view}]},
@@ -191,8 +191,8 @@ def test_several_views_render_a_selector_that_switches_columns_and_rows(page):
 
 
 def test_any_view_filter_includes_its_notes(tmp_path):
-    from obs_html.content import parse_manifest
-    from obs_html.renderer import render_artifact
+    from obs_html_interim.content import parse_manifest
+    from obs_html_interim.renderer import render_artifact
 
     manifest = tmp_path / "manifest.md"
     manifest.write_text("- [[one]]\n", encoding="utf-8")
@@ -209,7 +209,7 @@ def test_any_view_filter_includes_its_notes(tmp_path):
 
 @pytest.mark.parametrize("names", [[None, "Second"], ["Same", "Same"], ["", "Second"]])
 def test_several_views_need_unique_names(tmp_path, names):
-    from obs_html.content import ContentError, validate_base_definition
+    from obs_html_interim.content import ContentError, validate_base_definition
 
     views = [{"type": "table", "order": ["x"], **({} if name is None else {"name": name})} for name in names]
     with pytest.raises(ContentError, match="unique nonempty names"):
@@ -241,7 +241,7 @@ def test_one_base_file_embedded_in_two_notes_renders_twice(artifact, page):
     ({"x.base": "views: []\n"}, "![[x.base]]", r"x\.base: views: .*; see capabilities/bases\. .*one\.md embeds it\."),
 ])
 def test_embedded_base_errors_name_the_file_and_note(tmp_path, files, embed, message):
-    from obs_html.content import ContentError
+    from obs_html_interim.content import ContentError
 
     for name, text in files.items():
         (tmp_path / name).parent.mkdir(parents=True, exist_ok=True)
@@ -250,7 +250,7 @@ def test_embedded_base_errors_name_the_file_and_note(tmp_path, files, embed, mes
     (tmp_path / "one.md").write_text(f"# One\n\n{embed}\n", encoding="utf-8")
     with pytest.raises(SystemExit):
         main(["--source", str(tmp_path), "--check"])
-    from obs_html.content import parse_manifest, read_chapter_content
+    from obs_html_interim.content import parse_manifest, read_chapter_content
     with pytest.raises(ContentError, match=message):
         read_chapter_content(parse_manifest(tmp_path / "manifest.md")[0])
 
@@ -277,7 +277,7 @@ def test_group_captions_use_display_names_and_follow_the_declared_order(page):
     ({"groupBy": {"property": "x"}, "obsHtml": {"groupOrder": []}}, "groupOrder"),
 ])
 def test_group_order_needs_a_grouped_view(tmp_path, view, message):
-    from obs_html.content import ContentError, validate_base_definition
+    from obs_html_interim.content import ContentError, validate_base_definition
 
     with pytest.raises(ContentError, match=message):
         validate_base_definition({"views": [{"type": "table", "order": ["x"], **view}]}, tmp_path / "x.md")
@@ -285,7 +285,7 @@ def test_group_order_needs_a_grouped_view(tmp_path, view, message):
 
 @pytest.mark.parametrize("filters", ['recordType == "tag"', {"and": ['kind == "x"', 'recordType != null']}])
 def test_bare_record_type_filters_are_rejected_with_a_migration_message(tmp_path, filters):
-    from obs_html.content import ContentError, validate_base_definition
+    from obs_html_interim.content import ContentError, validate_base_definition
 
     with pytest.raises(ContentError, match=r"recordType filters were removed; .*obsHtml: \{records: note \|"):
         validate_base_definition({"filters": filters, "views": [{"type": "table", "order": ["x"]}]},
@@ -306,7 +306,7 @@ def test_register_views_of_one_base_file_render_their_own_projections(page):
 
 def test_register_views_are_bases_yaml_without_their_obshtml_keys(tmp_path):
     import yaml
-    from obs_html.content import validate_base_definition
+    from obs_html_interim.content import validate_base_definition
 
     definition = yaml.safe_load(REGISTERS)
     for view in definition["views"]:
@@ -315,7 +315,7 @@ def test_register_views_are_bases_yaml_without_their_obshtml_keys(tmp_path):
 
 
 def test_macros_are_rejected_with_a_migration_message(tmp_path):
-    from obs_html.content import ContentError, parse_manifest, read_chapter_content
+    from obs_html_interim.content import ContentError, parse_manifest, read_chapter_content
 
     (tmp_path / "manifest.md").write_text("- [[one]]\n", encoding="utf-8")
     (tmp_path / "one.md").write_text("---\nobsHtml: {macros: [{macro: glossary}]}\n---\n# One\n", encoding="utf-8")
@@ -337,7 +337,7 @@ def test_column_size_weights_columns_and_leaves_the_others_content_sized(page):
 
 
 def test_column_size_cannot_combine_with_equal_column_sizing(tmp_path):
-    from obs_html.content import ContentError, validate_base_definition
+    from obs_html_interim.content import ContentError, validate_base_definition
 
     view = {"type": "table", "order": ["x"], "columnSize": {"x": 100}, "obsHtml": {"columnSizing": "equal"}}
     with pytest.raises(ContentError, match="columnSize cannot be combined"):

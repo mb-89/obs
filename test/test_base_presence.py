@@ -8,9 +8,9 @@ def test_base_null_comparisons_preserve_typed_empty_values():
     script = r"""
 const fs = require("node:fs");
 const vm = require("node:vm");
-globalThis.document = {querySelector: () => ({textContent: fs.readFileSync("src/obs_html/base.schema.json", "utf8")})};
+globalThis.document = {querySelector: () => ({textContent: fs.readFileSync("src/obs_html_interim/base.schema.json", "utf8")})};
 for (const name of ["query.js", "base.js"]) {
-    vm.runInThisContext(fs.readFileSync(`src/obs_html/${name}`, "utf8"));
+    vm.runInThisContext(fs.readFileSync(`src/obs_html_interim/${name}`, "utf8"));
 }
 const values = [undefined, null, "", "  ", [], {}, [null, ""], {a: ""},
     false, 0, "null", [false], {a: 0}, "finding"];

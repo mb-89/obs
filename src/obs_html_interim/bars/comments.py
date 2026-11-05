@@ -1,8 +1,8 @@
 from html import escape
 
-from obs_html.bars import BarDefinition
-from obs_html.bars._query import QUERY_HELP
-from obs_html.storage import warning_markup
+from obs_html_interim.bars import BarDefinition
+from obs_html_interim.bars._query import QUERY_HELP
+from obs_html_interim.storage import warning_markup
 
 
 def render(_chapters: list[object]) -> str:

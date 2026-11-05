@@ -8,10 +8,10 @@ const path = require("node:path");
 const vm = require("node:vm");
 
 const root = path.resolve(__dirname, "..");
-const schema = fs.readFileSync(path.join(root, "src", "obs_html", "base.schema.json"), "utf8");
+const schema = fs.readFileSync(path.join(root, "src", "obs_html_interim", "base.schema.json"), "utf8");
 globalThis.document = {querySelector: selector => selector === "#base-schema" ? {textContent: schema} : null};
-vm.runInThisContext(fs.readFileSync(path.join(root, "src", "obs_html", "base.js"), "utf8"));
-vm.runInThisContext(fs.readFileSync(path.join(root, "src", "obs_html", "query.js"), "utf8"));
+vm.runInThisContext(fs.readFileSync(path.join(root, "src", "obs_html_interim", "base.js"), "utf8"));
+vm.runInThisContext(fs.readFileSync(path.join(root, "src", "obs_html_interim", "query.js"), "utf8"));
 
 const fixture = JSON.parse(fs.readFileSync(path.join(__dirname, "fixtures", "bases-filter-conformance.json"), "utf8"));
 // Artifact records also carry the reader's own fields; a condition must not see them.

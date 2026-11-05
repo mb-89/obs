@@ -3,7 +3,7 @@ from __future__ import annotations
 import subprocess
 from pathlib import Path
 
-from obs_html.timings import stage
+from obs_html_interim.timings import stage
 
 
 class CommandError(ValueError):

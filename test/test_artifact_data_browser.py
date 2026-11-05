@@ -4,9 +4,9 @@ from pathlib import Path
 
 import pytest
 
-from obs_html.content import parse_manifest
-from obs_html.renderer import render_artifact
-from obs_html.artifact_data import ARTIFACT_PATTERN, decode_artifact_data, encode_artifact_data, prepare_artifact_scripts
+from obs_html_interim.content import parse_manifest
+from obs_html_interim.renderer import render_artifact
+from obs_html_interim.artifact_data import ARTIFACT_PATTERN, decode_artifact_data, encode_artifact_data, prepare_artifact_scripts
 
 
 @pytest.fixture
