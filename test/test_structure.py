@@ -127,3 +127,10 @@ def test_dogfood_subtitle_owns_hosted_logos_not_abstract() -> None:
     assert "img.shields.io" not in manifest.abstract
     assert "data:image" not in rendered
     assert '<p class="media-strip">' in rendered
+
+
+def test_document_adapter_contract_points_to_note_records() -> None:
+    architecture = (ROOT / "spec" / "design_input" / "architecture.md").read_text(encoding="utf-8")
+    contract = architecture.split("## Document-adapter contract", 1)[1].split("\n## ", 1)[0]
+
+    assert "[[capabilities/bases#Note records|" in contract
