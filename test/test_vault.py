@@ -10,7 +10,8 @@ from obs.document import build_document
 
 
 ROOT = Path(__file__).parents[1]
-INPUT_CAPABILITY_GAPS: frozenset[str] = frozenset()
+INPUT_CAPABILITY_GAPS: frozenset[str] = frozenset({"extensions"})
+"""Capabilities no input syntax yields yet; capabilities/extensions owns why."""
 
 
 def capability_reference() -> dict[str, object]:
@@ -124,7 +125,7 @@ def test_core_places_recognized_capabilities_in_content_nodes(tmp_path) -> None:
     content = document["chapters"][0]["content"]
 
     assert [node["type"] for node in content] == [
-        "chapter-inclusion", "markdown", "section", "paragraph", "extensions", "callouts", "bases",
+        "chapter-inclusion", "markdown", "section", "paragraph", "callouts", "bases",
         "figures", "command-fences",
     ]
     assert content[3]["children"][1] == {
@@ -138,18 +139,33 @@ def test_core_places_recognized_capabilities_in_content_nodes(tmp_path) -> None:
     assert content[3]["children"][5] == {
         "type": "marks", "attrs": {"category": "risk", "id": "watch"}, "children": [],
     }
-    assert content[5]["attrs"] == {"kind": "warning", "title": "Be careful"}
-    assert content[5]["children"] == [{
+    assert content[4]["attrs"] == {"kind": "warning", "title": "Be careful"}
+    assert content[4]["children"] == [{
         "type": "paragraph", "attrs": {},
         "children": [{"type": "text", "attrs": {}, "children": [], "text": "Callout body."}],
     }]
-    assert content[6]["attrs"] == {"source": "views: []\n", "spec": {"views": []}}
-    assert content[7]["attrs"] == {"source": "caption: Diagram\n", "spec": {"caption": "Diagram"}}
-    assert content[8]["attrs"] == {"source": "echo example\n"}
+    assert content[5]["attrs"] == {"source": "views: []\n", "spec": {"views": []}}
+    assert content[6]["attrs"] == {"source": "caption: Diagram\n", "spec": {"caption": "Diagram"}}
+    assert content[7]["attrs"] == {"source": "echo example\n"}
     assert set(document["capabilities"]) == {
-        "bases", "callouts", "chapter-inclusion", "command-fences", "embeds", "extensions", "figures",
+        "bases", "callouts", "chapter-inclusion", "command-fences", "embeds", "figures",
         "manifest", "markdown", "marks", "wikilinks",
     }
+
+
+def test_a_vault_whose_only_special_syntax_is_a_callout_uses_callouts_not_extensions(
+    tmp_path,
+) -> None:
+    vault = tmp_path / "vault"
+    vault.mkdir()
+    (vault / "manifest.md").write_text("- [[chapter]]\n", encoding="utf-8")
+    (vault / "chapter.md").write_text("> [!warning] Check the limits\n> Body.\n", encoding="utf-8")
+
+    document = build_document(vault / "manifest.md", capability_reference())
+
+    assert "callouts" in document["capabilities"]
+    assert "extensions" not in document["capabilities"]
+    assert "extensions" not in node_types(document)
 
 
 def test_core_marks_silent_command_fences_as_non_rendering_producers(tmp_path) -> None:
@@ -264,7 +280,8 @@ def test_core_parses_the_spec_vault_as_neutral_document(tmp_path) -> None:
         additional_capability_document(tmp_path),
     )
     assert input_ids <= emitted | INPUT_CAPABILITY_GAPS
-    assert INPUT_CAPABILITY_GAPS == frozenset()
+    assert INPUT_CAPABILITY_GAPS == {"extensions"}
+    assert not INPUT_CAPABILITY_GAPS & emitted
     with pytest.raises(AssertionError):
         assert input_ids <= (emitted - {"attachments"}) | INPUT_CAPABILITY_GAPS
     assert "html" not in types
