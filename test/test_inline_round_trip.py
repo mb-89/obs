@@ -11,11 +11,12 @@ NOTE = (
     "Plain *em* _em_ **strong** __strong__ ***both*** ~~gone~~ `code` $x^2$ $$y$$ "
     "[a *marked* link](https://example.test) ![Alt](figure.svg) [[target|Target]] "
     "[[target#Part]] ![[target]] #mark/risk/watch soft\nbreak hard  \nbreak.\n\n"
-    "- An *item* with **marks**\n  1. A ~~nested~~ `item`\n\n"
+    "- An *item* with **marks**\n  1. A ~~nested~~ `item`\n\n---\n\n"
     "> A *quoted* $q$\n\n"
     "| *Head* | **Bold** |\n|:---|---:|\n| ~~cell~~ | `x` [[target]] |\n"
 )
-"""One note with every inline construct the input model supports, in every inline place."""
+"""One note with every inline construct the input model supports, in every inline place, and a
+thematic break, the one block construct without inline content."""
 
 TOKEN_KINDS = {
     "text": "text", "softbreak": "text", "hardbreak": "text", "link_open": "text",
@@ -80,6 +81,9 @@ def test_every_inline_construct_of_a_note_survives_into_the_document(tmp_path) -
         assert kinds[TOKEN_KINDS[token_type]] == sum(child.type == token_type for child in tokens)
     assert kinds["math"] == sum(child.type.startswith("math_inline") for child in tokens)
     assert {"wikilinks", "embeds", "marks"} <= kinds.keys()
+    thematic_breaks = sum(token.type == "hr" for token in _parser().parse(NOTE))
+    assert thematic_breaks == 1
+    assert kinds["rule"] == thematic_breaks
     linked = [node for node in nodes if node["type"] == "text" and "link" in node["attrs"]]
     assert "".join(node["text"] for node in linked) == "a marked link"
     inline_kinds = set(TOKEN_KINDS.values()) | SEMANTIC

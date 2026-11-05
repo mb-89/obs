@@ -95,8 +95,13 @@ def parse_callout(line: str) -> dict[str, str] | None:
         "type": kind,
         "tone": CALLOUT_TYPES[kind][0],
         "fold": match["fold"],
-        "title": line[match.end():].strip(),
+        "title": line[match.end():].strip() or _default_callout_title(kind, match["keyword"]),
     }
+
+
+def _default_callout_title(kind: str, keyword: str) -> str:
+    """An untitled callout's title: its keyword capitalized, none for important; see input-model."""
+    return "" if kind == "important" else keyword[0].upper() + keyword[1:].lower()
 
 
 _QUANTITY_ALIAS = re.compile(r"[A-Za-z][A-Za-z0-9_]{0,39}")
