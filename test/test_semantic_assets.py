@@ -204,7 +204,10 @@ def test_native_obsidian_parent_states_resolve_icon_image_and_computed_color(tmp
                 sample.id='palette-proof'; sample.style.color='var(--color-surface)';
                 document.body.append(sample); document.documentElement.dataset.theme='dark';
             }""")
-            assert page.locator("#palette-proof").evaluate("e => getComputedStyle(e).color") == "rgb(34, 37, 34)"
+            # The packaged palette owns the dark surface; the vault index here does not override it.
+            dark = SemanticAssets(tmp_path, "assets.json").entry("color.surface")["value"]["dark"]
+            expected = "rgb({}, {}, {})".format(*(int(dark[i:i + 2], 16) for i in (1, 3, 5)))
+            assert page.locator("#palette-proof").evaluate("e => getComputedStyle(e).color") == expected
             page.emulate_media(media="print")
             assert page.locator("#palette-proof").evaluate("e => getComputedStyle(e).color") == "rgb(255, 255, 255)"
             page.emulate_media(media="screen")
