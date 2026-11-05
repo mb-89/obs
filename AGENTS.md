@@ -20,6 +20,6 @@ Preserve authored prose according to se's [work-model rule](../se/.github/skills
 ## Commands
 
 ```powershell
-uv run obs-html-smoke --help
+uv run obs-html --help
 uv run pytest
 ```
