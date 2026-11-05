@@ -13,7 +13,7 @@ PIXEL = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjC
 
 
 def test_pdf_destination_prints_the_rendered_document(tmp_path, capsys) -> None:
-    destination = tmp_path / "document.pdf"
+    destination = tmp_path / "artifact.pdf"
     (tmp_path / "images").mkdir()
     (tmp_path / "images" / "logo.png").write_bytes(base64.b64decode(PIXEL))
     cli.main([str(FIXTURE), str(destination), "--execute-commands", "--command-root", str(tmp_path)])

@@ -158,7 +158,7 @@ def interact(page, frame) -> tuple[list[tuple[str, object]], list[str]]:
 
     def changed() -> bool:
         """The changed-HTML notice, in this adapter's notice center or the reference's banner."""
-        return frame.locator('[data-notice="changed-html"]').count() > 0 or visible("[data-document-warning]")
+        return frame.locator('[data-notice="changed-html"]').count() > 0 or visible("[data-artifact-warning]")
 
     steps.append(("start", chapter()))
     steps.append(("icons on start", root.evaluate(ICONS)))

@@ -580,7 +580,7 @@
         const isMapping = value => value !== null && typeof value === "object" && !Array.isArray(value);
         let restoredPresentation;
         if (initialPresentation !== undefined) {
-            // Older reviewed copies also saved resized `widths`; widths are no longer document state.
+            // Older reviewed copies also saved resized `widths`; widths are no longer artifact state.
             const valid = isMapping(initialPresentation) &&
                 Object.keys(initialPresentation).every(name => name === "columns" || name === "widths") &&
                 Array.isArray(initialPresentation.columns) && initialPresentation.columns.length > 0 &&
@@ -599,7 +599,7 @@
         let projectedColumnKeys = initialColumns.map(column => column.key);
         const groups = initialGroup.map((item) => ({...item}));
         const sorts = initialSort.map((item) => ({...item}));
-        // Reader-resized widths are session view state only: never a document change.
+        // Reader-resized widths are session view state only: never an artifact change.
         const resizedWidths = new Map(Object.entries(isMapping(initialColumnWidths) ? initialColumnWidths : {})
             .filter(([column, width]) => catalogByKey.has(column) && !catalogByKey.get(column).fixed &&
                 Number.isSafeInteger(width) && width >= minimumColumnWidth));

@@ -25,7 +25,7 @@ def test_help_is_the_complete_cli_reference(capsys) -> None:
 
 
 def test_installed_command_renders_through_the_adapter_contract(tmp_path) -> None:
-    destination = tmp_path / "out" / "document.html"
+    destination = tmp_path / "out" / "artifact.html"
     completed = subprocess.run(
         [sys.executable, "-m", "obs_html.cli", FIXTURE, destination,
          "--execute-commands", "--command-root", tmp_path],
@@ -111,7 +111,7 @@ def test_identical_output_is_not_rewritten(tmp_path, monkeypatch) -> None:
 
 
 def test_failed_write_preserves_the_previous_output(tmp_path, monkeypatch) -> None:
-    destination = tmp_path / "document.html"
+    destination = tmp_path / "artifact.html"
     destination.write_text("previous", encoding="utf-8")
 
     def fail(self, target):
@@ -121,11 +121,11 @@ def test_failed_write_preserves_the_previous_output(tmp_path, monkeypatch) -> No
     with pytest.raises(SystemExit):
         _run(FIXTURE, destination, "--execute-commands", "--command-root", tmp_path)
     assert destination.read_text(encoding="utf-8") == "previous"
-    assert [path.name for path in tmp_path.iterdir()] == ["document.html"]
+    assert [path.name for path in tmp_path.iterdir()] == ["artifact.html"]
 
 
 def test_timings_print_one_line_per_stage(tmp_path, capsys) -> None:
-    _run(FIXTURE, tmp_path / "document.html", "--execute-commands", "--command-root", tmp_path, "--timings")
+    _run(FIXTURE, tmp_path / "artifact.html", "--execute-commands", "--command-root", tmp_path, "--timings")
     stages = [line.split()[1] for line in capsys.readouterr().out.splitlines() if line.startswith("Timing:")]
     assert stages == ["render", "commands", "figures", "write", "total"]
 
