@@ -22,6 +22,7 @@ Do not copy the shared process guidance into this repository.
 - Never edit `uv.lock` manually; let uv update it.
 - Generated content belongs in `data/data_output` or `spec/design_output` and is ignored.
 - One owner owns each fact; other locations link to it.
+- Follow se's [authored-prose preservation rule](../se/.github/skills/work-model/SKILL.md#rules-for-all-roles).
 - Do not add compatibility aliases, shims, or fallbacks unless explicitly requested.
 
 ## Commands
