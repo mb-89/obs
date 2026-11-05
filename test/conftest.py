@@ -89,12 +89,12 @@ def remembered_generator_provenance():
 
 
 @pytest.fixture(autouse=True, scope="session")
-def remembered_written_documents():
-    """Serve a just-built document from memory while its file is unchanged.
+def remembered_written_artifacts():
+    """Serve a just-built artifact from memory while its file is unchanged.
 
     On the managed Windows machines the first read of each freshly written HTML file is
     held for an on-access antivirus scan of the embedded scripts (about 0.75 s for a small
-    document). Tests read the document they just built, so the bytes are already known.
+    artifact). Tests read the artifact they just built, so the bytes are already known.
     The file stays the source of truth: any change in size or mtime falls back to disk.
     """
     import io

@@ -36,7 +36,7 @@ def encode_artifact_data(data: dict, compression: str | None = None) -> str:
     if compression is None:
         compression = json.loads(files("obs_html").joinpath("cfg.json").read_text(encoding="utf-8"))["artifact"]["dataCompression"]
     if compression not in {"gzip", "none"}:
-        raise ContentError(f"Unsupported document data compression: {compression}")
+        raise ContentError(f"artifact.dataCompression {compression!r} is unsupported; use gzip or none.")
     text = serialize_artifact_data(data)
     raw = text.encode("utf-8")
     plain = (f'<script id="artifact-data" type="application/json" data-artifact-data '
@@ -53,14 +53,15 @@ def encode_artifact_data(data: dict, compression: str | None = None) -> str:
 def decode_artifact_data(artifact: str) -> dict:
     match = ARTIFACT_PATTERN.search(artifact)
     if not match:
-        raise ContentError("Cannot read document data: canonical island is missing.")
+        raise ContentError("Cannot read artifact data: the canonical island is missing; "
+                           "regenerate the HTML with obs-html.")
     try:
         data = json.loads(_island_text(match))
         if not isinstance(data, dict):
             raise ValueError("expected an object")
         return data
     except (ValueError, TypeError, OSError, EOFError, ZlibError) as error:
-        raise ContentError(f"Invalid document data: {error}") from error
+        raise ContentError(f"Invalid artifact data: {error}; regenerate the HTML with obs-html.") from error
 
 
 def chapter_html(artifact: str, chapter_id: str) -> str:
@@ -135,11 +136,11 @@ def _island_text(match: re.Match[str]) -> str:
     raise ValueError(f"unsupported encoding {encoding or attrs.get('type')}")
 
 
-def same_document_content(artifact: str, existing: str) -> bool:
-    """Whether two documents differ at most in their generation timestamp.
+def same_artifact_content(artifact: str, existing: str) -> bool:
+    """Whether two artifacts differ at most in their generation timestamp.
 
     The timestamp records the last content change, so an unchanged rebuild keeps the
-    existing document instead of rewriting it with a new build time.
+    existing artifact instead of rewriting it with a new build time.
     """
     new, old = ARTIFACT_PATTERN.search(artifact), ARTIFACT_PATTERN.search(existing)
     if (not new or not old or new[1] != old[1] or artifact[:new.start()] != existing[:old.start()]

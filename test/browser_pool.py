@@ -19,7 +19,7 @@ import pickers
 DEFAULT_TIMEOUT_MS = int(os.environ.get("OBS_HTML_TEST_TIMEOUT_MS", "5000"))
 NAVIGATION_TIMEOUT_MS = int(os.environ.get("OBS_HTML_TEST_NAVIGATION_TIMEOUT_MS", "15000"))
 # Opening yields two animation frames per runtime script; headless Chrome otherwise caps
-# frames at 60 Hz, which alone costs about half a second per document load.
+# frames at 60 Hz, which alone costs about half a second per artifact load.
 FAST_FRAME_ARGS = ["--disable-frame-rate-limit", "--disable-gpu-vsync"]
 BROWSER_VARIABLE = "OBS_HTML_TEST_NATIVE_BROWSER"
 

@@ -126,7 +126,7 @@ central stylesheet embedded into the generated HTML.
 - Presentation is never inferred from source content or frontmatter. The packaged
   stylesheet defines the same visual system for every vault.
 - Source notes cannot provide inline styles, style tokens, themes, or component classes.
-- Authors style a document explicitly, as in Obsidian: the CSS snippets the manifest lists
+- Authors style an artifact explicitly, as in Obsidian: the CSS snippets the manifest lists
   ([[input-model#Document presentation profile]]) follow the packaged stylesheet.
 
   A note's `cssclasses` are classes on the element containing that note's rendering: the
@@ -322,7 +322,7 @@ central stylesheet embedded into the generated HTML.
 - On Home, the document title is centered; authored chapter headings retain their normal alignment.
   An explicitly empty manifest title omits the visible title heading, without leaving an
   empty heading or removing any other cover element. The filename fallback continues to
-  identify the document to browser and assistive navigation; title semantics belong to
+  identify the artifact to browser and assistive navigation; title semantics belong to
   [[input-model]].
 - Activating the current page's breadcrumb reveals its immediate children instead of reloading the
   page.
@@ -453,7 +453,7 @@ Do not silently claim simultaneous visibility, force OS window arrangements, emb
 an arbitrary corporate site, inject into foreign tabs or require extensions/installations.
 Browser size hints use packaged cfg/schema defaults, not duplicated constants.
 
-Exactly one floating window exists per document (decided 29 Oct 2026, see
+Exactly one floating window exists per artifact (decided 29 Oct 2026, see
 [[#Floating window|floating window]]). While it holds the card, the HTML shows no card, placeholder or status
 for it. Closing the window discards an unfinished action and releases owned listeners, without
 closing the unrelated source tab or committing that action.
@@ -471,7 +471,7 @@ Floating cards are transient: they do not appear in printed or saved HTML.
 
 Decided 29 Oct 2026, implemented 4 Nov 2026
 (`spec/backlog/reference-items.md`). The floating-content host is one window per
-document, shared by all its uses: evidence collection, context, and later context-sensitive help.
+artifact, shared by all its uses: evidence collection, context, and later context-sensitive help.
 This matches the platform rule that a page has one Picture-in-Picture window. It is never a
 sidebar.
 
@@ -523,7 +523,7 @@ Lifecycle and content (decided by the user, 4 Nov 2026, option B):
 Decided by the user, 4 Nov 2026: there is one overlay system with exactly two tiers, so every
 hover behaves the same way.
 
-1. **Hover card** (simple, inside the page): one shared card for every hover in the document.
+1. **Hover card** (simple, inside the page): one shared card for every hover in the artifact.
    - Users: internal-link previews, the link hover card, table action and informational help,
      and any future hover.
    - One owner module (`hover-card.js`) places it next to its trigger, fits it into the
@@ -672,7 +672,7 @@ Implementation decisions (4 Nov 2026, worker, reversible):
 
   Previous/next arrows still change chapters, not individual sheets.
 
-  Page numbers are continuous across the filtered document, including title, abstract, and
+  Page numbers are continuous across the filtered artifact, including title, abstract, and
   contents pages; they never restart when changing chapters.
   HTML assigns its logical page numbers once for the current global filter and
   keeps them stable while rows expand, subject tabs change, local table pages
@@ -757,7 +757,7 @@ Implementation decisions (4 Nov 2026, worker, reversible):
 
   For comparable visible content, preserve the working export's compactness; investigate
   material size regressions with measured resource/stream breakdowns rather than retaining
-  hidden content or duplicating fonts, images or whole-document payloads per sheet.
+  hidden content or duplicating fonts, images or whole-artifact payloads per sheet.
 
   When the PDF action opens the browser's print dialog, explain the browser-native
   Save as PDF destination. An operating-system PDF printer is not an equivalent
@@ -784,7 +784,7 @@ Implementation decisions (4 Nov 2026, worker, reversible):
 
 ### Neutral document presentation
 
-The generic style is a plain, content-first document: system serif body text, black headings,
+The generic style is a plain, content-first artifact: system serif body text, black headings,
 neutral grays, simple A4 margins and no branded hierarchy. Interactive application chrome remains
 separate from document presentation.
 
@@ -796,7 +796,7 @@ separate from document presentation.
   Omit absent fields;
   renderer support does not confer approval, compliance or a controlled-document status.
 
-  Keep absent values omitted. Generic covers use simple flowing document content.
+  Keep absent values omitted. Generic covers use simple flowing artifact content.
 
   Revision/date belong only to History, not the cover; metadata belongs on its own page.
 
@@ -808,7 +808,7 @@ separate from document presentation.
   identification and Page X of Y, including the cover in the count. Contents page numbers
   derive from final PDF layout. Hierarchical section labels remain deferred; preserve authored titles.
 
-  Table continuation sheets and current pagination state contribute to the real document
+  Table continuation sheets and current pagination state contribute to the real artifact
   layout and page offsets. If Results ends on page 9, the next chapter starts on page 10;
   navigating or repaginating a table must not reset or overlap those page numbers.
   Screen page frames, Contents and PDF use the same final-layout numbering owner.
@@ -871,7 +871,7 @@ separate from document presentation.
   Static chapter projections may be reused within the current canonical revision,
   filter application and table/view presentation. Subject-content availability is
   revision-bound; changing canonical values invalidates it. Row expansion and local
-  pagination must not launch unrelated whole-document page-measurement passes.
+  pagination must not launch unrelated whole-artifact page-measurement passes.
 
   Pending content must settle visibly or surface an explicit error; it cannot remain
   an indefinite loading placeholder after failure. Export/print and reviewed saving
@@ -976,7 +976,7 @@ separate from document presentation.
   every other bar. No comment surface is open initially.
 - The Comments bar has two sections separated by a rule. The first contains the locally
   remembered reviewer name plus Download HTML and Load reviewed HTML commands. Load
-  accepts one or more returned HTML documents, validates their comment islands, merges unique
+  accepts one or more returned HTML artifacts, validates their comment islands, merges unique
   comments and per-reviewer decisions, and assigns collision-free local comment identifiers.
 
   At ordinary bar widths, Save and Load share a compact row in the left half;
@@ -989,7 +989,7 @@ separate from document presentation.
   context, stable paragraph/item identity or table/row/subject-column identity,
   author and replies in context.
 
-  Include the current document page when reliably resolved; a page is a supplemental locator,
+  Include the current artifact page when reliably resolved; a page is a supplemental locator,
   never the sole anchor. Inactive,
   filtered or unresolved targets retain their canonical anchors and an explicit
   unavailable-page/location indication rather than an invented page number.
@@ -1031,7 +1031,7 @@ separate from document presentation.
   section heading, the scope is the chapter's introductory content; a chapter heading
   scopes the complete chapter.
 
-  Ctrl+Shift-click applies to still-waiting items throughout the document, including
+  Ctrl+Shift-click applies to still-waiting items throughout the artifact, including
   inactive chapters. Scope follows canonical structure, not
   screen pages or current visibility. Waiting means undecided for the named reviewer;
   preserve that reviewer's existing decisions and all other reviewers' decisions.
@@ -1052,7 +1052,7 @@ separate from document presentation.
   still-waiting items throughout the artifact.
 
   An unnamed reviewer uses the same fallback identity for decisions, controls and
-  derived counts. Document review covers canonical artifact chapters, not unrelated
+  derived counts. Artifact review covers canonical artifact chapters, not unrelated
   vault notes merely available to table queries. Section boundaries derive from the
   unfiltered chapter structure before pagination or disclosure.
 
@@ -1090,7 +1090,7 @@ separate from document presentation.
   not change any review decision.
 
   A compact summary in
-  Comments shows the named reviewer's full-document accepted, rejected, and waiting review-item
+  Comments shows the named reviewer's full-artifact accepted, rejected, and waiting review-item
   counts.
 
   Expanding or collapsing a table detail updates the affected table and active-chapter review
@@ -1109,7 +1109,7 @@ separate from document presentation.
   reviewer across the whole artifact: matching chapters remain in navigation and only matching
   review items remain visible in the active chapter.
 
-  The full-document totals do not change as
+  The full-artifact totals do not change as
   the reader navigates chapters.
 - The first section's save controls have persistent, discoverable guidance explaining that
   Save reviewed copy preserves review annotations, decisions, and canonical editable-property
@@ -1119,7 +1119,7 @@ separate from document presentation.
   is requested only while dirty;
   no custom browser warning text is required.
 - A persistent changed-HTML notice also appears in the shared heading notice area
-  whenever persisted document state differs from the last confirmed saved snapshot.
+  whenever persisted artifact state differs from the last confirmed saved snapshot.
   It says that this HTML has changed and includes a button to download the changed HTML.
 
   It uses the existing save/serialization owner, not a second download implementation.
@@ -1127,10 +1127,10 @@ separate from document presentation.
   persisted reader-state changes all participate; transient hover, scrolling and other
   nonserialized presentation do not.
 
-  This document-level state does not relabel a view-only change as a semantic review edit.
+  This artifact-level state does not relabel a view-only change as a semantic review edit.
   Failed or cancelled saves do not clear it;
   retain the existing distinction between confirmed file writes and unconfirmed downloads.
-  The native unload warning uses that same unsaved-document state.
+  The native unload warning uses that same unsaved-artifact state.
 
   A Limited functionality notice joins the changed-HTML and applied-filter notices in the
   shared heading notice area when any capability canary reports limited. The canaries
@@ -1269,7 +1269,7 @@ separate from document presentation.
   On reopen, rebuild Filter presets and attribute controls once from their canonical data;
   do not append them to copied rendered controls.
   Reviewed table column visibility/order (resized widths are session-only and never a
-  document change) follows the bounded
+  artifact change) follows the bounded
   table-local presentation contract in [[generic-tables]], independently of the global query.
 - Opening Filter immediately shows its preset and attribute pill panel. Presets come from the
   vault's project configuration; clicking one replaces the text expression and applies it
@@ -1343,13 +1343,13 @@ separate from document presentation.
 - Search keyboard shortcuts (listed in the Search query help and `aria-keyshortcuts`):
   Ctrl+F (Cmd+F) opens Search, focuses its input and selects the query text; pressed while
   Search is open and its input focused, it closes Search. The browser's own find therefore
-  only remains reachable when the document Search is unavailable.
+  only remains reachable when the artifact Search is unavailable.
 
   F3 and Shift+F3 step to the next and previous result in document order, wrapping around;
   each step reveals the hit
   exactly like activating it (table page, expanded sections, scroll and highlight) and the
   status reads `n of m results.`. With no active query, F3 opens Search. Esc closes Search
-  when focus is in Search or in the document content (not inside another control or bar).
+  when focus is in Search or in the artifact content (not inside another control or bar).
 - A half-typed or invalid query reports its error and preserves the last valid Search or Filter
   state.
 - Search and Filter expose their shared language summary from a compact help control on hover
@@ -1401,7 +1401,7 @@ separate from document presentation.
   never by a hardcoded chapter name. Glossary links use italic text without underlining.
 - The generated Home follows the document contract in [[input-model]], using ordinary
   generic tables rather than a separate summary renderer.
-- The generated document cover precedes the manifest-authored abstract. Card groups remain
+- The generated artifact cover precedes the manifest-authored abstract. Card groups remain
   in authored abstract order; metric compaction does not promote them into or overlap the
   cover, and cards have no independent placement option.
 - The dogfood abstract authors its Obsidian-to-HTML5 logo strip as ordinary Markdown with hosted

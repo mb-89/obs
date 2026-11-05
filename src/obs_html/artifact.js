@@ -1609,7 +1609,7 @@
                         JSON.stringify(presentation) === JSON.stringify(defaults) ? undefined : presentation;
                     document.dispatchEvent(new CustomEvent("obs-reader-state-change"));
                 },
-                // Resized widths are session-only view state: not reader state, not a document change.
+                // Resized widths are session-only view state: not reader state, not an artifact change.
                 initialColumnWidths: state.widths,
                 onColumnWidthsChange: staticView ? undefined : widths => {state.widths = widths;},
                 initialDetailState: definition.columnDetails ? state.details : undefined,
@@ -2276,7 +2276,7 @@
     };
     window.addEventListener("resize", updateFilterClearance);
     if (globalThis.ResizeObserver) new ResizeObserver(updateFilterClearance).observe(headerNotices);
-    document.addEventListener("obs-document-state-change", updateFilterClearance);
+    document.addEventListener("obs-artifact-state-change", updateFilterClearance);
     document.addEventListener("obs-figure-overlay", ({detail}) => {
         (detail.open ? detail.dialog : document.body).append(headerNotices);
         updateFilterClearance();
@@ -2842,8 +2842,8 @@
     const projectionValuesEqual = (left, right) => Array.isArray(left) && Array.isArray(right)
         ? left.length === right.length && left.every((value, index) => Object.is(value, right[index]))
         : Object.is(left, right);
-    // The document timestamp is the time of the last content change. Content equal to a
-    // baseline (the opened document or a confirmed save) keeps that baseline's timestamp, so
+    // The artifact timestamp is the time of the last content change. Content equal to a
+    // baseline (the opened artifact or a confirmed save) keeps that baseline's timestamp, so
     // reverting an edit is not a change.
     const contentBaselines = new Map();
     const contentSignature = () => JSON.stringify(notes.map(({frontmatterHtml, ...note}) => note));

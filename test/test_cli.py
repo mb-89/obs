@@ -16,7 +16,7 @@ from obs_html.cli import (
     build_parser,
     main,
     resolve_manifest,
-    _documents,
+    _builds,
     _write_if_changed,
 )
 
@@ -24,7 +24,7 @@ from obs_html.cli import (
 def test_help_is_available(capsys) -> None:
     with pytest.raises(SystemExit, match="0"):
         main(["--help"])
-    assert "Generate HTML documents" in capsys.readouterr().out
+    assert "Generate HTML artifacts" in capsys.readouterr().out
 
 
 def test_help_is_the_complete_cli_reference() -> None:
@@ -58,7 +58,7 @@ def test_parser_defaults_to_the_tools_spec_folder() -> None:
     parser = build_parser()
     args = parser.parse_args([])
 
-    assert _documents(parser, args) == [(DEFAULT_SOURCE, DEFAULT_OUTPUT, None)]
+    assert _builds(parser, args) == [(DEFAULT_SOURCE, DEFAULT_OUTPUT, None)]
     assert args.config == DEFAULT_CONFIG
 
 
@@ -68,7 +68,7 @@ def test_parser_accepts_path_overrides() -> None:
         ["--source", "vault", "--output", "artifact", "--config", "custom.json"]
     )
 
-    assert _documents(parser, args) == [(Path("vault"), Path("artifact"), None)]
+    assert _builds(parser, args) == [(Path("vault"), Path("artifact"), None)]
     assert args.config == Path("custom.json")
 
 

@@ -47,8 +47,8 @@ permission in the actual sandbox is not established by Blob URL creation alone;
 test it independently before promising review persistence there.
 
 The current generator emits an empty chapter container and stores chapter HTML in
-a JSON script island; JavaScript populates the visible document
-(`src/obs_html/renderer.py:213-214,240`). This affects the entire document, not
+a JSON script island; JavaScript populates the visible artifact
+(`src/obs_html/renderer.py:213-214,240`). This affects the entire artifact, not
 only Plotly or CDN-backed diagrams.
 
 In Chrome with JavaScript disabled, the current `leaves.html` and `obs-html.html`
@@ -59,7 +59,7 @@ explain or fix both artifacts.
 
 The available legacy artifact has no external script tags.
 With JavaScript disabled it shows a shell and "Loading trace data", not the full
-trace document. This file was regenerated today; it is not proven to be the exact
+trace artifact. This file was regenerated today; it is not proven to be the exact
 old file the user viewed successfully in SharePoint. Do not conclude that the
 user's working old version is static or that its Sankey failure is CDN-related.
 
@@ -84,7 +84,7 @@ a CDN is a supported way to bypass host restrictions.
 
 ## Feasible directions, pending evidence
 
-1. A pre-rendered, script-independent document surface could make content readable
+1. A pre-rendered, script-independent artifact surface could make content readable
    when JavaScript is unavailable, provided the actual preview accepts the HTML
    and required styling/images. Enhance that surface when scripts can execute.
    Query tables and diagrams must be rendered too, not just chapter headings.
@@ -107,7 +107,7 @@ asset loading is the actual failure.
   will report what is visible and which interactions work.
 - Do not require corporate IT involvement, tenant policy changes, app-catalog
   deployment, or approval to run code. SPFx is therefore not the chosen route.
-- Do not duplicate document data or store parallel static diagram fallbacks merely
+- Do not duplicate artifact data or store parallel static diagram fallbacks merely
   for preview compatibility.
 - Prefer one readable HTML/DOM representation enhanced by JavaScript, if feasible.
   Without JavaScript, unavailable dynamic features should have a concise message

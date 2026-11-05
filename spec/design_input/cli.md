@@ -18,10 +18,10 @@ files with `![label](file)` or `![[file]]`, and only a build with the flag embed
 therefore yields a light edition and a self-contained evidence edition without editing Markdown,
 and a source archive rebuilds with the flag it was built with.
 
-## Several documents per call
+## Several artifacts per call
 
-A caller that builds several documents passes repeated `--source`/`--output` pairs in one
-call rather than starting obs-html once per document. Each start pays the Python start with
+A caller that builds several artifacts passes repeated `--source`/`--output` pairs in one
+call rather than starting obs-html once per artifact. Each start pays the Python start with
 its imports (about 1 s), uv's environment check (0.1–0.3 s) and the generator's git
 provenance.
 
@@ -30,8 +30,8 @@ independent of the vault.
 
 Repeated options were chosen over a job file. Callers already assemble argument arrays,
 and a job file would be a second input format with its own schema and path rules. The
-only per-document option besides the pair, the trusted runtime bundle, repeats in the same
-order; every other option applies to all documents of the call.
+only per-artifact option besides the pair, the trusted runtime bundle, repeats in the same
+order; every other option applies to all artifacts of the call.
 
 `--timings` attributes a call's time to its internal stages so callers can see where
 convert time goes. Durations are exclusive: a nested stage, such as figures inside
@@ -55,7 +55,7 @@ The editable install runs the checkout's sources, so `git pull` updates it, the
 generator provenance names the checkout commit and `--embed-source` works. After a
 dependency change in `pyproject.toml`, rerun the install with `--reinstall`.
 
-A plain `uv tool install` copies the package instead. It generates documents but has no
+A plain `uv tool install` copies the package instead. It generates artifacts but has no
 checkout: `--embed-source` refuses, the default source and output point nowhere useful
 and the provenance carries only the package version. Either form resolves dependencies
 from the ranges in `pyproject.toml`, not from `uv.lock`; builds that must match the lock

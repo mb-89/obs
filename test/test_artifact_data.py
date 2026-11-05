@@ -38,8 +38,10 @@ def test_small_plain_fallback_and_invalid_transport() -> None:
         '<script id="artifact-data" type="application/octet-stream" data-encoding="gzip">'
         + base64.b64encode(gzip.compress(b"not json")).decode() + "</script>",
     ):
-        with pytest.raises(ContentError, match="document data"):
+        with pytest.raises(ContentError, match="artifact data.*regenerate the HTML with obs-html"):
             decode_artifact_data(island)
+    with pytest.raises(ContentError, match=r"artifact.dataCompression 'br' is unsupported; use gzip or none"):
+        encode_artifact_data({"notes": []}, "br")
 
 
 def test_plain_json_cannot_close_the_island() -> None:

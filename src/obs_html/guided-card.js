@@ -7,7 +7,7 @@
 
     const focusable = "a[href], button:not(:disabled), input:not(:disabled):not([hidden]), textarea:not(:disabled)";
 
-    // Overlay tier 2 (artifact-ui.md "Floating window"): one window per document, shared by all its uses.
+    // Overlay tier 2 (artifact-ui.md "Floating window"): one window per artifact, shared by all its uses.
     // Each shown content is a history entry; Back/Forward move through them; closing discards them all.
     // The window is Document Picture-in-Picture when permitted, else an owned helper, else inline.
     const createHost = ({window, size, applyLinkPolicy}) => {

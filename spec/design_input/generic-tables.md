@@ -422,7 +422,7 @@ Counts are not Bases filters: they use the record-metric conditions owned by
   wrapping. Recompute this reservation when columns move or visibility changes.
 
   **A table that can fit never shows a horizontal scrollbar.** This holds for every table in
-  every document, on screen and in print, at any browser zoom, display scaling or device pixel
+  every artifact, on screen and in print, at any browser zoom, display scaling or device pixel
   ratio.
 
   A table can fit when its required width fits the available width: explicit and
@@ -472,7 +472,7 @@ Counts are not Bases filters: they use the record-metric conditions owned by
 
   Reader-resized widths are session-only view state: they
   survive chapter navigation in that session but are not reader state, never mark the
-  document changed, never show the change notice, and are not saved. Legacy saved `widths`
+  artifact changed, never show the change notice, and are not saved. Legacy saved `widths`
   mappings are accepted and ignored.
 - No column width is hard-coded. At startup each displayed column is sized from its rendered
   content across ALL base rows (not just the current page), unwrapped, plus header label,
@@ -508,7 +508,7 @@ Counts are not Bases filters: they use the record-metric conditions owned by
   freely editable positive-integer page size.
 
   The view's `obsHtml.pageSize` (a positive integer) sets its initial size; otherwise the
-  configured document default `artifact.tablePageSize` applies. A view cannot combine
+  configured artifact default `artifact.tablePageSize` applies. A view cannot combine
   `pageSize` with `pagination: false`.
 
   Filtering resets to page one; grouping and sorting are evaluated before pagination.
@@ -558,7 +558,7 @@ Counts are not Bases filters: they use the record-metric conditions owned by
 - A table appears at the exact position of its source fence inside an ordinary chapter. Surrounding
   prose remains authored chapter content and is reviewable normally; the table projection is not.
 - Authored chapter labels, order, hierarchy, and whether a parent is called Appendix come only from
-  the manifest. Generated document pages are owned by [[input-model]]; the generator contains no
+  the manifest. Generated artifact pages are owned by [[input-model]]; the generator contains no
   predefined Appendix or register chapter list.
 - Ordinary authored links navigate to the chapter containing a table. Table filters are owned by
   that table, independently of chapter navigation and the artifact-wide Filter.

@@ -51,7 +51,7 @@ and runtime defaults are owned by [[cli]] and [[configuration]], respectively.
   the TOC are not permitted. Once the TOC ends, subsequent Markdown belongs to the abstract,
   including any lists in that content.
 - A manifest that does not start with a bulleted list has no TOC (worker decision, 4 Nov 2026,
-  for the one-pager): all its Markdown is the abstract and the document is Home alone, with no
+  for the one-pager): all its Markdown is the abstract and the artifact is Home alone, with no
   chapters and no previous/next steps. A leading numbered list is still a misplaced TOC and an
   error.
 - Every list item is exactly one local Markdown link or Obsidian wikilink to a note.
@@ -167,7 +167,7 @@ reject missing files and vault escapes. By default the file is not embedded: the
 becomes provenance text, its label followed by the vault-relative path, with no broken
 local hyperlink and no absolute machine path.
 
-Input evidence can be far larger than the document, so embedding is decided twice
+Input evidence can be far larger than the artifact, so embedding is decided twice
 (user, 4 Nov 2026):
 
 - Per link, with Obsidian's own syntax: `[[file.xlsx]]` and `[label](file.xlsx)` only link;
@@ -341,7 +341,7 @@ obsHtml:
 - Vaults that declare none of these keys keep the packaged defaults shown above, which reproduce
   the established cover, "Abstract", "Contents", and paged opening.
 
-  The default is compatibility: an existing vault keeps its document unchanged until its author
+  The default is compatibility: an existing vault keeps its artifact unchanged until its author
   decides otherwise. Attachments are not a profile key; see the attachment rule under
   [Document home and abstract](#document-home-and-abstract).
 - The profile is presentation configuration, not document metadata: it is neither a Document
@@ -431,7 +431,7 @@ Optional authored introduction.
 - Stable URL fragments identify chapters so browser history and direct links work.
 - Home is always a reachable navigation destination, including when a filter leaves
   one or no matching authored chapters. Previous/next, breadcrumb/Home and both
-  sidebar/document contents derive from the same retained navigation sequence.
+  sidebar/artifact contents derive from the same retained navigation sequence.
 
   A still-visible active chapter cannot be stranded outside that sequence.
   Artifacts may explicitly scope their global query to record data rather than
@@ -692,7 +692,7 @@ Generation time remains separate from document revision dates.
 
   A record-only manifest or authored TOC target is an input error, not a silently dropped
   chapter. Direct browser
-  document fragments targeting a record-only note return to Home. Ordinary source attachment
+  artifact fragments targeting a record-only note return to Home. Ordinary source attachment
   links and explicitly declared subject tabs retain their behavior. Producers opt into this
   distinction through data, never inferred note kinds or generator-specific filenames.
 
@@ -1481,7 +1481,7 @@ reader or canonical edits made while other startup work is still finishing.
 
 Reviewed reader state also retains visible column keys in display order, keyed by the
 table's stable identity. Resized column widths are session-only view state, never reader
-state or a document change.
+state or an artifact change.
 
 The table owner validates and rebuilds these settings against its current column catalog;
 saved rows or rendered DOM
@@ -1534,9 +1534,9 @@ reverting all changes to the loaded state clears that state. Viewing, filtering,
 navigation, presentation changes, and edits that do not change a canonical value do not
 make semantic review state dirty.
 
-Persisted reader-state changes do, however, make the HTML document unsaved relative to its captured saved snapshot. The
+Persisted reader-state changes do, however, make the HTML artifact unsaved relative to its captured saved snapshot. The
 shared
-changed-HTML notice and unload confirmation use this document-level comparison;
+changed-HTML notice and unload confirmation use this artifact-level comparison;
 transient navigation, hover and nonserialized presentation remain excluded.
 
 The comparison also covers the current embedded source archive, when present,
@@ -1550,7 +1550,7 @@ provides no signal that the user accepted, completed, or retained the downloaded
 initiating a download does not establish a clean baseline.
 
 The page remains dirty after download initiation; reopening the downloaded artifact starts a new clean baseline. On unload,
-unsaved document state requests the browser's native confirmation without relying on custom text.
+unsaved artifact state requests the browser's native confirmation without relying on custom text.
 The Comments bar persistently explains how to save and that leaving with dirty or
 unconfirmed changes risks losing them.
 
@@ -1943,7 +1943,7 @@ not the card, validates and commits.
 
 Actions without `card` keep the existing file-picker behavior.
 `obsArtifact.openFloatingWindow({use, title, mount, returnFocus})`
-shows trusted content in the document's one [[artifact-ui#Floating window|floating window]];
+shows trusted content in the artifact's one [[artifact-ui#Floating window|floating window]];
 `use` names the header ("Evidence collection" for guided action cards).
 `mount(container, session)` mounts trusted controls once and the session exposes `active`,
 `mode`, an abort `signal` and idempotent `close()`, which removes that content from the

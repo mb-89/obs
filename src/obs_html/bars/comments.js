@@ -28,7 +28,7 @@
     let activeFilter = globalThis.obsQuery.compile("");
     let activeReviewFilter = globalThis.obsQuery.compile("");
     let savedSnapshot = null;
-    let savedDocumentSnapshot = null;
+    let savedArtifactSnapshot = null;
     let modelSnapshot;
     let modelSnapshotRevision = -1;
     let archiveSnapshot = "";
@@ -48,7 +48,7 @@
     };
 
     const isDirty = () => savedSnapshot !== null && currentSnapshot() !== savedSnapshot;
-    const currentDocumentSnapshot = () => {
+    const currentArtifactSnapshot = () => {
         const revision = globalThis.obsArtifact.revision;
         if (archiveSnapshotRevision !== revision) {
             archiveSnapshot = document.getElementById("obs-source-archive")?.textContent || "";
@@ -60,26 +60,26 @@
             archive: archiveSnapshot,
         };
     };
-    const isDocumentDirty = () => {
-        if (savedDocumentSnapshot === null) return false;
-        const snapshot = currentDocumentSnapshot();
-        return Object.keys(snapshot).some(key => snapshot[key] !== savedDocumentSnapshot[key]);
+    const isArtifactDirty = () => {
+        if (savedArtifactSnapshot === null) return false;
+        const snapshot = currentArtifactSnapshot();
+        return Object.keys(snapshot).some(key => snapshot[key] !== savedArtifactSnapshot[key]);
     };
 
-    const documentWarning = document.createElement("aside");
-    documentWarning.className = "document-warning";
-    documentWarning.dataset.documentWarning = "";
-    documentWarning.setAttribute("aria-label", "Changed HTML");
-    documentWarning.hidden = true;
-    const documentWarningText = document.createElement("span");
-    documentWarningText.setAttribute("role", "status");
-    documentWarningText.textContent = "This HTML has changed.";
-    const documentDownload = document.createElement("button");
-    documentDownload.type = "button";
-    documentDownload.dataset.documentDownload = "";
-    documentDownload.textContent = "Download changed HTML";
-    documentWarning.append(documentWarningText, documentDownload);
-    document.querySelector("[data-header-notices]").append(documentWarning);
+    const artifactWarning = document.createElement("aside");
+    artifactWarning.className = "artifact-warning";
+    artifactWarning.dataset.artifactWarning = "";
+    artifactWarning.setAttribute("aria-label", "Changed HTML");
+    artifactWarning.hidden = true;
+    const artifactWarningText = document.createElement("span");
+    artifactWarningText.setAttribute("role", "status");
+    artifactWarningText.textContent = "This HTML has changed.";
+    const artifactDownload = document.createElement("button");
+    artifactDownload.type = "button";
+    artifactDownload.dataset.artifactDownload = "";
+    artifactDownload.textContent = "Download changed HTML";
+    artifactWarning.append(artifactWarningText, artifactDownload);
+    document.querySelector("[data-header-notices]").append(artifactWarning);
 
     const updateSaveGuidance = () => {
         const dirty = isDirty();
@@ -87,16 +87,16 @@
         saveGuidance.textContent = dirty
             ? "Unsaved review changes. Download HTML to keep review comments, decisions, and property edits before leaving."
             : "No unsaved review changes. Download HTML to keep review comments, decisions, and property edits.";
-        const documentDirty = isDocumentDirty();
-        saveGuidance.dataset.documentDirty = String(documentDirty);
-        documentWarning.hidden = !documentDirty;
-        document.dispatchEvent(new CustomEvent("obs-document-state-change", {
-            detail: {dirty: documentDirty},
+        const artifactDirty = isArtifactDirty();
+        saveGuidance.dataset.artifactDirty = String(artifactDirty);
+        artifactWarning.hidden = !artifactDirty;
+        document.dispatchEvent(new CustomEvent("obs-artifact-state-change", {
+            detail: {dirty: artifactDirty},
         }));
     };
 
     window.addEventListener("beforeunload", (event) => {
-        if (!isDocumentDirty()) return;
+        if (!isArtifactDirty()) return;
         event.preventDefault();
         event.returnValue = "";
     });
@@ -1221,7 +1221,7 @@
         delete clone.dataset.artifactStatus;
         return {
             clone, model, savedState: currentSnapshot(),
-            savedDocumentState: currentDocumentSnapshot(),
+            savedArtifactState: currentArtifactSnapshot(),
             contentBaseline: globalThis.obsArtifact.contentBaseline?.(),
         };
     };
@@ -1258,7 +1258,7 @@
                     await writable.write(contents);
                     await writable.close();
                     savedSnapshot = snapshot.savedState;
-                    savedDocumentSnapshot = snapshot.savedDocumentState;
+                    savedArtifactSnapshot = snapshot.savedArtifactState;
                     globalThis.obsArtifact.adoptContentBaseline?.(snapshot.contentBaseline);
                     updateSaveGuidance();
                     announcer.textContent = "HTML saved.";
@@ -1350,7 +1350,7 @@
     };
 
     saveButton.addEventListener("click", saveReviewedCopy);
-    documentDownload.addEventListener("click", saveReviewedCopy);
+    artifactDownload.addEventListener("click", saveReviewedCopy);
     loadButton.addEventListener("click", () => fileInput.click());
     copyButton.addEventListener("click", copyComments);
     fileInput.addEventListener("change", async () => {
@@ -1453,7 +1453,7 @@
 
     persist();
     savedSnapshot = currentSnapshot();
-    savedDocumentSnapshot = currentDocumentSnapshot();
+    savedArtifactSnapshot = currentArtifactSnapshot();
     updateSaveGuidance();
     renderComments();
     const prepareReview = async () => {

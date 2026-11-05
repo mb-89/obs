@@ -286,6 +286,6 @@ def test_native_columns_size_from_content_and_resize_is_session_only(reviewed_ta
     assert result["scroller"]
     table = page.locator('.chapter-scroll [data-data-table="one-base-1"]')
     table.locator('th[data-column-key="title"] .data-table-column-resize').press("ArrowRight")
-    expect(page.locator("[data-document-warning]")).to_be_hidden()
+    expect(page.locator("[data-artifact-warning]")).to_be_hidden()
     expect(page.locator("[data-review-save-guidance]")).to_have_attribute("data-dirty", "false")
     assert page.evaluate("obsArtifact.readerState().tables") == {}

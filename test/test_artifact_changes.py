@@ -12,7 +12,7 @@ from test_browser import run_artifact_dom_contract
 
 
 @pytest.fixture
-def document_html(tmp_path):
+def artifact_html(tmp_path):
     source = tmp_path / "source"
     source.mkdir()
     (source / "manifest.md").write_text("---\ntitle: Design notes\n---\n- [[one]]\n- [[two]]\n", encoding="utf-8")
@@ -30,27 +30,27 @@ def document_html(tmp_path):
             "```base\nobsHtml: {records: note}\nviews:\n"
             "  - type: table\n    order: [title, status, explanation]\n```\n", encoding="utf-8",
         )
-    output = tmp_path / "document.html"
+    output = tmp_path / "artifact.html"
     assert main(["--source", str(source), "--output", str(output)]) == 0
     return output
 
 
-def test_document_default_filename_and_explicit_output(tmp_path):
+def test_artifact_default_filename_and_explicit_output(tmp_path):
     assert DEFAULT_OUTPUT.name == "document.html"
     assert build_parser().parse_args(["--output", "My-explicit-artifact.html"]).output == [Path("My-explicit-artifact.html")]
-    assert "artifact.html" not in build_parser().format_help()
+    assert "report.html" not in build_parser().format_help()
 
 
-def test_document_change_owner_controlled_save_boundaries(document_html):
+def test_artifact_change_owner_controlled_save_boundaries(artifact_html):
     package = files("obs_html")
     runtimes = [package / "bars" / "filter.js", package / "bars" / "comments.js", package / "storage.js"]
-    run_artifact_dom_contract(document_html, "--document-change-only", *runtimes)
+    run_artifact_dom_contract(artifact_html, "--artifact-change-only", *runtimes)
 
 
 @pytest.fixture
-def native_document(document_html):
+def native_artifact(artifact_html):
     if not os.environ.get("OBS_HTML_TEST_NATIVE_BROWSER"):
-        pytest.skip("Set OBS_HTML_TEST_NATIVE_BROWSER for native document checks.")
+        pytest.skip("Set OBS_HTML_TEST_NATIVE_BROWSER for native artifact checks.")
     from playwright.sync_api import sync_playwright
 
     with sync_playwright() as playwright:
@@ -61,29 +61,29 @@ def native_document(document_html):
         page.set_default_timeout(5000)
         errors = []
         page.on("pageerror", lambda error: errors.append(str(error)))
-        page.goto(document_html.as_uri() + "#one")
+        page.goto(artifact_html.as_uri() + "#one")
         try:
-            yield page, document_html
+            yield page, artifact_html
             assert errors == []
         finally:
             browser.close()
 
 
 @pytest.mark.parametrize("width", [320, 390, 1440])
-def test_native_shared_document_notices_geometry_print_and_toplayer(native_document, width, tmp_path):
+def test_native_shared_artifact_notices_geometry_print_and_toplayer(native_artifact, width, tmp_path):
     from playwright.sync_api import expect
 
-    page, _ = native_document
+    page, _ = native_artifact
     page.set_viewport_size({"width": width, "height": 900})
     page.evaluate("obsFilter.setExpression('status:draft')")
-    notice = page.locator("[data-document-warning]")
+    notice = page.locator("[data-artifact-warning]")
     expect(notice).to_be_visible()
     expect(page.locator("[data-review-save-guidance]")).to_have_attribute("data-dirty", "false")
     warning = page.locator("[data-filter-warning]")
     expect(warning).to_be_visible()
 
     def check_geometry():
-        bounds = page.locator("[data-document-warning], [data-filter-warning]").evaluate_all(
+        bounds = page.locator("[data-artifact-warning], [data-filter-warning]").evaluate_all(
             "nodes => nodes.map(n => {const r=n.getBoundingClientRect(); "
             "return {left:r.left,right:r.right,top:r.top,bottom:r.bottom}})",
         )
@@ -109,11 +109,11 @@ def test_native_shared_document_notices_geometry_print_and_toplayer(native_docum
     page.evaluate("obsPages.setPaged(false)")
     page.locator(".figure-expand").first.click()
     dialog = page.locator("dialog[open]")
-    expect(dialog.locator("[data-document-warning]")).to_be_visible()
+    expect(dialog.locator("[data-artifact-warning]")).to_be_visible()
     expect(dialog.locator("[data-filter-warning]")).to_be_visible()
     check_geometry()
     page.screenshot(path=str(tmp_path / f"notices-expanded-{width}.png"))
-    page.locator("[data-document-download]").focus()
+    page.locator("[data-artifact-download]").focus()
     with page.expect_download() as downloaded:
         page.keyboard.press("Enter")
     saved = tmp_path / f"expanded-save-{width}.html"
@@ -124,7 +124,7 @@ def test_native_shared_document_notices_geometry_print_and_toplayer(native_docum
         saved.read_text(encoding="utf-8"),
     ) == 0
     page.keyboard.press("Escape")
-    expect(page.locator("body > [data-header-notices] [data-document-warning]")).to_be_visible()
+    expect(page.locator("body > [data-header-notices] [data-artifact-warning]")).to_be_visible()
     page.emulate_media(media="print")
     expect(notice).to_be_hidden()
     expect(warning).to_be_hidden()
@@ -147,12 +147,12 @@ def test_native_shared_document_notices_geometry_print_and_toplayer(native_docum
     expect(notice).to_be_visible()
 
 
-def test_native_empty_view_initialization_and_saved_selection_baselines(native_document, tmp_path):
+def test_native_empty_view_initialization_and_saved_selection_baselines(native_artifact, tmp_path):
     from playwright.sync_api import expect
 
-    page, _ = native_document
+    page, _ = native_artifact
     page.wait_for_function("document.documentElement.dataset.artifactStatus === 'ready'")
-    notice = page.locator("[data-document-warning]")
+    notice = page.locator("[data-artifact-warning]")
     guidance = page.locator("[data-review-save-guidance]")
     page.evaluate("obsArtifact.setViewSelection('levels', [], ['one', 'two'])")
     expect(notice).to_be_hidden()
@@ -177,7 +177,7 @@ def test_native_empty_view_initialization_and_saved_selection_baselines(native_d
     expect(notice).to_be_hidden()
     page.evaluate("obsArtifact.setViewSelection('levels', ['one'], ['one', 'two'])")
     with page.expect_download() as downloaded:
-        page.locator("[data-document-download]").click()
+        page.locator("[data-artifact-download]").click()
     saved = tmp_path / "saved-view-selection.html"
     downloaded.value.save_as(saved)
     page.goto(saved.as_uri())
@@ -192,8 +192,8 @@ def test_native_empty_view_initialization_and_saved_selection_baselines(native_d
     expect(notice).to_be_hidden()
 
 
-def test_native_timestamp_is_last_content_change_and_survives_save(native_document, tmp_path):
-    page, _ = native_document
+def test_native_timestamp_is_last_content_change_and_survives_save(native_artifact, tmp_path):
+    page, _ = native_artifact
     page.wait_for_function("document.documentElement.dataset.artifactStatus === 'ready'")
     timestamp = "JSON.parse(obsArtifact.serializeModel()).document.generation.timestamp"
     built = page.evaluate(timestamp)
@@ -213,14 +213,14 @@ def test_native_timestamp_is_last_content_change_and_survives_save(native_docume
     page.wait_for_function("document.documentElement.dataset.artifactStatus === 'ready'")
     assert page.evaluate(timestamp) == "2032-03-04T05:06:07.000+00:00"
     page.evaluate("obsArtifact.commitProperty('one', 'explanation', 'Original')")
-    assert page.evaluate(timestamp) != built, "the saved document is the new opened baseline"
+    assert page.evaluate(timestamp) != built, "the saved artifact is the new opened baseline"
 
 
-def test_native_column_revert_and_transient_state_are_not_semantic_edits(native_document):
+def test_native_column_revert_and_transient_state_are_not_semantic_edits(native_artifact):
     from playwright.sync_api import expect
 
-    page, _ = native_document
-    notice = page.locator("[data-document-warning]")
+    page, _ = native_artifact
+    notice = page.locator("[data-artifact-warning]")
     assert page.locator("[aria-label], [title], [placeholder]").evaluate_all("""nodes => nodes.flatMap(
         node => ['aria-label', 'title', 'placeholder'].map(key => node.getAttribute(key) || '')
     ).filter(label => /\\breport\\b/i.test(label))""") == []
@@ -244,13 +244,13 @@ def test_native_column_revert_and_transient_state_are_not_semantic_edits(native_
     assert all("widths" not in state for state in page.evaluate("obsArtifact.readerState().tables").values())
 
 
-def test_native_application_column_projection_is_not_a_document_change(native_document, tmp_path):
+def test_native_application_column_projection_is_not_an_artifact_change(native_artifact, tmp_path):
     from playwright.sync_api import expect
 
-    page, _ = native_document
+    page, _ = native_artifact
     page.wait_for_function("document.documentElement.dataset.artifactStatus === 'ready'")
     page.evaluate("obsPages.setPaged(false); obsArtifact.activateChapter('one')")
-    notice = page.locator("[data-document-warning]")
+    notice = page.locator("[data-artifact-warning]")
     guidance = page.locator("[data-review-save-guidance]")
     # A trusted runtime (e.g. Reference levels) derives visible columns from its saved view selection.
     project = """hidden => {
@@ -275,7 +275,7 @@ def test_native_application_column_projection_is_not_a_document_change(native_do
     page.evaluate("obsArtifact.activateChapter('two')")
     page.evaluate(project, ["status"])
     with page.expect_download() as downloaded:
-        page.locator("[data-document-download]").click()
+        page.locator("[data-artifact-download]").click()
     saved = tmp_path / "projected-levels.html"
     downloaded.value.save_as(saved)
     for fragment in ("#one", "#two"):
@@ -302,24 +302,24 @@ def test_native_application_column_projection_is_not_a_document_change(native_do
     assert "widths" not in page.evaluate("obsArtifact.readerState().tables").get("one-base-1", {})
 
 
-def test_native_header_download_reopen_review_and_real_unload(native_document, tmp_path):
+def test_native_header_download_reopen_review_and_real_unload(native_artifact, tmp_path):
     from playwright.sync_api import expect
 
-    page, initial = native_document
-    notice = page.locator("[data-document-warning]")
+    page, initial = native_artifact
+    notice = page.locator("[data-artifact-warning]")
     expect(notice).to_be_hidden()
     page.evaluate("obsFilter.setExpression('status:draft')")
     page.evaluate("obsArtifact.openBar('comments')")
     page.locator(".review-action--accept").first.click()
     expect(page.locator("[data-review-save-guidance]")).to_have_attribute("data-dirty", "true")
-    page.locator("[data-document-download]").focus()
+    page.locator("[data-artifact-download]").focus()
     with page.expect_download() as downloaded:
         page.keyboard.press("Enter")
-    saved = tmp_path / "saved-document.html"
+    saved = tmp_path / "saved-artifact.html"
     downloaded.value.save_as(saved)
     expect(notice).to_be_visible()
     expect(page.locator("[data-comment-announcer]")).to_contain_text("cannot confirm")
-    assert "data-document-warning" not in saved.read_text(encoding="utf-8").split('<script id="artifact-data"')[0]
+    assert "data-artifact-warning" not in saved.read_text(encoding="utf-8").split('<script id="artifact-data"')[0]
     page.goto(saved.as_uri() + "#one")
     expect(notice).to_be_hidden()
     expect(page.locator("[data-filter-warning]")).to_be_visible()
@@ -339,10 +339,10 @@ def test_native_header_download_reopen_review_and_real_unload(native_document, t
     expect(notice).to_be_visible()
 
 
-def test_native_evidence_transaction_download_retains_current_source(native_document, tmp_path):
+def test_native_evidence_transaction_download_retains_current_source(native_artifact, tmp_path):
     from playwright.sync_api import expect
 
-    page, output = native_document
+    page, output = native_artifact
     source = output.parent / "source"
     evidence = source / "assets" / "evidence"
     evidence.mkdir(parents=True)
@@ -354,7 +354,7 @@ def test_native_evidence_transaction_download_retains_current_source(native_docu
                  "--embed-attachments"]) == 0
     page.reload()
     page.wait_for_function("document.documentElement.dataset.artifactStatus === 'ready'")
-    notice = page.locator("[data-document-warning]")
+    notice = page.locator("[data-artifact-warning]")
     expect(notice).to_be_hidden()
     page.evaluate("""async () => {
         const bytes = new TextEncoder().encode('Replacement evidence');
@@ -377,7 +377,7 @@ def test_native_evidence_transaction_download_retains_current_source(native_docu
     expect(notice).to_be_visible()
     expect(page.locator("[data-review-save-guidance]")).to_have_attribute("data-dirty", "true")
     with page.expect_download() as downloaded:
-        page.locator("[data-document-download]").click()
+        page.locator("[data-artifact-download]").click()
     saved = tmp_path / "replacement.html"
     downloaded.value.save_as(saved)
     expect(notice).to_be_visible()
