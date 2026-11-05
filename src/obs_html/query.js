@@ -67,14 +67,27 @@
         if (value === undefined || value === null || typeof value === "object") return [];
         return [typeof value === "boolean" ? (value ? "true" : "false") : String(value)];
     };
-    const conditionValue = (record, field) => {
-        const value = record.frontmatter ? globalThis.obsBases.recordValue(record, field) : undefined;
-        return value === undefined ? record.fields?.[field.toLocaleLowerCase()] : value;
+    // mark and mark.<category> name a note's marks when its frontmatter has no such property.
+    const markValue = (record, field) => {
+        const name = field.replace(/^note\./, "").toLowerCase();
+        const marks = record.marks || [];
+        if (name === "mark") return marks.length ? [...new Set(marks.map((mark) => mark.kind))] : undefined;
+        if (!name.startsWith("mark.")) return undefined;
+        const selected = marks.filter((mark) => mark.kind.toLowerCase() === name.slice(5)).map((mark) => mark.label);
+        return selected.length ? selected : undefined;
     };
+    // A condition sees note properties and marks only: no other derived field is a property.
+    const propertyValue = (record, field) => {
+        const value = record.frontmatter ? globalThis.obsBases.recordValue(record, field) : undefined;
+        return value === undefined ? markValue(record, field) : value;
+    };
+    const propertyTexts = (record, field) => conditionTexts(propertyValue(record, field));
     // The reader's own fields (title, text, query aliases) answer only names that are no
     // note property; a note. prefix asks for the property alone, as drill-downs do.
-    const readerValue = (record, field) => /^note\./.test(field) && record.frontmatter
-        ? globalThis.obsBases.recordValue(record, field) : conditionValue(record, field);
+    const readerValue = (record, field) => {
+        const value = record.frontmatter || record.marks ? propertyValue(record, field) : undefined;
+        return value !== undefined || /^note\./.test(field) ? value : record.fields?.[field.toLocaleLowerCase()];
+    };
 
     const quotePattern = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
@@ -288,7 +301,7 @@
             const same = "equals" in condition
                 ? globalThis.obsBases.textMatcher(String(condition.equals), condition.matchCase === true) : null;
             return (record) => {
-                const texts = conditionTexts(conditionValue(record, condition.field));
+                const texts = propertyTexts(record, condition.field);
                 return same ? texts.some(same) : texts.some((text) => text.trim() !== "");
             };
         });
@@ -300,6 +313,6 @@
         return compiledConditions.get(conditions).match(record);
     };
 
-    globalThis.obsQuery = {compile, exactClause, conditionsExpression, conditionsMatch, compileConditions,
+    globalThis.obsQuery = {compile, exactClause, conditionsExpression, conditionsMatch, compileConditions, propertyTexts,
         incomplete: INCOMPLETE};
 })();

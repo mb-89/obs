@@ -1,9 +1,10 @@
 {
-  "description": "Bases filter and query condition conformance; owners: spec/design_input/generic-tables.md, Bases filter grammar; spec/capabilities/bases.md, Comparisons; spec/capabilities/queries.md, Conditions.",
+  "description": "Bases filter and query condition conformance; a record's marks are its #mark/<category>/<id> tags; owners: spec/design_input/generic-tables.md, Bases filter grammar; spec/capabilities/bases.md, Comparisons; spec/capabilities/queries.md, Conditions.",
   "records": [
     {
       "id": "a",
       "path": "notes/a.md",
+      "marks": [{"category": "open_point", "id": "x1"}, {"category": "risk", "id": "r1"}],
       "frontmatter": {
         "kind": "Item",
         "status": "open",
@@ -19,6 +20,7 @@
     {
       "id": "b",
       "path": "b.md",
+      "marks": [{"category": "open_point", "id": "x2"}],
       "frontmatter": {
         "kind": "item",
         "status": "closed",
@@ -33,15 +35,17 @@
     {
       "id": "c",
       "path": "deep/dir/c.md",
+      "marks": [{"category": "risk", "id": "r3"}],
       "frontmatter": {
         "kind": ["Item"],
         "count": "1",
         "flag": "true",
         "a.b": "literal",
+        "mark": "manual",
         "a": {"b": "nested"}
       }
     },
-    {"id": "d", "path": "d.md", "frontmatter": {}},
+    {"id": "d", "path": "d.md", "frontmatter": {}, "marks": [{"category": "risk", "id": "r2"}]},
     {
       "id": "e",
       "path": "notes/e.md",
@@ -171,6 +175,15 @@
     {"where": [{"field": "bottom line", "equals": "Kept"}], "expected": ["a"]},
     {"where": [{"field": "file.name", "equals": "c"}], "expected": ["c"]},
     {"where": [{"field": "file.folder", "equals": "notes"}], "expected": ["a", "e"]},
+    {"where": [{"field": "mark.open_point", "exists": true}], "expected": ["a", "b"]},
+    {"where": [{"field": "mark", "equals": "risk"}], "expected": ["a", "d"]},
+    {"where": [{"field": "mark", "equals": "manual"}], "expected": ["c"]},
+    {"where": [{"field": "Mark.Risk", "equals": "R1"}], "expected": ["a"]},
+    {"where": [{"field": "mark.risk", "equals": "R1", "matchCase": true}], "expected": []},
+    {"where": [{"field": "note.mark.risk", "exists": true}], "expected": ["a", "c", "d"]},
+    {"where": [{"field": "mark.missing", "exists": true}], "expected": []},
+    {"where": [{"field": "title", "exists": true}], "expected": []},
+    {"where": [{"field": "slug", "equals": "a"}], "expected": []},
     {"where": [{"field": "kind", "equals": "Item"}, {"field": "status", "exists": true}], "expected": ["a", "b"]},
     {"where": [{"field": "count", "exists": true}, {"field": "flag", "equals": "false"}], "expected": ["b"]}
   ],

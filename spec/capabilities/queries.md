@@ -34,6 +34,14 @@ text:
   `open`.
 - `exists: true` matches when the value, or an item of its list, has nonblank text.
 - A missing property and `null` have no text: they match neither `equals` nor `exists`.
+- `mark` and `mark.<category>` name the note's marks when its frontmatter has no property of
+  that name: `mark` holds the categories of its marks, `mark.<category>` the identifiers of
+  that category ([[capabilities/marks]]). Obsidian has no such property; marks are content a
+  query needs to count.
+
+  No other derived field is a property: a title, a slug, the text or a reader alias
+  ([[report-ui]]) selects nothing in a condition. A `distinct` count and a Sankey node's
+  `unique` read their property the same way.
 
 The core evaluates conditions to decide inclusion, the browser for counts, query populations,
 figures and drill-downs; both run the `conditions` cases of the shared conformance fixture

@@ -91,7 +91,8 @@ def test_core_conditions_match_fixture(case):
 
     actual = [
         record["id"] for record in FIXTURE["records"]
-        if conditions_select(case["where"], record["frontmatter"], record["path"])
+        if conditions_select(case["where"], record["frontmatter"], record["path"],
+                             [(mark["category"], mark["id"]) for mark in record.get("marks", [])])
     ]
     assert actual == case["expected"]
 
