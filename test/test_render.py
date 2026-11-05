@@ -6,6 +6,8 @@ from obs_html.config import load_config
 from obs_html.render import RenderError, render
 from obs_html.report_data import decode_report_data
 
+from documents import chapter, document as build, node, paragraph
+
 
 CONFIG = load_config()
 
@@ -211,6 +213,39 @@ def test_lists_of_single_paragraph_items_render_tight(document) -> None:
 
 def test_unaliased_wikilinks_show_the_chapter_title(document) -> None:
     document["chapters"][1]["content"].append({"type": "paragraph", "attrs": {}, "children": [
-        {"type": "wikilinks", "attrs": {"target": "intro", "heading": "", "label": "intro"}, "children": []}]})
+        {"type": "wikilinks", "attrs": {"target": "intro", "chapter": "intro", "heading": "", "label": "intro"}, "children": []}]})
     html = _notes(document)["appendix"]["html"]
     assert '<a class="internal-link" href="#intro">Intro</a>' in html
+
+
+def _linking(*links: dict) -> dict:
+    """Two chapters whose ids both end in the link target, so only attrs.chapter can choose."""
+    return build("Links", chapter("design-input-architecture", "Architecture"),
+                 chapter("design-output-architecture", "Built architecture"),
+                 chapter("index", "Index", paragraph(*links)))
+
+
+def test_a_wikilink_links_to_the_chapter_the_core_names() -> None:
+    link = node("wikilinks", target="architecture", chapter="design-input-architecture",
+                heading="", label="architecture")
+    html = _notes(_linking(link))["index"]["html"]
+    assert '<a class="internal-link" href="#design-input-architecture">Architecture</a>' in html
+
+
+def test_a_wikilink_without_a_chapter_is_unresolved_even_when_an_id_matches() -> None:
+    link = node("wikilinks", target="index", chapter=None, heading="", label="index")
+    html = _notes(_linking(link))["index"]["html"]
+    assert '<span class="unresolved" title="index">index</span>' in html
+
+
+def test_an_embed_links_to_its_chapter_or_renders_unresolved() -> None:
+    html = _notes(_linking(node("embeds", target="architecture", chapter="design-input-architecture"),
+                           node("embeds", target="index", chapter=None)))["index"]["html"]
+    assert '<a class="internal-link embed" href="#design-input-architecture">Architecture</a>' in html
+    assert '<span class="unresolved embed" title="index">index</span>' in html
+
+
+def test_a_link_to_a_chapter_the_document_lacks_names_its_chapter_and_the_remedy() -> None:
+    link = node("wikilinks", target="gone", chapter="gone", heading="", label="gone")
+    with pytest.raises(RenderError, match="Chapter index: a link names chapter 'gone'.*regenerate"):
+        _render(_linking(link))
