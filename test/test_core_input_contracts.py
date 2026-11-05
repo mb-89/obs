@@ -1,4 +1,5 @@
 import json
+import re
 import subprocess
 import sys
 
@@ -159,3 +160,81 @@ def test_core_and_adapter_contract_errors_match_for_shared_inputs(tmp_path) -> N
     assert _error_message(lambda: validate_command("")) == _error_message(
         lambda: run_command("", tmp_path, 5)
     )
+
+
+FULL_CARD_SPEC = {
+    "version": 1,
+    "cards": [{
+        "title": "Coverage", "body": "Current state.", "metricStyle": "lines",
+        "obsHtml": {"metricsFrom": {
+            "sourceNote": "registers/risks", "property": "summary.groups",
+            "labelProperty": "label", "distinctProperty": "field",
+            "where": [{"field": "status", "equals": "open"}],
+            "tone": "warning",
+            "toneRules": [{"value": "primary", "when": "zero", "tone": "positive"}],
+            "link": {"note": "registers/risks", "groupProperty": "group"},
+        }},
+        "metrics": [{
+            "key": "open", "label": "Open", "where": [{"field": "status", "equals": "open"}],
+            "from": "queries/findings", "secondary": "queries/closed", "distinct": "owner",
+            "denominator": [{"field": "status", "exists": True}],
+            "link": "#findings?tableFilter=status%3Aopen", "secondaryLink": "#closed",
+            "tone": "neutral",
+            "toneRules": [{"value": "remaining", "when": "positive", "tone": "negative"}],
+            "obsHtml": {"projection": "review.current"},
+        }],
+    }],
+}
+
+
+def test_core_cards_contract_accepts_the_full_card_metric_contract() -> None:
+    from obs_html.cards import parse_card_spec as parse_adapter_cards
+
+    text = json.dumps(FULL_CARD_SPEC)
+    assert parse_card_spec(text) == FULL_CARD_SPEC == parse_adapter_cards(text)
+
+
+@pytest.mark.parametrize(
+    "metric",
+    [
+        {"secondary": "queries/closed"},
+        {"from": "queries/findings", "secondaryLink": "#closed"},
+        {"link": "https://example.test"},
+        {"tone": "loud"},
+        {"toneRules": [{"value": "primary", "when": "zero", "tone": "positive"}] * 9},
+        {"obsHtml": {"projection": "Upper"}},
+    ],
+)
+def test_core_cards_contract_rejects_what_the_adapter_rejects(metric) -> None:
+    from obs_html.cards import parse_card_spec as parse_adapter_cards
+
+    text = json.dumps({"version": 1, "cards": [{
+        "title": "Coverage", "body": "", "metrics": [{"label": "Open", "where": [], **metric}],
+    }]})
+    assert _error_message(lambda: parse_card_spec(text)) == _error_message(
+        lambda: parse_adapter_cards(text)
+    )
+
+
+def _schema_fields(schema: dict[str, object], prefix: str = "") -> list[str]:
+    fields = []
+    for name, value in schema.get("properties", {}).items():
+        path = f"{prefix}{name}"
+        fields.append(path)
+        fields.extend(_schema_fields(value, f"{path}."))
+        if "items" in value:
+            fields.extend(_schema_fields(value["items"], f"{path}[]."))
+    return fields
+
+
+def test_cards_capability_note_documents_each_card_field_once() -> None:
+    from pathlib import Path
+
+    root = Path(__file__).parents[1]
+    schema = json.loads((root / "src" / "obs" / "input.schema.json").read_text(encoding="utf-8"))
+    note = (root / "spec" / "capabilities" / "cards-metrics.md").read_text(encoding="utf-8")
+    documented = re.findall(r"^- `([A-Za-z.\[\]]+)`", note, re.MULTILINE)
+    fields = _schema_fields(schema["$defs"]["cards"])
+    assert {"cards[].metrics[].denominator", "cards[].obsHtml.metricsFrom",
+            "cards[].metrics[].obsHtml.projection"} <= set(fields)
+    assert sorted(documented) == sorted(fields)
