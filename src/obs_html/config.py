@@ -11,10 +11,11 @@ from jsonschema import Draft202012Validator
 
 DEFAULT_CONFIG = Path(str(files("obs_html").joinpath("cfg.json")))
 SCHEMA_PATH = Path(str(files("obs_html").joinpath("cfg.schema.json")))
+RENAMED_KEYS = {"report": "artifact"}
 
 
 class ConfigError(ValueError):
-    """Raised when report settings are invalid."""
+    """Raised when artifact settings are invalid."""
 
 
 @dataclass(frozen=True)
@@ -35,18 +36,22 @@ def load_config(override_path: Path | None = None) -> Config:
             raise ConfigError(f"Cannot read settings {override_path}: {error}") from error
         if not isinstance(override, dict):
             raise ConfigError(f"Settings {override_path} must be a JSON object.")
+        for old, new in RENAMED_KEYS.items():
+            if old in override:
+                raise ConfigError(f"{override_path}: settings key '{old}' was renamed to '{new}'; "
+                                  "rename the key in that file.")
         config = _merge(config, override)
     error = next(_validator().iter_errors(config), None)
     if error is not None:
         location = ".".join(str(part) for part in error.absolute_path) or "settings"
         raise ConfigError(f"Invalid {location}: {error.message}")
-    report = config["report"]
+    artifact = config["artifact"]
     return Config(
         command_timeout_seconds=config["execution"]["commandTimeoutSeconds"],
         rendered_check_timeout_seconds=config["execution"]["renderedCheckTimeoutSeconds"],
-        print_default=report["print"]["default"],
-        paper_sizes=report["print"]["paperSizes"],
-        report={key: value for key, value in report.items() if key != "print"},
+        print_default=artifact["print"]["default"],
+        paper_sizes=artifact["print"]["paperSizes"],
+        artifact={key: value for key, value in artifact.items() if key != "print"},
     )
 
 

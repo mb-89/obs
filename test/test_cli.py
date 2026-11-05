@@ -99,8 +99,21 @@ def test_invalid_settings_fail(tmp_path, override, message, capsys) -> None:
     assert message in capsys.readouterr().err
 
 
+def test_an_old_report_settings_key_names_the_new_key_and_the_file(tmp_path, capsys) -> None:
+    settings = tmp_path / "settings.json"
+    settings.write_text(json.dumps({"report": {"tablePageSize": 5}}), encoding="utf-8")
+    destination = tmp_path / "artifact.html"
+    with pytest.raises(SystemExit) as exit_info:
+        _run(FIXTURE, destination, "--config", settings)
+    assert exit_info.value.code == 2
+    error = capsys.readouterr().err
+    assert f"{settings}: settings key 'report' was renamed to 'artifact'" in error
+    assert "rename the key in that file" in error
+    assert not destination.exists()
+
+
 def test_identical_output_is_not_rewritten(tmp_path, monkeypatch) -> None:
-    destination = tmp_path / "document.html"
+    destination = tmp_path / "artifact.html"
     arguments = (FIXTURE, destination, "--execute-commands", "--command-root", tmp_path)
     _run(*arguments)
     writes = []
