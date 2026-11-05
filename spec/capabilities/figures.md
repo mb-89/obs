@@ -14,8 +14,8 @@ Render declared figures from canonical records.
 
 ## Authoring example
 
-```markdown
+````markdown
 ```figure
 source: records
 ```
-```
+````
