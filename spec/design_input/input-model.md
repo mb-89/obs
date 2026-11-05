@@ -1220,6 +1220,8 @@ executable expressions. See [[artifact-ui]] for diagram interaction and print be
 
 - Relative Markdown links and local images must stay within the source vault.
 - The Markdown body is the complete source of rendered prose content.
+- The Markdown dialect the body is written in, and the Document nodes each construct
+  becomes, are [[capabilities/markdown#Document nodes]].
 - Converter paragraph diagnostics measure authored prose with the supported Markdown dialect,
   before render-time decoration, and retain its source location. Home diagnostics measure only
   the authored abstract, not generated content or metadata. Reusing a parsed body must not let
