@@ -115,12 +115,14 @@
         },
     });
 
-    // Each limit is a warning entry of the notice center: the feature, why, and the remedy.
+    // Each limit is a warning entry of the notice center: the feature, why, what the canary observed
+    // (where its result records an observation) and the remedy.
     if (!limits.length) return;
     const mount = () => limits.forEach((entry) => {
         const details = view.document.createElement("dl");
         details.dataset.capability = entry.key;
-        [["Feature", entry.feature], ["Why", entry.reason], ["Remedy", entry.remedy]].forEach(([term, text]) => {
+        [["Feature", entry.feature], ["Why", entry.reason], ["Observed", entry.observation],
+            ["Remedy", entry.remedy]].filter(([, text]) => text).forEach(([term, text]) => {
             const name = view.document.createElement("dt");
             name.textContent = term;
             const value = view.document.createElement("dd");

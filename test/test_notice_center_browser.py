@@ -128,22 +128,20 @@ def test_changed_html_and_the_applied_filter_are_entries_that_keep_their_behavio
     }"""
     assert page.evaluate(unload_prevented) is False
     page.evaluate("globalThis.obsFilter.setExpression(\"file.name == 'One'\")")
-    changed = page.locator('[data-notice-list="warning"] [data-notice="changed-html"]')
+    changed = page.locator('[data-notice-list="information"] [data-notice="changed-html"]')
     applied = page.locator('[data-notice-list="information"] [data-notice="applied-filter"]')
     expect(changed).to_have_count(1)
     expect(applied).to_have_count(1)
     expect(applied.locator("[data-notice-title]")).to_have_text(re.compile(r"^Filtered view · \d+/2 chapters$"))
     assert page.evaluate(unload_prevented) is True
-    page.locator('[data-notice-icon="warning"]').click()
+    expect(page.locator('[data-notice-icon="information"] [data-notice-count]')).to_have_text("2")
+    page.locator('[data-notice-icon="information"]').click()
     changed.locator("[data-notice-title]").click()
     expect(changed.locator("[data-document-download]")).to_be_visible()
-    page.locator('[data-notice-icon="information"]').click()
-    expect(changed.locator("[data-document-download]")).to_be_hidden()
     applied.locator("[data-notice-title]").click()
     expect(applied).to_contain_text("Filter: file.name == 'One'")
     applied.locator("[data-filter-clear]").click()
     expect(applied).to_have_count(0)
-    expect(page.locator('[data-notice-icon="information"]')).to_be_hidden()
     assert page.evaluate("globalThis.obsReport.filterSummary().empty") is True
     expect(changed).to_have_count(0)
     assert page.evaluate(unload_prevented) is False

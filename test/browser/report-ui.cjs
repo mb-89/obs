@@ -152,7 +152,7 @@ if (process.argv[7] === "--document-change-only") {
     vm.runInContext(fs.readFileSync(process.argv[4], "utf8"), context);
     vm.runInContext(fs.readFileSync(process.argv[5], "utf8"), context);
     const changed = () => {
-        const entry = document.querySelector('[data-notice-list="warning"] [data-notice="changed-html"]');
+        const entry = document.querySelector('[data-notice-list="information"] [data-notice="changed-html"]');
         assert.equal(Boolean(entry?.querySelector("[data-document-download]")), Boolean(entry),
             "The changed-HTML entry carries the existing save owner's download button.");
         return Boolean(entry);

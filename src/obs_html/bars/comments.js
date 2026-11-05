@@ -66,13 +66,13 @@
         return Object.keys(snapshot).some(key => snapshot[key] !== savedDocumentSnapshot[key]);
     };
 
-    // Changed HTML is a warning entry of the notice center; its details download the changed HTML.
+    // Changed HTML is an information entry of the notice center; its details download the changed HTML.
     const documentDownload = document.createElement("button");
     documentDownload.type = "button";
     documentDownload.dataset.documentDownload = "";
     documentDownload.textContent = "Download changed HTML";
     const changedHtmlNotice = {
-        id: "changed-html", severity: "warning", title: "This HTML has changed",
+        id: "changed-html", severity: "information", title: "This HTML has changed",
         details: [
             "Comments, edits or reader settings changed since this HTML was last saved. " +
                 "Download the changed HTML to keep them; leaving the page asks first.",
