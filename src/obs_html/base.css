@@ -13,6 +13,10 @@
     --bar-splitter-size: 0.55rem;
     --content-inline-size: 48rem;
     --chapter-nav-width: clamp(3.75rem, 7vw, 6rem);
+    /* Next sits this far from the reader's right edge, clear of a scrollbar. Scrollbars that take
+       no room (touch, macOS) leave the reader that much wider, so the clearance includes it. */
+    --chapter-nav-inset-end: 1rem;
+    --chapter-clearance-end: calc(var(--chapter-nav-width) + var(--chapter-nav-inset-end));
     --transition-fast: 140ms ease;
 }
 
@@ -222,6 +226,7 @@ a:focus-visible {
     height: 100%;
     overflow: auto;
     overscroll-behavior: contain;
+    scroll-padding-inline: var(--chapter-nav-width) var(--chapter-clearance-end);
     scrollbar-gutter: stable;
 }
 
@@ -232,7 +237,7 @@ a:focus-visible {
 .chapter-body {
     margin-inline: auto;
     max-width: var(--content-inline-size);
-    padding: 1rem max(1.5rem, var(--chapter-nav-width)) 6rem;
+    padding: 1rem max(1.5rem, var(--chapter-clearance-end)) 6rem max(1.5rem, var(--chapter-nav-width));
 }
 
 .chapter-body h1,
@@ -623,6 +628,10 @@ input[data-property-single-line]:focus {
     gap: 0.18rem;
     margin-block: 0 0.7rem;
     min-height: 2.4rem;
+    /* Crumbs start below the frontmatter chevron, which hangs 2.3rem into the reader's top centre
+       (0.65rem padding and a 1.65rem button), so narrow screens that wrap crumbs to the centre
+       never put one under it. The band starts 1rem down in both views. */
+    padding-block-start: 1.45rem;
     padding-inline-end: 2.9rem;
 }
 
@@ -894,7 +903,7 @@ math {
 }
 
 .paged-reader .paper-sheet {
-    --paper-inline-margin: clamp(max(var(--card-clearance), var(--chapter-nav-width)),
+    --paper-inline-margin: clamp(max(var(--card-clearance), var(--chapter-clearance-end)),
         calc(100% - var(--sheet-width) + var(--paper-margin)), var(--paper-margin));
     max-width: 100%;
 }
@@ -923,7 +932,7 @@ math {
 /* Like the continuous view's padding, the margin clears the chapter arrows' pointer areas, so
    Home and the chapter choosers are not covered by Previous or Next. */
 .paged-reader>.chapter-breadcrumbs {
-    margin: 1rem max(1.5rem, var(--chapter-nav-width));
+    margin: 1rem max(1.5rem, var(--chapter-clearance-end)) 1rem max(1.5rem, var(--chapter-nav-width));
 }
 
 .paper-sheet {
@@ -2077,7 +2086,7 @@ math {
 
 .chapter-nav-zone--next {
     justify-content: flex-end;
-    right: 1rem;
+    right: var(--chapter-nav-inset-end);
 }
 
 .chapter-nav {
@@ -2895,13 +2904,16 @@ math {
         display: block;
     }
 
-    .reader-shell {
+    :root {
         --chapter-nav-width: 3.2rem;
+    }
+
+    .reader-shell {
         height: 100%;
     }
 
     .chapter-body {
-        padding: 1rem 3.5rem 5rem;
+        padding: 1rem max(3.5rem, var(--chapter-clearance-end)) 5rem 3.5rem;
     }
 
     .chapter-body h1 {
@@ -2926,19 +2938,21 @@ math {
         z-index: 25;
     }
 
+    /* A side bar overlays the reader beside the chapter arrows, never over them. */
     .dock-region--left,
     .dock-region--right {
         bottom: 0;
         top: var(--filter-header-clearance, 0px);
-        width: clamp(var(--bar-min-inline-size), var(--dock-size, var(--bar-inline-size)), calc(100vw - 3rem));
+        width: clamp(var(--bar-min-inline-size), var(--dock-size, var(--bar-inline-size)),
+            calc(100vw - var(--chapter-nav-width) - var(--chapter-clearance-end)));
     }
 
     .dock-region--left {
-        left: 0;
+        left: var(--chapter-nav-width);
     }
 
     .dock-region--right {
-        right: 0;
+        right: var(--chapter-clearance-end);
     }
 
     .dock-region--top,
@@ -3090,7 +3104,10 @@ math {
     color: var(--color-waiting);
 }
 
+/* Review mode lets tables overflow for their row rails. The body grows to hold what overflows, so
+   its end padding still clears Next's pointer area once scrolled there. */
 .chapter-body.review-mode {
+    min-width: min-content;
     padding-inline-start: 6.4rem;
 }
 
@@ -3099,7 +3116,7 @@ math {
 }
 
 .paged-mode [data-chapter-body].review-mode {
-    padding-inline-start: 6.4rem;
+    padding-inline: 6.4rem var(--chapter-clearance-end);
     width: max-content;
 }
 
