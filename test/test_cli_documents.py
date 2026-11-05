@@ -171,3 +171,15 @@ def test_producers_are_their_own_stage_before_conversion(tmp_path, monkeypatch, 
     assert main(["--timings", "--execute-commands", "--source", str(vault), "--output", str(output)]) == 0
     stages = re.findall(r"^Timing: (\S+) \d+\.\d{3} s \(", capsys.readouterr().out, re.MULTILINE)
     assert stages.index("producers") < stages.index("render")
+
+
+def test_stage_durations_do_not_overlap_and_sum_to_at_most_the_total(tmp_path, capsys) -> None:
+    vault = _vault(tmp_path, "alpha", "Body.", figure=True)
+    assert main(["--timings", "--source", str(vault), "--output", str(tmp_path / "a.html")]) == 0
+    timed = re.findall(r"^Timing: (\S+) (\d+\.\d{3}) s(?: \((.+)\))?$", capsys.readouterr().out, re.MULTILINE)
+    document = {name: float(seconds) for name, seconds, label in timed if label}
+    call = {name: float(seconds) for name, seconds, label in timed if not label}
+    assert set(document) <= set(timings.STAGES)
+    assert {"parse", "render", "figures", "write"} <= set(document)
+    parts = [*document.values(), call["imports"], call["provenance"]]
+    assert sum(parts) <= call["total"] + 0.0005 * (len(parts) + 1)  # three-decimal rounding
