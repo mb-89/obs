@@ -588,7 +588,10 @@ def _parser() -> MarkdownIt:
     """The supported Markdown dialect: CommonMark, pipe tables, strikethrough and TeX math."""
     return MarkdownIt("commonmark", {"html": False, "linkify": False}).enable(
         ["table", "strikethrough"],
-    ).use(dollarmath_plugin, allow_labels=False, allow_space=False, allow_digits=False)
+    ).use(
+        dollarmath_plugin, allow_labels=False, allow_space=False, allow_digits=False,
+        double_inline=True,
+    )
 
 
 def _nodes(source: str, context: _Context) -> list[dict[str, object]]:
