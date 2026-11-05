@@ -5,7 +5,7 @@ capability:
   summary: Reuse authored table views as named registers.
   authoring: Embed a named view from a .base file with a Base embed link.
   dependsOn: ["[[capabilities/bases]]"]
-  inputModel: "[[input-model#Registers]]"
+  source: "[[input-model#Registers]]"
 ---
 
 ## What it does

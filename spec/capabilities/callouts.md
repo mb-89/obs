@@ -5,7 +5,7 @@ capability:
   summary: Mark block content with typed, data-only callouts.
   authoring: Start a blockquote with an Obsidian callout marker such as [!warning].
   dependsOn: ["[[capabilities/markdown]]"]
-  inputModel: "[[input-model#Callouts]]"
+  source: "[[input-model#Callouts]]"
 ---
 
 ## What it does

@@ -5,7 +5,7 @@ capability:
   summary: Reuse one source archive through a shared source link.
   authoring: Refer to the declared canonical source archive from supported views.
   dependsOn: ["[[capabilities/source-archive]]", "[[capabilities/references]]"]
-  inputModel: "[[input-model#Shared source-archive link]]"
+  source: "[[input-model#Shared source-archive link]]"
 ---
 
 The register presents the owning metadata as the capability reference.

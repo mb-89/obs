@@ -5,7 +5,7 @@ capability:
   summary: Author data-only cards and query-backed document metrics.
   authoring: Use a cards fence with bounded card and metric mappings.
   dependsOn: ["[[capabilities/markdown-frontmatter]]", "[[capabilities/queries]]"]
-  inputModel: "[[input-model#Document home and abstract]]"
+  source: "[[input-model#Document home and abstract]]"
 ---
 
 ## What it does

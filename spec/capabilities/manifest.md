@@ -5,7 +5,7 @@ capability:
   summary: Define document metadata, ordered chapters, and an optional abstract.
   authoring: Start a manifest note with frontmatter and one nested list of local note links.
   dependsOn: ["[[capabilities/markdown-frontmatter]]", "[[capabilities/wikilinks]]"]
-  inputModel: "[[input-model#Manifest contract]]"
+  source: "[[input-model#Manifest contract]]"
 ---
 
 ## What it does

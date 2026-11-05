@@ -12,7 +12,7 @@
       "items": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["id", "summary", "authoring", "dependsOn", "inputModel"],
+        "required": ["id", "summary", "authoring", "dependsOn", "source"],
         "properties": {
           "id": {"type": "string", "pattern": "^[a-z][a-z0-9-]*$"},
           "summary": {"type": "string", "minLength": 1},
@@ -21,9 +21,10 @@
             "type": "array",
             "items": {"type": "string", "pattern": "^[a-z][a-z0-9-]*$"}
           },
-          "inputModel": {"type": "string", "pattern": "^\\[\\[input-model#.+\\]\\]$"}
+          "source": {"type": "string", "pattern": "^\\[\\[.+#.+\\]\\]$"}
         }
       }
     }
   }
 }
+

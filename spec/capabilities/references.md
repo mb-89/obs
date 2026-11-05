@@ -5,7 +5,7 @@ capability:
   summary: Resolve reference notes, labels, and external source links.
   authoring: Use a reference note and supported link text rather than raw external prose links.
   dependsOn: ["[[capabilities/wikilinks]]", "[[capabilities/markdown-frontmatter]]"]
-  inputModel: "[[input-model#Reference notes and link text]]"
+  source: "[[input-model#Reference notes and link text]]"
 ---
 
 ## What it does

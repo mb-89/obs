@@ -5,7 +5,7 @@ capability:
   summary: Define declarative Base views over canonical note records.
   authoring: Use a base fence or embed a YAML .base file in a note.
   dependsOn: ["[[capabilities/markdown-frontmatter]]", "[[capabilities/queries]]"]
-  inputModel: "[[input-model#Base fences]]"
+  source: "[[input-model#Base fences]]"
 ---
 
 ## What it does

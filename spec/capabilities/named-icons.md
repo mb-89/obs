@@ -5,7 +5,7 @@ capability:
   summary: Refer to named icon resources without embedding presentation literals.
   authoring: Use an approved named icon identifier in supported metadata.
   dependsOn: ["[[capabilities/markdown-frontmatter]]"]
-  inputModel: "[[input-model#Named icon resources]]"
+  source: "[[input-model#Named icon resources]]"
 ---
 
 The register presents the owning metadata as the capability reference.
