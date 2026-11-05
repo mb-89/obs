@@ -57,9 +57,11 @@ and runtime defaults are owned by [[cli]] and [[configuration]], respectively.
 - Every list item is exactly one local Markdown link or Obsidian wikilink to a note.
 - Top-level items are chapters; nested items are subchapters of their parent.
 - The sequence in which items appear in the source is authoritative at every nesting depth.
-  Previous and next navigation follows that sequence in depth-first order.
-- Only notes listed in the manifest become authored artifact chapters. Links in chapter content
-  or the abstract do not implicitly add chapters to the TOC.
+- A chapter is a non-hidden line of the manifest's TOC list, and nothing else is; a line is
+  hidden when Markdown does not show it, for example inside an Obsidian `%%` comment. The table
+  of contents and previous/next walk exactly the chapters, in manifest order (depth first,
+  after Home), so they always match. A note reached only through a link is not a chapter, gets
+  no previous/next, and stays reachable through its link.
 - Duplicate, unresolved, external, and non-Markdown manifest links are errors.
 - The manifest owns document metadata, authored navigation, and abstract prose. It is not
   additionally rendered as an ordinary chapter.
@@ -425,7 +427,7 @@ Optional authored introduction.
   [[artifact-ui]].
 - Exactly one chapter or subchapter is visible at a time.
 - The active chapter has its own scroll range; content never continues into the next one.
-- Left and right controls move through all items in depth-first manifest order.
+- Left and right controls walk the [[#Manifest contract|chapter sequence]].
 - Selecting a table-of-contents item or changing chapters resets content scroll to the top.
 - Stable URL fragments identify chapters so browser history and direct links work.
 - Home is always a reachable navigation destination, including when a filter leaves
@@ -704,8 +706,8 @@ Generation time remains separate from document revision dates.
 
   Clicking a document link to an unlisted note shows it in the floating window; the page stays.
   A direct browser fragment still opens an unlisted note in the same reader with a Home
-  breadcrumb and browser history. Unlisted notes never become TOC children or previous/next
-  chapter stops.
+  breadcrumb and browser history. An unlisted note is not a chapter; see the
+  [[#Manifest contract|chapter sequence]].
 - Standard Markdown is supported before optional Obsidian extensions.
 - `[[wikilinks]]` resolve by source-relative path, vault-relative path, unique note name, and
   then alias. Relative Markdown note links use the same canonical targets. Nested note links
