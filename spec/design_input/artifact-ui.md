@@ -1133,16 +1133,11 @@ separate from document presentation.
   content or a dirty warning embedded into a newly reopened saved HTML. The entries, icons
   and layout are owned by obs-html's `notices.js`, not repeated here.
 
-  The changed-HTML information entry is present whenever persisted artifact state differs
-  from the last confirmed saved snapshot. It says that this HTML has changed, and its
+  The changed-HTML information entry is present whenever the artifact holds a
+  [[#What counts as a change|change]] since the last confirmed saved snapshot. It says that this HTML has changed, and its
   details hold a button to download the changed HTML.
 
   It uses the existing save/serialization owner, not a second download implementation.
-  Canonical edits, evidence replacements, explanations, comments, review decisions and
-  persisted reader-state changes all participate; transient hover, scrolling and other
-  nonserialized presentation do not.
-
-  This artifact-level state does not relabel a view-only change as a semantic review edit.
   Failed or cancelled saves do not clear it;
   retain the existing distinction between confirmed file writes and unconfirmed downloads.
   The native unload warning uses that same unsaved-artifact state.
@@ -1273,8 +1268,8 @@ separate from document presentation.
   visible with its error rather than disappearing.
 
   Fresh artifacts remain unfiltered. Restoring a query does not restore session appearance:
-  every opening still starts Light with Pages. Filtering alone is not a dirty review change;
-  persistence and semantic dirty-state boundaries belong to [[input-model]].
+  every opening still starts Light with Pages. Filtering is never a
+  [[#What counts as a change|change]]; persistence belongs to [[input-model]].
 
   On reopen, rebuild Filter presets and attribute controls once from their canonical data;
   do not append them to copied rendered controls.
@@ -1375,6 +1370,22 @@ separate from document presentation.
   a separate discovered bar with a search icon.
 - On narrow screens, docked bars overlay the reading shell and use constrained dimensions
   so chapter controls and content remain reachable.
+
+## What counts as a change
+
+This section owns which actions change the artifact; every other note points here. The
+changed-HTML notice entry and the native unload warning appear only while the artifact holds a
+change since it was opened or last saved.
+
+- A content edit is a change: an evidence replacement, a description or explanation edit, or a
+  committed property edit. Only content edits move the document's generation `timestamp`.
+- A review edit is a change: a comment, a reply or a review decision. It is not a content
+  edit and leaves the `timestamp` unchanged.
+- Reader state is never a change: filters, view selections, table columns and their widths,
+  sorting, grouping, pagination, open or closed panels and bars, navigation, scrolling and
+  appearance. It raises neither the changed-HTML entry nor the unload warning, also where a
+  saved copy persists it; the applied filter has its own information entry.
+- Returning every change to its state when opened or last saved leaves no change.
 
 ## Content sections
 
