@@ -51,6 +51,9 @@ JSON manifest. The declaration is data, not a runtime registration mechanism. Th
 [[capability-reference|capability reference]] owns the supported identifiers and their semantics; adapters use
 that reference rather than duplicating capability definitions.
 
+The capability-reference generator reads those notes, rejects missing input-model
+coverage and dependency identifiers, and writes the schema-validated JSON document.
+
 Domain adapters own their evidence parsing, calculations, and report content;
 obs-html owns reusable rendering and interaction behavior. In evidence-driven
 pipelines, the generated Obsidian vault is a disposable intermediate
