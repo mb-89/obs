@@ -920,8 +920,10 @@ math {
     height: auto;
 }
 
+/* Like the continuous view's padding, the margin clears the chapter arrows' pointer areas, so
+   Home and the chapter choosers are not covered by Previous or Next. */
 .paged-reader>.chapter-breadcrumbs {
-    margin: 1rem 1.5rem;
+    margin: 1rem max(1.5rem, var(--chapter-nav-width));
 }
 
 .paper-sheet {

@@ -1,6 +1,10 @@
+import contextlib
+import functools
 import html
+import http.server
 import os
 import re
+import threading
 from pathlib import Path
 
 import pytest
@@ -22,6 +26,7 @@ def preview_report() -> str:
         "Preview",
         chapter("one", "One", heading(1, "One"), paragraph("First chapter text.")),
         chapter("two", "Two", heading(1, "Two"), paragraph("Second chapter text.")),
+        chapter("three", "Three", heading(1, "Three"), paragraph("Third chapter text.")),
     ), load_config())
 
 
@@ -33,20 +38,77 @@ def open_page(reader_browser, path: Path, errors: list[str]):
     return page
 
 
-def open_sandboxed(tmp_path: Path, reader_browser, errors: list[str]):
-    """Claude's preview: the HTML as srcdoc of a frame sandboxed to scripts only."""
+# The two preview-like frames: Claude's preview as srcdoc of a frame sandboxed to scripts only
+# (null origin), and as srcdoc of a same-origin frame with the flags a preview host grants,
+# served from an http origin as Claude's preview is.
+SANDBOXES = {
+    "null-origin": "allow-scripts",
+    "same-origin": "allow-scripts allow-same-origin allow-popups allow-forms allow-downloads",
+}
+
+
+def preview_wrapper(report: str, sandbox: str, width: int = 1100, height: int = 700) -> str:
+    return (
+        '<!doctype html><meta charset="utf-8"><link rel="icon" href="data:,"><body style="margin:0">'
+        f'<iframe id="report" sandbox="{sandbox}" style="width:{width}px;height:{height}px;border:0" '
+        f'srcdoc="{html.escape(report, quote=True)}"></iframe>'
+    )
+
+
+@contextlib.contextmanager
+def http_origin(folder: Path):
+    """Serve a folder from an http origin for as long as the block runs."""
+    handler = functools.partial(QuietHandler, directory=str(folder))
+    server = http.server.ThreadingHTTPServer(("127.0.0.1", 0), handler)
+    thread = threading.Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    try:
+        yield f"http://127.0.0.1:{server.server_address[1]}"
+    finally:
+        server.shutdown()
+        thread.join()
+
+
+class QuietHandler(http.server.SimpleHTTPRequestHandler):
+    def log_message(self, *_args) -> None:
+        pass
+
+
+def open_preview(tmp_path: Path, reader_browser, errors: list[str], report: str, frame_kind: str,
+                 origin: str | None = None):
+    """Open a report in one of the preview-like frames; same-origin frames need an http origin."""
     from playwright.sync_api import expect
 
-    wrapper = tmp_path / "preview.html"
-    wrapper.write_text(
-        '<!doctype html><iframe id="report" sandbox="allow-scripts" style="width:1100px;height:700px" '
-        f'srcdoc="{html.escape(preview_report(), quote=True)}"></iframe>',
-        encoding="utf-8",
-    )
-    page = open_page(reader_browser, wrapper, errors)
+    wrapper = tmp_path / f"preview-{frame_kind}.html"
+    wrapper.write_text(preview_wrapper(report, SANDBOXES[frame_kind]), encoding="utf-8")
+    page = reader_browser.new_page(viewport={"width": 1200, "height": 800})
+    page.on("pageerror", lambda error: errors.append(str(error)))
+    page.on("console", lambda message: errors.append(message.text) if message.type == "error" else None)
+    page.goto(f"{origin}/{wrapper.name}" if origin else wrapper.as_uri())
     frame = page.frame_locator("#report")
     expect(frame.locator("html")).to_have_attribute("data-report-status", "ready")
     return page, frame
+
+
+def open_sandboxed(tmp_path: Path, reader_browser, errors: list[str]):
+    """Claude's preview: the HTML as srcdoc of a frame sandboxed to scripts only."""
+    return open_preview(tmp_path, reader_browser, errors, preview_report(), "null-origin")
+
+
+def click_where_visible(page, frame, selector: str) -> None:
+    """Click by pointer at the element's visible centre, failing if something else covers it."""
+    element = frame.locator(selector).first
+    element.scroll_into_view_if_needed()
+    covering = element.evaluate("""(element) => {
+        const box = element.getBoundingClientRect();
+        const top = document.elementFromPoint(box.x + box.width / 2, box.y + box.height / 2);
+        if (!top || element.contains(top)) return "";
+        const owner = top.closest("[data-step], [data-bar], button, a") || top;
+        return owner.outerHTML.slice(0, 120);
+    }""")
+    assert covering == "", f"{selector} is covered at its visible position by {covering}"
+    box = element.bounding_box()
+    page.mouse.click(box["x"] + box["width"] / 2, box["y"] + box["height"] / 2)
 
 
 @pytest.mark.browser
@@ -169,3 +231,30 @@ def test_a_message_without_modal_dialogs_appears_beside_its_control(tmp_path: Pa
     assert dialogs == []
     assert errors == []
 
+
+
+@pytest.mark.browser
+@pytest.mark.parametrize("frame_kind", SANDBOXES)
+@pytest.mark.parametrize("page_mode", ["pages", "continuous"])
+def test_home_and_the_chapter_chooser_are_not_covered_by_the_previous_arrow(
+        tmp_path: Path, reader_browser, frame_kind: str, page_mode: str) -> None:
+    """Home opens Home from every chapter when clicked where it is shown, in both preview frames."""
+    from playwright.sync_api import expect
+
+    errors: list[str] = []
+    with http_origin(tmp_path) as origin:
+        page, frame = open_preview(tmp_path, reader_browser, errors, preview_report(), frame_kind,
+                                   origin if frame_kind == "same-origin" else None)
+        if page_mode == "continuous":
+            frame.locator("html").evaluate("() => globalThis.obsPages.setPaged(false)")
+        chapter_element = frame.locator("[data-active-chapter]")
+        for steps in (1, 2, 3):
+            for _ in range(steps):
+                click_where_visible(page, frame, '[data-step="1"] .chapter-nav-icon')
+            expect(chapter_element).not_to_have_attribute("data-chapter", "home")
+            click_where_visible(page, frame, ".chapter-breadcrumb-toggle")
+            expect(frame.locator(".chapter-breadcrumb-chooser[open]")).to_have_count(1)
+            page.keyboard.press("Escape")
+            click_where_visible(page, frame, ".chapter-home-link")
+            expect(chapter_element).to_have_attribute("data-chapter", "home")
+    assert errors == []
