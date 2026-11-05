@@ -17,5 +17,31 @@ Render standard Markdown chapter content safely.
 ```markdown
 # Chapter
 
-Ordinary **Markdown** content.
+Ordinary *emphasis*, **strong**, ~~struck~~, `code` and $x^2$ text.
+
+| Column |
+|---|
+| A **cell** |
+
+> A quotation.
 ```
+
+## Document nodes
+
+The Document keeps everything the author wrote, without its style. The supported dialect is
+CommonMark with pipe tables, `~~strikethrough~~` and TeX math (`$x$`, `$$x$$`). Its constructs
+arrive as structural nodes, which every adapter renders; `document.schema.json` lists them
+(`structuralType`) and owns their shape:
+
+- blocks: `section` (a heading), `paragraph`, `list` and `list-item`, `code` (fenced or
+  indented, `attrs.language`), `quote` (a blockquote that is not a
+  [[capabilities/callouts|callout]]), `table` with `table-row` and `table-cell`
+  (`attrs.header`, and `attrs.align` where the delimiter row sets one), and display `math`;
+- inline: `text` (link text carries `attrs.link`), `emphasis`, `strong`, `strikethrough`
+  (each holding the inline nodes it marks, so marks nest), inline `code` and `math`
+  (`attrs.display: false`, the formula as `text`).
+
+Every place that holds Markdown yields these nodes: chapter and abstract text, list items,
+callout, quote and card bodies, table cells, and frontmatter values
+([[capabilities/markdown-frontmatter#Document node]]). A list item holds any block, including a
+callout.

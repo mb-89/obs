@@ -1,7 +1,9 @@
 """Parse a Markdown vault into the neutral Document data model."""
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from copy import copy
+from functools import cache
+from dataclasses import dataclass, field, replace
 import mimetypes
 import json
 from pathlib import Path
@@ -9,6 +11,7 @@ import re
 
 from markdown_it import MarkdownIt
 from markdown_it.token import Token
+from mdit_py_plugins.dollarmath import dollarmath_plugin
 import yaml
 
 from obs.config import CoreConfig, CoreConfigError, load_core_config
@@ -35,8 +38,6 @@ _WIKILINK = re.compile(
     r"(?<!!)\[\[(?P<target>[^\]|#]+)(?:#(?P<heading>[^\]|]+))?(?:\|(?P<label>[^\]]+))?\]\]"
 )
 _EMBED = re.compile(r"!\[\[(?P<target>[^\]|#]+)(?:#[^\]|]+)?(?:\|[^\]]+)?\]\]")
-_QUOTE_PREFIX = re.compile(r"^ {0,3}> ?")
-"""One level of blockquote prefix; a callout body is its blockquote's lines without it."""
 _MARK = re.compile(r"#mark/(?P<category>[a-z_]+)/(?P<id>[a-z0-9_]+)")
 _SEMANTIC = re.compile(
     r"(?P<embed>!)?\[\[(?P<target>[^\]|#]+)(?:#(?P<heading>[^\]|]+))?"
@@ -115,18 +116,16 @@ def build_document(
         _metadata_links(chapter_metadata, path, vault)
         _query_selection(chapter_metadata.get("query"), path, vault)
         chapter["metadata"] = _json_value(chapter_metadata)
-        content = _frontmatter_nodes(
-            chapter_metadata, capability_ids or set(), capabilities,
+        context = _Context(
+            path, vault, links, assets, link_ids, asset_ids, capability_ids or set(), capabilities,
         )
+        content = _frontmatter_nodes(chapter_metadata, context)
         if "chapter-inclusion" in (capability_ids or set()):
             content.append({
                 "type": "chapter-inclusion", "attrs": {"id": chapter["id"]}, "children": [],
             })
             capabilities.add("chapter-inclusion")
-        parsed = _nodes(
-            chapter_body, path, vault, links, assets, link_ids, asset_ids,
-            capability_ids or set(), capabilities,
-        )
+        parsed = _nodes(chapter_body, context)
         if parsed and "markdown" in (capability_ids or set()):
             content.append({"type": "markdown", "attrs": {}, "children": []})
             capabilities.add("markdown")
@@ -138,10 +137,12 @@ def build_document(
     for chapter in chapters:
         parse_chapter(chapter)
     _metadata_links(metadata, manifest_path, vault)
-    abstract_nodes = _nodes(
-        body[abstract:], manifest_path, vault, links, assets, link_ids, asset_ids,
-        capability_ids or set(), capabilities,
+    manifest_context = _Context(
+        manifest_path, vault, links, assets, link_ids, asset_ids, capability_ids or set(),
+        capabilities,
     )
+    abstract_nodes = _nodes(body[abstract:], manifest_context)
+    manifest_nodes = _frontmatter_nodes(metadata, manifest_context)
     unlisted: list[dict[str, object]] = []
     while vault.reached:
         path = vault.reached.pop(0)
@@ -155,7 +156,6 @@ def build_document(
         del chapter["_relative"]
     for attrs, target in vault.links:
         attrs["chapter"] = HOME if target == manifest_path else vault.identities.get(target)
-    manifest_nodes = _frontmatter_nodes(metadata, capability_ids or set(), capabilities)
     if "manifest" in (capability_ids or set()):
         manifest_nodes.append({"type": "manifest", "attrs": {}, "children": []})
         capabilities.add("manifest")
@@ -404,18 +404,18 @@ def _parse_manifest(
     return chapters, abstract_start
 
 
-def _frontmatter_nodes(
-    metadata: dict[str, object], capability_ids: set[str], capabilities: set[str],
-) -> list[dict[str, object]]:
+def _frontmatter_nodes(metadata: dict[str, object], context: _Context) -> list[dict[str, object]]:
     nodes: list[dict[str, object]] = []
 
-    def add(identifier: str, attrs: dict[str, object]) -> None:
-        if identifier in capability_ids:
-            nodes.append({"type": identifier, "attrs": attrs, "children": []})
-            capabilities.add(identifier)
+    def add(
+        identifier: str, attrs: dict[str, object], children: list[dict[str, object]] | None = None,
+    ) -> None:
+        if identifier in context.capability_ids:
+            nodes.append({"type": identifier, "attrs": attrs, "children": children or []})
+            context.capabilities.add(identifier)
 
-    if metadata:
-        add("markdown-frontmatter", {"metadata": _json_value(metadata)})
+    if metadata and "markdown-frontmatter" in context.capability_ids:
+        add("markdown-frontmatter", {"metadata": _json_value(metadata)}, _field_nodes(metadata, "", context))
     if "obsHtml" in metadata:
         add("profiles", {"profile": _json_value(metadata["obsHtml"])})
     if metadata.get("kind") == "quantity":
@@ -429,205 +429,300 @@ def _frontmatter_nodes(
     return nodes
 
 
-def _nodes(
-    source: str, source_path: Path, vault: _Vault, links: list[dict[str, str]],
-    assets: list[dict[str, str]], link_ids: set[str], asset_ids: set[str],
-    capability_ids: set[str], capabilities: set[str],
+@dataclass
+class _Context:
+    """What parsing one note's Markdown reads and adds to; see input-model "Chapter content"."""
+
+    source_path: Path
+    vault: _Vault
+    links: list[dict[str, str]]
+    assets: list[dict[str, str]]
+    link_ids: set[str]
+    asset_ids: set[str]
+    capability_ids: set[str]
+    capabilities: set[str]
+    base_fences: int = 0
+
+
+@cache
+def _parser() -> MarkdownIt:
+    """The supported Markdown dialect: CommonMark, pipe tables, strikethrough and TeX math."""
+    return MarkdownIt("commonmark", {"html": False, "linkify": False}).enable(
+        ["table", "strikethrough"],
+    ).use(dollarmath_plugin, allow_labels=False, allow_space=False, allow_digits=False)
+
+
+def _nodes(source: str, context: _Context) -> list[dict[str, object]]:
+    tokens = _parser().parse(source)
+    return _blocks(tokens, 0, len(tokens), context)
+
+
+def _closing(tokens: list[Token], position: int) -> int:
+    """The index of the token that closes the block tokens[position] opens."""
+    opening = tokens[position]
+    closing = opening.type.removesuffix("_open") + "_close"
+    return next(
+        index for index in range(position + 1, len(tokens))
+        if tokens[index].type == closing and tokens[index].level == opening.level
+    )
+
+
+def _blocks(
+    tokens: list[Token], position: int, end: int, context: _Context,
 ) -> list[dict[str, object]]:
-    tokens = MarkdownIt("commonmark", {"html": False, "linkify": False}).parse(source)
+    """The block nodes of tokens[position:end], each block with its nested blocks."""
     result: list[dict[str, object]] = []
-    position = 0
-    base_fences = 0
-    while position < len(tokens):
+    while position < end:
         token = tokens[position]
-        if token.type == "heading_open" and position + 1 < len(tokens):
+        if token.type in {"heading_open", "paragraph_open"}:
             result.append({
-                "type": "section", "attrs": {"level": int(token.tag[1:])},
-                "children": _inline_nodes(tokens[position + 1], source_path, vault, links, assets, link_ids, asset_ids, capability_ids, capabilities),
+                "type": "section" if token.type == "heading_open" else "paragraph",
+                "attrs": {"level": int(token.tag[1:])} if token.type == "heading_open" else {},
+                "children": _inline_nodes(tokens[position + 1], context),
             })
-            position += 3
-        elif token.type == "paragraph_open" and position + 1 < len(tokens):
-            result.append({
-                "type": "paragraph", "attrs": {},
-                "children": _inline_nodes(tokens[position + 1], source_path, vault, links, assets, link_ids, asset_ids, capability_ids, capabilities),
-            })
-            position += 3
+            position = _closing(tokens, position) + 1
         elif token.type in {"bullet_list_open", "ordered_list_open"}:
-            node, position = _list_node(
-                tokens, position, source_path, vault, links, assets, link_ids, asset_ids, capability_ids, capabilities,
-            )
-            result.append(node)
-        elif token.type == "fence":
-            info = token.info.strip().split()
-            language = info[0] if info else ""
-            silent_command = info == ["cmd", "silent"]
-            figure_descriptor: dict[str, object] | None = None
-            try:
-                if language == "base":
-                    specification = yaml.safe_load(token.content)
-                    validate_base_definition(specification, source_path)
-                    base_fences += 1
-                    _base_selection(specification, source_path, vault, f"base fence {base_fences}")
-                elif language == "cards":
-                    specification = parse_card_spec(token.content)
-                    card_bodies = []
-                    body_capabilities: set[str] = set()
-                    for card in specification["cards"]:
-                        for metric in card.get("metrics", []):
-                            _query_selection(metric, source_path, vault)
-                        card_bodies.append({"type": "document", "attrs": {}, "children": _nodes(
-                            card["body"], source_path, vault, links, assets, link_ids, asset_ids,
-                            capability_ids, body_capabilities,
-                        )})
-                elif language == "property-editor":
-                    parse_property_editor(token.content, source_path)
-                elif language == "cmd":
-                    validate_command(token.content)
-                elif language == "figure":
-                    try:
-                        figure_descriptor = json.loads(token.content)
-                    except json.JSONDecodeError:
-                        figure_descriptor = None
-                    if figure_descriptor is not None:
-                        if not isinstance(figure_descriptor, dict):
-                            raise FigureDescriptorError("Figure descriptor must be an object.")
-                        validate_figure_descriptor(figure_descriptor)
-            except (InputError, FigureDescriptorError, yaml.YAMLError) as error:
-                raise VaultError(str(error)) from error
-            fence_type = {
-                "base": "bases",
-                "cmd": "command-fences",
-                "cards": "cards-metrics",
-                "property-editor": "property-editors",
-            }.get(language)
-            if language == "figure":
-                fence_type = "figure-descriptor" if figure_descriptor is not None else "figures"
-            if fence_type in capability_ids:
-                attrs: dict[str, object] = {"source": token.content}
-                if silent_command:
-                    attrs["silent"] = True
-                if language == "figure" and figure_descriptor is not None:
-                    attrs = {"descriptor": figure_descriptor}
-                elif language in {"base", "figure"}:
-                    try:
-                        spec = yaml.safe_load(token.content)
-                    except yaml.YAMLError as error:
-                        raise VaultError(f"Invalid {language} fence in {source_path}: {error}") from error
-                    if spec is not None:
-                        attrs["spec"] = _json_value(spec)
-                elif language == "cards":
-                    attrs["spec"] = _json_value(specification)
-                    capabilities.update(body_capabilities)
-                result.append({
-                    "type": fence_type, "attrs": attrs,
-                    "children": card_bodies if language == "cards" else [],
+            closing = _closing(tokens, position)
+            items = []
+            item = position + 1
+            while item < closing:
+                item_end = _closing(tokens, item)
+                items.append({
+                    "type": "list-item", "attrs": {},
+                    "children": _blocks(tokens, item + 1, item_end, context),
                 })
-                capabilities.add(fence_type)
-            else:
-                result.append({
-                    "type": "code", "attrs": {"language": language},
-                    "children": [], "text": token.content,
-                })
+                item = item_end + 1
+            result.append({
+                "type": "list", "attrs": {"ordered": token.type == "ordered_list_open"},
+                "children": items,
+            })
+            position = closing + 1
+        elif token.type in {"fence", "code_block"}:
+            result.append(_fence_node(token, context))
             position += 1
-        elif token.type == "blockquote_open" and position + 2 < len(tokens):
-            inline = next((item for item in tokens[position:] if item.type == "inline"), None)
-            lines = inline.content.splitlines() if inline else []
-            callout = parse_callout(lines[0].strip()) if lines else None
-            if callout and "callouts" in capability_ids:
-                closing = next(
-                    index for index in range(position + 1, len(tokens))
-                    if tokens[index].type == "blockquote_close" and tokens[index].level == token.level
-                )
-                start, end = token.map
-                body = [_QUOTE_PREFIX.sub("", line, count=1) for line in source.splitlines()[start:end]]
-                result.append({
-                    "type": "callouts",
-                    "attrs": {"kind": callout["type"], "title": callout["title"]},
-                    "children": _nodes(
-                        "\n".join(body[1:]), source_path, vault, links, assets, link_ids, asset_ids,
-                        capability_ids, capabilities,
-                    ),
-                })
-                capabilities.add("callouts")
-                position = closing + 1
-            else:
-                position += 1
+        elif token.type == "blockquote_open":
+            closing = _closing(tokens, position)
+            result.append(_callout(tokens, position, closing, context) or {
+                "type": "quote", "attrs": {},
+                "children": _blocks(tokens, position + 1, closing, context),
+            })
+            position = closing + 1
+        elif token.type == "table_open":
+            closing = _closing(tokens, position)
+            result.append({"type": "table", "attrs": {}, "children": _table_rows(
+                tokens[position:closing], context,
+            )})
+            position = closing + 1
+        elif token.type == "math_block":
+            result.append({
+                "type": "math", "attrs": {"display": True}, "children": [],
+                "text": token.content.strip("\n"),
+            })
+            position += 1
         else:
             position += 1
     return result
 
 
-def _list_node(
-    tokens: list[Token], position: int, source_path: Path, vault: _Vault,
-    links: list[dict[str, str]], assets: list[dict[str, str]], link_ids: set[str], asset_ids: set[str],
-    capability_ids: set[str], capabilities: set[str],
-) -> tuple[dict[str, object], int]:
-    opening = tokens[position]
-    items: list[dict[str, object]] = []
-    position += 1
-    while position < len(tokens) and tokens[position].type != opening.type.replace("_open", "_close"):
-        if tokens[position].type != "list_item_open":
-            position += 1
-            continue
-        position += 1
-        children: list[dict[str, object]] = []
-        while position < len(tokens) and tokens[position].type != "list_item_close":
-            token = tokens[position]
-            if token.type == "paragraph_open" and position + 1 < len(tokens):
-                children.append({
-                    "type": "paragraph", "attrs": {},
-                    "children": _inline_nodes(tokens[position + 1], source_path, vault, links, assets, link_ids, asset_ids, capability_ids, capabilities),
+def _table_rows(tokens: list[Token], context: _Context) -> list[dict[str, object]]:
+    """A pipe table's rows; each cell names whether it is a header and its authored alignment."""
+    rows: list[dict[str, object]] = []
+    for index, token in enumerate(tokens):
+        if token.type == "tr_open":
+            rows.append({"type": "table-row", "attrs": {}, "children": []})
+        elif token.type in {"th_open", "td_open"}:
+            attrs: dict[str, object] = {"header": token.type == "th_open"}
+            style = str(token.attrGet("style") or "")
+            if style.startswith("text-align:"):
+                attrs["align"] = style.removeprefix("text-align:")
+            rows[-1]["children"].append({
+                "type": "table-cell", "attrs": attrs,
+                "children": _inline_nodes(tokens[index + 1], context),
+            })
+    return rows
+
+
+def _callout(
+    tokens: list[Token], position: int, closing: int, context: _Context,
+) -> dict[str, object] | None:
+    """A callout node for the blockquote tokens[position:closing], or None; see capabilities/callouts.
+
+    The marker is the first line of the blockquote's first paragraph; the rest of the
+    blockquote, nested blocks included, is the body.
+    """
+    if "callouts" not in context.capability_ids or tokens[position + 1].type != "paragraph_open":
+        return None
+    inline = tokens[position + 2]
+    callout = parse_callout(inline.content.splitlines()[0].strip()) if inline.content else None
+    if callout is None:
+        return None
+    children = inline.children or []
+    first_break = next(
+        (index for index, child in enumerate(children) if child.type in {"softbreak", "hardbreak"}),
+        None,
+    )
+    body_tokens = list(tokens[position + 1:closing])
+    paragraph_end = _closing(tokens, position + 1) - position - 1
+    if first_break is None:
+        body_tokens = body_tokens[paragraph_end + 1:]
+    else:
+        rest = copy(inline)
+        rest.children = children[first_break + 1:]
+        rest.content = inline.content.split("\n", 1)[1]
+        body_tokens[1] = rest
+    context.capabilities.add("callouts")
+    return {
+        "type": "callouts",
+        "attrs": {"kind": callout["type"], "title": callout["title"]},
+        "children": _blocks(body_tokens, 0, len(body_tokens), context),
+    }
+
+
+def _fence_node(token: Token, context: _Context) -> dict[str, object]:
+    """The node of one fenced or indented code block; see capabilities/markdown."""
+    source_path, vault, capability_ids = context.source_path, context.vault, context.capability_ids
+    info = token.info.strip().split() if token.type == "fence" else []
+    language = info[0] if info else ""
+    silent_command = info == ["cmd", "silent"]
+    figure_descriptor: dict[str, object] | None = None
+    try:
+        if language == "base":
+            specification = yaml.safe_load(token.content)
+            validate_base_definition(specification, source_path)
+            context.base_fences += 1
+            _base_selection(specification, source_path, vault, f"base fence {context.base_fences}")
+        elif language == "cards":
+            specification = parse_card_spec(token.content)
+            card_bodies = []
+            body_context = replace(context, capabilities=set(), base_fences=0)
+            for card in specification["cards"]:
+                for metric in card.get("metrics", []):
+                    _query_selection(metric, source_path, vault)
+                card_bodies.append({
+                    "type": "document", "attrs": {}, "children": _nodes(card["body"], body_context),
                 })
-                position += 3
-            elif token.type in {"bullet_list_open", "ordered_list_open"}:
-                child, position = _list_node(
-                    tokens, position, source_path, vault, links, assets, link_ids, asset_ids, capability_ids, capabilities,
-                )
-                children.append(child)
-            else:
-                position += 1
-        items.append({"type": "list-item", "attrs": {}, "children": children})
-        position += 1
-    return {"type": "list", "attrs": {"ordered": opening.type == "ordered_list_open"}, "children": items}, position + 1
+        elif language == "property-editor":
+            specification = parse_property_editor(token.content, source_path)
+        elif language == "cmd":
+            validate_command(token.content)
+        elif language == "figure":
+            try:
+                figure_descriptor = json.loads(token.content)
+            except json.JSONDecodeError:
+                figure_descriptor = None
+            if figure_descriptor is not None:
+                if not isinstance(figure_descriptor, dict):
+                    raise FigureDescriptorError("Figure descriptor must be an object.")
+                validate_figure_descriptor(figure_descriptor)
+    except (InputError, FigureDescriptorError, yaml.YAMLError) as error:
+        raise VaultError(str(error)) from error
+    fence_type = {
+        "base": "bases",
+        "cmd": "command-fences",
+        "cards": "cards-metrics",
+        "property-editor": "property-editors",
+    }.get(language)
+    if language == "figure":
+        fence_type = "figure-descriptor" if figure_descriptor is not None else "figures"
+    if fence_type is None or fence_type not in capability_ids:
+        return {
+            "type": "code", "attrs": {"language": language},
+            "children": [], "text": token.content,
+        }
+    attrs: dict[str, object] = {"source": token.content}
+    if silent_command:
+        attrs["silent"] = True
+    if language == "figure" and figure_descriptor is not None:
+        attrs = {"descriptor": figure_descriptor}
+    elif language in {"base", "figure"}:
+        try:
+            spec = yaml.safe_load(token.content)
+        except yaml.YAMLError as error:
+            raise VaultError(f"Invalid {language} fence in {source_path}: {error}") from error
+        if spec is not None:
+            attrs["spec"] = _json_value(spec)
+    elif language == "property-editor":
+        attrs["spec"] = _json_value(specification)
+    elif language == "cards":
+        attrs["spec"] = _json_value(specification)
+        context.capabilities.update(body_context.capabilities)
+    context.capabilities.add(fence_type)
+    return {
+        "type": fence_type, "attrs": attrs,
+        "children": card_bodies if language == "cards" else [],
+    }
 
 
-def _inline_nodes(
-    token: Token, source_path: Path, vault: _Vault, links: list[dict[str, str]],
-    assets: list[dict[str, str]], link_ids: set[str], asset_ids: set[str],
-    capability_ids: set[str], capabilities: set[str],
-) -> list[dict[str, object]]:
+_INLINE_MARKS = {"em": "emphasis", "strong": "strong", "s": "strikethrough"}
+"""Inline marks, by markdown-it token name, and the structural node each becomes."""
+
+
+def _inline_nodes(token: Token, context: _Context) -> list[dict[str, object]]:
+    """The inline nodes of one inline token; marks nest, link text carries attrs.link."""
     result: list[dict[str, object]] = []
+    open_nodes = [result]
     link: dict[str, str] | None = None
     children = token.children or []
     for index, child in enumerate(children):
-        if child.type == "link_open":
+        output = open_nodes[-1]
+        mark = child.type.removesuffix("_open").removesuffix("_close")
+        if mark in _INLINE_MARKS and child.type.endswith("_open"):
+            node = {"type": _INLINE_MARKS[mark], "attrs": {}, "children": []}
+            output.append(node)
+            open_nodes.append(node["children"])
+        elif mark in _INLINE_MARKS:
+            open_nodes.pop()
+        elif child.type == "link_open":
             href = child.attrGet("href") or ""
-            link = _resource(links, link_ids, _link_label(children[index + 1:]), href)
+            link = _resource(context.links, context.link_ids, _link_label(children[index + 1:]), href)
         elif child.type == "link_close":
             link = None
         elif child.type == "image":
             src = child.attrGet("src") or ""
-            asset = _asset(assets, asset_ids, child.content or src, src)
-            if "attachments" in capability_ids:
-                result.append({
+            asset = _asset(context.assets, context.asset_ids, child.content or src, src)
+            if "attachments" in context.capability_ids:
+                output.append({
                     "type": "attachments", "attrs": {"asset": asset["id"], "label": child.content},
                     "children": [],
                 })
-                capabilities.add("attachments")
+                context.capabilities.add("attachments")
             else:
-                result.append({"type": "text", "attrs": {"asset": asset["id"]}, "children": [], "text": child.content})
+                output.append({"type": "text", "attrs": {"asset": asset["id"]}, "children": [], "text": child.content})
         elif child.type == "code_inline":
-            result.append({"type": "code", "attrs": {}, "children": [], "text": child.content})
+            output.append({"type": "code", "attrs": {}, "children": [], "text": child.content})
+        elif child.type in {"math_inline", "math_inline_double"}:
+            output.append({
+                "type": "math", "attrs": {"display": child.type == "math_inline_double"},
+                "children": [], "text": child.content,
+            })
         elif child.type in {"text", "softbreak", "hardbreak"}:
-            attrs = {"link": link["id"]} if link else {}
             text = "\n" if child.type != "text" else child.content
-            if attrs:
-                result.append({"type": "text", "attrs": attrs, "children": [], "text": text})
+            if link:
+                output.append({"type": "text", "attrs": {"link": link["id"]}, "children": [], "text": text})
             else:
-                result.extend(_semantic_text_nodes(
-                    text, source_path, vault, links, link_ids, capability_ids, capabilities,
+                output.extend(_semantic_text_nodes(
+                    text, context.source_path, context.vault, context.links, context.link_ids,
+                    context.capability_ids, context.capabilities,
                 ))
     return result
+
+
+def _field_nodes(value: object, name: str, context: _Context) -> list[dict[str, object]]:
+    """One field node per nonempty string in a metadata value, by dotted path; see markdown-frontmatter."""
+    if isinstance(value, dict):
+        return [
+            node for key, item in value.items()
+            for node in _field_nodes(item, f"{name}.{key}" if name else str(key), context)
+        ]
+    if isinstance(value, list):
+        return [
+            node for index, item in enumerate(value)
+            for node in _field_nodes(item, f"{name}.{index}", context)
+        ]
+    if not isinstance(value, str) or not value.strip():
+        return []
+    tokens = _parser().parseInline(value)
+    return [{"type": "field", "attrs": {"name": name}, "children": _inline_nodes(tokens[0], context)}]
 
 
 def _semantic_text_nodes(

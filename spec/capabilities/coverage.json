@@ -20,7 +20,7 @@
     "Mark tags": "input",
     "Base fences": "input",
     "Command-derived content": "input",
-    "Reviewed copy": "adapter",
+    "Reviewed copy": "input",
     "One count query": "input",
     "Next Obsidian extension": "input",
     "Canonical reference presentation": "adapter",

@@ -30,3 +30,7 @@ when none is authored); `document.schema.json` owns the node's shape.
 Its `children` are the callout body parsed like chapter content: paragraphs, lists, code,
 links, wikilinks (with `attrs.chapter`), marks and nested callouts arrive as the same node
 trees, and the Document names every capability they use.
+
+A callout nested under a list item (`- > [!note]`, or a blockquote indented under the item) is a
+`callouts` node among that `list-item`'s children, after the item's own paragraph: the
+callout marks that item. A list item's children are block nodes parsed like chapter content.

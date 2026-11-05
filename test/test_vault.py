@@ -6,7 +6,7 @@ from jsonschema import ValidationError, validate
 import pytest
 
 from obs.capabilities import build_capability_reference
-from obs.document import build_document
+from obs.document import STRUCTURAL_NODE_TYPES, build_document
 
 
 ROOT = Path(__file__).parents[1]
@@ -33,12 +33,16 @@ def node_types(document: dict[str, object]) -> set[str]:
             yield from chapters(chapter["children"])
 
     return {
-        *[node["type"] for node in document["manifest"]["abstract"]],
+        *[kind for node in document["manifest"]["abstract"] for kind in descend(node)],
         *chapters(document["chapters"]),
     }
 
 
 def recognized_capability_document(tmp_path) -> dict[str, object]:
+    return build_document(recognized_capability_vault(tmp_path) / "manifest.md", capability_reference())
+
+
+def recognized_capability_vault(tmp_path) -> Path:
     vault = tmp_path / "recognized"
     vault.mkdir()
     (vault / "manifest.md").write_text("- [[chapter]]\n", encoding="utf-8")
@@ -49,10 +53,14 @@ def recognized_capability_document(tmp_path) -> dict[str, object]:
         "```base\nviews: []\n```\n\n```figure\ncaption: Diagram\n```\n\n```cmd\necho example\n```\n",
         encoding="utf-8",
     )
-    return build_document(vault / "manifest.md", capability_reference())
+    return vault
 
 
 def additional_capability_document(tmp_path) -> dict[str, object]:
+    return build_document(additional_capability_vault(tmp_path) / "manifest.md", capability_reference())
+
+
+def additional_capability_vault(tmp_path) -> Path:
     vault = tmp_path / "additional"
     vault.mkdir()
     (vault / "manifest.md").write_text(
@@ -74,10 +82,11 @@ def additional_capability_document(tmp_path) -> dict[str, object]:
         '"axes": [{"id": "time", "scale": "linear", "limits": {"minimum": 0, "maximum": 1}, '
         '"label": "Time"}]}], '
         '"provenance": {"command": ["generate-figure"]}}\n'
-        "```\n",
+        "```\n\n"
+        "```property-editor\nversion: 1\nfield: source\nlabel: Source\n```\n",
         encoding="utf-8",
     )
-    return build_document(vault / "manifest.md", capability_reference())
+    return vault
 
 
 def test_core_parses_a_vault_into_semantic_document_json(tmp_path) -> None:
@@ -102,7 +111,11 @@ def test_core_parses_a_vault_into_semantic_document_json(tmp_path) -> None:
     assert document["manifest"] == {
         "title": "Fixture vault", "metadata": {"title": "Fixture vault"},
         "abstract": [
-            {"type": "markdown-frontmatter", "attrs": {"metadata": {"title": "Fixture vault"}}, "children": []},
+            {"type": "markdown-frontmatter", "attrs": {"metadata": {"title": "Fixture vault"}}, "children": [
+                {"type": "field", "attrs": {"name": "title"}, "children": [
+                    {"type": "text", "attrs": {}, "children": [], "text": "Fixture vault"},
+                ]},
+            ]},
             {"type": "manifest", "attrs": {}, "children": []},
         ],
     }
@@ -192,7 +205,9 @@ def test_a_callout_body_arrives_as_parsed_nodes_like_chapter_content(tmp_path) -
     paragraph, listing, nested = callout["children"]
     assert paragraph == {"type": "paragraph", "attrs": {}, "children": [
         {"type": "text", "attrs": {}, "children": [], "text": "Read "},
-        {"type": "text", "attrs": {}, "children": [], "text": "carefully"},
+        {"type": "emphasis", "attrs": {}, "children": [
+            {"type": "text", "attrs": {}, "children": [], "text": "carefully"},
+        ]},
         {"type": "text", "attrs": {}, "children": [], "text": ", see "},
         {"type": "wikilinks", "attrs": {
             "target": "target", "chapter": "target", "heading": "", "label": "Target",
@@ -235,13 +250,7 @@ def test_a_card_body_arrives_as_parsed_nodes_with_its_capability_fences(tmp_path
     (vault / "chapter.md").write_text(
         f"```cards\n{json.dumps(cards)}\n```\n", encoding="utf-8",
     )
-    reference = capability_reference()
-    reference["capabilities"].append({
-        "id": "property-editors", "summary": "An adapter's capability.", "authoring": "",
-        "dependsOn": [], "source": "[[adapter]]",
-    })
-
-    document = build_document(vault / "manifest.md", reference)
+    document = build_document(vault / "manifest.md", capability_reference())
 
     validate(document, json.loads((ROOT / "src" / "obs" / "document.schema.json").read_text(
         encoding="utf-8",
@@ -318,13 +327,17 @@ def test_core_emits_data_only_nodes_for_additional_input_capabilities(tmp_path) 
     assert [node["type"] for node in emitted] == [
         "markdown-frontmatter", "profiles", "quantities", "queries", "count-query",
         "references", "chapter-inclusion", "markdown", "attachments", "registers",
-        "cards-metrics", "figure-descriptor",
+        "cards-metrics", "figure-descriptor", "property-editors",
     ]
-    assert emitted[-1]["attrs"]["descriptor"]["id"] == "comparison"
+    assert emitted[-2]["attrs"]["descriptor"]["id"] == "comparison"
+    assert emitted[-1]["attrs"] == {
+        "source": "version: 1\nfield: source\nlabel: Source\n",
+        "spec": {"version": 1, "field": "source", "label": "Source"},
+    }
     assert {
         "attachments", "cards-metrics", "count-query", "figure-descriptor",
-        "markdown-frontmatter", "profiles", "quantities", "queries", "references",
-        "registers",
+        "markdown-frontmatter", "profiles", "property-editors", "quantities", "queries",
+        "references", "registers",
     } <= set(document["capabilities"])
 
 
@@ -354,10 +367,16 @@ def test_core_resolves_link_and_embed_targets_to_chapter_ids(tmp_path) -> None:
 def test_spec_document_wikilinks_name_their_included_chapter() -> None:
     document = build_document(ROOT / "spec" / "manifest.md", capability_reference())
     manifest = (ROOT / "spec" / "manifest.md").read_text(encoding="utf-8")
-    chapter_ids = {
-        Path(target).name: re.sub(r"[^a-z0-9]+", "-", target.lower()).strip("-")
+    listed = {
+        target: re.sub(r"[^a-z0-9]+", "-", target.lower()).strip("-")
         for target in re.findall(r"^ *- \[\[([^\]|]+)", manifest, re.MULTILINE)
     }
+
+    def listed_chapter(target: str) -> str | None:
+        """The listed chapter a link names: by its path, or by note name when it has no folder."""
+        if "/" in target:
+            return listed.get(target)
+        return next((chapter for path, chapter in listed.items() if Path(path).name == target), None)
 
     def links(nodes: list[dict[str, object]]):
         for node in nodes:
@@ -371,20 +390,20 @@ def test_spec_document_wikilinks_name_their_included_chapter() -> None:
             yield from chapters(chapter["children"])
 
     resolved = list(chapters(document["chapters"]))
-    included = [attrs for attrs in resolved if Path(attrs["target"]).name in chapter_ids]
+    included = [attrs for attrs in resolved if listed_chapter(attrs["target"])]
     assert included
-    assert all(attrs["chapter"] == chapter_ids[Path(attrs["target"]).name] for attrs in included)
+    assert all(attrs["chapter"] == listed_chapter(attrs["target"]) for attrs in included)
     unlisted = {chapter["id"] for chapter in document["chapters"] if chapter.get("toc") is False}
     assert all(
         attrs["chapter"] in unlisted | {"home"}
-        for attrs in resolved if Path(attrs["target"]).name not in chapter_ids
+        for attrs in resolved if not listed_chapter(attrs["target"])
     )
 
 
 def test_core_parses_the_spec_vault_as_neutral_document(tmp_path) -> None:
     reference = capability_reference()
     document = build_document(ROOT / "spec" / "manifest.md", reference)
-    structural = {"document", "section", "paragraph", "text", "list", "list-item", "code"}
+    structural = STRUCTURAL_NODE_TYPES
     references = {item["id"] for item in reference["capabilities"]}
     types = node_types(document)
     assert types <= structural | references
@@ -407,3 +426,157 @@ def test_core_parses_the_spec_vault_as_neutral_document(tmp_path) -> None:
     with pytest.raises(AssertionError):
         assert input_ids <= (emitted - {"attachments"}) | INPUT_CAPABILITY_GAPS
     assert "html" not in types
+
+
+def test_a_callout_nested_under_a_list_item_is_a_callout_of_that_item(tmp_path) -> None:
+    vault = tmp_path / "vault"
+    vault.mkdir()
+    (vault / "manifest.md").write_text("- [[chapter]]\n", encoding="utf-8")
+    (vault / "chapter.md").write_text(
+        "- Item\n\n  > [!warning] Risk\n  > Body.\n\n  ```text\n  literal\n  ```\n"
+        "- > [!note]\n  > Marked item.\n",
+        encoding="utf-8",
+    )
+
+    document = build_document(vault / "manifest.md", capability_reference())
+
+    validate(document, json.loads((ROOT / "src" / "obs" / "document.schema.json").read_text(
+        encoding="utf-8",
+    )))
+    [listing] = [node for node in document["chapters"][0]["content"] if node["type"] == "list"]
+    first, second = listing["children"]
+    assert [child["type"] for child in first["children"]] == ["paragraph", "callouts", "code"]
+    assert first["children"][1] == {
+        "type": "callouts", "attrs": {"kind": "warning", "title": "Risk"}, "children": [
+            {"type": "paragraph", "attrs": {}, "children": [
+                {"type": "text", "attrs": {}, "children": [], "text": "Body."},
+            ]},
+        ],
+    }
+    assert second["children"] == [{
+        "type": "callouts", "attrs": {"kind": "note", "title": ""}, "children": [
+            {"type": "paragraph", "attrs": {}, "children": [
+                {"type": "text", "attrs": {}, "children": [], "text": "Marked item."},
+            ]},
+        ],
+    }]
+    assert "callouts" in document["capabilities"]
+
+
+INLINE_SOURCE = "A *em* **strong** ~~gone~~ `code` $x^2$ [link](https://example.test)"
+"""One of each inline mark the input model supports; INLINE_NODES is what it becomes."""
+
+
+def _text(text: str, **attrs: str) -> dict[str, object]:
+    return {"type": "text", "attrs": attrs, "children": [], "text": text}
+
+
+INLINE_NODES = [
+    _text("A "),
+    {"type": "emphasis", "attrs": {}, "children": [_text("em")]},
+    _text(" "),
+    {"type": "strong", "attrs": {}, "children": [_text("strong")]},
+    _text(" "),
+    {"type": "strikethrough", "attrs": {}, "children": [_text("gone")]},
+    _text(" "),
+    {"type": "code", "attrs": {}, "children": [], "text": "code"},
+    _text(" "),
+    {"type": "math", "attrs": {"display": False}, "children": [], "text": "x^2"},
+    _text(" "),
+    _text("link", link="link"),
+]
+
+
+def test_inline_marks_arrive_as_inline_nodes_in_every_context(tmp_path) -> None:
+    vault = tmp_path / "vault"
+    vault.mkdir()
+    (vault / "manifest.md").write_text("- [[chapter]]\n", encoding="utf-8")
+    cards = {"version": 1, "cards": [{"title": "Card", "body": INLINE_SOURCE}]}
+    (vault / "chapter.md").write_text(
+        f"---\nsummary: '{INLINE_SOURCE}'\n---\n# {INLINE_SOURCE}\n\n{INLINE_SOURCE}\n\n"
+        f"- {INLINE_SOURCE}\n\n> [!note] Title\n> {INLINE_SOURCE}\n\n> {INLINE_SOURCE}\n\n"
+        f"| Head |\n|:---:|\n| {INLINE_SOURCE} |\n\n```cards\n{json.dumps(cards)}\n```\n\n"
+        "$$\nE = mc^2\n$$\n",
+        encoding="utf-8",
+    )
+
+    document = build_document(vault / "manifest.md", capability_reference())
+
+    validate(document, json.loads((ROOT / "src" / "obs" / "document.schema.json").read_text(
+        encoding="utf-8",
+    )))
+    content = {}
+    for node in document["chapters"][0]["content"]:
+        content.setdefault(node["type"], node)
+    assert content["markdown-frontmatter"]["children"] == [
+        {"type": "field", "attrs": {"name": "summary"}, "children": INLINE_NODES},
+    ]
+    assert content["section"]["children"] == INLINE_NODES
+    assert content["paragraph"]["children"] == INLINE_NODES
+    assert content["list"]["children"][0]["children"][0]["children"] == INLINE_NODES
+    assert content["callouts"]["children"][0]["children"] == INLINE_NODES
+    assert content["quote"] == {"type": "quote", "attrs": {}, "children": [
+        {"type": "paragraph", "attrs": {}, "children": INLINE_NODES},
+    ]}
+    assert content["table"] == {"type": "table", "attrs": {}, "children": [
+        {"type": "table-row", "attrs": {}, "children": [
+            {"type": "table-cell", "attrs": {"header": True, "align": "center"}, "children": [
+                _text("Head"),
+            ]},
+        ]},
+        {"type": "table-row", "attrs": {}, "children": [
+            {"type": "table-cell", "attrs": {"header": False, "align": "center"}, "children": INLINE_NODES},
+        ]},
+    ]}
+    assert content["cards-metrics"]["children"][0]["children"][0]["children"] == INLINE_NODES
+    assert content["math"] == {
+        "type": "math", "attrs": {"display": True}, "children": [], "text": "E = mc^2",
+    }
+
+
+def test_a_manifest_metadata_value_arrives_as_inline_nodes_by_field_path(tmp_path) -> None:
+    vault = tmp_path / "vault"
+    vault.mkdir()
+    (vault / "manifest.md").write_text(
+        "---\ntitle: Fixture\nproduct: {name: '*Name*'}\nauthors: ['**One**', 2]\n"
+        "date: 2026-11-05\n---\n- [[chapter]]\n",
+        encoding="utf-8",
+    )
+    (vault / "chapter.md").write_text("Body.\n", encoding="utf-8")
+
+    document = build_document(vault / "manifest.md", capability_reference())
+
+    [frontmatter] = [
+        node for node in document["manifest"]["abstract"] if node["type"] == "markdown-frontmatter"
+    ]
+    assert frontmatter["children"] == [
+        {"type": "field", "attrs": {"name": "title"}, "children": [_text("Fixture")]},
+        {"type": "field", "attrs": {"name": "product.name"}, "children": [
+            {"type": "emphasis", "attrs": {}, "children": [_text("Name")]},
+        ]},
+        {"type": "field", "attrs": {"name": "authors.0"}, "children": [
+            {"type": "strong", "attrs": {}, "children": [_text("One")]},
+        ]},
+    ]
+
+
+class _EveryCapability(set):
+    """A capability set that admits every id, so the core emits every capability it can."""
+
+    def __contains__(self, item: object) -> bool:
+        return True
+
+    def __bool__(self) -> bool:
+        return True
+
+
+def test_every_capability_the_core_emits_has_a_capability_note(tmp_path) -> None:
+    from obs.vault import build_document as parse_vault
+
+    emitted = set()
+    for vault in (recognized_capability_vault(tmp_path), additional_capability_vault(tmp_path)):
+        emitted |= set(parse_vault(vault / "manifest.md", _EveryCapability())["capabilities"])
+    notes = {item["id"] for item in capability_reference()["capabilities"]}
+
+    assert "property-editors" in emitted
+    assert emitted - notes == set()

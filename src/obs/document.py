@@ -17,7 +17,10 @@ from obs.vault import VaultError, build_document as _build_document
 DOCUMENT_SCHEMA_PATH = Path(__file__).with_name("document.schema.json")
 FIGURE_SCHEMA_PATH = Path(__file__).with_name("figure.schema.json")
 CONTRACT_VERSION = 1
-STRUCTURAL_NODE_TYPES = {"document", "section", "paragraph", "text", "list", "list-item", "code"}
+STRUCTURAL_NODE_TYPES = frozenset(
+    json.loads(DOCUMENT_SCHEMA_PATH.read_text(encoding="utf-8"))["$defs"]["structuralType"]["enum"],
+)
+"""The node types that are not capability identifiers; the Document schema owns them."""
 
 
 class DocumentError(ValueError):
