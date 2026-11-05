@@ -39,6 +39,16 @@ Measure separate acquisition, parsing/validation, link
 resolution, semantic projection, rendering, serialization/compression and packaging
 costs rather than treating all conversion as one opaque phase.
 
+## Core attachment metadata
+
+The core already provides the neutral Document contract, vault and asset resolution,
+capability-reference validation, adapter dispatch, and figure-descriptor validation.
+Attachment metadata extraction extends that core boundary: it reads supported XML
+metadata bytes without output-format or host dependencies and returns a display date.
+It prefers a valid embedded exported or last-changed instant and otherwise uses the
+caller-supplied modification instant. Unsupported input and invalid instants have no
+date rather than a guessed value. Adapters decide where a resolved date appears.
+
 ## Document-adapter contract
 
 The core-to-adapter vocabulary is the versioned JSON Document and its JSON Schema.
