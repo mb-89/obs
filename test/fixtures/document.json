@@ -186,6 +186,7 @@
               "type": "wikilinks",
               "attrs": {
                 "target": "guide/usage",
+                "chapter": "guide-usage",
                 "heading": "Details",
                 "label": "the details"
               },
@@ -229,6 +230,7 @@
               "type": "wikilinks",
               "attrs": {
                 "target": "missing",
+                "chapter": null,
                 "heading": "",
                 "label": "gone"
               },
