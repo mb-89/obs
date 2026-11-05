@@ -280,3 +280,28 @@ def test_applying_or_clearing_a_filter_does_not_claim_the_html_changed(
         expect(frame.locator("[data-document-warning]")).to_be_hidden()
         keep_screenshot(page, f"filtered-without-changed-notice-{frame_kind}")
     assert errors == []
+
+
+@pytest.mark.browser
+def test_each_canary_says_what_it_observed(tmp_path: Path, reader_browser) -> None:
+    """The notice's details name each canary and what it saw, so its count can be read off."""
+    from playwright.sync_api import expect
+
+    errors: list[str] = []
+    _page, frame = open_sandboxed(tmp_path, reader_browser, errors)
+    results = frame.locator("html").evaluate("() => globalThis.obsCapabilities.results")
+    assert [entry["key"] for entry in results] == [
+        "history", "storage", "printing", "dialogs", "downloads", "clipboard", "popups"]
+    assert all(entry["observed"] for entry in results)
+    observed = {entry["key"]: entry["observed"] for entry in results}
+    assert observed["history"].startswith("it threw SecurityError:")
+    assert observed["printing"] == "an enclosing frame hides its sandbox flags (cross-origin host)"
+    frame.locator("[data-capability-notice] summary").click()
+    for entry in results:
+        item = frame.locator(f'[data-capability-notice] li[data-capability="{entry["key"]}"]')
+        if entry["allowed"]:
+            expect(item).to_have_count(0)
+        else:
+            expect(item.locator("[data-capability-observed]")).to_have_text(
+                f'Canary {entry["key"]}: {entry["observed"]}.')
+    assert errors == []
