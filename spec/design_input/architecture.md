@@ -127,10 +127,11 @@ The core runs command fences; an adapter never does. `obs-document --source <man
 other fence's captured output goes into its node ([[capabilities/command-fences]]), so the
 Document stays the adapter's only input and the call passes no authorization or command root.
 
-Running in the core was chosen over passing the authorization and a command root to the adapter:
-the core already runs the producers from the vault root, each adapter would otherwise repeat the
-execution boundary, its timeout and the path replacement in captured output, and the adapter
-would need the source machine's vault, which embedding assets avoids ([Asset bytes](#asset-bytes)).
+Running in the core was chosen over passing the authorization and a command root to the adapter.
+The core already runs the producers from the vault root. Each adapter would otherwise repeat the
+execution boundary, its timeout and the path replacement in captured output, and would need the
+source machine's vault, which embedding assets avoids ([Asset bytes](#asset-bytes)).
+
 The HTML adapter therefore has no command options: it renders the node's `output`, and a node
 without one fails naming the remedy.
 
@@ -138,8 +139,8 @@ without one fails naming the remedy.
 
 The core owns data-only input contracts for command fences, callouts, cards, editable
 properties, and queries. Their JSON Schema definitions and parsing validation describe
-source semantics only; execution and every presentation projection remain adapter
-concerns.
+source semantics only; every presentation projection remains an adapter concern.
+Command-fence execution is the core's ([Command output](#command-output)).
 
 Core configuration is restricted to source resolution and authorized command limits.
 Artifact, browser, and style settings remain adapter configuration.

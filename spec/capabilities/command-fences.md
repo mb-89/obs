@@ -25,9 +25,11 @@ echo Derived content
 The core runs command fences while it builds the Document, and only when the build is authorized:
 `obs-document --source <manifest> --execute-commands`. Every fence runs from the vault root:
 producers (`cmd silent`) first, in path and source order, before the vault is read for
-conversion, then each other fence where it appears. A timeout, set by `execution.commandTimeoutSeconds`
-of the core configuration (`src/obs/config.schema.json` owns the default), or a nonzero exit fails
-the build, and no Document is written.
+conversion, then each other fence where it appears.
+
+A timeout (`execution.commandTimeoutSeconds` of the core configuration; its schema,
+`src/obs/config.schema.json`, owns the default) or a nonzero exit fails the build, and no
+Document is written.
 
 Without the authorization, producers do not run and a rendering fence fails the build with the
 input error of [[input-model#Chapter content]]: the fence's note and place (`cmd fence 2`), and
@@ -52,7 +54,9 @@ puts output in its node, it replaces:
   placeholder `<local-path>`.
 
 Commands run with a minimal environment, so an environment dump carries nothing machine-specific
-beyond the paths replaced above. They inherit only `PATH`, `PATHEXT`, `SYSTEMROOT`, `WINDIR`,
+beyond the paths replaced above.
+
+They inherit only `PATH`, `PATHEXT`, `SYSTEMROOT`, `WINDIR`,
 `COMSPEC` (to find and start programs), `HOME`, `USERPROFILE`, `APPDATA`, `LOCALAPPDATA` (per-user
 tool settings and caches), `TMPDIR`, `TEMP`, `TMP` (temporary folders) and `LANG`, `LC_ALL` (text
 encoding), where they are set; a command that needs more sets it itself.
