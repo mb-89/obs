@@ -57,6 +57,8 @@ definitions alike. Keeping the same fact in two places is an anti-pattern (user,
   tests of failure, cancellation, timeout, and retry behavior.
 - Assert observable results and explicit expected outcomes, not source-code substrings or
   agreement between two implementations that might share the same bug.
+- An expected value that a fixture, note or configuration owns (a register's row count, a
+  palette colour) is read from that owner, not copied into the test as a literal.
 - DOM tests use a controlled browser adapter for deterministic interactions. Native browser
   printing and layout remain separate integration checks; a mocked print call does not verify
   a PDF's visual output.
