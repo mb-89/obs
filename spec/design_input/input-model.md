@@ -953,6 +953,26 @@ inputs. Rendering/checking never runs
 producers. Existing explicit command authorization remains unchanged. Authored SVG is
 embedded as an image, never executable inline markup.
 
+At the core boundary, a generated figure is a versioned JSON FigureDescriptor. It
+carries neutral data, an ordered panel list, and provenance; it does not carry rendered
+markup, stylesheet values, or a browser payload.
+
+Each panel has viewport bounds and grid placement. Its axes declare their scale, numeric
+limits, and labels. Provenance records the producer command as ordered strings and may
+record stable fingerprints for its input artifacts. The descriptor schema is the
+executable owner of this shape; adapters choose their own rendering from it.
+
+#### Figure descriptor
+
+The FigureDescriptor has `schemaVersion: 1`, a stable `id`, an object-valued `data`
+payload, one or more panels, and provenance. A panel has a stable `id`, numeric
+`bounds` (`x`, `y`, positive `width`, and positive `height`), and a non-negative
+`grid` row/column with positive spans.
+
+It has one or more axes. Every axis has a stable `id`, `linear` or `log` scale, numeric
+`minimum` and `maximum` limits, and a text label. Provenance has a nonempty ordered
+command array and can list input artifact IDs with stable fingerprints.
+
 A `figure` fence may also use `kind: image`, with `source` naming a vault-local
 raster image or SVG and optional `alt` providing image alternative text, not a
 second visible caption.
