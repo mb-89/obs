@@ -50,10 +50,23 @@ The boundary has no Python types, package entry points, application names, or
 output-format terms. An implementation may change language without changing either
 JSON contract.
 
+Document chapter content is a recursive node tree with `type`, `attrs`, `children`,
+and optional `text`.
+
+Its fixed structural types are `document`, `section`, `paragraph`, `text`, `list`,
+`list-item`, and `code`. Every other type is a capability identifier.
+
+The Document separately carries semantic resources so adapters can resolve their
+identifiers without inferring them from presentation nodes.
+
 An adapter is any executable that declares the capability identifiers it supports in a
 JSON manifest. The declaration is data, not a runtime registration mechanism. The
 [[capability-reference|capability reference]] owns the supported identifiers and their semantics; adapters use
 that reference rather than duplicating capability definitions.
+
+The core validates Document identifiers against a supplied capability reference and
+requires an adapter to support each used capability's transitive dependencies before
+starting its process.
 
 The capability-reference generator reads those notes, rejects missing input-model
 coverage and dependency identifiers, and writes the schema-validated JSON document.

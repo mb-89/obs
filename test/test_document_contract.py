@@ -6,10 +6,20 @@ from pathlib import Path
 from jsonschema import validate
 import pytest
 
-from obs_html.adapter import load_adapter
-from obs_html.document import AdapterError, call_adapter, main, write_document
+from obs.adapter import AdapterError, load_adapter
+from obs.capabilities import build_capability_reference
+from obs.document import call_adapter, main, write_document
 
 ROOT = Path(__file__).parents[1]
+
+
+def capability_reference() -> dict[str, object]:
+    return build_capability_reference(ROOT / "spec" / "capabilities", ROOT / "spec" / "capabilities" / "coverage.json")
+
+
+def write_reference(path: Path) -> Path:
+    path.write_text(json.dumps(capability_reference()), encoding="utf-8")
+    return path
 
 
 def document_fixture(capabilities: list[str] | None = None) -> dict[str, object]:
@@ -19,19 +29,20 @@ def document_fixture(capabilities: list[str] | None = None) -> dict[str, object]
         "chapters": [{
             "id": "chapter",
             "title": "Chapter",
-            "content": [{"type": "paragraph", "text": "Content."}],
+            "content": [{"type": "paragraph", "attrs": {}, "children": [{"type": "text", "attrs": {}, "children": [], "text": "Content."}]}],
             "children": [],
         }],
         "links": [{"id": "reference", "href": "https://example.test/reference", "label": "Reference"}],
         "assets": [{"id": "asset", "href": "assets/figure.svg", "mediaType": "image/svg+xml"}],
         "records": [{"id": "record", "type": "finding", "fields": {"status": "open"}}],
+        "semanticResources": [{"id": "resource", "type": "finding", "attrs": {}}],
         "diagnostics": [],
         "capabilities": capabilities or ["manifest"],
     }
 
 
 def test_document_schema_validates_a_core_document() -> None:
-    schema = json.loads((ROOT / "src" / "obs_html" / "document.schema.json").read_text(encoding="utf-8"))
+    schema = json.loads((ROOT / "src" / "obs" / "document.schema.json").read_text(encoding="utf-8"))
 
     validate(document_fixture(), schema)
 
@@ -57,13 +68,14 @@ def test_adapter_is_discovered_by_name_from_configuration(tmp_path) -> None:
 
 def test_core_writes_document_and_calls_adapter(tmp_path) -> None:
     document = tmp_path / "document.json"
-    write_document(document_fixture(), document)
+    reference = write_reference(tmp_path / "capabilities.json")
+    write_document(document_fixture(), document, capability_reference())
     manifest = tmp_path / "adapter.json"
     manifest.write_text(json.dumps({
         "name": "fixture",
         "command": [sys.executable, "-c", "from pathlib import Path; Path(__import__('sys').argv[2]).write_text('ok')"],
         "contractVersion": 1,
-        "capabilities": ["manifest"],
+        "capabilities": [item["id"] for item in capability_reference()["capabilities"]],
     }), encoding="utf-8")
     configuration = tmp_path / "adapters.json"
     configuration.write_text(json.dumps({"adapters": {"fixture": "adapter.json"}}), encoding="utf-8")
@@ -73,6 +85,7 @@ def test_core_writes_document_and_calls_adapter(tmp_path) -> None:
         "--document", str(document),
         "--adapter", "fixture",
         "--adapter-config", str(configuration),
+        "--capability-reference", str(reference),
         "--destination", str(destination),
     ]) == 0
 
@@ -87,7 +100,8 @@ def test_core_writes_document_and_calls_adapter(tmp_path) -> None:
 def test_core_rejects_mismatched_adapter_contracts(
         tmp_path, contract_version, capabilities, message) -> None:
     document = tmp_path / "document.json"
-    write_document(document_fixture(), document)
+    reference = write_reference(tmp_path / "capabilities.json")
+    write_document(document_fixture(), document, capability_reference())
     manifest = tmp_path / "adapter.json"
     manifest.write_text(json.dumps({
         "name": "fixture",
@@ -99,25 +113,26 @@ def test_core_rejects_mismatched_adapter_contracts(
     configuration.write_text(json.dumps({"adapters": {"fixture": "adapter.json"}}), encoding="utf-8")
 
     with pytest.raises(AdapterError, match=message):
-        call_adapter("fixture", configuration, document, tmp_path / "output.txt")
+        call_adapter("fixture", configuration, document, tmp_path / "output.txt", reference)
 
 
 def test_node_adapter_receives_the_document_and_writes_output(tmp_path) -> None:
     document = tmp_path / "document.json"
-    write_document(document_fixture(), document)
+    reference = write_reference(tmp_path / "capabilities.json")
+    write_document(document_fixture(), document, capability_reference())
     manifest = tmp_path / "adapter.json"
     fixture = ROOT / "test" / "fixtures" / "document-adapter.js"
     manifest.write_text(json.dumps({
         "name": "node-fixture",
         "command": ["node", str(fixture)],
         "contractVersion": 1,
-        "capabilities": ["manifest"],
+        "capabilities": [item["id"] for item in capability_reference()["capabilities"]],
     }), encoding="utf-8")
     configuration = tmp_path / "adapters.json"
     configuration.write_text(json.dumps({"adapters": {"node-fixture": "adapter.json"}}), encoding="utf-8")
     destination = tmp_path / "output.json"
 
-    call_adapter("node-fixture", configuration, document, destination)
+    call_adapter("node-fixture", configuration, document, destination, reference)
 
     assert json.loads(destination.read_text(encoding="utf-8")) == {
         "schemaVersion": 1,
@@ -128,14 +143,44 @@ def test_node_adapter_receives_the_document_and_writes_output(tmp_path) -> None:
 def test_document_core_import_has_no_renderer_or_browser_dependencies() -> None:
     result = subprocess.run(
         [sys.executable, "-c",
-         "import sys; import obs_html.document; "
-         "print(','.join(name for name in sys.modules if name.startswith('obs_html.')))"],
+         "import sys; import obs; "
+         "print(','.join(name for name in sys.modules if name.startswith('obs_html')))"],
         check=True,
         capture_output=True,
         text=True,
     )
 
-    assert set(result.stdout.strip().split(",")) == {
-        "obs_html.document",
-        "obs_html.adapter",
-    }
+    assert result.stdout.strip() == ""
+
+
+def test_document_accepts_one_node_for_each_input_capability(tmp_path) -> None:
+    reference = capability_reference()
+    document = document_fixture([item["id"] for item in reference["capabilities"]])
+    document["chapters"][0]["content"] = [
+        {"type": item["id"], "attrs": {}, "children": [], "text": item["id"]}
+        for item in reference["capabilities"]
+    ]
+
+    write_document(document, tmp_path / "document.json", reference)
+
+
+def test_document_rejects_unknown_capability_and_requires_dependency_closure(tmp_path) -> None:
+    reference = capability_reference()
+    document = tmp_path / "document.json"
+    unknown = document_fixture(["unknown"])
+    with pytest.raises(Exception, match="unknown capabilities"):
+        write_document(unknown, document, reference)
+    dependent = next(item for item in reference["capabilities"] if item["dependsOn"])
+    document_data = document_fixture([dependent["id"]])
+    write_document(document_data, document, reference)
+    reference_path = write_reference(tmp_path / "capabilities.json")
+    manifest = tmp_path / "adapter.json"
+    manifest.write_text(json.dumps({
+        "name": "fixture", "command": [sys.executable, "-c", "pass"],
+        "contractVersion": 1, "capabilities": [dependent["id"]],
+    }), encoding="utf-8")
+    configuration = tmp_path / "adapters.json"
+    configuration.write_text(json.dumps({"adapters": {"fixture": "adapter.json"}}), encoding="utf-8")
+
+    with pytest.raises(AdapterError, match="does not support Document capabilities"):
+        call_adapter("fixture", configuration, document, tmp_path / "output.txt", reference_path)
