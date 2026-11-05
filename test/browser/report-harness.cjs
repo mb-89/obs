@@ -177,6 +177,24 @@ const pagedReader = (report) => {
     return screen && !screen.hidden ? screen : null;
 };
 
+// Every sheet of a paged container, with the paper the runtime declares for it.
+function sheets(report, container) {
+    const paper = report.data.paper;
+    return [...container.querySelectorAll(":scope > .paper-sheet")].map((sheet) => {
+        const landscape = sheet.dataset.pageOrientation === "landscape";
+        const number = sheet.querySelector(".paper-page-number")?.textContent.match(/\d+/);
+        return {
+            chapter: sheet.dataset.pageChapter,
+            orientation: sheet.dataset.pageOrientation,
+            side: sheet.dataset.pageSide || null,
+            page: number ? Number(number[0]) : null,
+            widthMillimeters: landscape ? paper.heightMillimeters : paper.widthMillimeters,
+            heightMillimeters: landscape ? paper.widthMillimeters : paper.heightMillimeters,
+            marginMillimeters: paper.marginMillimeters,
+        };
+    });
+}
+
 const STEPS = {
     // The report's embedded data as the runtime parsed it.
     async data(report) {
@@ -231,6 +249,25 @@ const STEPS = {
             chapter: activeChapter(report).dataset.chapter,
             sheets: screen ? screen.querySelectorAll(":scope > .paper-sheet").length : 0,
         };
+    },
+    // Presentation (the paged screen reader) and print (the print book and its media boxes).
+    async geometry(report) {
+        const {document, window, context} = report;
+        const screen = pagedReader(report);
+        const presentation = screen ? sheets(report, screen) : null;
+        window.dispatchEvent(new window.Event("beforeprint"));
+        try {
+            const book = document.querySelector(".print-book");
+            return {
+                presentation,
+                print: {
+                    sheets: sheets(report, book),
+                    mediaBoxes: context.obsPages.printMediaBoxes,
+                },
+            };
+        } finally {
+            window.dispatchEvent(new window.Event("afterprint"));
+        }
     },
 };
 
