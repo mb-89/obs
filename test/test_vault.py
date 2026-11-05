@@ -407,3 +407,38 @@ def test_core_parses_the_spec_vault_as_neutral_document(tmp_path) -> None:
     with pytest.raises(AssertionError):
         assert input_ids <= (emitted - {"attachments"}) | INPUT_CAPABILITY_GAPS
     assert "html" not in types
+
+
+def test_a_callout_nested_under_a_list_item_is_a_callout_of_that_item(tmp_path) -> None:
+    vault = tmp_path / "vault"
+    vault.mkdir()
+    (vault / "manifest.md").write_text("- [[chapter]]\n", encoding="utf-8")
+    (vault / "chapter.md").write_text(
+        "- Item\n\n  > [!warning] Risk\n  > Body.\n\n  ```text\n  literal\n  ```\n"
+        "- > [!note]\n  > Marked item.\n",
+        encoding="utf-8",
+    )
+
+    document = build_document(vault / "manifest.md", capability_reference())
+
+    validate(document, json.loads((ROOT / "src" / "obs" / "document.schema.json").read_text(
+        encoding="utf-8",
+    )))
+    [listing] = [node for node in document["chapters"][0]["content"] if node["type"] == "list"]
+    first, second = listing["children"]
+    assert [child["type"] for child in first["children"]] == ["paragraph", "callouts", "code"]
+    assert first["children"][1] == {
+        "type": "callouts", "attrs": {"kind": "warning", "title": "Risk"}, "children": [
+            {"type": "paragraph", "attrs": {}, "children": [
+                {"type": "text", "attrs": {}, "children": [], "text": "Body."},
+            ]},
+        ],
+    }
+    assert second["children"] == [{
+        "type": "callouts", "attrs": {"kind": "note", "title": ""}, "children": [
+            {"type": "paragraph", "attrs": {}, "children": [
+                {"type": "text", "attrs": {}, "children": [], "text": "Marked item."},
+            ]},
+        ],
+    }]
+    assert "callouts" in document["capabilities"]
