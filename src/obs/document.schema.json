@@ -98,6 +98,23 @@
           }}}
         },
         {
+          "if": {"properties": {"type": {"const": "wikilinks"}}},
+          "then": {"properties": {"attrs": {
+            "type": "object", "additionalProperties": false, "required": ["target", "chapter", "heading", "label"],
+            "properties": {
+              "target": {"type": "string", "minLength": 1}, "chapter": {"$ref": "#/$defs/chapterReference"},
+              "heading": {"type": "string"}, "label": {"type": "string", "minLength": 1}
+            }
+          }}}
+        },
+        {
+          "if": {"properties": {"type": {"const": "embeds"}}},
+          "then": {"properties": {"attrs": {
+            "type": "object", "additionalProperties": false, "required": ["target", "chapter"],
+            "properties": {"target": {"type": "string", "minLength": 1}, "chapter": {"$ref": "#/$defs/chapterReference"}}
+          }}}
+        },
+        {
           "if": {"properties": {"type": {"const": "registers"}}},
           "then": {"properties": {"attrs": {
             "type": "object", "additionalProperties": false, "required": ["target", "heading"],
@@ -105,6 +122,10 @@
           }}}
         }
       ]
+    },
+    "chapterReference": {
+      "description": "The id of the included chapter a note link resolves to, or null when the note is outside the manifest.",
+      "oneOf": [{"$ref": "#/$defs/id"}, {"type": "null"}]
     },
     "chapter": {
       "type": "object", "additionalProperties": false, "required": ["id", "title", "content", "children"],
