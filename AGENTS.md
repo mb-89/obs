@@ -24,6 +24,8 @@ Do not copy the shared process guidance into this repository.
 - One owner owns each fact; other locations link to it.
 - Follow se's [authored-prose preservation rule](../se/.github/skills/work-model/SKILL.md#rules-for-all-roles).
 - Do not add compatibility aliases, shims, or fallbacks unless explicitly requested.
+- A test matches an input error by its field path and owner reference, not by its wording; this
+  holds for the core and every adapter alike.
 
 ## Commands
 
