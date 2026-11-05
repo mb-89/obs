@@ -453,8 +453,8 @@ def test_core_resolves_link_and_embed_targets_to_chapter_ids(tmp_path) -> None:
     ]
 
 
-def test_spec_document_wikilinks_name_their_included_chapter() -> None:
-    document = build_document(ROOT / "spec" / "manifest.md", capability_reference())
+def test_spec_document_wikilinks_name_their_included_chapter(spec_document) -> None:
+    document = spec_document
     manifest = (ROOT / "spec" / "manifest.md").read_text(encoding="utf-8")
     listed = {
         target: re.sub(r"[^a-z0-9]+", "-", target.lower()).strip("-")
@@ -489,9 +489,9 @@ def test_spec_document_wikilinks_name_their_included_chapter() -> None:
     )
 
 
-def test_core_parses_the_spec_vault_as_neutral_document(tmp_path) -> None:
+def test_core_parses_the_spec_vault_as_neutral_document(tmp_path, spec_document) -> None:
     reference = capability_reference()
-    document = build_document(ROOT / "spec" / "manifest.md", reference)
+    document = spec_document
     structural = STRUCTURAL_NODE_TYPES
     references = {item["id"] for item in reference["capabilities"]}
     types = node_types(document)

@@ -3,8 +3,6 @@ from pathlib import Path
 import pytest
 import yaml
 
-from obs.capabilities import build_capability_reference
-from obs.document import build_document
 from obs_html_interim.content import (
     Chapter, base_note_value, collect_notes, compile_base_filter, read_chapter_content, read_manifest,
 )
@@ -14,15 +12,12 @@ ROOT = Path(__file__).parents[1]
 MANIFEST = ROOT / "spec" / "manifest.md"
 
 
-@pytest.fixture(scope="module")
-def spec_document_records() -> list[dict[str, object]]:
-    reference = build_capability_reference(
-        ROOT / "spec" / "capabilities", ROOT / "spec" / "capabilities" / "coverage.json",
-    )
-    return build_document(MANIFEST, reference)["records"]
+@pytest.fixture
+def spec_document_records(spec_document) -> list[dict[str, object]]:
+    return spec_document["records"]
 
 
-@pytest.fixture(scope="module")
+@pytest.fixture
 def spec_records(spec_document_records) -> list[dict[str, object]]:
     return [record for record in spec_document_records if record["type"] == "note"]
 
