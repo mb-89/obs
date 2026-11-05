@@ -1,5 +1,5 @@
 {
-  "description": "Bases filter grammar conformance; owner: spec/design_input/generic-tables.md, Bases filter grammar.",
+  "description": "Bases filter and query condition conformance; owners: spec/design_input/generic-tables.md, Bases filter grammar; spec/capabilities/bases.md, Comparisons; spec/capabilities/queries.md, Conditions.",
   "records": [
     {
       "id": "a",
@@ -106,6 +106,42 @@
       ]},
       "expected": ["a"]
     }
+  ],
+  "conditions": [
+    {"where": [], "expected": ["a", "b", "c", "d", "e"]},
+    {"where": [{"field": "kind", "equals": "Item"}], "expected": ["a", "c"]},
+    {"where": [{"field": "kind", "equals": "item"}], "expected": ["b"]},
+    {"where": [{"field": "status", "equals": "Open"}], "expected": []},
+    {"where": [{"field": "status", "equals": "open"}], "expected": ["a"]},
+    {"where": [{"field": "missing", "exists": true}], "expected": []},
+    {"where": [{"field": "missing", "equals": "null"}], "expected": []},
+    {"where": [{"field": "empty", "exists": true}], "expected": []},
+    {"where": [{"field": "empty", "equals": "null"}], "expected": []},
+    {"where": [{"field": "empty", "equals": ""}], "expected": ["a"]},
+    {"where": [{"field": "blank", "exists": true}], "expected": []},
+    {"where": [{"field": "count", "equals": "1"}], "expected": ["a", "c", "e"]},
+    {"where": [{"field": "count", "equals": "1.0"}], "expected": []},
+    {"where": [{"field": "count", "equals": "1.5"}], "expected": ["b"]},
+    {"where": [{"field": "delta", "equals": "-2"}], "expected": ["e"]},
+    {"where": [{"field": "ratio", "equals": "0.25"}], "expected": ["e"]},
+    {"where": [{"field": "flag", "equals": "true"}], "expected": ["a", "c"]},
+    {"where": [{"field": "flag", "equals": "True"}], "expected": []},
+    {"where": [{"field": "flag", "equals": "0"}], "expected": ["e"]},
+    {"where": [{"field": "flag", "exists": true}], "expected": ["a", "b", "c", "e"]},
+    {"where": [{"field": "list", "equals": "Item"}], "expected": ["a"]},
+    {"where": [{"field": "nested.owner", "equals": "Ann"}], "expected": ["a"]},
+    {"where": [{"field": "note.nested.owner", "equals": "Bob"}], "expected": ["b"]},
+    {"where": [{"field": "a.b", "equals": "literal"}], "expected": ["c"]},
+    {"where": [{"field": "a.b", "equals": "nested"}], "expected": []},
+    {"where": [{"field": "items.name", "equals": "y"}], "expected": ["a"]},
+    {"where": [{"field": "items.0.name", "equals": "x"}], "expected": ["a"]},
+    {"where": [{"field": "items.tags", "equals": "t1"}], "expected": ["a"]},
+    {"where": [{"field": "items.note", "exists": true}], "expected": []},
+    {"where": [{"field": "bottom line", "equals": "Kept"}], "expected": ["a"]},
+    {"where": [{"field": "file.name", "equals": "c"}], "expected": ["c"]},
+    {"where": [{"field": "file.folder", "equals": "notes"}], "expected": ["a", "e"]},
+    {"where": [{"field": "kind", "equals": "Item"}, {"field": "status", "exists": true}], "expected": ["a"]},
+    {"where": [{"field": "count", "exists": true}, {"field": "flag", "equals": "false"}], "expected": ["b"]}
   ],
   "unsupported": [
     "recordType == \"tag\"",

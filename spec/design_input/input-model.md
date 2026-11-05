@@ -653,8 +653,8 @@ Generation time remains separate from document revision dates.
   the notes whose record matches its `filters` and any view's `filters`.
 
   A frontmatter `query`, and a cards metric, selects the notes whose record has every
-  `where` condition (`equals` an exact text value or a list holding it; `exists` a nonblank
-  value), narrowed by its `from` owner's selection; the `from` and `secondary` owner notes
+  `where` condition ([[capabilities/queries#Conditions]]), narrowed by its `from` owner's
+  selection; the `from` and `secondary` owner notes
   are included too. Each note is included once, so cycles end.
 
   Queries and Bases never select an ignored note

@@ -1,6 +1,6 @@
-"""The generator's Bases filter evaluator against the shared conformance fixture.
+"""The Bases filter and query condition evaluators against the shared conformance fixture.
 
-The browser evaluator runs the same fixture in ``bases-filter-conformance.test.js``.
+The browser evaluators run the same fixture in ``bases-filter-conformance.test.js``.
 """
 import json
 from pathlib import Path
@@ -81,6 +81,17 @@ def test_core_evaluator_matches_fixture(case):
     actual = [
         record["id"] for record in FIXTURE["records"]
         if predicate(lambda field, record=record: note_value(record["frontmatter"], record["path"], field))
+    ]
+    assert actual == case["expected"]
+
+
+@pytest.mark.parametrize("case", FIXTURE["conditions"], ids=lambda case: json.dumps(case["where"]))
+def test_core_conditions_match_fixture(case):
+    from obs.selection import conditions_select
+
+    actual = [
+        record["id"] for record in FIXTURE["records"]
+        if conditions_select(case["where"], record["frontmatter"], record["path"])
     ]
     assert actual == case["expected"]
 
