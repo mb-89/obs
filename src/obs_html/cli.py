@@ -7,6 +7,7 @@ import re
 import subprocess
 import sys
 import tempfile
+import textwrap
 from functools import partial
 from importlib.metadata import version
 from pathlib import Path
@@ -16,7 +17,7 @@ from jsonschema import SchemaError, ValidationError
 
 from obs.producers import run_producers
 from obs_html.comments import CommentError, extract_comments
-from obs_html.config import load_config
+from obs_html.config import Config, load_config
 from obs_html.content import ContentError, read_manifest
 from obs_html.commands import run_command
 from obs_html.renderer import render_report
@@ -24,7 +25,7 @@ from obs_html.report_data import same_document_content
 from obs_html.reproduction import (
     embed_archive, embed_payload_runtime, embedded_archive, source_archive,
 )
-from obs_html.timings import recording, stage
+from obs_html.timings import STAGES, load_baselines, recording, slower_stages, stage
 
 
 _IMPORTED = perf_counter()
@@ -76,6 +77,11 @@ def _generator_provenance() -> dict[str, str]:
     return provenance
 
 
+def _stage_help() -> str:
+    names = ", ".join(f"{name} ({description})" for name, description in STAGES.items())
+    return textwrap.fill(f"Stages: {names}.", width=86, initial_indent="  ", subsequent_indent="  ")
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="obs-html",
@@ -105,9 +111,8 @@ Several documents:
 Timings:
   --timings prints "Timing: STAGE SECONDS s (OUTPUT)" after each document, and
   imports, generator provenance and total for the whole call without (OUTPUT).
-  Document stages: parse (configuration, manifest, notes), provenance (git),
-  render, figures, commands (cmd fences), source-archive and write; PDF operations
-  time print and attach. Durations are exclusive; stages without work are omitted.
+{_stage_help()}
+  Durations are exclusive; stages without work are omitted.
 
 Reproduction sources:
   --embed-source discloses non-hidden vault files, including scripts and data not
@@ -329,10 +334,11 @@ def main(argv: Sequence[str] | None = None) -> int:
         with stage("provenance"):
             generator = _generator_provenance()
     _print_timings(options, recorded.durations)
+    baselines = load_baselines() if options.timings else {}
     for document in documents:
         with recording() as recorded:
             try:
-                chapters, output_path = _build_document(options, document, generator)
+                chapters, output_path, config = _build_document(options, document, generator)
             except (CommentError, ContentError, OSError, ValueError, SchemaError, ValidationError) as error:
                 parser.error(f"{document.source}: {error}" if len(documents) > 1 else str(error))
         if options.check:
@@ -340,6 +346,9 @@ def main(argv: Sequence[str] | None = None) -> int:
         else:
             print(f"Generated {output_path} from {chapters} chapters.")
         _print_timings(options, recorded.durations, output_path)
+        for message in slower_stages(recorded.durations, baselines, config.timing_relative_threshold,
+                                     config.timing_absolute_threshold_seconds):
+            print(f"Warning: {output_path}: {message}", file=sys.stderr)
     _print_timings(options, {"total": _total(started)})
     return 0
 
@@ -370,7 +379,7 @@ def _documents(parser: argparse.ArgumentParser, options: argparse.Namespace) -> 
 
 def _build_document(
     options: argparse.Namespace, document: Document, generator: dict[str, str],
-) -> tuple[int, Path]:
+) -> tuple[int, Path, Config]:
     with stage("parse"):
         defaults = load_config(options.config)
         source = document.source
@@ -384,11 +393,12 @@ def _build_document(
         style_folder = options.style or (
             project_root / config.style_folder if config.style_folder is not None else None
         )
-        run_producers(
-            manifest_path.parent,
-            authorized=options.execute_commands and not options.check,
-            timeout_seconds=config.command_timeout_seconds,
-        )
+        with stage("producers"):
+            run_producers(
+                manifest_path.parent,
+                authorized=options.execute_commands and not options.check,
+                timeout_seconds=config.command_timeout_seconds,
+            )
         trusted_runtime_source = None
         if document.runtime:
             trusted_runtime_id, trusted_runtime_path = document.runtime
@@ -463,7 +473,7 @@ def _build_document(
             ))
     if not options.check:
         _write_if_changed(output_path, report, partial(_same_document, report))
-    return len(chapters), output_path
+    return len(chapters), output_path, config
 
 
 def _total(started: float) -> float:
