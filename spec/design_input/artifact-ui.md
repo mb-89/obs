@@ -81,6 +81,13 @@ Framing, expansion and printing continue to use the shared figure owner.
 The artifact is understated and content-first. Its visual system is defined once in a
 central stylesheet embedded into the generated HTML.
 
+## Reader-facing text
+
+Reader-facing text names no kind: a label, placeholder or fallback title says "Search",
+"Filter" or "Untitled", not which kind of thing it searches, filters or lacks a title.
+An error message the artifact shows names its source and a remedy; the core's contract
+failures have their form in [[input-model#Chapter content]].
+
 ## Styling
 
 - A style module is a folder containing `style.css`, with optional fonts, assets, and configuration

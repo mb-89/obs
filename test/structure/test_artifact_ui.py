@@ -127,3 +127,18 @@ def test_only_used_features_ship_and_canaries_decide_or_stay_silent() -> None:
 
 def test_no_heading_or_link_says_document_presentation() -> None:
     assert says_document_presentation("spec/design_input/artifact-ui.md") == []
+
+
+READER_TEXT_RULE = "Reader-facing text names no kind"
+ERROR_RULE = "An error message the artifact shows names its source and a remedy"
+
+
+def test_reader_facing_text_and_error_rules_are_stated_once() -> None:
+    flat = " ".join((ROOT / "spec" / "design_input" / "artifact-ui.md").read_text(encoding="utf-8").split())
+    section = flat.split("## Reader-facing text", 1)[1].split(" ## ", 1)[0]
+
+    for rule in (READER_TEXT_RULE, ERROR_RULE):
+        assert rule in section
+        assert flat.count(rule) == 1
+    for label in ('"Search"', '"Filter"', '"Untitled"'):
+        assert label in section
