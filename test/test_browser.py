@@ -1359,7 +1359,9 @@ def test_reader_batch_document_accepts_waiting_without_comments(native_batch_pag
 
 def test_reader_table_width_includes_disclosure(native_reader_page) -> None:
     page = native_reader_page
-    page.evaluate("obsArtifact.activateChapter('glossary')")
+    # A table fits its column widths in its ResizeObserver once it is in the page; before that
+    # its first column lacks the toggle's room. Each check waits the artifact's two frames for it.
+    page.evaluate("async () => { await obsArtifact.activateChapter('glossary'); await obsStartup.yield(); }")
     for cell in page.locator(".paged-reader tr[data-row-key] td:first-child").all():
         assert cell.evaluate("""cell => {
             const buttons = cell.querySelectorAll('button');
@@ -1368,7 +1370,7 @@ def test_reader_table_width_includes_disclosure(native_reader_page) -> None:
             return label.left >= toggle.right && Math.abs(label.top - toggle.top) < 10;
         }""")
     page.evaluate("obsArtifact.activateChapter('alpha')")
-    page.evaluate("""() => {
+    page.evaluate("""async () => {
         const table = obsDataTable.render({
             key: 'width-check',
             columns: [{key: 'term', label: 'Term'}, {key: 'definition', label: 'Definition'}],
@@ -1381,6 +1383,7 @@ def test_reader_table_width_includes_disclosure(native_reader_page) -> None:
             renderDetails: () => document.createElement('p'),
         });
         document.querySelector('.paper-content').append(table.element);
+        await obsStartup.yield();
     }""")
     page.wait_for_function("""() => {
         const cell = document.querySelector('[data-row-key="one"] td');
