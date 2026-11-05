@@ -22,7 +22,7 @@ LETTER = {"widthMillimeters": 215.9, "heightMillimeters": 279.4, "marginMillimet
 @pytest.fixture(scope="module")
 def report(tmp_path_factory: pytest.TempPathFactory) -> Path:
     """A report with two chapters, one Base table over three records, printed on Letter paper."""
-    records = tuple({"id": name, "type": "note", "fields": {"kind": "item", "rank": rank}}
+    records = tuple({"id": name, "type": "note", "path": f"{name}.md", "fields": {"kind": "item", "rank": rank}}
                     for rank, name in enumerate(["alpha", "beta", "gamma"], 1))
     base = node("bases", source="filters: ...\n", spec={
         "filters": {"and": ['kind == "item"']},
@@ -109,3 +109,14 @@ def test_harness_reports_print_and_presentation_geometry(report: Path, tmp_path:
     assert paged["presentation"][0]["page"] == printed[-1]["page"]
     assert flowing["presentation"] is None
     assert flowing["print"] == paged["print"]
+
+
+def test_harness_opens_a_toc_false_chapter_by_its_fragment(tmp_path: Path) -> None:
+    unlisted = chapter("reached", "Reached", heading(1, "Reached"), paragraph("Unlisted prose."))
+    unlisted["toc"] = False
+    path = tmp_path / "report.html"
+    path.write_text(render(document("Unlisted", chapter("intro", "Intro", heading(1, "Intro")), unlisted),
+                           load_config()), encoding="utf-8")
+    data, active = run_harness(path, tmp_path, {"step": "data"}, {"step": "activate", "chapter": "reached"})
+    assert (data["status"], data["toc"]) == ("ready", 2)
+    assert active == {"chapter": "reached", "hash": "#reached", "title": "Reached"}

@@ -1776,78 +1776,135 @@ math {
 
 .header-notices {
     display: flex;
-    flex-wrap: wrap;
     gap: 0.5rem;
     justify-content: center;
-    left: 4.5rem;
+    left: 50%;
     pointer-events: none;
     position: fixed;
-    right: 4.5rem;
     top: 1rem;
+    transform: translateX(-50%);
     z-index: 29;
 }
 
-.filter-warning,
-.document-warning,
-.capability-notice {
+/* An open list centres under the whole icon row, the area being its containing block. */
+.notice-group[hidden] { display: none; }
+
+.notice-group[data-notice-group="error"] {
+    --notice-tone: var(--color-error);
+    --notice-fill: var(--color-error-soft);
+}
+
+.notice-group[data-notice-group="warning"] {
+    --notice-tone: var(--color-warning);
+    --notice-fill: var(--color-warning-soft);
+}
+
+.notice-group[data-notice-group="information"] {
+    --notice-tone: var(--color-information);
+    --notice-fill: var(--color-information-soft);
+}
+
+.notice-icon {
     align-items: center;
-    background: var(--color-warning-soft);
-    border: var(--border-width) solid var(--color-warning);
-    border-radius: var(--radius-medium);
+    background: var(--notice-fill);
+    border: var(--border-width) solid var(--notice-tone);
+    border-radius: 50%;
     box-shadow: 0 0.3rem 1rem var(--color-shadow);
-    color: var(--color-warning);
-    display: flex;
-    font: 0.8rem var(--font-interface);
-    gap: 0.4rem;
-    flex-wrap: wrap;
-    max-width: 100%;
-    min-height: 2.4rem;
-    padding: 0.3rem 0.45rem 0.3rem 0.7rem;
-    pointer-events: auto;
-}
-
-.filter-warning[hidden],
-.document-warning[hidden] { display: none; }
-
-.filter-warning {
-    flex-wrap: nowrap;
-}
-
-.filter-warning > [role="status"],
-.document-warning > [role="status"] {
-    flex: 1 1 auto;
-    min-width: 0;
-    overflow-wrap: anywhere;
-}
-
-.document-warning button {
-    color: var(--color-text);
-    max-width: 100%;
-}
-
-.capability-notice details {
-    max-width: 32rem;
-}
-
-.capability-notice summary {
+    color: var(--notice-tone);
     cursor: pointer;
+    display: inline-flex;
+    font: 600 1rem var(--font-interface);
+    height: 2.4rem;
+    justify-content: center;
+    padding: 0;
+    pointer-events: auto;
+    position: relative;
+    width: 2.4rem;
+}
+
+.notice-pill {
+    background: var(--notice-tone);
+    border-radius: 0.6rem;
+    color: var(--color-surface);
+    font: 600 0.65rem/1.1rem var(--font-interface);
+    min-width: 1.1rem;
+    padding: 0 0.3rem;
+    position: absolute;
+    right: -0.35rem;
+    text-align: center;
+    top: -0.35rem;
+}
+
+.notice-list {
+    background: var(--color-surface);
+    border: var(--border-width) solid var(--notice-tone);
+    border-radius: var(--radius-medium);
+    box-shadow: 0 0.6rem 2rem var(--color-shadow);
+    color: var(--color-text);
+    font: 0.8rem var(--font-interface);
+    left: 50%;
+    list-style: none;
+    margin: 0.4rem 0 0;
+    max-height: 60vh;
+    overflow-y: auto;
+    padding: 0.3rem;
+    pointer-events: auto;
+    position: absolute;
+    top: 100%;
+    transform: translateX(-50%);
+    width: min(28rem, calc(100vw - 2rem));
+}
+
+.notice-list[hidden] { display: none; }
+
+.notice-entry + .notice-entry {
+    border-block-start: var(--border-width) solid var(--color-border);
+}
+
+.notice-entry-title {
+    background: transparent;
+    border: 0;
+    color: var(--notice-tone);
+    cursor: pointer;
+    display: block;
+    font: 600 0.8rem var(--font-interface);
+    padding: 0.45rem 0.5rem;
+    text-align: start;
+    width: 100%;
+}
+
+.notice-entry-title::before {
+    content: "\25b8";
+    display: inline-block;
+    margin-inline-end: 0.4rem;
+}
+
+.notice-entry-title[aria-expanded="true"]::before {
+    content: "\25be";
+}
+
+.notice-details {
+    padding: 0 0.5rem 0.5rem 1.4rem;
+}
+
+.notice-details[hidden] { display: none; }
+
+.notice-details p,
+.notice-details dl {
+    margin: 0 0 0.35rem;
+}
+
+.notice-details dt {
     font-weight: 600;
 }
 
-.capability-notice ul {
+.notice-details dd {
+    margin: 0 0 0.3rem;
+}
+
+.notice-details button {
     color: var(--color-text);
-    margin: 0.4rem 0 0.2rem;
-    max-height: 50vh;
-    overflow-y: auto;
-    padding-inline-start: 1.1rem;
-}
-
-.capability-notice li + li {
-    margin-block-start: 0.3rem;
-}
-
-.capability-notice li strong {
-    margin-inline-end: 0.3rem;
+    max-width: 100%;
 }
 
 .capability-message {
