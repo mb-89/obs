@@ -17,6 +17,7 @@ dependencies = [
 
 [project.scripts]
 obs-html = "obs_html.cli:main"
+obs-document = "obs.document:main"
 
 [dependency-groups]
 dev = [
@@ -28,7 +29,7 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/obs_html"]
+packages = ["src/obs_html", "src/obs"]
 
 [tool.hatch.build]
 directory = "data/data_output/dist"
