@@ -1,7 +1,6 @@
 """Recursive note inclusion: see input-model "Chapter content"."""
 import json
 from pathlib import Path
-import re
 
 import pytest
 
@@ -182,12 +181,8 @@ def test_an_ambiguous_note_name_is_an_error_naming_source_and_remedy(tmp_path) -
     )
 
 
-def test_spec_document_leaves_no_link_to_an_existing_note_unresolved(remote_images) -> None:
-    served, _ = remote_images
-    manifest = (ROOT / "spec" / "manifest.md").read_text(encoding="utf-8")
-    for url in re.findall(r"!\[[^\]]*\]\((https://[^)]+)\)", manifest):
-        served[url] = (b"<svg xmlns='http://www.w3.org/2000/svg'/>", "image/svg+xml")
-    document = build_document(ROOT / "spec" / "manifest.md", capability_reference())
+def test_spec_document_leaves_no_link_to_an_existing_note_unresolved(spec_document) -> None:
+    document = spec_document
 
     assert [attrs["target"] for attrs in _links(document) if attrs["chapter"] is None] == []
     assert document["diagnostics"] == []
