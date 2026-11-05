@@ -11,7 +11,11 @@
       "type": "object",
       "additionalProperties": false,
       "required": ["title", "metadata"],
-      "properties": {"title": {"type": "string", "minLength": 1}, "metadata": {"type": "object"}}
+      "properties": {
+        "title": {"type": "string", "minLength": 1},
+        "metadata": {"type": "object"},
+        "abstract": {"type": "array", "items": {"$ref": "#/$defs/node"}}
+      }
     },
     "chapters": {"type": "array", "items": {"$ref": "#/$defs/chapter"}},
     "links": {"type": "array", "items": {"$ref": "#/$defs/link"}},
@@ -43,7 +47,8 @@
       "properties": {
         "id": {"$ref": "#/$defs/id"}, "title": {"type": "string", "minLength": 1},
         "content": {"type": "array", "items": {"$ref": "#/$defs/node"}},
-        "children": {"type": "array", "items": {"$ref": "#/$defs/chapter"}}
+        "children": {"type": "array", "items": {"$ref": "#/$defs/chapter"}},
+        "metadata": {"type": "object"}
       }
     },
     "link": {
