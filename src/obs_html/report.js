@@ -956,6 +956,8 @@
         if (!sourceArchiveInfo().available) return;
         try {
             await downloadSourceArchive();
+            const limited = globalThis.obsCapabilities?.explain("downloads");
+            if (limited) globalThis.obsCapabilities.note(link, limited);
         } catch (error) {
             if (globalThis.obsPayload) globalThis.obsPayload.fail(error);
             else showApplicationError(error);
@@ -2763,7 +2765,9 @@
                     );
                 });
             } else {
-                globalThis.alert("No table in this document includes this tag.");
+                const message = "No table in this document includes this tag.";
+                if (globalThis.obsCapabilities?.limit("dialogs")) globalThis.obsCapabilities.note(link, message);
+                else globalThis.alert(message);
             }
             return;
         }

@@ -8,12 +8,15 @@ license-files = ["LICENSE"]
 dependencies = [
     "jsonschema>=4.26.0",
     "markdown-it-py>=3.0",
+    "pillow>=13.0.0",
     "playwright>=1.64.0",
     "pypdf>=6.21.2",
+    "pypdfium2>=5.14.0",
 ]
 
 [project.scripts]
 obs-html = "obs_html.cli:main"
+obs-html-inspect = "obs_html.pdf_inspect:main"
 
 [dependency-groups]
 dev = [
