@@ -3166,6 +3166,19 @@
         }
         registeredApplication = {id: bundle.id, actions};
     };
+    const trustedExtensions = new Map([globalThis.ObsHtmlAttachmentReplacement]
+        .filter(Boolean).map(extension => [extension.namespace, extension.create]));
+    const trustedExtension = namespace => {
+        const create = trustedExtensions.get(namespace);
+        if (!create) {
+            throw new Error(`Trusted extension is unknown: ${namespace}; known: ${[...trustedExtensions.keys()].join(", ")}.`);
+        }
+        return create({
+            report: globalThis.obsReport,
+            payload: globalThis.obsPayload,
+            trusted: () => Boolean(expectedRuntimeBundle) && registeredApplication?.id === expectedRuntimeBundle,
+        });
+    };
     const validateApplicationRuntime = expected => {
         if (expected !== expectedRuntimeBundle) throw new Error("Trusted runtime selection changed during opening.");
         if (expectedRuntimeBundle && registeredApplication?.id !== expectedRuntimeBundle) {
@@ -3312,6 +3325,7 @@
         registerApplication,
         validateApplicationRuntime,
         dispatchApplicationAction,
+        trustedExtension,
         openFloatingWindow: options => floatingWindow.open(options),
         showApplicationError,
         get revision() { return canonicalRevision; },
