@@ -77,7 +77,7 @@
           }}}
         },
         {
-          "if": {"properties": {"type": {"enum": ["markdown-frontmatter", "quantities", "references"]}}},
+          "if": {"properties": {"type": {"enum": ["bottom-lines", "markdown-frontmatter", "quantities", "references"]}}},
           "then": {"properties": {"attrs": {
             "type": "object", "additionalProperties": false, "required": ["metadata"],
             "properties": {"metadata": {"type": "object"}}
