@@ -26,6 +26,9 @@ command reference. Run the focused contract check with:
 uv run pytest test/test_adapter_manifest.py
 ```
 
+The report runtime's DOM tests run in Node over a test-only DOM adapter; install it once with
+`npm --prefix test/browser ci`, then `uv run pytest -m dom` runs that tier alone.
+
 ## License
 
 [MIT](LICENSE).

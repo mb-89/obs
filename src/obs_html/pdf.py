@@ -25,21 +25,25 @@ class RenderedCheck(NamedTuple):
     pages: int
 
 
-@contextmanager
-def _browser_page(operation: str) -> Iterator[Page]:
+def _executable() -> str | None:
+    """Local Chrome/Edge/Chromium, or None for Playwright's own Chromium."""
     candidates = [
         Path(r"C:\Program Files\Google\Chrome\Application\chrome.exe"),
         Path(r"C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe"),
         Path("/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"),
     ]
     executable = next((str(path) for path in candidates if path.is_file()), None)
-    executable = executable or next(
+    return executable or next(
         (found for name in ("chromium", "chromium-browser", "google-chrome", "msedge")
          if (found := shutil.which(name))), None,
     )
+
+
+@contextmanager
+def _browser_page(operation: str) -> Iterator[Page]:
     try:
         with sync_playwright() as playwright:
-            browser = playwright.chromium.launch(executable_path=executable)
+            browser = playwright.chromium.launch(executable_path=_executable())
             try:
                 yield browser.new_page()
             finally:
@@ -52,6 +56,8 @@ def _browser_page(operation: str) -> Iterator[Page]:
 
 
 def _print(page: Page) -> bytes:
+    """Print through the report runtime's own print book when the page has one."""
+    page.evaluate("window.print = () => {}; globalThis.obsPages?.exportPDF()")
     page.emulate_media(media="print")
     return page.pdf(print_background=True, prefer_css_page_size=True)
 
@@ -60,6 +66,7 @@ def _print(page: Page) -> bytes:
 def export_pdf(html: Path) -> bytes:
     with _browser_page("PDF export") as page:
         page.goto(html.resolve().as_uri(), wait_until="load")
+        page.wait_for_function("!!globalThis.obsPages")
         return _print(page)
 
 

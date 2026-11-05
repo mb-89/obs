@@ -1,32 +1,50 @@
-"""Render a JSON Document as one portable HTML file.
+"""Render a JSON Document as one portable, interactive HTML report.
 
 The Document is the only input: no vault, no core package. Each capability this adapter
 renders registers one node renderer in ``CAPABILITIES``; ``adapter.json`` declares the same
-identifiers.
+identifiers. Chapters become the notes of the report-data island, which the embedded
+runtime (report.js and its companions) reads to build the reader, the bars and the pages.
 """
 from __future__ import annotations
 
 import json
 import re
 from dataclasses import dataclass, field
+from datetime import datetime, timezone
 from html import escape
+from importlib.metadata import version
+from importlib.resources import files
+from pathlib import Path
 from typing import Callable
 
+from markdown_it import MarkdownIt
+
+from obs_html.bars import BarDefinition, discover_bars
 from obs_html.config import Config, paper
+from obs_html.figures import FigureError, render_descriptor
+from obs_html.report_data import encode_report_data, prepare_report_scripts, serialize_report_data
+from obs_html.semantic_assets import SemanticAssets, markup
+from obs_html.styles import load_style
 from obs_html.timings import stage
 
 
 STRUCTURAL = {"document", "section", "paragraph", "text", "list", "list-item", "code"}
-DEFAULT_PAGES = ({"page": "cover"}, {"page": "abstract", "title": "Abstract"},
-                 {"page": "contents", "title": "Contents"})
+PROFILE_DEFAULTS = {
+    "layout": "paged",
+    "heading": "cover",
+    "pages": [{"page": "cover"}, {"page": "abstract", "title": "Abstract"},
+              {"page": "contents", "title": "Contents"}],
+    "figures": {"numbering": "none", "label": "Figure", "labelPlural": "Figures"},
+    "query": {"scope": "chapters"},
+}
 COVER_FIELDS = ("authors", "reviewers", "approvers", "sap number", "legal entity")
-STYLE = """
-body{font-family:system-ui,sans-serif;line-height:1.5;margin:0 auto;max-width:48rem;padding:1rem}
-pre{white-space:pre-wrap;overflow-wrap:anywhere}
-table{border-collapse:collapse}th,td{border:1px solid currentColor;padding:.2rem .4rem;text-align:left}
-.mark{font-size:.8em;opacity:.7}.unresolved{text-decoration:underline dotted}
-@media print{body{max-width:none;padding:0}.front-page,.chapter{break-before:page}}
-"""
+HOME = "home"
+DOCK_DIRECTIONS = (
+    ("left", "left", "vertical"),
+    ("right", "right", "vertical"),
+    ("top", "up", "horizontal"),
+    ("bottom", "down", "horizontal"),
+)
 
 
 class RenderError(ValueError):
@@ -37,11 +55,15 @@ class RenderError(ValueError):
 class Context:
     document: dict[str, object]
     command_runner: Callable[[str], str] | None
+    assets: SemanticAssets
     chapter: str = ""
     links: dict[str, dict[str, str]] = field(default_factory=dict)
-    assets: dict[str, dict[str, str]] = field(default_factory=dict)
+    files: dict[str, dict[str, str]] = field(default_factory=dict)
     chapters: dict[str, str] = field(default_factory=dict)
     headings: dict[str, str] = field(default_factory=dict)
+    tables: list[dict[str, object]] = field(default_factory=list)
+    marks: list[dict[str, object]] = field(default_factory=list)
+    frontmatter: dict[str, object] = field(default_factory=dict)
 
 
 Renderer = Callable[[dict[str, object], Context], str]
@@ -53,28 +75,28 @@ def _nothing(_node: dict[str, object], _context: Context) -> str:
 
 
 def _frontmatter(node: dict[str, object], context: Context) -> str:
-    if not context.chapter:
-        return ""  # The cover owns the manifest's metadata.
-    rows = "".join(f"<dt>{escape(key)}</dt><dd>{escape(value)}</dd>"
-                   for key, value in _flatten(node["attrs"]["metadata"]))
-    return f'<dl class="properties">{rows}</dl>\n' if rows else ""
+    """A chapter's frontmatter feeds its frontmatter panel, filters and Base rows, not its body."""
+    if context.chapter:
+        context.frontmatter.update(node["attrs"]["metadata"])
+    return ""
 
 
 def _wikilink(node: dict[str, object], context: Context) -> str:
     attrs = node["attrs"]
     label = escape(attrs["label"])
     chapter = _resolve_chapter(attrs["target"], context)
+    if chapter is not None and attrs["label"] == attrs["target"]:
+        label = escape(context.chapters[chapter])  # An unaliased link shows its note's title.
     if chapter is None:
         return f'<span class="unresolved" title="{escape(attrs["target"], quote=True)}">{label}</span>'
-    anchor = context.headings.get(f"{chapter}#{_identifier(attrs['heading'])}", chapter) \
-        if attrs["heading"] else chapter
-    return f'<a class="internal-link" href="#{anchor}">{label}</a>'
+    anchor = context.headings.get(f"{chapter}#{_identifier(attrs['heading'])}") if attrs["heading"] else None
+    href = f"#{chapter}/{anchor.removeprefix(f'{chapter}--')}" if anchor else f"#{chapter}"
+    return f'<a class="internal-link" href="{href}">{label}</a>'
 
 
 def _mark(node: dict[str, object], _context: Context) -> str:
-    category, identifier = (escape(node["attrs"][key], quote=True) for key in ("category", "id"))
-    return (f'<span class="mark" data-mark-category="{category}" data-mark-id="{identifier}">'
-            f'#mark/{category}/{identifier}</span>')
+    """Marks are collected by their paragraph, which carries the mark rail (see _paragraph)."""
+    return ""
 
 
 def _command(node: dict[str, object], context: Context) -> str:
@@ -88,39 +110,36 @@ def _command(node: dict[str, object], context: Context) -> str:
 
 
 def _base(node: dict[str, object], context: Context) -> str:
-    spec = node["attrs"]["spec"]
-    properties = spec.get("properties") or {}
-    accept = _base_filter(spec.get("filters"))
-    matching = [record for record in context.document["records"] if accept(record)]
-    tables = []
-    for view in spec.get("views") or []:
-        if view.get("type") != "table":
-            raise RenderError(f"Unsupported Base view type: {view.get('type')!r}.")
-        records = list(matching)
-        for key in reversed(view.get("sort") or []):
-            records.sort(key=lambda record: _text(_record_value(record, key["property"])),
-                         reverse=key.get("direction") == "DESC")
-        columns = view.get("order") or []
-        head = "".join(f"<th>{escape(_display_name(column, properties))}</th>" for column in columns)
-        rows = "".join(
-            "<tr>" + "".join(f"<td>{escape(_text(_record_value(record, column)))}</td>"
-                             for column in columns) + "</tr>"
-            for record in records
-        )
-        caption = f"<caption>{escape(view['name'])}</caption>" if view.get("name") else ""
-        tables.append(f'<table class="base">{caption}<thead><tr>{head}</tr></thead>'
-                      f"<tbody>{rows}</tbody></table>\n")
-    return "".join(tables)
+    """A Base view is a table placeholder; the runtime evaluates it over the island's notes."""
+    definition = node["attrs"]["spec"]
+    try:
+        context.assets.normalize_definition(definition)
+    except ValueError as error:
+        raise RenderError(f"Base in chapter {context.chapter or HOME}: {error}") from error
+    key = f"{context.chapter or HOME}-base-{len(context.tables) + 1}"
+    context.tables.append({"key": key, "definition": definition})
+    return f'<div class="data-table-placeholder" data-base-table="{escape(key, quote=True)}"></div>\n'
+
+
+def _figure(node: dict[str, object], context: Context) -> str:
+    descriptor = node["attrs"]["descriptor"]
+    try:
+        return render_descriptor(descriptor, f"{context.chapter or HOME}--figure-{descriptor['id']}")
+    except FigureError as error:
+        raise RenderError(f"Chapter {context.chapter or HOME}: {error}") from error
 
 
 CAPABILITIES: dict[str, Renderer] = {
     "bases": _base,
     "chapter-inclusion": _nothing,
     "command-fences": _command,
+    "document-presentation": _nothing,
+    "figure-descriptor": _figure,
     "manifest": _nothing,
     "markdown": _nothing,
     "markdown-frontmatter": _frontmatter,
     "marks": _mark,
+    "named-icons": _nothing,
     "profiles": _nothing,
     "queries": _nothing,
     "wikilinks": _wikilink,
@@ -129,94 +148,180 @@ CAPABILITIES: dict[str, Renderer] = {
 
 @stage("render")
 def render(document: dict[str, object], config: Config,
-           command_runner: Callable[[str], str] | None = None) -> str:
+           command_runner: Callable[[str], str] | None = None,
+           style_folder: Path | None = None,
+           trusted_runtime: tuple[str, str] | None = None) -> str:
     if document.get("schemaVersion") != 1:
         raise RenderError(f"Unsupported Document schema version: {document.get('schemaVersion')!r}.")
     unsupported = sorted(set(document["capabilities"]) - set(CAPABILITIES))
     if unsupported:
         raise RenderError(f"Document uses capabilities this adapter does not render: "
                           f"{', '.join(unsupported)}.")
+    style = load_style(style_folder)
+    assets = SemanticAssets(style.asset_index)
     context = Context(
-        document, command_runner,
+        document, command_runner, assets,
         links={item["id"]: item for item in document["links"]},
-        assets={item["id"]: item for item in document["assets"]},
+        files={item["id"]: item for item in document["assets"]},
     )
     _index(document["chapters"], context)
+    if HOME in context.chapters:
+        raise RenderError(f"Chapter id {HOME!r} is reserved for the document's home page.")
+    model = _resolve_icons(_model(document, config, context), assets)
+    return prepare_report_scripts(assets.resolve_markup(
+        _shell(model, style.stylesheet, assets, config, trusted_runtime)))
+
+
+def _resolve_icons(value: object, assets: SemanticAssets) -> object:
+    """Named icon placeholders become their glyphs or images everywhere in the island."""
+    if isinstance(value, str):
+        return assets.resolve_markup(value)
+    if isinstance(value, list):
+        return [_resolve_icons(item, assets) for item in value]
+    if isinstance(value, dict):
+        return {key: _resolve_icons(item, assets) for key, item in value.items()}
+    return value
+
+
+def _profile(manifest: dict[str, object]) -> dict[str, object]:
+    declared = next((node["attrs"]["profile"] for node in manifest.get("abstract", [])
+                     if node["type"] == "profiles"), {})
+    resolved = {key: declared.get(key, value) for key, value in PROFILE_DEFAULTS.items()}
+    resolved["figures"] = PROFILE_DEFAULTS["figures"] | resolved["figures"]
+    resolved["print"] = declared.get("print") or {}
+    return resolved
+
+
+def _model(document: dict[str, object], config: Config, context: Context) -> dict[str, object]:
+    """The report-data island: the runtime's only model of the document."""
     manifest = document["manifest"]
-    profile = next((node["attrs"]["profile"] for node in manifest.get("abstract", [])
-                    if node["type"] == "profiles"), {})
-    geometry = paper({**config.print_default, **(profile.get("print") or {})}, config)
-    title = escape(manifest["title"])
-    front = "".join(_front_page(page, manifest, context) for page in profile.get("pages", DEFAULT_PAGES))
-    body = front + _chapters(document["chapters"], context, 1)
-    layout = escape(str(profile.get("layout", "paged")), quote=True)
-    return (
-        "<!doctype html>\n"
-        f'<html lang="en" data-layout="{layout}" data-report-status="ready">\n<head>\n'
-        '<meta charset="utf-8">\n<meta name="viewport" content="width=device-width, initial-scale=1">\n'
-        f"<title>{title}</title>\n<style>{STYLE}"
-        f"@page{{size:{_mm(geometry['widthMillimeters'])} {_mm(geometry['heightMillimeters'])};"
-        f"margin:{_mm(geometry['marginMillimeters'])}}}\n</style>\n</head>\n<body>\n{body}</body>\n</html>\n"
-    )
+    profile = _profile(manifest)
+    settings = config.report
+    title = manifest["title"]
+    metadata = {key: value for key, value in manifest["metadata"].items() if key != "obsHtml"}
+    home_html = _cover(title, metadata, profile["heading"] == "compact") + _note_body(
+        manifest.get("abstract", []), "", context)
+    notes = [_note(0, title, HOME, HOME, {}, home_html, context)]
+    notes.extend(_chapter_notes(document["chapters"], context, 0))
+    _attach_records(document["records"], notes)
+    return {
+        "assets": context.assets.resources,
+        "embeddedAssets": context.assets.embedded_assets,
+        "document": {
+            "title": title,
+            "metadata": metadata,
+            "pages": profile["pages"],
+            "generation": {
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+                "generator": {"name": "obs-html", "version": version("obs-html"), "commit": "unknown"},
+                "target": {"name": title, "version": "unknown", "commit": "unknown"},
+            },
+        },
+        "paper": paper({**config.print_default, **profile["print"]}, config),
+        "reading": {"theme": "light", "paged": profile["layout"] == "paged", **settings["reading"]},
+        "figures": settings["figures"],
+        "printReadyTimeoutMilliseconds": settings["printReadyTimeoutMilliseconds"],
+        "hoverCard": settings["hoverCard"],
+        "tablePageSize": settings["tablePageSize"],
+        "inactiveIconOpacity": settings["inactiveIconOpacity"],
+        "tableColumnMinimumPixels": settings["tableColumnMinimumPixels"],
+        "tableCompactColumnMinimumPixels": settings["tableCompactColumnMinimumPixels"],
+        "dockPaneMinimumPixels": settings["dockPaneMinimumPixels"],
+        "guidedCard": settings["guidedCard"],
+        "tableIconWidthPixels": settings["tableIconWidthPixels"],
+        "tableDetailFontSizePoints": settings["tableDetailFontSizePoints"],
+        "facetDistinctRatio": settings["facetDistinctRatio"],
+        "query": profile["query"],
+        "filterPresets": settings["filterPresets"],
+        "toc": [note["slug"] for note in notes if not note.get("record")],
+        "notes": [{key: value for key, value in note.items() if key != "record"} for note in notes],
+    }
 
 
-def _front_page(page: dict[str, str], manifest: dict[str, object], context: Context) -> str:
-    kind = page["page"]
-    heading = f"<h1>{escape(page['title'])}</h1>\n" if page.get("title") else ""
-    if kind == "cover":
-        return f'<header class="front-page cover">{_cover(manifest)}</header>\n'
-    if kind == "abstract":
-        content = _nodes(manifest.get("abstract", []), context)
-        return f'<section class="front-page abstract">{heading}{content}</section>\n' if content else ""
-    if kind == "contents":
-        return f'<nav class="front-page contents">{heading}{_contents(context.document["chapters"])}</nav>\n'
-    raise RenderError(f"Unsupported front page: {kind!r}.")
-
-
-def _cover(manifest: dict[str, object]) -> str:
-    metadata = manifest["metadata"]
-    parts = []
-    product = metadata.get("product")
-    if isinstance(product, dict):
-        name = " ".join(_text(product[key]) for key in ("name", "version") if product.get(key))
-        if name:
-            parts.append(f'<p class="cover-product">{escape(name)}</p>')
-    if metadata.get("organization"):
-        parts.append(f'<p class="cover-organization">{escape(_text(metadata["organization"]))}</p>')
-    parts.append(f'<h1 class="document-title">{escape(manifest["title"])}</h1>')
-    for key, css in (("document type", "cover-type"), ("subtitle", "document-subtitle")):
-        if metadata.get(key):
-            parts.append(f'<p class="{css}">{escape(_text(metadata[key]))}</p>')
-    facts = "".join(f"<dt>{escape(key.title())}</dt><dd>{escape(_text(metadata[key]))}</dd>"
-                    for key in COVER_FIELDS if metadata.get(key))
-    if facts:
-        parts.append(f'<dl class="cover-facts">{facts}</dl>')
-    parts.extend(f'<p class="cover-{key}">{escape(_text(metadata[key]))}</p>'
-                 for key in ("copyright", "confidentiality") if metadata.get(key))
-    return "".join(parts)
-
-
-def _contents(chapters: list[dict[str, object]]) -> str:
-    if not chapters:
-        return ""
-    items = "".join(
-        f'<li><a href="#{chapter["id"]}">{escape(chapter["title"])}</a>{_contents(chapter["children"])}</li>'
-        for chapter in chapters
-    )
-    return f"<ol>{items}</ol>"
-
-
-def _chapters(chapters: list[dict[str, object]], context: Context, depth: int) -> str:
-    rendered = []
+def _chapter_notes(chapters: list[dict[str, object]], context: Context, depth: int) -> list[dict]:
+    notes = []
     for chapter in chapters:
-        context.chapter = chapter["id"]
-        content = _nodes(chapter["content"], context)
-        if not any(node["type"] == "section" for node in chapter["content"]):
-            content = f"<h{min(depth, 6)}>{escape(chapter['title'])}</h{min(depth, 6)}>\n" + content
-        children = _chapters(chapter["children"], context, depth + 1)
-        rendered.append(f'<section class="chapter" id="{chapter["id"]}">\n{content}{children}</section>\n')
+        context.frontmatter = dict(chapter.get("metadata") or {})
+        body = _note_body(chapter["content"], chapter["id"], context)
+        notes.append(_note(depth, chapter["title"], chapter["id"], "", context.frontmatter, body, context))
+        notes.extend(_chapter_notes(chapter["children"], context, depth + 1))
+    return notes
+
+
+def _note_body(nodes: list[dict[str, object]], chapter: str, context: Context) -> str:
+    context.chapter, context.tables, context.marks = chapter, [], []
+    body = _nodes(nodes, context)
     context.chapter = ""
-    return "".join(rendered)
+    return body
+
+
+def _note(depth: int, title: str, slug: str, generated: str, frontmatter: dict[str, object],
+          html: str, context: Context) -> dict[str, object]:
+    return {
+        "depth": depth, "title": title, "slug": slug, "sourcePath": f"{slug}.md",
+        "generated": generated, "cssClasses": _css_classes(frontmatter, slug),
+        "frontmatter": frontmatter, "editableProperties": {},
+        "frontmatterHtml": _frontmatter_html(frontmatter),
+        "definitionHtml": "", "marks": context.marks, "tables": context.tables, "html": html,
+    }
+
+
+def _attach_records(records: list[dict[str, object]], notes: list[dict[str, object]]) -> None:
+    """Records join the queryable population: a chapter's own record adds to its frontmatter,
+    any other record becomes a record-only note outside the reading order."""
+    by_slug = {note["slug"]: note for note in notes}
+    for record in records:
+        fields = dict(record["fields"])
+        note = by_slug.get(record["id"])
+        if note is not None and not note["generated"]:
+            note["frontmatter"] = {**fields, **note["frontmatter"]}
+            note["frontmatterHtml"] = _frontmatter_html(note["frontmatter"])
+            continue
+        if note is not None:
+            raise RenderError(f"Record id {record['id']!r} is reserved for the document's home page.")
+        fields["obsHtml"] = {**(fields.get("obsHtml") or {}), "document": False}
+        notes.append({
+            "depth": 0, "title": str(fields.get("title") or record["id"]), "slug": record["id"],
+            "sourcePath": f"{record['id']}.md", "generated": "", "cssClasses": [],
+            "frontmatter": fields, "editableProperties": {},
+            "frontmatterHtml": _frontmatter_html(fields),
+            "definitionHtml": "", "marks": [], "tables": [], "html": "", "record": True,
+        })
+
+
+def _cover(title: str, metadata: dict[str, object], compact: bool) -> str:
+    def value(item: object) -> str:
+        return escape(_text(item))
+
+    product = metadata.get("product") if isinstance(metadata.get("product"), dict) else {}
+    subtitle = _inline(metadata["subtitle"]) if metadata.get("subtitle") else ""
+    if compact:
+        product_text = " ".join(value(product[key]) for key in ("name", "version") if product.get(key))
+        parts = [("cover-organization", value(metadata.get("organization", ""))),
+                 ("cover-product", product_text), ("cover-type", value(metadata.get("document type", "")))]
+        line = "".join(f'<span class="{name}">{text}</span>' for name, text in parts if text)
+        line += f'<h1 class="document-title">{escape(title)}</h1>'
+        if subtitle:
+            line += f'<span class="document-subtitle">{subtitle}</span>'
+        return ('<header class="document-heading document-heading--compact">'
+                f'<div class="compact-heading">{line}</div></header>\n')
+    product_html = "".join(f"<div>{value(product[key])}</div>" for key in ("name", "version") if product.get(key))
+    band = (f'<span class="cover-template">{value(metadata.get("template", ""))}</span>'
+            f'<span class="cover-organization">{value(metadata.get("organization", ""))}</span>')
+    facts = "".join(f"<dt>{escape(key.title())}</dt><dd>{value(metadata[key])}</dd>"
+                    for key in COVER_FIELDS if metadata.get(key))
+    legal = "".join(f'<p class="cover-{key}">{value(metadata[key])}</p>'
+                    for key in ("copyright", "confidentiality") if metadata.get(key))
+    return (
+        '<header class="document-heading">'
+        + (f'<div class="cover-product">{product_html}</div>' if product_html else "")
+        + f'<div class="cover-band">{band}</div><div class="cover-frame">'
+        + f'<h1 class="document-title">{escape(title)}</h1>'
+        + (f'<p class="cover-type">{value(metadata["document type"])}</p>' if metadata.get("document type") else "")
+        + (f'<div class="document-subtitle">{subtitle}</div>' if subtitle else "")
+        + legal + "</div>"
+        + f'<div class="cover-facts-frame"><dl class="cover-facts">{facts}</dl></div></header>\n'
+    )
 
 
 def _nodes(nodes: list[dict[str, object]], context: Context) -> str:
@@ -229,13 +334,17 @@ def _node(node: dict[str, object], context: Context) -> str:
         return CAPABILITIES[kind](node, context)
     if kind not in STRUCTURAL:
         raise RenderError(f"Document node uses a capability this adapter does not render: {kind}.")
-    inner = _nodes(node["children"], context)
     if kind == "text":
         return _text_node(node, context)
     if kind == "code":
-        return f"<code>{escape(node.get('text', ''))}</code>"
+        return _code(node)
     if kind == "paragraph":
-        return f"<p>{inner}</p>\n"
+        return _paragraph(node, context)
+    if kind == "list" and _tight(node):
+        tag = "ol" if node["attrs"].get("ordered") else "ul"
+        items = "".join(f"<li>{_tight_item(item, context)}</li>\n" for item in node["children"])
+        return f"<{tag}>\n{items}</{tag}>\n"
+    inner = _nodes(node["children"], context)
     if kind == "section":
         level = min(max(int(node["attrs"].get("level", 1)), 1), 6)
         anchor = context.headings.get(f"{context.chapter}#{_identifier(_plain(node))}", "")
@@ -249,6 +358,87 @@ def _node(node: dict[str, object], context: Context) -> str:
     return f'<div class="document">{inner}</div>\n'
 
 
+# A separator run inside a code span is a break opportunity only between word characters,
+# so a leading `/root`, trailing `trail.` or bare `--flag` never strand a lone mark.
+CODE_BREAK = re.compile(r"(?<=[^\s/\\._:\-])[/\\._:\-]+(?=[^\s/\\._:\-])")
+
+
+def _code(node: dict[str, object]) -> str:
+    """A fence (it names a language, possibly empty) is a block; any other code is inline."""
+    text = node.get("text", "")
+    language = node["attrs"].get("language")
+    if language is not None:
+        css = f' class="language-{escape(language, quote=True)}"' if language else ""
+        return f"<pre><code{css}>{escape(text)}</code></pre>\n"
+    pieces, position = [], 0
+    for separator in CODE_BREAK.finditer(text):
+        pieces.append(escape(text[position:separator.end()]))
+        position = separator.end()
+    pieces.append(escape(text[position:]))
+    return f"<code>{'<wbr>'.join(pieces)}</code>"
+
+
+def _tight(node: dict[str, object]) -> bool:
+    """A list whose items each hold one paragraph (plus nested lists) renders tight, as
+    Markdown's usual tight lists do; the Document does not say whether a list was loose."""
+    return all(
+        sum(child["type"] == "paragraph" for child in item["children"]) == 1
+        and all(child["type"] in {"paragraph", "list"} for child in item["children"])
+        for item in node["children"]
+    )
+
+
+def _tight_item(item: dict[str, object], context: Context) -> str:
+    parts = []
+    for child in item["children"]:
+        if child["type"] == "paragraph" and not any(c["type"] == "marks" for c in child["children"]):
+            parts.append(_nodes(child["children"], context))
+        else:
+            parts.append(("\n" if parts else "") + _node(child, context))
+    return "".join(parts)
+
+
+def _paragraph(node: dict[str, object], context: Context) -> str:
+    inner = _nodes(node["children"], context)
+    marks = [child["attrs"] for child in node["children"] if child["type"] == "marks"]
+    if not marks:
+        return f"<p>{inner}</p>\n"
+    slug = context.chapter or HOME
+    anchor = f"mark-{slug}-{_mark_slug(marks[0])}"
+    text = " ".join(_plain(node).split())
+    for mark in marks:
+        context.marks.append({"kind": mark["category"], "label": mark["id"], "text": text,
+                              "html": escape(text), "anchor": anchor, "backlinks": []})
+    kinds = [mark["category"] for mark in marks]
+    classes = " ".join(f"semantic-mark--{kind.replace('_', '-')}" for kind in kinds)
+    rail = "".join(
+        f'<a class="semantic-mark-icon semantic-mark-icon--{kind.replace("_", "-")}" href="#tags" '
+        f'data-tag-kind="{escape(kind, quote=True)}" data-tag-label="{escape(mark["id"], quote=True)}" '
+        f'aria-label="{escape(_mark_description(mark), quote=True)}">{_mark_icon(kind, context)}</a>'
+        for kind, mark in zip(kinds, marks)
+    )
+    return (f'<p class="semantic-mark {classes}" data-mark-kind="{escape(" ".join(kinds), quote=True)}" '
+            f'data-mark-label="{escape(" ".join(mark["id"] for mark in marks), quote=True)}" id="{anchor}">'
+            f'<span class="semantic-mark-content">{inner.strip()}</span>'
+            f'<span class="semantic-mark-rail" aria-label="Paragraph marks">{rail}</span></p>\n')
+
+
+def _mark_icon(kind: str, context: Context) -> str:
+    try:
+        context.assets.icon(f"mark.{kind}")
+    except ValueError as error:
+        raise RenderError(f"Unknown paragraph mark kind {kind!r}: {error}") from error
+    return markup(f"mark.{kind}")
+
+
+def _mark_slug(mark: dict[str, str]) -> str:
+    return f"{mark['category'].replace('_', '-')}-{mark['id'].replace('_', '-')}"
+
+
+def _mark_description(mark: dict[str, str]) -> str:
+    return f"{mark['category'].replace('_', ' ').title()}: {mark['id'].replace('_', ' ')}"
+
+
 def _text_node(node: dict[str, object], context: Context) -> str:
     text = escape(node.get("text", ""))
     attrs = node["attrs"]
@@ -258,11 +448,210 @@ def _text_node(node: dict[str, object], context: Context) -> str:
             raise RenderError(f"Text links to an unknown link: {attrs['link']}.")
         return f'<a href="{escape(link["href"], quote=True)}">{text}</a>'
     if "asset" in attrs:
-        asset = context.assets.get(attrs["asset"])
+        asset = context.files.get(attrs["asset"])
         if asset is None:
             raise RenderError(f"Text names an unknown asset: {attrs['asset']}.")
         return f'<img src="{escape(asset["href"], quote=True)}" alt="{escape(node.get("text", ""), quote=True)}">'
     return text
+
+
+def _shell(model: dict[str, object], stylesheet: str, assets: SemanticAssets, config: Config,
+           trusted_runtime: tuple[str, str] | None) -> str:
+    package = files("obs_html")
+
+    def read(*parts: str) -> str:
+        return package.joinpath(*parts).read_text(encoding="utf-8")
+
+    bars = discover_bars()
+    bar_scripts = "\n".join(f"\n{bar.script}" for bar in bars if bar.script)
+    data = serialize_report_data(model)
+    title = model["document"]["title"]
+    figure_assets = ""
+    if "data-report-figure" in data:
+        plotly = ""
+        if 'data-figure-kind=\\"plot\\"' in data:
+            figures = config.report["figures"]
+            if figures["plotlyDelivery"] == "cdn":
+                plotly = (f'<script id="plotly-script" src="{figures["plotlyCdnUrl"]}" '
+                          f'integrity="{figures["plotlyCdnIntegrity"]}" crossorigin="anonymous" '
+                          "data-optional-runtime></script>")
+            else:
+                plotly = ('<script id="plotly-script">/* ' + read("vendor", "plotly.LICENSE") + " */\n"
+                          + read("vendor", "plotly-basic.min.js.LICENSE.txt") + "\n"
+                          + read("vendor", "plotly-basic.min.js").replace("</script", "<\\/script")
+                          + "</script>")
+        figure_assets = (f'<style id="figure-styles">{read("figures.css")}</style>{plotly}'
+                         f'<script id="figure-script">{read("figures.js")}</script>')
+    startup = model["reading"]
+    reader_startup = "".join(
+        f"    {line}\n" for line in read("reader-startup.js")
+        .replace("READER_THEME", json.dumps(startup["theme"]))
+        .replace("READER_PAGED", json.dumps(startup["paged"])).splitlines()
+    )
+    runtime_head = runtime_script = ""
+    if trusted_runtime:
+        runtime_id, runtime_source = trusted_runtime
+        runtime_head = f'<meta name="obs-trusted-runtime" content="{escape(runtime_id, quote=True)}">'
+        runtime_script = (f'<script id="trusted-application-runtime" '
+                          f'data-runtime-bundle="{escape(runtime_id, quote=True)}">'
+                          + re.sub(r"</script", r"<\\/script", runtime_source, flags=re.IGNORECASE)
+                          + "</script>")
+    header_metadata = escape(serialize_report_data(model["document"]["metadata"]), quote=True)
+    return f"""<!doctype html>
+<html lang="en" data-theme="{escape(startup['theme'])}">
+<head>
+  <meta charset="utf-8">
+  {runtime_head}
+  <script id="reader-startup-script">
+{reader_startup}  </script>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <title>{escape(title)}</title>
+  <style id="report-styles">
+{stylesheet}
+  </style>
+  <style id="semantic-asset-styles">{assets.css()}</style>
+</head>
+<body>
+  <div class="app-shell" inert>
+    {_dock_region("top")}
+    {_dock_region("left")}
+    <main class="reader-shell">
+      <div class="frontmatter-nav-zone">
+        <button class="frontmatter-toggle" type="button" data-frontmatter-toggle
+                aria-label="Show frontmatter" aria-expanded="false"
+                aria-controls="frontmatter-panel" title="Show frontmatter" hidden>
+          {markup("frontmatter")}
+        </button>
+      </div>
+      <div class="chapter-scroll" data-chapter-scroll tabindex="-1">
+        <section class="frontmatter-panel" id="frontmatter-panel" data-frontmatter-panel
+                 aria-label="Frontmatter" hidden>
+          <table>
+            <thead><tr><th scope="col">Field</th><th scope="col">Value</th></tr></thead>
+            <tbody data-frontmatter-body data-transient-content></tbody>
+          </table>
+        </section>
+        <article class="chapter" data-active-chapter>
+          <div class="chapter-body" data-chapter-body data-transient-content>
+          </div>
+        </article>
+      </div>
+      <div class="chapter-nav-zone chapter-nav-zone--previous">
+        <button class="icon-button chapter-nav" type="button" data-step="-1"
+                aria-label="Previous chapter" title="Previous chapter"></button>
+      </div>
+      <div class="chapter-nav-zone chapter-nav-zone--next">
+        <button class="icon-button chapter-nav" type="button" data-step="1"
+                aria-label="Next chapter" title="Next chapter"></button>
+      </div>
+    </main>
+    {_dock_region("right")}
+    {_dock_region("bottom")}
+  </div>
+
+  <script id="running-header-script" data-header-metadata="{header_metadata}">
+{read("running-header.js")}
+  </script>
+  <button class="icon-button menu-button" type="button" data-menu-button
+          aria-label="Open bars menu" aria-expanded="false" title="Bars" disabled>{markup("menu")}</button>
+  <section class="bars-menu" data-bars-menu aria-label="Bars" hidden>
+    {''.join(_menu_row(bar) for bar in bars)}
+  </section>
+
+  <div class="bar-parking" data-bar-parking hidden>
+    {''.join(_bar(bar) for bar in bars)}
+  </div>
+
+  {encode_report_data(model, config.report["dataCompression"])}
+  <script id="obs-comments" type="application/json" data-comment-island>{_empty_comment_island()}</script>
+  <script id="query-script">
+{read("query.js")}
+  </script>
+  <script id="base-schema" type="application/json">{read("base.schema.json")}</script>
+  <script type="application/json" data-json-schema="assets.schema.json">{read("assets.schema.json")}</script>
+  <script id="property-editor-schema" type="application/json">{read("property-editor.schema.json")}</script>
+  <script id="yaml-script">
+/* {read("vendor", "js-yaml.LICENSE")} */
+{read("vendor", "js-yaml.min.js")}
+  </script>
+  <script id="base-script">
+{read("base.js")}
+  </script>
+  <script id="data-table-script">
+{read("table.js")}
+  </script>
+  <script id="zip-rewrite-script">{read("zip-rewrite.js")}</script>
+  <script id="payload-script">{read("payloads.js")}</script>
+  <script id="assets-script">{read("assets.js")}</script>
+  <script id="canonical-transaction-script">
+{read("canonical-transaction.js")}
+  </script>
+  <script id="report-script">
+{read("hover-card.js")}
+{read("guided-card.js")}
+{read("report.js")}
+  </script>
+  {figure_assets}
+  <script id="pages-script">
+{read("pages.js")}
+  </script>
+  <script id="storage-script">
+
+{read("storage.js")}
+  </script>
+  <script id="bar-scripts">
+{bar_scripts}
+  </script>
+  {runtime_script}
+</body>
+</html>
+"""
+
+
+def _empty_comment_island() -> str:
+    return json.dumps({"version": 2, "annotations": [], "reviewers": [], "reviews": []},
+                      ensure_ascii=True, separators=(",", ":"))
+
+
+def _bar(bar: BarDefinition) -> str:
+    key, label = escape(bar.key), escape(bar.label)
+    return (
+        f'<aside class="dock-bar bar--{key}" data-bar="{key}" aria-label="{label}" hidden>'
+        '<header class="dock-bar-header">'
+        f'<span class="bar-icon bar-icon--{key}" aria-hidden="true">{markup(bar.icon)}</span>'
+        f"<h2>{label}</h2>{bar.header_actions}"
+        f'<button type="button" class="icon-button dock-bar-close" data-bar-close="{key}" '
+        f'aria-label="Close {label}" title="Close {label}">{markup("close")}</button>'
+        f'</header><div class="dock-bar-content">{bar.render()}</div></aside>'
+    )
+
+
+def _menu_row(bar: BarDefinition) -> str:
+    key, label = escape(bar.key), escape(bar.label)
+    buttons = "".join(
+        f'<button class="icon-button dock-button" type="button" data-dock-bar="{key}" '
+        f'data-dock-direction="{direction}" aria-label="Dock {label} {direction}" aria-pressed="false" '
+        f'title="Dock {label} {direction}">{markup(icon)}</button>'
+        for direction, icon, _orientation in DOCK_DIRECTIONS
+    )
+    return (
+        '<div class="bars-menu-row">'
+        f'<span class="bar-identity" data-hover-help="{escape(bar.help)}">'
+        f'<span class="bar-icon bar-icon--{key}" aria-hidden="true">{markup(bar.icon)}</span>'
+        f"<span>{label}</span></span>"
+        f'<div class="dock-controls" role="group" aria-label="Dock {label}">{buttons}</div></div>'
+    )
+
+
+def _dock_region(direction: str) -> str:
+    orientation = next(item for candidate, _icon, item in DOCK_DIRECTIONS if candidate == direction)
+    return (
+        f'<div class="dock-region dock-region--{direction}" data-dock-region="{direction}">'
+        f'<div class="dock-resize-handle" data-dock-resize="{direction}" role="separator" '
+        f'aria-label="Resize {direction} bars" aria-orientation="{orientation}" tabindex="0" '
+        f'data-hover-help="Drag to resize {direction} bars; double-click to reset"></div></div>'
+    )
 
 
 def _index(chapters: list[dict[str, object]], context: Context) -> None:
@@ -288,44 +677,58 @@ def _resolve_chapter(target: str, context: Context) -> str | None:
     return matches[0] if len(matches) == 1 else None
 
 
-def _base_filter(filters: object) -> Callable[[dict[str, object]], bool]:
-    if filters is None:
-        return lambda _record: True
-    if isinstance(filters, str):
-        match = re.fullmatch(r'\s*([\w.]+)\s*(==|!=)\s*("[^"]*"|null|true|false|-?[0-9]+(?:\.[0-9]+)?)\s*',
-                             filters)
-        if match is None:
-            raise RenderError(f"Unsupported Base filter: {filters!r}.")
-        name, operator, literal = match.groups()
-        value = json.loads(literal)
-        if operator == "==":
-            return lambda record: _record_value(record, name) == value
-        return lambda record: _record_value(record, name) != value
-    if isinstance(filters, dict) and len(filters) == 1:
-        (combinator, items), = filters.items()
-        if combinator in {"and", "or"} and isinstance(items, list):
-            parts = [_base_filter(item) for item in items]
-            combine = all if combinator == "and" else any
-            return lambda record: combine(part(record) for part in parts)
-    raise RenderError(f"Unsupported Base filter: {filters!r}.")
+CSS_CLASS = re.compile(r"-?[_A-Za-z][_A-Za-z0-9-]*")
 
 
-def _record_value(record: dict[str, object], name: str) -> object:
-    if name == "file.name":
-        return record["id"]
-    value: object = record["fields"]
-    for part in name.removeprefix("note.").split("."):
-        if not isinstance(value, dict) or part not in value:
-            return None
-        value = value[part]
-    return value
+def _css_classes(frontmatter: dict[str, object], slug: str) -> list[str]:
+    """The note's Obsidian ``cssclasses``: one class name or a list of them."""
+    value = frontmatter.get("cssclasses", [])
+    classes = [value] if isinstance(value, str) else value
+    if not isinstance(classes, list) or not all(
+            isinstance(name, str) and CSS_CLASS.fullmatch(name) for name in classes):
+        raise RenderError(f"cssclasses must be one CSS class name or a list of them in {slug}: {value!r}")
+    return list(dict.fromkeys(classes))
 
 
-def _display_name(column: str, properties: dict[str, object]) -> str:
-    settings = properties.get(column)
-    if isinstance(settings, dict) and settings.get("displayName"):
-        return str(settings["displayName"])
-    return column
+INLINE = MarkdownIt("commonmark", {"html": False})
+
+
+def _inline(value: object) -> str:
+    """Inline Markdown of a metadata string (bold, links, images such as badges); raw HTML stays text.
+
+    The Document carries metadata values as authored strings, so their inline Markdown is
+    rendered here, as the interim adapter did, until the core carries them as nodes.
+    """
+    source = _text(value)
+    if re.fullmatch(r"https?://[^\s<>]+", source, re.IGNORECASE):
+        source = f"<{source}>"
+    return INLINE.renderInline(source)
+
+
+def _frontmatter_html(metadata: dict[str, object]) -> dict[str, str]:
+    """Each flattened frontmatter field's display HTML, as the frontmatter panel shows it."""
+    rendered: dict[str, str] = {}
+
+    def add(name: str, value: object) -> None:
+        if isinstance(value, dict):
+            if value:
+                for key, item in value.items():
+                    add(f"{name}.{key}" if name else key, item)
+            elif name:
+                rendered[name] = "{}"
+        elif isinstance(value, list):
+            if not value:
+                rendered[name] = "[]"
+            elif all(not isinstance(item, (dict, list)) for item in value):
+                rendered[name] = ", ".join(_inline("null" if item is None else item) for item in value)
+            else:
+                for index, item in enumerate(value):
+                    add(f"{name}.{index}", item)
+        elif name:
+            rendered[name] = _inline("null" if value is None else value)
+
+    add("", metadata)
+    return rendered
 
 
 def _flatten(value: object, prefix: str = ""):
@@ -355,7 +758,3 @@ def _plain(node: dict[str, object]) -> str:
 
 def _identifier(value: str) -> str:
     return re.sub(r"[^a-z0-9]+", "-", value.lower()).strip("-")
-
-
-def _mm(value: float) -> str:
-    return f"{value:g}mm"

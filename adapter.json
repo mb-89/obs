@@ -10,10 +10,13 @@
     "bases",
     "chapter-inclusion",
     "command-fences",
+    "document-presentation",
+    "figure-descriptor",
     "manifest",
     "markdown",
     "markdown-frontmatter",
     "marks",
+    "named-icons",
     "profiles",
     "queries",
     "wikilinks"

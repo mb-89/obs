@@ -6,14 +6,76 @@
     "renderedCheckTimeoutSeconds": 120
   },
   "report": {
+    "inactiveIconOpacity": 0.45,
+    "guidedCard": {
+      "widthPixels": 440,
+      "heightPixels": 640
+    },
+    "dataCompression": "gzip",
+    "reading": {
+      "codeFontPoints": 8,
+      "headingSpaceBeforeEm": 0.9,
+      "headingSpaceAfterEm": 0.35,
+      "paragraphMinimumLines": 2,
+      "pingPeriodMilliseconds": 250,
+      "pingCount": 4,
+      "pingScale": 6
+    },
+    "figures": {
+      "proseWidthMultiplier": 1.5,
+      "viewportGutterRem": 1,
+      "viewportHeightRatio": 0.8,
+      "plotlyDelivery": "embedded",
+      "plotlyCdnUrl": "https://cdn.plot.ly/plotly-basic-2.35.3.min.js",
+      "plotlyCdnIntegrity": "sha384-1kloN2RA6UbO83t0fSTtvwbovK00vzWzCE4WE0bLlnh07IC3ftBV/0Q5xhUpwDQq"
+    },
+    "printReadyTimeoutMilliseconds": 15000,
     "print": {
-      "default": {"paper": "A4", "margin": "20mm"},
+      "default": {
+        "paper": "A4",
+        "margin": "20mm"
+      },
       "paperSizes": {
-        "A3": {"widthMillimeters": 297, "heightMillimeters": 420},
-        "A4": {"widthMillimeters": 210, "heightMillimeters": 297},
-        "Letter": {"widthMillimeters": 215.9, "heightMillimeters": 279.4},
-        "Legal": {"widthMillimeters": 215.9, "heightMillimeters": 355.6}
+        "A3": {
+          "widthMillimeters": 297,
+          "heightMillimeters": 420
+        },
+        "A4": {
+          "widthMillimeters": 210,
+          "heightMillimeters": 297
+        },
+        "Letter": {
+          "widthMillimeters": 215.9,
+          "heightMillimeters": 279.4
+        },
+        "Legal": {
+          "widthMillimeters": 215.9,
+          "heightMillimeters": 355.6
+        }
       }
-    }
+    },
+    "hoverCard": {
+      "showDelayMilliseconds": 250,
+      "excerptCharacters": 320,
+      "metadataEntries": 3,
+      "metadataValueCharacters": 80
+    },
+    "tablePageSize": 20,
+    "tableColumnMinimumPixels": 96,
+    "tableCompactColumnMinimumPixels": 32,
+    "tableIconWidthPixels": 44,
+    "tableDetailFontSizePoints": 10,
+    "dockPaneMinimumPixels": 80,
+    "facetDistinctRatio": 0.5,
+    "filterPresets": [
+      {
+        "label": "Top level",
+        "expression": "depth: /^0$/"
+      },
+      {
+        "label": "Has frontmatter",
+        "expression": "frontmatter: *"
+      }
+    ]
   }
 }
