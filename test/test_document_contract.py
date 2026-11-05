@@ -73,6 +73,7 @@ def capability_node_attrs(identifier: str) -> dict[str, object]:
         "quantities": {"metadata": {}},
         "queries": {"query": {}},
         "references": {"metadata": {}},
+        "property-editors": {"source": "", "spec": {}},
         "registers": {"target": "register.base", "heading": ""},
         "wikilinks": {"target": "chapter", "chapter": "chapter", "heading": "", "label": "chapter"},
         "embeds": {"target": "outside", "chapter": None},
