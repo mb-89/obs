@@ -93,7 +93,8 @@ consume the same applied global Filter; a table's local query remains independen
 
   A line `![[name.base]]` or `![[path/name.base#View]]` embeds a reusable `.base` file as in
   Obsidian. A target with a folder is vault-relative; a bare name must match exactly one
-  non-hidden file in the vault.
+  non-hidden file in the vault. A bare name that matches none or several fails the build, naming
+  the embedding note and the candidates; the remedy is to embed the file's vault path.
 
   The file holds the same YAML as a fence and passes the same validation once per build.
   `![[file.base]]` embeds all views with the selector; `#View` embeds only that view. Every

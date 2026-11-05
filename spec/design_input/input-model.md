@@ -179,9 +179,11 @@ Input evidence can be far larger than the artifact, so embedding is decided twic
 
 Unmarked links are never embedded. There is no manifest setting for this.
 
-A wikilink target with a file extension other than `.md` (and `.base`, which names a register)
-is a vault file. It resolves like a note name: next to the linking note, then from the vault
-root, then by its case-insensitive file name, which must be unique in the vault. A marked image
+A wikilink target with a file extension other than `.md` is a vault file; a `.base` file, which
+names a register, is one too. It resolves like a note name: next to the linking note, then from
+the vault root, then by its case-insensitive file name, which must match exactly one non-hidden
+vault file. A bare name that matches several fails the build naming the linking note and the
+candidates, as does an embedded `.base` name that matches none; the remedy is the vault path. A marked image
 (`![[figure.png]]`, `![label](figure.png)`) is document content as above, not an attachment.
 
 PDF uses its media type (and `artifact.embedPdfs: false` still links PDFs locally instead) and other
