@@ -292,9 +292,16 @@ def _model(document: dict[str, object], config: Config, context: Context) -> dic
         "facetDistinctRatio": settings["facetDistinctRatio"],
         "query": profile["query"],
         "filterPresets": settings["filterPresets"],
-        "toc": [note["slug"] for note in notes if not note.get("record")],
+        "toc": [HOME, *_listed(document["chapters"])],
         "notes": [{key: value for key, value in note.items() if key != "record"} for note in notes],
     }
+
+
+def _listed(chapters: list[dict[str, object]]) -> list[str]:
+    """The reading order: Contents and previous/next. A `toc: false` chapter, an included note
+    the manifest does not list, stays a note outside it (obs input-model, Chapter content)."""
+    return [slug for chapter in chapters if chapter.get("toc", True)
+            for slug in (chapter["id"], *_listed(chapter["children"]))]
 
 
 def _chapter_notes(chapters: list[dict[str, object]], context: Context, depth: int) -> list[dict]:
