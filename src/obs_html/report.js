@@ -2251,42 +2251,14 @@
     });
     document.querySelectorAll("[data-dock-region]").forEach(region => dockObserver.observe(region));
 
-    const headerNotices = document.createElement("div");
-    headerNotices.className = "header-notices";
-    headerNotices.dataset.headerNotices = "";
-    headerNotices.dataset.transientView = "";
-    document.body.append(headerNotices);
-    const filterWarning = document.createElement("aside");
     const filterInput = document.querySelector("[data-filter-input]");
-    filterWarning.className = "filter-warning";
-    filterWarning.dataset.filterWarning = "";
-    filterWarning.dataset.transientView = "";
-    filterWarning.setAttribute("aria-label", "Filtered view");
-    filterWarning.hidden = true;
-    const filterWarningText = document.createElement("span");
-    filterWarningText.setAttribute("role", "status");
+    // The applied filter is an information entry of the notice center; its details can clear it.
     const clearFilter = document.createElement("button");
     clearFilter.type = "button";
-    clearFilter.className = "filter-warning-clear";
-    clearFilter.setAttribute("aria-label", "Clear filter");
-    clearFilter.title = "Clear filter";
+    clearFilter.dataset.filterClear = "";
     globalThis.obsAssets.replace(clearFilter, "close");
+    clearFilter.append(" Clear filter");
     clearFilter.addEventListener("click", () => globalThis.obsFilter.setExpression(""));
-    filterWarning.append(filterWarningText, clearFilter);
-    headerNotices.append(filterWarning);
-    const updateFilterClearance = () => {
-        const visible = [...headerNotices.children].some(notice => !notice.hidden);
-        const bounds = headerNotices.getBoundingClientRect();
-        document.documentElement.style.setProperty("--filter-header-clearance",
-            `${visible ? Math.ceil(bounds.bottom + bounds.top) : 0}px`);
-    };
-    window.addEventListener("resize", updateFilterClearance);
-    if (globalThis.ResizeObserver) new ResizeObserver(updateFilterClearance).observe(headerNotices);
-    document.addEventListener("obs-document-state-change", updateFilterClearance);
-    document.addEventListener("obs-figure-overlay", ({detail}) => {
-        (detail.open ? detail.dialog : document.body).append(headerNotices);
-        updateFilterClearance();
-    });
     const filterSummary = () => {
         const authored = chapterRecords.filter((record) => !record.generated);
         const retained = visibleIndices.map((index) => chapterRecords[index])
@@ -2334,11 +2306,21 @@
         if (activeIndex >= 0 && !visibleTocIndices.has(activeIndex)) activateChapter("home", "replace");
         syncBreadcrumbs();
         const summary = filterSummary();
-        filterWarning.hidden = query.empty;
-        filterWarningText.textContent = `Filtered view \u00b7 ${summary.chapters}/${summary.totalChapters} chapters` +
-            ` \u00b7 ${summary.paragraphs}/${summary.totalParagraphs} paragraphs` +
-            (queryProfile.scope === "records" ? ` \u00b7 ${summary.records}/${summary.totalRecords} records` : "");
-        updateFilterClearance();
+        if (query.empty) globalThis.obsNotices.remove("applied-filter");
+        else {
+            globalThis.obsNotices.post({
+                id: "applied-filter", severity: "information",
+                title: `Filtered view \u00b7 ${summary.chapters}/${summary.totalChapters} chapters`,
+                details: [
+                    `Filter: ${summary.expression}`,
+                    `${summary.chapters}/${summary.totalChapters} chapters \u00b7 ` +
+                        `${summary.paragraphs}/${summary.totalParagraphs} paragraphs` +
+                        (queryProfile.scope === "records"
+                            ? ` \u00b7 ${summary.records}/${summary.totalRecords} records` : ""),
+                    clearFilter,
+                ],
+            });
+        }
         updateStepButtons();
         document.dispatchEvent(new CustomEvent("obs-report-filter"));
         return summary.chapters;
