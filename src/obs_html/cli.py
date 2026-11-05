@@ -1,0 +1,206 @@
+"""obs-html: render a JSON Document as HTML or PDF; print or check existing HTML."""
+from __future__ import annotations
+
+import argparse
+import json
+import sys
+import tempfile
+from functools import partial
+from pathlib import Path
+from time import perf_counter
+from typing import Sequence
+
+from obs_html.commands import CommandError, run_command
+from obs_html.config import ConfigError, load_config
+from obs_html.render import RenderError, render
+from obs_html.timings import recording, stage
+
+
+EPILOG = """Rendering:
+  DOCUMENT is a JSON Document (the core's obs-document writes it); it is the only input.
+  DESTINATION ending in .pdf prints the rendered HTML to PDF; any other name receives HTML.
+  The core calls this command as an adapter with exactly DOCUMENT and DESTINATION.
+  Command fences require --execute-commands and --command-root; review the commands first.
+  They run with --command-root as working directory, normally the source vault root.
+  --check renders without writing output or executing commands.
+  Document diagnostics are printed to stderr, never into the HTML.
+
+Settings:
+  --config FILE merges a JSON settings file over the packaged cfg.json, validated by
+  cfg.schema.json: execution limits and the print catalogue (paper sizes and default
+  paper). A Document chooses its paper and margin in its profile's print mapping.
+
+PDF operations:
+  --export-pdf HTML --output file.pdf prints existing HTML with local Chrome/Edge/Chromium
+  or Playwright Chromium. If no browser is installed: uv run playwright install chromium
+  --check-rendered HTML opens existing HTML headless, waits until it reports ready or error,
+  prints console errors to stderr and the status, error count and printed page count to
+  stdout. It fails (exit 2) on any console error, an error status or no status within
+  execution.renderedCheckTimeoutSeconds.
+
+Timings:
+  --timings prints "Timing: STAGE SECONDS s" for render, commands, print and write.
+
+Examples:
+  obs-html document.json document.html
+  obs-html document.json document.pdf
+  obs-html document.json document.html --execute-commands --command-root vault
+  obs-html document.json --check
+  obs-html --export-pdf document.html --output document.pdf
+  obs-html --check-rendered document.html
+
+Exit status:
+  0: success (including --help); 2: invalid options, input or operation failure.
+"""
+
+
+def build_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(
+        prog="obs-html",
+        description="Render a JSON Document as portable HTML or PDF.",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog=EPILOG,
+    )
+    parser.add_argument("document", type=Path, nargs="?", metavar="DOCUMENT",
+                        help="JSON Document to render.")
+    parser.add_argument("destination", type=Path, nargs="?", metavar="DESTINATION",
+                        help="Output file: .pdf for PDF, otherwise HTML.")
+    parser.add_argument("--config", type=Path, help="Settings JSON merged over the packaged cfg.json.")
+    parser.add_argument("--check", action="store_true",
+                        help="Render without writing output or executing command fences.")
+    parser.add_argument("--execute-commands", action="store_true",
+                        help="Execute command fences while rendering.")
+    parser.add_argument("--command-root", type=Path, metavar="FOLDER",
+                        help="Working directory of executed command fences.")
+    parser.add_argument("--export-pdf", type=Path, metavar="HTML", help="Print existing HTML to PDF.")
+    parser.add_argument("--output", type=Path, metavar="PDF", help="PDF written by --export-pdf.")
+    parser.add_argument("--check-rendered", type=Path, metavar="HTML",
+                        help="Open existing HTML headless; report console errors and printed pages.")
+    parser.add_argument("--timings", action="store_true", help="Print the duration of each stage.")
+    return parser
+
+
+def main(argv: Sequence[str] | None = None) -> int:
+    parser = build_parser()
+    options = parser.parse_args(argv)
+    started = perf_counter()
+    try:
+        config = load_config(options.config)
+        with recording() as recorded:
+            if options.check_rendered or options.export_pdf:
+                _browser_operation(parser, options, config)
+            else:
+                _render(parser, options, config)
+    except (CommandError, ConfigError, RenderError, OSError, RuntimeError) as error:
+        parser.error(str(error))
+    if options.timings:
+        for name, seconds in {**recorded.durations, "total": perf_counter() - started}.items():
+            print(f"Timing: {name} {seconds:.3f} s")
+    return 0
+
+
+def _render(parser: argparse.ArgumentParser, options: argparse.Namespace, config) -> None:
+    if options.output:
+        parser.error("--output is only used with --export-pdf; give DESTINATION instead.")
+    if options.document is None:
+        parser.error("DOCUMENT is required.")
+    if options.check and (options.destination or options.execute_commands):
+        parser.error("--check cannot be combined with DESTINATION or --execute-commands.")
+    if not options.check and options.destination is None:
+        parser.error("DESTINATION is required unless --check is given.")
+    if options.execute_commands != (options.command_root is not None):
+        parser.error("--execute-commands and --command-root are only used together.")
+    if options.destination and options.destination.resolve() == options.document.resolve():
+        parser.error("DESTINATION must not overwrite DOCUMENT.")
+    try:
+        document = json.loads(options.document.read_text(encoding="utf-8"))
+    except json.JSONDecodeError as error:
+        raise RenderError(f"Invalid Document {options.document}: {error}") from error
+    if options.check:
+        runner = _check_command
+    elif options.execute_commands:
+        runner = partial(run_command, cwd=options.command_root.resolve(),
+                         timeout_seconds=config.command_timeout_seconds)
+    else:
+        runner = None
+    report = render(document, config, runner)
+    for diagnostic in document["diagnostics"]:
+        print(f"{diagnostic['level'].title()}: {diagnostic['message']}", file=sys.stderr)
+    if options.check:
+        print(f"Checked {options.document.resolve()}; no output written and no commands executed.")
+        return
+    destination = options.destination.resolve()
+    if destination.suffix.lower() == ".pdf":
+        from obs_html.pdf import export_pdf
+        with tempfile.TemporaryDirectory() as folder:
+            html = Path(folder) / f"{destination.stem}.html"
+            html.write_text(report, encoding="utf-8")
+            _write_if_changed(destination, export_pdf(html))
+    else:
+        _write_if_changed(destination, report.encode("utf-8"))
+    print(f"Generated {destination}.")
+
+
+def _browser_operation(parser: argparse.ArgumentParser, options: argparse.Namespace, config) -> None:
+    if (options.document or options.destination or options.check or options.execute_commands
+            or options.command_root or options.check_rendered and options.export_pdf):
+        parser.error("--export-pdf and --check-rendered are separate operations without DOCUMENT.")
+    from obs_html.pdf import check_rendered, export_pdf
+    if options.export_pdf:
+        output = options.output
+        if output is None or output.suffix.lower() != ".pdf":
+            parser.error("--export-pdf requires --output file.pdf.")
+        if output.resolve() == options.export_pdf.resolve():
+            parser.error("PDF output must not overwrite the source HTML.")
+        _write_if_changed(output.resolve(), export_pdf(options.export_pdf))
+        print(f"Generated PDF {output.resolve()}.")
+        return
+    if options.output:
+        parser.error("--output is only used with --export-pdf.")
+    result = check_rendered(options.check_rendered, config.rendered_check_timeout_seconds)
+    for error in result.console_errors:
+        print(f"Console error: {error}", file=sys.stderr)
+    print(f"Rendered {options.check_rendered.resolve()}: status {result.status}, "
+          f"{len(result.console_errors)} console errors, {result.pages} pages.")
+    if result.status != "ready" or result.console_errors:
+        failures = [f"status {result.status}"] if result.status != "ready" else []
+        if result.console_errors:
+            failures.append(f"{len(result.console_errors)} console errors")
+        raise RenderError(f"Rendered check failed: {', '.join(failures)}.")
+
+
+def _check_command(command: str) -> str:
+    if not command.strip():
+        raise CommandError("A command fence cannot be empty.")
+    return ""
+
+
+@stage("write")
+def _write_if_changed(output_path: Path, data: bytes) -> bool:
+    """Atomically replace output_path unless it already holds these bytes.
+
+    Rewriting identical bytes makes on-access antivirus scanners check the file again.
+    """
+    try:
+        if output_path.is_file() and output_path.read_bytes() == data:
+            return False
+    except OSError:
+        pass
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    temporary_path: Path | None = None
+    try:
+        with tempfile.NamedTemporaryFile(
+            mode="wb", dir=output_path.parent, prefix=f".{output_path.name}.", suffix=".tmp",
+            delete=False,
+        ) as temporary:
+            temporary.write(data)
+            temporary_path = Path(temporary.name)
+        temporary_path.replace(output_path)
+    finally:
+        if temporary_path and temporary_path.exists():
+            temporary_path.unlink()
+    return True
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

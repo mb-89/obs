@@ -1,0 +1,78 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "cfg.schema.json",
+  "title": "obs-html report settings",
+  "description": "Adapter settings: command execution limits and print geometry. A --config file merges over the packaged cfg.json.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "execution", "report"],
+  "properties": {
+    "$schema": {"type": "string"},
+    "schemaVersion": {"const": 1},
+    "execution": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["commandTimeoutSeconds", "renderedCheckTimeoutSeconds"],
+      "properties": {
+        "commandTimeoutSeconds": {
+          "type": "integer", "minimum": 1, "maximum": 300,
+          "description": "Maximum runtime for one authorized command fence."
+        },
+        "renderedCheckTimeoutSeconds": {
+          "type": "integer", "minimum": 1, "maximum": 600,
+          "description": "Maximum time --check-rendered waits for the opened HTML to report ready or error."
+        }
+      }
+    },
+    "report": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["print"],
+      "properties": {
+        "print": {"$ref": "#/$defs/print"}
+      }
+    }
+  },
+  "$defs": {
+    "choice": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["paper", "margin"],
+      "description": "A paper name from paperSizes and a margin such as 20mm.",
+      "properties": {
+        "paper": {"type": "string", "pattern": "^\\S+$"},
+        "margin": {"type": "string", "pattern": "^[0-9]+(\\.[0-9]+)?mm$"}
+      }
+    },
+    "print": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["default", "paperSizes"],
+      "description": "Print catalogue; a Document chooses its paper and margin in its profile's print mapping.",
+      "properties": {
+        "default": {"$ref": "#/$defs/choice"},
+        "paperSizes": {
+          "type": "object",
+          "minProperties": 1,
+          "propertyNames": {"pattern": "^\\S+$"},
+          "description": "Paper names a Document may choose, with their portrait dimensions.",
+          "additionalProperties": {
+            "$ref": "#/$defs/paper",
+            "required": ["widthMillimeters", "heightMillimeters"],
+            "not": {"required": ["marginMillimeters"]}
+          }
+        }
+      }
+    },
+    "paper": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Physical paper geometry; a Document's print choice resolves to it and must stay within these limits.",
+      "properties": {
+        "widthMillimeters": {"type": "number", "minimum": 150, "maximum": 420},
+        "heightMillimeters": {"type": "number", "minimum": 150, "maximum": 594},
+        "marginMillimeters": {"type": "number", "minimum": 5, "maximum": 40}
+      }
+    }
+  }
+}
