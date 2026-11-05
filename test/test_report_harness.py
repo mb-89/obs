@@ -91,3 +91,21 @@ def test_harness_switches_page_mode(report: Path, tmp_path: Path) -> None:
     assert off == {"paged": False, "reader": False, "chapter": "items", "sheets": 0}
     assert on["paged"] is True and on["reader"] is True and on["chapter"] == "items"
     assert on["sheets"] >= 1
+
+
+def test_harness_reports_print_and_presentation_geometry(report: Path, tmp_path: Path) -> None:
+    _, _, paged, _, flowing = run_harness(
+        report, tmp_path, {"step": "activate", "chapter": "items"}, {"step": "paged", "enabled": True},
+        {"step": "geometry"}, {"step": "paged", "enabled": False}, {"step": "geometry"})
+    portrait = {"orientation": "portrait", **LETTER}
+    assert [sheet["chapter"] for sheet in paged["presentation"]] == ["items"]
+    assert all(sheet.items() >= portrait.items() for sheet in paged["presentation"])
+    printed = paged["print"]["sheets"]
+    assert [sheet["chapter"] for sheet in printed] == ["home", "@abstract", "@contents", "intro", "items"]
+    assert [sheet["page"] for sheet in printed] == [1, 2, 3, 4, 5]
+    assert all(sheet.items() >= portrait.items() for sheet in printed)
+    assert paged["print"]["mediaBoxes"] == [
+        {"widthMillimeters": 215.9, "heightMillimeters": 279.4}] * len(printed)
+    assert paged["presentation"][0]["page"] == printed[-1]["page"]
+    assert flowing["presentation"] is None
+    assert flowing["print"] == paged["print"]
