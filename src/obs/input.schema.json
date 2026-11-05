@@ -35,6 +35,26 @@
         "distinct": {"type": "string", "minLength": 1, "maxLength": 256}
       }
     },
+    "tone": {"enum": ["neutral", "positive", "warning", "negative"]},
+    "toneRules": {
+      "type": "array",
+      "maxItems": 8,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["value", "when", "tone"],
+        "properties": {
+          "value": {"enum": ["primary", "secondary", "remaining"]},
+          "when": {"enum": ["zero", "positive"]},
+          "tone": {"$ref": "#/$defs/tone"}
+        }
+      }
+    },
+    "fragmentLink": {
+      "type": "string",
+      "maxLength": 2048,
+      "pattern": "^#[A-Za-z0-9][A-Za-z0-9._~@/-]*(?:\\?tableFilter=(?:[A-Za-z0-9._~!*'()-]|%[0-9A-Fa-f]{2})*)?$"
+    },
     "cards": {
       "type": "object",
       "additionalProperties": false,
@@ -53,6 +73,35 @@
               "title": {"type": "string", "minLength": 1, "maxLength": 256},
               "body": {"type": "string", "maxLength": 100000},
               "metricStyle": {"enum": ["pills", "lines"]},
+              "obsHtml": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "metricsFrom": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": ["sourceNote", "property", "labelProperty", "distinctProperty", "where"],
+                    "properties": {
+                      "sourceNote": {"$ref": "#/$defs/queryReference"},
+                      "property": {"$ref": "#/$defs/queryReference"},
+                      "labelProperty": {"$ref": "#/$defs/queryReference"},
+                      "distinctProperty": {"$ref": "#/$defs/queryReference"},
+                      "where": {"$ref": "#/$defs/conditions"},
+                      "tone": {"$ref": "#/$defs/tone"},
+                      "toneRules": {"$ref": "#/$defs/toneRules"},
+                      "link": {
+                        "type": "object",
+                        "additionalProperties": false,
+                        "required": ["note", "groupProperty"],
+                        "properties": {
+                          "note": {"$ref": "#/$defs/queryReference"},
+                          "groupProperty": {"$ref": "#/$defs/queryReference"}
+                        }
+                      }
+                    }
+                  }
+                }
+              },
               "metrics": {
                 "type": "array",
                 "maxItems": 64,
@@ -61,12 +110,24 @@
                   "additionalProperties": false,
                   "required": ["label", "where"],
                   "properties": {
-                    "label": {"type": "string", "minLength": 1, "maxLength": 256},
-                    "where": {"$ref": "#/$defs/conditions"},
+                    "key": {"type": "string", "minLength": 1, "maxLength": 256},
+                    "obsHtml": {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "properties": {"projection": {"type": "string", "pattern": "^[a-z][a-z0-9._-]*$"}}
+                    },
                     "from": {"$ref": "#/$defs/queryReference"},
                     "secondary": {"$ref": "#/$defs/queryReference"},
-                    "distinct": {"type": "string", "minLength": 1, "maxLength": 256}
-                  }
+                    "toneRules": {"$ref": "#/$defs/toneRules"},
+                    "label": {"type": "string", "minLength": 1, "maxLength": 256},
+                    "where": {"$ref": "#/$defs/conditions"},
+                    "denominator": {"$ref": "#/$defs/conditions"},
+                    "distinct": {"type": "string", "minLength": 1, "maxLength": 256},
+                    "link": {"$ref": "#/$defs/fragmentLink"},
+                    "secondaryLink": {"$ref": "#/$defs/fragmentLink"},
+                    "tone": {"$ref": "#/$defs/tone"}
+                  },
+                  "dependentRequired": {"secondary": ["from"], "secondaryLink": ["secondary"]}
                 }
               }
             }
