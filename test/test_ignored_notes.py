@@ -51,3 +51,17 @@ def test_a_query_or_base_never_selects_an_ignored_note_and_its_count_excludes_it
     assert _selected(document["records"], base_selects({"filters": 'kind == "finding"', **MATCH_ALL_BASE})) == [
         "finding.md", "visible.md",
     ]
+
+
+def test_an_ignored_note_listed_in_the_manifest_or_linked_from_an_included_note_is_included(tmp_path) -> None:
+    manifest = _vault(tmp_path, {
+        "manifest.md": "- [[listed]]\n- [[chapter]]\n",
+        "listed.md": "---\nignored: true\n---\nListed.\n",
+        "chapter.md": "See [[linked]].\n",
+        "linked.md": "---\nignored: true\n---\nLinked.\n",
+    })
+
+    document = build_document(manifest, capability_reference())
+
+    assert [chapter["id"] for chapter in document["chapters"]] == ["listed", "chapter", "linked"]
+    assert document["diagnostics"] == []
