@@ -347,6 +347,8 @@ def test_archive_opt_in_includes_sources_and_roundtrips_pdf(tmp_path: Path) -> N
         assert "--execute-commands" in contents.read("reproduce.py").decode()
         assert json.loads(contents.read("build-config.json"))["report"]["print"]["paperSizes"]["A4"] == {
             "widthMillimeters": 210, "heightMillimeters": 297}
+        (tmp_path / "build-config.json").write_bytes(contents.read("build-config.json"))
+    assert load_config(tmp_path / "build-config.json") == load_config(DEFAULT_CONFIG)
     assert 'id="pdf-library-script"' in report
     assert "Download source ZIP" in report
     writer = PdfWriter()
