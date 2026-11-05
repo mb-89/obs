@@ -75,7 +75,8 @@ def _sankey_number(value):
 
 
 def _render_sankey(graph, nodes, caption, source_name, caption_html, alt="", source_note=None,
-                   *, layout_width=0, identity="", count_labels=COUNT_LABELS):
+                   *, layout_width=0, identity="", count_labels=COUNT_LABELS, standalone_style=None):
+    """The report's Sankey figure; with standalone_style, only its SVG, styled by that CSS."""
     stages = sorted({node["stage"] for node in graph["nodes"]})
     columns = {stage: [] for stage in stages}
     incoming = {node["id"]: 0.0 for node in graph["nodes"]}
@@ -190,11 +191,12 @@ def _render_sankey(graph, nodes, caption, source_name, caption_html, alt="", sou
         link_centers = {id(link): center for link, center in zip(graph["links"], centers)}
     accessible_name = alt or caption or source_name
     parts = [
-        f'<figure class="engineering-figure figure-sankey" data-report-figure data-engineering-figure data-figure-kind="sankey" data-figure-spec="{encoded}"{identity}>'
         f'<svg xmlns="http://www.w3.org/2000/svg" class="sankey-canvas" width="{width}" height="{height}" viewBox="0 0 {width} {height}" '
         f'role="img" aria-label="{escape(accessible_name, quote=True)}" style="--sankey-width:{width}px">'
         f'<title>{escape(accessible_name)}</title>'
     ]
+    if standalone_style is not None:
+        parts.append(f"<style>{standalone_style}</style>")
     for link in graph["links"]:
         source_node, target_node = nodes[link["source"]], nodes[link["target"]]
         start_y, end_y = link_centers[id(link)]
@@ -267,6 +269,9 @@ def _render_sankey(graph, nodes, caption, source_name, caption_html, alt="", sou
             f'<title>{escape(node["label"])}</title></text></g>'
         )
     parts.append("</svg>")
+    if standalone_style is not None:
+        return "".join(parts) + "\n"
+    parts.insert(0, f'<figure class="engineering-figure figure-sankey" data-report-figure data-engineering-figure data-figure-kind="sankey" data-figure-spec="{encoded}"{identity}>')
     if caption_html:
         parts.append(f"<figcaption>{caption_html}</figcaption>")
     parts.append("</figure>\n")
@@ -300,7 +305,21 @@ def render_descriptor(descriptor: dict, anchor: str) -> str:
             f'data-figure-kind="plot" data-figure-spec="{encoded}"{identity}>'
             '<div class="figure-live" aria-label="Interactive figure"></div></figure>\n'
         )
-    raise FigureError(f"Figure {name}: descriptor data must carry 'sankey' or 'traces'.")
+    raise unsupported(name)
+
+
+def unsupported(name: str) -> FigureError:
+    return FigureError(f"Figure {name}: descriptor data must carry 'sankey' or 'traces'; "
+                       "give its data one of the two shapes this adapter draws.")
+
+
+def sankey_svg(descriptor: dict, style: str) -> str:
+    """The Sankey descriptor's static drawing as a standalone SVG document styled by ``style``."""
+    data = descriptor["data"]
+    graph, nodes = _sankey_graph(data["sankey"])
+    return _render_sankey(graph, nodes, "", descriptor["id"], "", descriptor["id"],
+                          count_labels=COUNT_LABELS | data.get("countLabels", {}),
+                          standalone_style=style)
 
 
 def _plot(descriptor: dict) -> dict:
@@ -311,8 +330,7 @@ def _plot(descriptor: dict) -> dict:
     layout: dict[str, object] = {}
     axes: dict[str, tuple[str, str]] = {}
     for index, panel in enumerate(panels, start=1):
-        if len(panel["axes"]) != 2:
-            raise FigureError(f"Figure {descriptor['id']}: panel {panel['id']} needs an x and a y axis.")
+        panel_axes(descriptor, panel)
         suffix = "" if index == 1 else str(index)
         grid = panel["grid"]
         domains = {
@@ -322,8 +340,6 @@ def _plot(descriptor: dict) -> dict:
         for letter, axis in zip("xy", panel["axes"]):
             limits = axis["limits"]
             log = axis["scale"] == "log"
-            if log and (limits["minimum"] <= 0 or limits["maximum"] <= 0):
-                raise FigureError(f"Figure {descriptor['id']}: log axis {axis['id']} needs positive limits.")
             layout[f"{letter}axis{suffix}"] = {
                 "title": {"text": axis["label"]}, "type": "log" if log else "linear",
                 "range": [math.log10(limits["minimum"]), math.log10(limits["maximum"])] if log
@@ -332,18 +348,9 @@ def _plot(descriptor: dict) -> dict:
                 **({"anchor": f"{'y' if letter == 'x' else 'x'}{suffix}"} if suffix else {}),
             }
         axes[panel["id"]] = (f"x{suffix}", f"y{suffix}")
-    traces = descriptor["data"]["traces"]
-    if not isinstance(traces, list) or not 1 <= len(traces) <= 64:
-        raise FigureError(f"Figure {descriptor['id']}: traces must be a list of 1–64 series.")
     data = []
-    for trace in traces:
-        panel = trace.get("panel", panels[0]["id"])
-        if panel not in axes:
-            raise FigureError(f"Figure {descriptor['id']}: trace names unknown panel {panel!r}.")
-        x, y = trace.get("x"), trace.get("y")
-        if (not isinstance(x, list) or not isinstance(y, list) or len(x) != len(y) or not x
-                or not all(_finite(value) for value in x + y)):
-            raise FigureError(f"Figure {descriptor['id']}: each trace needs equally long finite x and y lists.")
+    for trace in checked_traces(descriptor):
+        panel, x, y = trace.get("panel", panels[0]["id"]), trace["x"], trace["y"]
         data.append({
             "x": x, "y": y, "type": "scatter", "mode": trace.get("mode", "lines"),
             "name": str(trace.get("label", "")), "xaxis": axes[panel][0], "yaxis": axes[panel][1],
@@ -352,6 +359,34 @@ def _plot(descriptor: dict) -> dict:
                if "color" in trace else {}),
         })
     return {"data": data, "layout": layout}
+
+
+def panel_axes(descriptor: dict, panel: dict) -> tuple[dict, dict]:
+    """A trace panel's x and y axis, checked as this adapter draws them."""
+    if len(panel["axes"]) != 2:
+        raise FigureError(f"Figure {descriptor['id']}: panel {panel['id']} needs an x and a y axis.")
+    for axis in panel["axes"]:
+        limits = axis["limits"]
+        if axis["scale"] == "log" and (limits["minimum"] <= 0 or limits["maximum"] <= 0):
+            raise FigureError(f"Figure {descriptor['id']}: log axis {axis['id']} needs positive limits.")
+    return panel["axes"][0], panel["axes"][1]
+
+
+def checked_traces(descriptor: dict) -> list[dict]:
+    """The descriptor's ``data.traces``, each on a known panel with equally long finite x and y."""
+    traces = descriptor["data"]["traces"]
+    if not isinstance(traces, list) or not 1 <= len(traces) <= 64:
+        raise FigureError(f"Figure {descriptor['id']}: traces must be a list of 1–64 series.")
+    panels = {panel["id"] for panel in descriptor["panels"]}
+    for trace in traces:
+        panel = trace.get("panel", descriptor["panels"][0]["id"])
+        if panel not in panels:
+            raise FigureError(f"Figure {descriptor['id']}: trace names unknown panel {panel!r}.")
+        x, y = trace.get("x"), trace.get("y")
+        if (not isinstance(x, list) or not isinstance(y, list) or len(x) != len(y) or not x
+                or not all(_finite(value) for value in x + y)):
+            raise FigureError(f"Figure {descriptor['id']}: each trace needs equally long finite x and y lists.")
+    return traces
 
 
 def _finite(value: object) -> bool:
