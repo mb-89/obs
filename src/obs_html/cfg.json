@@ -15,6 +15,10 @@
     "commandTimeoutSeconds": 15,
     "renderedCheckTimeoutSeconds": 120
   },
+  "timings": {
+    "relativeThreshold": 0.5,
+    "absoluteThresholdSeconds": 0.25
+  },
   "report": {
     "inactiveIconOpacity": 0.45,
     "guidedCard": {"widthPixels": 440, "heightPixels": 640},
