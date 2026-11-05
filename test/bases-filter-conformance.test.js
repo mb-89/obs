@@ -14,8 +14,11 @@ vm.runInThisContext(fs.readFileSync(path.join(root, "src", "obs_html", "base.js"
 vm.runInThisContext(fs.readFileSync(path.join(root, "src", "obs_html", "query.js"), "utf8"));
 
 const fixture = JSON.parse(fs.readFileSync(path.join(__dirname, "fixtures", "bases-filter-conformance.json"), "utf8"));
+// Report records also carry the reader's own fields; a condition must not see them.
 const records = fixture.records.map(record => ({
     id: record.id, sourcePath: record.path, frontmatter: record.frontmatter,
+    marks: (record.marks || []).map(mark => ({kind: mark.category, label: mark.id})),
+    fields: {title: record.id, slug: record.id},
 }));
 const valueFor = (record, field) => globalThis.obsBases.recordValue(record, field);
 
@@ -30,7 +33,7 @@ for (const filter of fixture.unsupported) {
 }
 for (const {where, expected} of fixture.conditions) {
     const conditions = globalThis.obsQuery.compileConditions(where);
-    assert.deepEqual(records.filter(record => conditions.match({...record, fields: {}})).map(record => record.id),
+    assert.deepEqual(records.filter(record => conditions.match(record)).map(record => record.id),
         expected, `where ${JSON.stringify(where)}`);
 }
 console.log(`${fixture.cases.length} cases, ${fixture.conditions.length} conditions and ${fixture.unsupported.length} unsupported filters conform.`);

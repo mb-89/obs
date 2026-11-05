@@ -24,7 +24,7 @@ from obs.input import (
     validate_note_profile,
     validate_project_config,
 )
-from obs.selection import IGNORED, base_selects, conditions_select
+from obs.selection import IGNORED, base_selects, conditions_select, note_marks
 
 
 _MANIFEST_ITEM = re.compile(
@@ -233,8 +233,9 @@ def _metadata_links(metadata: object, source_path: Path, vault: _Vault) -> None:
 
 
 def _select(selects, vault: _Vault) -> None:
-    for path, (fields, _) in vault.notes.items():
-        if selects(fields, vault.relative(path)):
+    """Include the notes that selects(fields, path, body) chooses."""
+    for path, (fields, body) in vault.notes.items():
+        if selects(fields, vault.relative(path), body):
             vault.reached.append(path)
 
 
@@ -274,7 +275,8 @@ def _query_selection(query: object, source_path: Path, vault: _Vault, owners: tu
             )
         chain.append(owned["where"])
         owner = owned.get("from")
-    _select(lambda fields, path: all(conditions_select(where, fields, path) for where in chain), vault)
+    _select(lambda fields, path, body: all(
+        conditions_select(where, fields, path, note_marks(body)) for where in chain), vault)
 
 
 def _base_selection(definition: object, source_path: Path, vault: _Vault, place: str) -> None:
@@ -288,7 +290,7 @@ def _base_selection(definition: object, source_path: Path, vault: _Vault, place:
             f"{error} ({place} in {vault.relative(source_path)}); "
             "use the Bases filter grammar of generic-tables."
         ) from error
-    _select(selects, vault)
+    _select(lambda fields, path, _body: selects(fields, path), vault)
 
 
 def _read_note(path: Path) -> tuple[dict[str, object], str]:

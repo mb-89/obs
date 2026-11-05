@@ -11,7 +11,9 @@ from importlib.resources import files
 import json
 from pathlib import PurePosixPath
 import re
-from typing import Callable
+from typing import Callable, Sequence
+
+from markdown_it import MarkdownIt
 
 from obs.input import InputError
 
@@ -19,6 +21,7 @@ from obs.input import InputError
 BaseFilter = Callable[[Callable[[str], object]], bool]
 _MISSING = object()
 _LIST_INDEX = re.compile(r"0|[1-9][0-9]*")
+_MARK = re.compile(r"(?<!\S)#mark/(?P<category>[a-z_]+)/(?P<id>[a-z0-9]+(?:_[a-z0-9]+)*)(?=\s|$)")
 _FILE_PROPERTIES = {"file.name", "file.path", "file.folder", "file.ext"}
 IGNORED = "ignored"
 """The frontmatter field that marks a note as ignored; see markdown-frontmatter."""
@@ -29,8 +32,28 @@ def selectable(fields: dict[str, object]) -> bool:
     return fields.get(IGNORED) is not True
 
 
+def _key(mapping: dict[object, object], name: str) -> object:
+    """The key a property name matches, ignoring case; see capabilities/bases#Comparisons."""
+    if name in mapping:
+        return name
+    folded = name.lower()
+    return next((key for key in mapping if isinstance(key, str) and key.lower() == folded), None)
+
+
+def same_text(actual: str, expected: str, match_case: bool = False) -> bool:
+    """Whether two texts are equal, ignoring case unless asked; see capabilities/bases#Comparisons."""
+    if match_case:
+        return actual == expected
+    return re.fullmatch(re.escape(expected), actual, re.IGNORECASE) is not None
+
+
 def note_value(fields: dict[str, object], path: str, field: str) -> object:
     """Resolve a Bases property of a note record at a vault-relative POSIX path."""
+    value = _resolve(fields, path, field)
+    return None if value is _MISSING else value
+
+
+def _resolve(fields: dict[str, object], path: str, field: str) -> object:
     field = field.removeprefix("note.")
     location = PurePosixPath(path)
     if field == "file.name":
@@ -41,8 +64,9 @@ def note_value(fields: dict[str, object], path: str, field: str) -> object:
         return location.parent.as_posix().removesuffix(".")
     if field == "file.ext":
         return location.suffix.removeprefix(".")
-    if field in fields:
-        return fields[field]
+    whole = _key(fields, field)
+    if whole is not None:
+        return fields[whole]
 
     def traverse(value: object, parts: list[str]) -> object:
         if not parts:
@@ -59,12 +83,12 @@ def note_value(fields: dict[str, object], path: str, field: str) -> object:
         if isinstance(value, list):
             index = int(parts[0])
             return traverse(value[index], parts[1:]) if index < len(value) else _MISSING
-        if not isinstance(value, dict) or parts[0] not in value:
+        key = _key(value, parts[0]) if isinstance(value, dict) else None
+        if key is None:
             return _MISSING
-        return traverse(value[parts[0]], parts[1:])
+        return traverse(value[key], parts[1:])
 
-    value = traverse(fields, field.split("."))
-    return None if value is _MISSING else value
+    return traverse(fields, field.split("."))
 
 
 @cache
@@ -95,16 +119,19 @@ def compile_base_filter(filters: object) -> BaseFilter:
         name = simple or f'note["{spaced}"]'
         if (re.match(r'^note(?:\.file\.|\["file\.)', name) or name.startswith(("formula.", "this."))
                 or name.startswith("file.") and name not in _FILE_PROPERTIES):
-            raise _unsupported(filters, f" (unsupported Bases property: {name})")
+            raise _unsupported(filters, f" (Unsupported Bases property: {name})")
         field = spaced or simple.removeprefix("note.")
         expected = literal[1:-1] if literal[0] in "\"'" else json.loads(literal)
 
         def compare(value_for: Callable[[str], object]) -> bool:
             value = value_for(field)
-            equal = value == expected and (
-                type(value) is type(expected)
-                or type(value) in (int, float) and type(expected) in (int, float)
-            )
+            if isinstance(value, str) and isinstance(expected, str):
+                equal = same_text(value, expected)
+            else:
+                equal = value == expected and (
+                    type(value) is type(expected)
+                    or type(value) in (int, float) and type(expected) in (int, float)
+                )
             return equal if operator == "==" else not equal
         return compare
     if isinstance(filters, dict) and len(filters) == 1:
@@ -152,13 +179,45 @@ def _texts(value: object) -> list[str]:
     return [str(value)]
 
 
-def conditions_select(conditions: list[dict[str, object]], fields: dict[str, object], path: str) -> bool:
+Mark = tuple[str, str]
+"""A note's mark: its category and identifier (capabilities/marks)."""
+
+
+@cache
+def note_marks(body: str) -> tuple[Mark, ...]:
+    """The marks a note's Markdown body holds outside code; see capabilities/marks."""
+    marks: list[Mark] = []
+    for token in MarkdownIt("commonmark", {"html": False, "linkify": False}).parse(body):
+        for child in token.children or []:
+            if child.type == "text":
+                marks.extend((match["category"], match["id"]) for match in _MARK.finditer(child.content))
+    return tuple(marks)
+
+
+def _condition_value(fields: dict[str, object], path: str, field: str, marks: Sequence[Mark]) -> object:
+    """A note property, else its marks for mark and mark.<category> (capabilities/queries#Conditions)."""
+    value = _resolve(fields, path, field)
+    if value is not _MISSING:
+        return value
+    name = field.removeprefix("note.").lower()
+    if name == "mark":
+        return list(dict.fromkeys(category for category, _ in marks)) or None
+    if name.startswith("mark."):
+        return [identifier for category, identifier in marks if category.lower() == name[5:]] or None
+    return None
+
+
+def conditions_select(
+    conditions: list[dict[str, object]], fields: dict[str, object], path: str, marks: Sequence[Mark] = (),
+) -> bool:
     """Whether a note record has every query condition; see capabilities/queries#Conditions."""
     if not selectable(fields):
         return False
     for condition in conditions:
-        texts = _texts(note_value(fields, path, str(condition["field"])))
-        if "equals" in condition and condition["equals"] not in texts:
+        texts = _texts(_condition_value(fields, path, str(condition["field"]), marks))
+        if "equals" in condition and not any(
+            same_text(text, str(condition["equals"]), condition.get("matchCase") is True) for text in texts
+        ):
             return False
         if "exists" in condition and not any(text.strip() for text in texts):
             return False
