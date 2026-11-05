@@ -8,7 +8,7 @@ import pytest
 
 from obs.adapter import AdapterError, load_adapter
 from obs.capabilities import build_capability_reference
-from obs.document import call_adapter, main, write_document
+from obs.document import DocumentError, call_adapter, main, write_document
 
 ROOT = Path(__file__).parents[1]
 
@@ -41,6 +41,26 @@ def document_fixture(capabilities: list[str] | None = None) -> dict[str, object]
     }
 
 
+def figure_descriptor() -> dict[str, object]:
+    return {
+        "schemaVersion": 1,
+        "id": "comparison",
+        "data": {"series": [{"id": "observed", "values": [2, 5, 3]}]},
+        "panels": [{
+            "id": "overview",
+            "bounds": {"x": 0, "y": 0, "width": 720, "height": 320},
+            "grid": {"row": 0, "column": 0, "rowSpan": 1, "columnSpan": 1},
+            "axes": [{
+                "id": "time",
+                "scale": "linear",
+                "limits": {"minimum": 0, "maximum": 2},
+                "label": "Time",
+            }],
+        }],
+        "provenance": {"command": ["generate-figure", "--input", "measurements.json"]},
+    }
+
+
 def test_document_schema_validates_a_core_document() -> None:
     schema = json.loads((ROOT / "src" / "obs" / "document.schema.json").read_text(encoding="utf-8"))
 
@@ -63,6 +83,22 @@ def test_document_cli_writes_a_vault_document(tmp_path) -> None:
 
     document = json.loads(output.read_text(encoding="utf-8"))
     assert document["chapters"][0]["content"][0]["children"][0]["text"] == "Content."
+
+
+def test_document_validates_figure_descriptor_at_the_figure_node(tmp_path) -> None:
+    document = document_fixture(["figure-descriptor"])
+    descriptor = figure_descriptor()
+    document["chapters"][0]["content"] = [{
+        "type": "figure-descriptor",
+        "attrs": {"descriptor": descriptor},
+        "children": [],
+    }]
+
+    write_document(document, tmp_path / "document.json", capability_reference())
+
+    descriptor["panels"] = []
+    with pytest.raises(DocumentError, match="Invalid Document"):
+        write_document(document, tmp_path / "invalid-document.json", capability_reference())
 
 
 def test_adapter_is_discovered_by_name_from_configuration(tmp_path) -> None:
@@ -175,7 +211,12 @@ def test_document_accepts_one_node_for_each_input_capability(tmp_path) -> None:
     reference = capability_reference()
     document = document_fixture([item["id"] for item in reference["capabilities"]])
     document["chapters"][0]["content"] = [
-        {"type": item["id"], "attrs": {}, "children": [], "text": item["id"]}
+        {
+            "type": item["id"],
+            "attrs": {"descriptor": figure_descriptor()} if item["id"] == "figure-descriptor" else {},
+            "children": [],
+            "text": item["id"],
+        }
         for item in reference["capabilities"]
     ]
 

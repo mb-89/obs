@@ -40,7 +40,19 @@
         "attrs": {"type": "object"},
         "children": {"type": "array", "items": {"$ref": "#/$defs/node"}},
         "text": {"type": "string"}
-      }
+      },
+      "allOf": [{
+        "if": {"properties": {"type": {"const": "figure-descriptor"}}},
+        "then": {
+          "properties": {
+            "attrs": {
+              "type": "object",
+              "required": ["descriptor"],
+              "properties": {"descriptor": {"$ref": "figure.schema.json"}}
+            }
+          }
+        }
+      }]
     },
     "chapter": {
       "type": "object", "additionalProperties": false, "required": ["id", "title", "content", "children"],
