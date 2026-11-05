@@ -49,4 +49,19 @@ def test_core_parses_a_vault_into_semantic_document_json(tmp_path) -> None:
     assert document["assets"] == [{
         "id": "diagram", "href": "diagram.svg", "mediaType": "image/svg+xml",
     }]
-    assert "<" not in json.dumps(document)
+    assert all(node["type"] != "html" for node in chapter["content"])
+
+
+def test_core_parses_the_spec_vault_as_neutral_document() -> None:
+    document = build_document(ROOT / "spec" / "manifest.md", capability_reference())
+    structural = {"document", "section", "paragraph", "text", "list", "list-item", "code"}
+    references = {item["id"] for item in capability_reference()["capabilities"]}
+
+    def nodes(chapters):
+        for chapter in chapters:
+            yield from chapter["content"]
+            yield from nodes(chapter["children"])
+
+    assert {node["type"] for node in nodes(document["chapters"])} <= structural | references
+    assert set(document["capabilities"]) <= references
+    assert all(node["type"] != "html" for node in nodes(document["chapters"]))

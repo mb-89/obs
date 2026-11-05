@@ -21,7 +21,9 @@ class VaultError(ValueError):
     """Raised when vault input violates the neutral parsing contract."""
 
 
-def build_document(manifest_path: Path) -> dict[str, object]:
+def build_document(
+    manifest_path: Path, capability_ids: set[str] | None = None,
+) -> dict[str, object]:
     """Build semantic Document data from a manifest and its linked chapters."""
     manifest_path = manifest_path.resolve()
     vault_root = manifest_path.parent
@@ -34,6 +36,7 @@ def build_document(manifest_path: Path) -> dict[str, object]:
     assets: list[dict[str, str]] = []
     link_ids: set[str] = set()
     asset_ids: set[str] = set()
+    capabilities: set[str] = set()
 
     def parse_chapter(chapter: dict[str, object]) -> None:
         path = chapter.pop("_path")
@@ -42,6 +45,7 @@ def build_document(manifest_path: Path) -> dict[str, object]:
         chapter["content"] = _nodes(
             chapter_body, path, vault_root, links, assets, link_ids, asset_ids,
         )
+        chapter["content"].extend(_capability_nodes(chapter_body, capability_ids or set(), capabilities))
         for child in chapter["children"]:
             parse_chapter(child)
 
@@ -60,7 +64,7 @@ def build_document(manifest_path: Path) -> dict[str, object]:
         "records": [],
         "semanticResources": [],
         "diagnostics": [],
-        "capabilities": [],
+        "capabilities": sorted(capabilities),
     }
 
 
@@ -295,13 +299,17 @@ def _resolve_note(target: str, source_path: Path, vault_root: Path) -> None:
     if not relative.suffix:
         relative = relative.with_suffix(".md")
     path = (source_path.parent / relative).resolve()
-    if not path.is_relative_to(vault_root) or not path.is_file():
-        raise VaultError(f"Link does not resolve in {source_path}: {target}")
+    if not path.is_file() and len(relative.parts) == 1:
+        matches = list(vault_root.rglob(relative.name))
+        if len(matches) == 1:
+            path = matches[0].resolve()
+    if not path.is_relative_to(vault_root):
+        raise VaultError(f"Link escapes the vault in {source_path}: {target}")
 
 
 def _identifier(value: str) -> str:
     identifier = re.sub(r"[^a-z0-9]+", "-", value.lower()).strip("-")
-    return identifier or "item"
+    return identifier if identifier[:1].isalpha() else f"item-{identifier or 'value'}"
 
 
 def _unique_identifier(value: str, identifiers: set[str]) -> str:
@@ -325,3 +333,28 @@ def _json_value(value: object) -> object:
     if value is None or isinstance(value, (str, int, float, bool)):
         return value
     raise VaultError(f"Frontmatter value is not JSON-compatible: {value!r}")
+
+
+_CAPABILITY_PATTERNS = {
+    "wikilinks": re.compile(r"(?<!!)\[\[[^\]]+\]\]"),
+    "embeds": re.compile(r"!\[\[[^\]]+\]\]"),
+    "callouts": re.compile(r"(?m)^>\s*\[![^\]]+\]"),
+    "marks": re.compile(r"#mark/[a-z_]+/[a-z0-9_]+"),
+    "bases": re.compile(r"(?m)^```base(?:\s|$)"),
+    "figures": re.compile(r"(?m)^```figure(?:\s|$)"),
+    "quantities": re.compile(r"(?m)^```quantity(?:\s|$)"),
+    "command-fences": re.compile(r"(?m)^```cmd(?:\s|$)"),
+}
+
+
+def _capability_nodes(
+    source: str, capability_ids: set[str], capabilities: set[str],
+) -> list[dict[str, object]]:
+    nodes = []
+    for identifier, pattern in _CAPABILITY_PATTERNS.items():
+        if identifier in capability_ids and (match := pattern.search(source)):
+            capabilities.add(identifier)
+            nodes.append({
+                "type": identifier, "attrs": {"source": match.group(0)}, "children": [],
+            })
+    return nodes

@@ -23,7 +23,8 @@ class DocumentError(ValueError):
 def build_document(manifest_path: Path, reference: dict[str, object]) -> dict[str, object]:
     """Parse a vault into a schema-valid neutral Document."""
     try:
-        document = _build_document(manifest_path)
+        known = {item["id"] for item in reference["capabilities"]}
+        document = _build_document(manifest_path, known)
         validate_document(document, reference)
     except VaultError as error:
         raise DocumentError(str(error)) from error
