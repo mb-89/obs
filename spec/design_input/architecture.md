@@ -39,12 +39,16 @@ Measure separate acquisition, parsing/validation, link
 resolution, semantic projection, rendering, serialization/compression and packaging
 costs rather than treating all conversion as one opaque phase.
 
-## Capability contract
+## Document-adapter contract
 
-The core-to-adapter vocabulary is the versioned JSON capability document and its JSON
-Schema. It names only capability identifiers, their dependency identifiers, and
-language-neutral authoring semantics; it has no Python types, package entry points,
-application names, or output-format terms.
+The core-to-adapter vocabulary is the versioned JSON Document and its JSON Schema.
+The Document carries the capability identifiers it uses and references the versioned
+JSON capability reference for their definitions and dependencies. Its schema and the
+adapter-manifest schema are the executable owners of the exchanged shape.
+
+The boundary has no Python types, package entry points, application names, or
+output-format terms. An implementation may change language without changing either
+JSON contract.
 
 An adapter is any executable that declares the capability identifiers it supports in a
 JSON manifest. The declaration is data, not a runtime registration mechanism. The
