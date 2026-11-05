@@ -128,7 +128,7 @@ central stylesheet embedded into the generated HTML.
   stylesheet defines the same visual system for every vault.
 - Source notes cannot provide inline styles, style tokens, themes, or component classes.
 - Authors style an artifact explicitly, as in Obsidian: the CSS snippets the manifest lists
-  ([[input-model#Document presentation profile]]) follow the packaged stylesheet.
+  ([[input-model#Artifact presentation profile]]) follow the packaged stylesheet.
 
   A note's `cssclasses` are classes on the element containing that note's rendering: the
   reading `article.chapter` while the note is open, and every paper sheet of the note in
@@ -657,7 +657,7 @@ Implementation decisions (4 Nov 2026, worker, reversible):
   respecting their existing live-block and fixed-sheet differences.
 
   Paper size and margins are the manifest's `obsHtml.print`
-  ([[input-model#Document presentation profile]]); their catalogue and limits are configuration.
+  ([[input-model#Artifact presentation profile]]); their catalogue and limits are configuration.
 
   A table explicitly marked wide starts a landscape sheet. All continuation sheets containing
   that table remain landscape, including repeated headers and expanded content, and ordinary
@@ -702,7 +702,7 @@ Implementation decisions (4 Nov 2026, worker, reversible):
   Switching view modes reuses that navigation; PDF omits it.
 - Home's paged projection is the manifest's declared front pages in their declared order
   (by default title, the "Abstract"-headed abstract sections, then "Contents"; see the
-  document presentation profile in [[input-model]]). Generated headings and running-header
+  artifact presentation profile in [[input-model]]). Generated headings and running-header
   sections use the declared titles or the authored heading text, never converter literals.
 
   Each top-level second-level heading in the abstract begins a separate page group,
@@ -782,11 +782,11 @@ Implementation decisions (4 Nov 2026, worker, reversible):
   manifest's metadata query explicitly excludes cover fields; editing that query changes
   the selection just like any other Base.
 
-### Neutral document presentation
+### Neutral artifact presentation
 
 The generic style is a plain, content-first artifact: system serif body text, black headings,
 neutral grays, simple A4 margins and no branded hierarchy. Interactive application chrome remains
-separate from document presentation.
+separate from artifact presentation.
 
 - Cover fields should present available product name/version, document title/type/identifier,
   authors/reviewers/approvers, organization, legal entity and confidentiality.

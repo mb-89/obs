@@ -4,7 +4,7 @@
     "Manifest contract": "input",
     "Document home and abstract": "input",
     "Profiles": "input",
-    "Document presentation profile": "adapter",
+    "Artifact presentation profile": "adapter",
     "Registers": "input",
     "Artifact behavior": "adapter",
     "Optional reproduction archive": "adapter",
