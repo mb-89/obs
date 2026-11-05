@@ -812,6 +812,9 @@ separate from document presentation.
   layout and page offsets. If Results ends on page 9, the next chapter starts on page 10;
   navigating or repaginating a table must not reset or overlap those page numbers.
   Screen page frames, Contents and PDF use the same final-layout numbering owner.
+- No text appears twice in one view. The title page shows the document type once, under the
+  title; it has no running header that repeats it. A chapter's running header never repeats its
+  own visible heading.
 - History belongs before Contents when supplied. Its manifest ownership and working-version
   convention are defined in [[input-model]], never inferred from Git or generation time.
 - Boxes use a soft semantic fill, matching outline and an optional centered bold heading inside
