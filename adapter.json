@@ -3,13 +3,19 @@
   "command": [
     "uv",
     "run",
-    "obs-html-smoke"
+    "obs-html"
   ],
   "contractVersion": 1,
   "capabilities": [
+    "bases",
+    "chapter-inclusion",
+    "command-fences",
     "manifest",
     "markdown",
     "markdown-frontmatter",
+    "marks",
+    "profiles",
+    "queries",
     "wikilinks"
   ]
 }
