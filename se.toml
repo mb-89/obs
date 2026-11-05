@@ -1,3 +1,6 @@
+[project]
+authored_content = ["README.md", "AGENTS.md"]
+
 [modules.obs]
 url = "https://github.com/mb-89/obs.git"
 ref = "b32b2e0db2be6a5a191648888ffe04b4676480a2"
