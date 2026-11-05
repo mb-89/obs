@@ -5,9 +5,10 @@ area: artifact-ui
 
 # Artifact UI
 
-The orange global Filter overlay is the artifact-wide applied-filter status owner.
+The notice center's applied-filter entry is the artifact-wide applied-filter status owner.
 Do not also show a redundant green applied-filter badge/pill on the menu icon.
 This does not remove useful selected states from filter/value controls.
+
 Filter-field pills use the shared value/count selection interaction specified by
 [[generic-tables]], including in dock bars and table-local filter controls.
 
@@ -343,8 +344,8 @@ central stylesheet embedded into the generated HTML.
   This applies at desktop and narrow widths, with no separate menu-height spacer.
 - Each table-options icon shows a small, top-right funnel bubble while its interactive
   filter is active, even if it matches every record. Its label/tooltip expose that state.
-  The orange global overlay is the sole artifact-wide warning: no redundant green
-  applied-filter menu badge/indicator accompanies it.
+  The notice center's applied-filter entry is the sole artifact-wide indicator: no
+  redundant green applied-filter menu badge/indicator accompanies it.
 
   Clearing the filter removes its warning; invalid input preserves the last successfully
   applied filter's indicator.
@@ -1118,9 +1119,22 @@ separate from document presentation.
   It reflects whether changes are currently unsaved. The browser's native unload confirmation
   is requested only while dirty;
   no custom browser warning text is required.
-- A persistent changed-HTML notice also appears in the shared heading notice area
-  whenever persisted artifact state differs from the last confirmed saved snapshot.
-  It says that this HTML has changed and includes a button to download the changed HTML.
+- The notice center is the one owner of every notice the artifact raises; no notice draws
+  its own banner. Each notice is an entry with a severity (error, warning or information),
+  a short title and details.
+
+  The top of the page shows at most three icons, in that order,
+  each only while it has entries and with a count pill, however many notices are raised.
+  Clicking an icon opens its list; clicking an entry expands its details in place; a
+  second click or Escape closes. The icon row never covers the menu or chapter controls.
+
+  Changed HTML and the applied filter are information, each limited capability is a
+  warning, and errors are reserved for real failures. Notices are transient UI, not printed
+  content or a dirty warning embedded into a newly reopened saved HTML.
+
+  The changed-HTML information entry is present whenever persisted artifact state differs
+  from the last confirmed saved snapshot. It says that this HTML has changed, and its
+  details hold a button to download the changed HTML.
 
   It uses the existing save/serialization owner, not a second download implementation.
   Canonical edits, evidence replacements, explanations, comments, review decisions and
@@ -1132,28 +1146,23 @@ separate from document presentation.
   retain the existing distinction between confirmed file writes and unconfirmed downloads.
   The native unload warning uses that same unsaved-artifact state.
 
-  A Limited functionality notice joins the changed-HTML and applied-filter notices in the
-  shared heading notice area when any capability canary reports limited. The canaries
-  are one registry in obs-html's `capabilities.js` (history updates, storage, printing,
-  modal dialogs, downloads, clipboard, popups) and run before any feature is used.
+  The applied-filter information entry's details hold the filter and its clear action.
+  Clearing a filter does not remove the changed-HTML entry.
+
+  Each capability canary that reports limited raises its own warning entry, naming the
+  feature, why the host limits it, what was observed and the remedy, for example "Open
+  the HTML file directly in a browser to print".
+
+  The canaries are one registry in
+  obs-html's `capabilities.js` (history updates, storage, printing, modal dialogs,
+  downloads, clipboard, popups) and run before any feature is used.
 
   A probe never blocks or throws, and a refused or unknown result counts as limited.
-  Collapsed, the notice counts the limited features; expanded, it lists each with why
-  the host limits it and the remedy, for example "Open the HTML file directly in a
-  browser to print". It is not printed and does not dismiss the other notices.
 
   A limited feature degrades in place: its control shows the same reason and remedy
   inline, never through a modal dialog, and Print to PDF never stays in its preparing
-  state. In a host that allows everything there is no notice and no visible delay.
+  state. In a host that allows everything there is no warning and no visible delay.
   Probes, reasons and remedies are owned by the registry, not repeated here.
-
-  The changed-HTML, applied-filter and Limited functionality notices share one
-  heading-height layout owner:
-  they sit beside one another when space permits, wrap together on narrow screens,
-  and never overlap each other, the menu or chapter controls.
-
-  Clearing a filter does not dismiss the changed-HTML notice. Notices are transient UI, not printed content
-  or a dirty warning embedded into a newly reopened saved HTML.
 
   Generic reader-facing controls and messages call the artifact HTML, not a report.
   Where its semantic name is useful, derive it from the authored document type;
