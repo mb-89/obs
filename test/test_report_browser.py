@@ -54,6 +54,7 @@ def test_everything_on_the_title_page_is_centered(tmp_path, reader_browser) -> N
     import json
     document = json.loads(FIXTURE.read_text(encoding="utf-8"))
     document["manifest"]["metadata"]["subtitle"] = f"Bridge ![A](data:image/png;base64,{PIXEL})"
+    document["manifest"]["metadata"]["confidentiality"] = "Internal"
     source = tmp_path / "document.json"
     source.write_text(json.dumps(document), encoding="utf-8")
     (tmp_path / "images").mkdir()
@@ -80,11 +81,20 @@ def test_everything_on_the_title_page_is_centered(tmp_path, reader_browser) -> N
             const box = image.getBoundingClientRect();
             boxes.push(['img', box.left + box.width / 2 - middle]);
         });
+        // The title sheet's running header (identity and confidentiality above the rule).
+        heading.closest('.paper-sheet').querySelectorAll('.paper-header > span').forEach(span => {
+            if (!span.textContent.trim()) return;
+            const range = document.createRange();
+            range.selectNodeContents(span);
+            const box = range.getBoundingClientRect();
+            boxes.push(['header: ' + span.textContent.trim(), box.left + box.width / 2 - middle]);
+        });
         return boxes;
     }""")
     page.close()
     texts = [text for text, _offset in offsets]
-    for expected in ("Example org", "Fixture document", "Specification", "Bridge", "img", "Ada, Lin"):
+    for expected in ("Example org", "Fixture document", "Specification", "Bridge", "img", "Ada, Lin",
+                     "header: Widget · Specification", "header: Internal"):
         assert any(expected in text for text in texts), (expected, texts)
     off_center = [(text, round(offset)) for text, offset in offsets
                   if abs(offset) > 2 and text not in {"Bridge", "img"}]
