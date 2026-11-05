@@ -23,10 +23,11 @@ uv run obs-document --source spec/manifest.md --document <scratch>/spec.json \
 
 `--execute-commands` makes the core run the vault's command fences from the vault root and put
 their captured output into the Document; without it, a command fence fails the build naming its
-note and the flag ([[capabilities/command-fences#Authorization]]). The adapter then renders from
-the Document alone, so `obs-html` has no command options and the same Document renders the same
-way through `obs-document --adapter html` and through `obs-html` directly. The interim
-`obs-html-interim --execute-commands` still runs its own fences until the cutover.
+note and the flag ([[capabilities/command-fences#Authorization]]).
+
+The adapter then renders from the Document alone, so `obs-html` has no command options and one
+Document renders the same through `obs-document --adapter html` and through `obs-html`. The
+interim `obs-html-interim --execute-commands` still runs its own fences until the cutover.
 
 ## Attachments per build
 
