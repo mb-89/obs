@@ -1,4 +1,3 @@
-import html
 import os
 import re
 from pathlib import Path
@@ -6,6 +5,7 @@ from pathlib import Path
 import pytest
 
 from documents import chapter, document, heading, paragraph
+from preview import SANDBOXES, click_where_visible, http_origin, open_preview
 from obs_html.config import load_config
 from obs_html.render import render
 
@@ -22,6 +22,7 @@ def preview_report() -> str:
         "Preview",
         chapter("one", "One", heading(1, "One"), paragraph("First chapter text.")),
         chapter("two", "Two", heading(1, "Two"), paragraph("Second chapter text.")),
+        chapter("three", "Three", heading(1, "Three"), paragraph("Third chapter text.")),
     ), load_config())
 
 
@@ -35,18 +36,7 @@ def open_page(reader_browser, path: Path, errors: list[str]):
 
 def open_sandboxed(tmp_path: Path, reader_browser, errors: list[str]):
     """Claude's preview: the HTML as srcdoc of a frame sandboxed to scripts only."""
-    from playwright.sync_api import expect
-
-    wrapper = tmp_path / "preview.html"
-    wrapper.write_text(
-        '<!doctype html><iframe id="report" sandbox="allow-scripts" style="width:1100px;height:700px" '
-        f'srcdoc="{html.escape(preview_report(), quote=True)}"></iframe>',
-        encoding="utf-8",
-    )
-    page = open_page(reader_browser, wrapper, errors)
-    frame = page.frame_locator("#report")
-    expect(frame.locator("html")).to_have_attribute("data-report-status", "ready")
-    return page, frame
+    return open_preview(tmp_path, reader_browser, errors, preview_report(), "null-origin")
 
 
 @pytest.mark.browser
@@ -179,3 +169,77 @@ def test_a_message_without_modal_dialogs_appears_beside_its_control(tmp_path: Pa
     assert dialogs == []
     assert errors == []
 
+
+
+@pytest.mark.browser
+@pytest.mark.parametrize("frame_kind", SANDBOXES)
+@pytest.mark.parametrize("page_mode", ["pages", "continuous"])
+def test_home_and_the_chapter_chooser_are_not_covered_by_the_previous_arrow(
+        tmp_path: Path, reader_browser, frame_kind: str, page_mode: str) -> None:
+    """Home opens Home from every chapter when clicked where it is shown, in both preview frames."""
+    from playwright.sync_api import expect
+
+    errors: list[str] = []
+    with http_origin(tmp_path) as origin:
+        page, frame = open_preview(tmp_path, reader_browser, errors, preview_report(), frame_kind,
+                                   origin if frame_kind == "same-origin" else None)
+        if page_mode == "continuous":
+            frame.locator("html").evaluate("() => globalThis.obsPages.setPaged(false)")
+        chapter_element = frame.locator("[data-active-chapter]")
+        for steps in (1, 2, 3):
+            for _ in range(steps):
+                click_where_visible(page, frame, '[data-step="1"] .chapter-nav-icon')
+            expect(chapter_element).not_to_have_attribute("data-chapter", "home")
+            click_where_visible(page, frame, ".chapter-breadcrumb-toggle")
+            expect(frame.locator(".chapter-breadcrumb-chooser[open]")).to_have_count(1)
+            page.keyboard.press("Escape")
+            click_where_visible(page, frame, ".chapter-home-link")
+            expect(chapter_element).to_have_attribute("data-chapter", "home")
+    assert errors == []
+
+
+@pytest.mark.browser
+@pytest.mark.parametrize("frame_kind", SANDBOXES)
+def test_applying_or_clearing_a_filter_does_not_claim_the_html_changed(
+        tmp_path: Path, reader_browser, frame_kind: str) -> None:
+    """A filter is reader state, not a content change (obs report-ui.md, input-model.md)."""
+    from playwright.sync_api import expect
+
+    errors: list[str] = []
+    with http_origin(tmp_path) as origin:
+        page, frame = open_preview(tmp_path, reader_browser, errors, preview_report(), frame_kind,
+                                   origin if frame_kind == "same-origin" else None)
+        frame.locator("html").evaluate("() => globalThis.obsReport.openBar('filter')")
+        frame.locator("[data-filter-input]").fill("file.name == 'nothing'")
+        expect(frame.locator('[data-notice="applied-filter"]')).to_have_count(1)
+        expect(frame.locator('[data-notice="changed-html"]')).to_have_count(0)
+        frame.locator('[data-notice="applied-filter"] [data-filter-clear]').dispatch_event("click")
+        expect(frame.locator('[data-notice="applied-filter"]')).to_have_count(0)
+        expect(frame.locator('[data-notice="changed-html"]')).to_have_count(0)
+        keep_screenshot(page, f"filtered-without-changed-notice-{frame_kind}")
+    assert errors == []
+
+
+@pytest.mark.browser
+def test_each_canary_says_what_it_observed(tmp_path: Path, reader_browser) -> None:
+    """The notice's details name each canary and what it saw, so its count can be read off."""
+    from playwright.sync_api import expect
+
+    errors: list[str] = []
+    _page, frame = open_sandboxed(tmp_path, reader_browser, errors)
+    results = frame.locator("html").evaluate("() => globalThis.obsCapabilities.results")
+    assert [entry["key"] for entry in results] == [
+        "history", "storage", "printing", "dialogs", "downloads", "clipboard", "popups"]
+    assert all(entry["observation"] for entry in results)
+    observed = {entry["key"]: entry["observation"] for entry in results}
+    assert observed["history"].startswith("it threw SecurityError:")
+    assert observed["printing"] == "an enclosing frame hides its sandbox flags (cross-origin host)"
+    for entry in results:
+        notice = frame.locator(f'[data-notice="capability-{entry["key"]}"]')
+        if entry["allowed"]:
+            expect(notice).to_have_count(0)
+        else:
+            observed = notice.locator("[data-notice-details] dt", has_text="Observed")
+            expect(observed).to_have_count(1)
+            assert observed.evaluate("(term) => term.nextElementSibling.textContent") == entry["observation"]
+    assert errors == []

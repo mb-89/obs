@@ -127,12 +127,14 @@ def test_changed_html_and_the_applied_filter_are_entries_that_keep_their_behavio
         return event.defaultPrevented;
     }"""
     assert page.evaluate(unload_prevented) is False
+    # A view selection is saved reader state, so it changes the HTML; a filter alone does not.
+    page.evaluate("globalThis.obsReport.setViewSelection('proof', ['a'], ['a', 'b'])")
     page.evaluate("globalThis.obsFilter.setExpression(\"file.name == 'One'\")")
     changed = page.locator('[data-notice-list="information"] [data-notice="changed-html"]')
     applied = page.locator('[data-notice-list="information"] [data-notice="applied-filter"]')
     expect(changed).to_have_count(1)
     expect(applied).to_have_count(1)
-    expect(applied.locator("[data-notice-title]")).to_have_text(re.compile(r"^Filtered view · \d+/2 chapters$"))
+    expect(applied.locator("[data-notice-title]")).to_have_text(re.compile(r"^Filtered view · \d+/3 chapters$"))
     assert page.evaluate(unload_prevented) is True
     expect(page.locator('[data-notice-icon="information"] [data-notice-count]')).to_have_text("2")
     page.locator('[data-notice-icon="information"]').click()
@@ -143,6 +145,8 @@ def test_changed_html_and_the_applied_filter_are_entries_that_keep_their_behavio
     applied.locator("[data-filter-clear]").click()
     expect(applied).to_have_count(0)
     assert page.evaluate("globalThis.obsReport.filterSummary().empty") is True
+    expect(changed).to_have_count(1)
+    page.evaluate("globalThis.obsReport.setViewSelection('proof', [], ['a', 'b'])")
     expect(changed).to_have_count(0)
     assert page.evaluate(unload_prevented) is False
     assert errors == []
