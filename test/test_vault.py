@@ -8,6 +8,7 @@ from obs.document import build_document
 
 
 ROOT = Path(__file__).parents[1]
+INPUT_CAPABILITY_GAPS: frozenset[str] = frozenset()
 
 
 def capability_reference() -> dict[str, object]:
@@ -162,8 +163,11 @@ def test_core_parses_the_spec_vault_as_neutral_document() -> None:
         for child in node["children"]:
             yield from descend(child)
 
-    types = {node["type"] for node in nodes(document["chapters"])}
+    manifest_types = {node["type"] for node in document["manifest"]["abstract"]}
+    types = manifest_types | {node["type"] for node in nodes(document["chapters"])}
     assert types <= structural | references
     assert {"wikilinks", "bases", "command-fences", "marks"} <= types
     assert set(document["capabilities"]) <= references
+    assert set(document["capabilities"]) == types & references
+    assert INPUT_CAPABILITY_GAPS == frozenset()
     assert all(node["type"] != "html" for node in nodes(document["chapters"]))
