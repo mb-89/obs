@@ -90,3 +90,17 @@ def test_every_inline_construct_of_a_note_survives_into_the_document(tmp_path) -
     assert "".join(_node_text(node) for node in nodes if node["type"] in inline_kinds) == "".join(
         _token_text(child) for child in tokens if child.type not in CLOSING | {"link_open"}
     )
+
+
+def test_display_math_inside_a_line_becomes_a_display_math_node(tmp_path) -> None:
+    vault = tmp_path / "vault"
+    vault.mkdir()
+    (vault / "manifest.md").write_text("- [[chapter]]\n", encoding="utf-8")
+    (vault / "chapter.md").write_text("Text $$a^2$$ text\n", encoding="utf-8")
+
+    document = build_document(vault / "manifest.md", capability_reference())
+
+    paragraph, = (node for node in document["chapters"][0]["content"] if node["type"] == "paragraph")
+    assert [(node["type"], node["attrs"], node.get("text")) for node in paragraph["children"]] == [
+        ("text", {}, "Text "), ("math", {"display": True}, "a^2"), ("text", {}, " text"),
+    ]
