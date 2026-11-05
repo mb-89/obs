@@ -60,6 +60,7 @@ class _Vault:
     reached: list[Path] = field(default_factory=list)
     links: list[tuple[dict[str, object], Path | None]] = field(default_factory=list)
     warnings: list[str] = field(default_factory=list)
+    validated: set[Path] = field(default_factory=set)
 
     def relative(self, path: Path) -> str:
         return path.relative_to(self.root).as_posix()
@@ -101,6 +102,7 @@ def build_document(
             except (OSError, json.JSONDecodeError, InputError) as error:
                 raise VaultError(str(error)) from error
     vault = _read_vault(manifest_path, metadata, body)
+    _validate_note(manifest_path, vault)
     chapters, abstract = _parse_manifest(body, manifest_path, vault_root, vault.identities)
     links: list[dict[str, str]] = []
     assets: list[dict[str, str]] = []
@@ -113,6 +115,7 @@ def build_document(
         path = chapter.pop("_path")
         included.add(path)
         chapter_metadata, chapter_body = vault.notes.get(path) or _read_note(path)
+        _validate_note(path, vault)
         _metadata_links(chapter_metadata, path, vault)
         _query_selection(chapter_metadata.get("query"), path, vault)
         chapter["metadata"] = _json_value(chapter_metadata)
@@ -270,6 +273,7 @@ def _query_selection(query: object, source_path: Path, vault: _Vault, owners: tu
             )
         seen.add(path)
         vault.reached.append(path)
+        _validate_note(path, vault)
         owned = vault.notes[path][0].get("query")
         if not isinstance(owned, dict) or not isinstance(owned.get("where"), list):
             raise VaultError(
@@ -280,6 +284,29 @@ def _query_selection(query: object, source_path: Path, vault: _Vault, owners: tu
         owner = owned.get("from")
     _select(lambda fields, path, body: all(
         conditions_select(where, fields, path, note_marks(body)) for where in chain), vault)
+
+
+def _card_selection(card: dict[str, object], source_path: Path, vault: _Vault) -> None:
+    """Include the notes a card references and the records its metrics count and divide by."""
+    series = card.get("obsHtml", {}).get("metricsFrom")
+    if series:
+        references = [("metricsFrom.sourceNote", series["sourceNote"])]
+        if "link" in series:
+            references.append(("metricsFrom.link.note", series["link"]["note"]))
+        for field_name, identity in references:
+            path = (vault.root / f"{identity}.md").resolve()
+            if path not in vault.notes:
+                raise VaultError(
+                    f"Card {field_name} does not resolve in {vault.relative(source_path)}: "
+                    f"{identity}; name a vault note by its path without .md."
+                )
+            vault.reached.append(path)
+        _query_selection({"where": series["where"]}, source_path, vault)
+    for metric in card.get("metrics", []):
+        _query_selection(metric, source_path, vault)
+        if "denominator" in metric:
+            population = {key: metric[key] for key in ("from",) if key in metric}
+            _query_selection({**population, "where": metric["denominator"]}, source_path, vault)
 
 
 def _base_selection(definition: object, source_path: Path, vault: _Vault, place: str) -> None:
@@ -324,6 +351,18 @@ def _split_frontmatter(source: str, path: Path) -> tuple[dict[str, object], str]
             f"{metadata[IGNORED]!r}; write {IGNORED}: true to keep queries and Bases from "
             f"selecting the note, or remove the field."
         )
+    body_start = closing + 4
+    if source[body_start:body_start + 1] == "\n":
+        body_start += 1
+    return metadata, source[body_start:]
+
+
+def _validate_note(path: Path, vault: _Vault) -> None:
+    """Check an included note's frontmatter contracts once; see input-model "Chapter content"."""
+    if path in vault.validated:
+        return
+    vault.validated.add(path)
+    metadata = vault.notes[path][0] if path in vault.notes else _read_note(path)[0]
     try:
         profile = metadata.get("obsHtml")
         if profile is not None:
@@ -334,10 +373,6 @@ def _split_frontmatter(source: str, path: Path) -> tuple[dict[str, object], str]
             validate_count_query(metadata["query"])
     except InputError as error:
         raise VaultError(str(error)) from error
-    body_start = closing + 4
-    if source[body_start:body_start + 1] == "\n":
-        body_start += 1
-    return metadata, source[body_start:]
 
 
 def _parse_manifest(
@@ -596,8 +631,7 @@ def _fence_node(token: Token, context: _Context) -> dict[str, object]:
             card_bodies = []
             body_context = replace(context, capabilities=set(), base_fences=0)
             for card in specification["cards"]:
-                for metric in card.get("metrics", []):
-                    _query_selection(metric, source_path, vault)
+                _card_selection(card, source_path, vault)
                 card_bodies.append({
                     "type": "document", "attrs": {}, "children": _nodes(card["body"], body_context),
                 })
@@ -735,18 +769,19 @@ def _semantic_text_nodes(
         if match.start() > position:
             nodes.append({"type": "text", "attrs": {}, "children": [], "text": text[position:match.start()]})
         value = match.group(0)
-        if match["embed"] and Path(match["target"].strip()).suffix == ".base" and "registers" in capability_ids:
-            target = match["target"].strip()
-            base_file = _link(target, source_path, vault)
-            if base_file is not None:
-                try:
-                    definition = yaml.safe_load(base_file.read_text(encoding="utf-8-sig"))
-                except (OSError, yaml.YAMLError) as error:
-                    raise VaultError(
-                        f"Cannot read the Base {target} embedded in {vault.relative(source_path)}: "
-                        f"{error}; make the .base file valid YAML."
-                    ) from error
-                _base_selection(definition, source_path, vault, f"embedded {target}")
+        target = (match["target"] or "").strip()
+        resolved = _link(target, source_path, vault) if target else None
+        is_base = bool(match["embed"]) and Path(target).suffix == ".base"
+        if is_base and resolved is not None:
+            try:
+                definition = yaml.safe_load(resolved.read_text(encoding="utf-8-sig"))
+            except (OSError, yaml.YAMLError) as error:
+                raise VaultError(
+                    f"Cannot read the Base {target} embedded in {vault.relative(source_path)}: "
+                    f"{error}; make the .base file valid YAML."
+                ) from error
+            _base_selection(definition, source_path, vault, f"embedded {target}")
+        if is_base and "registers" in capability_ids:
             nodes.append({
                 "type": "registers",
                 "attrs": {"target": target, "heading": match["heading"] or ""},
@@ -754,15 +789,13 @@ def _semantic_text_nodes(
             })
             capabilities.add("registers")
         elif match["embed"] and "embeds" in capability_ids:
-            target = match["target"].strip()
             attrs = {"target": target, "chapter": None}
-            vault.links.append((attrs, _link(target, source_path, vault)))
+            vault.links.append((attrs, resolved))
             nodes.append({"type": "embeds", "attrs": attrs, "children": []})
             capabilities.add("embeds")
         elif value.startswith("[[") and "wikilinks" in capability_ids:
-            target = match["target"].strip()
             attrs = {"target": target, "chapter": None, "heading": match["heading"] or "", "label": match["label"] or target}
-            vault.links.append((attrs, _link(target, source_path, vault)))
+            vault.links.append((attrs, resolved))
             nodes.append({"type": "wikilinks", "attrs": attrs, "children": []})
             _resource(links, link_ids, attrs["label"], target)
             capabilities.add("wikilinks")
