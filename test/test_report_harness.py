@@ -83,3 +83,11 @@ def test_harness_mounts_a_table(report: Path, tmp_path: Path) -> None:
     assert table["count"] == "3 of 3 items"
     error = run_harness(report, tmp_path, {"step": "table", "key": TABLE}, check=False)
     assert f'table: the active chapter "home" mounted no table "{TABLE}".' in error
+
+
+def test_harness_switches_page_mode(report: Path, tmp_path: Path) -> None:
+    _, off, on = run_harness(report, tmp_path, {"step": "activate", "chapter": "items"},
+                             {"step": "paged", "enabled": False}, {"step": "paged", "enabled": True})
+    assert off == {"paged": False, "reader": False, "chapter": "items", "sheets": 0}
+    assert on["paged"] is True and on["reader"] is True and on["chapter"] == "items"
+    assert on["sheets"] >= 1

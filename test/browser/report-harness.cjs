@@ -171,6 +171,11 @@ async function open(reportPath, linkedomPath) {
 }
 
 const activeChapter = (report) => report.document.querySelector("[data-active-chapter]");
+// The paged screen reader; the runtime detaches it while page mode is off.
+const pagedReader = (report) => {
+    const screen = report.document.querySelector(".paged-reader");
+    return screen && !screen.hidden ? screen : null;
+};
 
 const STEPS = {
     // The report's embedded data as the runtime parsed it.
@@ -215,6 +220,16 @@ const STEPS = {
             })),
             rows: [...shell.querySelectorAll("tbody tr[data-row-key]")].map((row) => row.dataset.rowKey),
             count: shell.querySelector(".data-table-count")?.textContent.trim() || null,
+        };
+    },
+    async paged(report, {enabled}) {
+        report.context.obsPages.setPaged(enabled);
+        const screen = pagedReader(report);
+        return {
+            paged: report.document.documentElement.classList.contains("paged-mode"),
+            reader: Boolean(screen),
+            chapter: activeChapter(report).dataset.chapter,
+            sheets: screen ? screen.querySelectorAll(":scope > .paper-sheet").length : 0,
         };
     },
 };
