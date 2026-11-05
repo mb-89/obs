@@ -21,6 +21,22 @@ NAVIGATION_TIMEOUT_MS = int(os.environ.get("OBS_HTML_TEST_NAVIGATION_TIMEOUT_MS"
 # Opening yields two animation frames per runtime script; headless Chrome otherwise caps
 # frames at 60 Hz, which alone costs about half a second per document load.
 FAST_FRAME_ARGS = ["--disable-frame-rate-limit", "--disable-gpu-vsync"]
+BROWSER_VARIABLE = "OBS_HTML_TEST_NATIVE_BROWSER"
+
+
+class BrowserTierLaunchError(RuntimeError):
+    """The browser tier could not start its browser; the message names the remedy."""
+
+
+def _launch_error(options: dict, error: Exception) -> BrowserTierLaunchError:
+    executable = options.get("executable_path")
+    source = f"{BROWSER_VARIABLE}={executable!r}" if executable else f"{BROWSER_VARIABLE} is not set"
+    detail = str(error).strip().splitlines()[0] if str(error).strip() else type(error).__name__
+    return BrowserTierLaunchError(
+        f"test/browser_pool.py: the browser tier cannot launch a browser ({source}): {detail}\n"
+        f"Remedy: set {BROWSER_VARIABLE} to the absolute path of a Chromium or Chrome executable "
+        f"(see 'Testing boundaries' in spec/design_input/quality.md), or unset it to skip the browser tier."
+    )
 
 
 class _Pool:
@@ -43,7 +59,12 @@ class _Pool:
             launch = dict(options)
             if kind == "chromium" and os.environ.get("OBS_HTML_TEST_FAST_FRAMES", "1") == "1":
                 launch["args"] = [*launch.get("args", []), *FAST_FRAME_ARGS]
-            browser = getattr(self.playwright(), kind).launch(**launch)
+            from playwright.sync_api import Error as PlaywrightError
+
+            try:
+                browser = getattr(self.playwright(), kind).launch(**launch)
+            except PlaywrightError as error:
+                raise _launch_error(launch, error) from error
             self._browsers[key] = browser
         return browser
 

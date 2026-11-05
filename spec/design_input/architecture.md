@@ -73,6 +73,7 @@ The core-to-adapter vocabulary is the versioned JSON Document and its JSON Schem
 The Document carries the capability identifiers it uses and references the versioned
 JSON capability reference for their definitions and dependencies. Its schema and the
 adapter-manifest schema are the executable owners of the exchanged shape.
+Its `records` are owned by [[capabilities/bases#Note records|Note records]].
 
 The boundary has no Python types, package entry points, application names, or
 output-format terms. An implementation may change language without changing either
