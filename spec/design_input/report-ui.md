@@ -704,8 +704,7 @@ Implementation decisions (4 Nov 2026, worker, reversible):
 
   Each top-level second-level heading in the abstract begins a separate page group,
   retaining authored order and heading text. This applies to any heading, not named
-  History/Metadata exceptions; absent sections reserve no page. The maintained manifest
-  places its bottom-line table before the History and Metadata sections.
+  History/Metadata exceptions; absent sections reserve no page.
 
   The title sheet always reserves at least one full configured paper height (A4 by default),
   even when its content is shorter. Content-sized shrinking applies to the other screen
@@ -816,7 +815,7 @@ separate from document presentation.
   the box.
 
   Important callouts are untitled highlight boxes, including the abstract's first
-  takeaway; bottom-line cards retain their heading.
+  takeaway.
 
   They share this treatment, without floating
   legends or italic labels.
@@ -825,9 +824,8 @@ separate from document presentation.
   HTML, static Markdown, document view and PDF.
 
   Preserve all generic table interactions.
-- With an explicitly embedded reproduction archive, the cover reuses the bottom-line card
-  primitive without a title, containing one inline sentence and a Download source ZIP link,
-  never an attachment button.
+- With an explicitly embedded reproduction archive, the cover uses a content card without a
+  title, containing one inline sentence and a Download source ZIP link, never an attachment button.
 
   Settings + exports uses two equal-width columns: Show as pages
   above Download source ZIP, Export to PDF above Attach source ZIP to PDF.
@@ -1297,7 +1295,7 @@ separate from document presentation.
 
   Anything a reader could look at is findable and filterable: chapter prose, callouts, captions
   and figure text; every table row on every table page,
-  including Home tables (Evidence, Bottom lines, Metadata), rows inside collapsed groups and
+  including Home tables (Evidence and Metadata), rows inside collapsed groups and
   each cell's leading lines; and the content of row detail panels and other collapsed
   sections that are not expanded yet.
 

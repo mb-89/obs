@@ -356,7 +356,7 @@ obsHtml:
 Decided by the user, 4 Nov 2026 (`spec/backlog/review-macro-syntax.md`). Generated registers
 are Obsidian Bases views in `.base` files of the vault ([[generic-tables]] owns the embed),
 embedded where they appear: glossary, references, numeric values, mark registers such as
-open points, the bottom-line overview and document metadata.
+open points and document metadata.
 
 `obsHtml.macros` is rejected with a migration message; the spec vault's `registers.base` is
 the starter.
@@ -628,7 +628,7 @@ and document/PDF views render the same canonical history through the shared quer
 History is not repeated as raw JSON in metadata.
 
 In document view it occupies its own section
-after the abstract and before Contents; normal Home displays it after the bottom-line overview.
+after the abstract and before Contents; normal Home displays it after the abstract.
 
 Generation time remains separate from document revision dates.
 
@@ -1623,8 +1623,7 @@ as `[[1]](references.md#ref-1)` are links with bracketed labels, not nested wiki
 Keep the parity decision open rather than approximating unsupported syntax silently.
 
 Reader presentation follows [[report-ui]]: authored Important callouts identify key takeaways,
-linked subtitle figures orient readers, and the abstract does not repeat the generated bottom-line
-overview. Build-comparison provenance remains outside the report.
+linked subtitle figures orient readers. Build-comparison provenance remains outside the report.
 
 The side-by-side edition now has the original 25 open points, 23 glossary entries,
 24 references and 12 referenced figures. It uses shared query tables and a linked count.

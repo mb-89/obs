@@ -128,7 +128,7 @@ def native_reader_report(tmp_path_factory):
         '# Glossary\n\n```base\nobsHtml: {records: glossary}\n'
         "views:\n  - type: table\n    order: [term, definition]\n```\n", encoding="utf-8",
     )
-    for name, term in (("bluf", "BLUF"), ("bottom-line", "Bottom line")):
+    for name, term in (("bluf", "BLUF"), ("conclusion", "Conclusion")):
         (vault / f"{name}.md").write_text(
             f"---\nkind: glossary\nterm: {term}\ndefinition: The conclusion.\n---\n"
             f"# {term}\n\nExplanation.\n", encoding="utf-8",
@@ -1244,7 +1244,7 @@ def test_reader_batch_generated_rows_ignore_local_view(native_reader_page) -> No
     shell.locator(".filter-pill").filter(has_text="Filter").first.click()
     shell.locator(".data-table-filter").first.fill("BLUF")
     shell.locator(".data-table-filter").first.dispatch_event("input")
-    expect(shell.locator('tr[data-row-key="glossary:bottom-line"]')).to_have_count(0)
+    expect(shell.locator('tr[data-row-key="glossary:conclusion"]')).to_have_count(0)
     row = shell.locator('tr[data-row-key="glossary:bluf"]')
     row.locator(".review-action--reject").click(modifiers=["Shift"])
     assert page.locator(".comment-text-editor").count() == 1
@@ -1253,7 +1253,7 @@ def test_reader_batch_generated_rows_ignore_local_view(native_reader_page) -> No
     assert len(annotation["batch"]["items"]) == 2
     assert {item["item"] for item in annotation["batch"]["items"]} == {
         "row-glossary-base-1:glossary%3Abluf",
-        "row-glossary-base-1:glossary%3Abottom-line",
+        "row-glossary-base-1:glossary%3Aconclusion",
     }
     assert page.locator('[data-review-summary-state="rejected"] strong').inner_text() == "2"
     assert row.locator(".review-action--comment").get_attribute("data-count") == "1"
@@ -1372,7 +1372,7 @@ def test_reader_table_width_includes_disclosure(native_reader_page) -> None:
             key: 'width-check',
             columns: [{key: 'term', label: 'Term'}, {key: 'definition', label: 'Definition'}],
             rows: [
-                {key: 'one', values: {term: 'Bottom line', definition: 'Conclusion'}},
+                {key: 'one', values: {term: 'Conclusion', definition: 'Conclusion'}},
                 {key: 'two', parentKey: 'one', depth: 1,
                     values: {term: 'Nested concept', definition: 'Detail'}},
             ],
@@ -2015,13 +2015,13 @@ def test_complete_document_dom_interactions(tmp_path: Path) -> None:
             '# Tags\n\n```base\nobsHtml: {records: tag}\n'
             "views:\n  - type: table\n    order: [label, text, source]\n```\n"
         ),
-        "bottom-line": (
-            "---\nkind: glossary\nterm: Bottom line\naliases: [bottom line]\n"
+        "conclusion": (
+            "---\nkind: glossary\nterm: Conclusion\naliases: [bottom line]\n"
             "definition: The conclusion.\ntable: abbreviations\n"
-            "citation: 'See [[details]] **source note**.'\n---\n# Bottom line\n"
+            "citation: 'See [[details]] **source note**.'\n---\n# Conclusion\n"
         ),
         "bluf": (
-            "---\nkind: glossary\nterm: BLUF\naliases: [Bottom line upfront]\n"
+            "---\nkind: glossary\nterm: BLUF\naliases: [Conclusion upfront]\n"
             "definition: The principle of presenting the [[bottom line]] first.\n---\n# BLUF\n\n[[details]]\n"
             "\n```base\nobsHtml: {records: glossary}\n"
             "views:\n  - type: table\n    order: [term, definition]\n```\n"
@@ -2068,7 +2068,7 @@ def test_complete_document_dom_interactions(tmp_path: Path) -> None:
         "- [[glossary|Glossary]]\n- [[tags|Tags]]\n- [[references|References]]\n"
         "\n> [!important]\n> Abstract prose.\n"
         "\n```base\nfilters: 'note[\"bottom line\"] != null'\n"
-        "views:\n  - type: table\n    name: Bottom lines\n    order: [chapter, bottom line]\n"
+        "views:\n  - type: table\n    name: Conclusions\n    order: [chapter, bottom line]\n"
         "obsHtml: {records: chapter}\n```\n"
         "\n## Metadata\n"
         "\n```base\nfilters:\n  not:\n    or:\n      - 'key == \"title\"'\n      - 'key == \"subtitle\"'\n"
