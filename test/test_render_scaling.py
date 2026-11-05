@@ -3,8 +3,8 @@ from markdown_it import MarkdownIt
 
 import obs_html.content as content
 from obs_html.content import parse_manifest
-from obs_html.renderer import render_report
-from obs_html.report_data import decode_report_data
+from obs_html.renderer import render_artifact
+from obs_html.artifact_data import decode_artifact_data
 
 
 NOTES = 12
@@ -52,7 +52,7 @@ def test_markdown_work_is_per_note_not_per_frontmatter_field(tmp_path, monkeypat
     monkeypatch.setattr(MarkdownIt, "parse", counted_parse)
     monkeypatch.setattr(MarkdownIt, "parseInline", counted_parse_inline)
 
-    data = decode_report_data(render_report(manifest, parse_manifest(manifest)))
+    data = decode_artifact_data(render_artifact(manifest, parse_manifest(manifest)))
 
     notes = {note["slug"]: note for note in data["notes"]}
     assert len(notes) == NOTES + 2
@@ -106,7 +106,7 @@ def test_schema_validators_are_built_once_not_per_fence_quantity_or_figure(tmp_p
 
         monkeypatch.setattr(module, "Draft202012Validator", counted)
 
-    data = decode_report_data(render_report(manifest, parse_manifest(manifest)))
+    data = decode_artifact_data(render_artifact(manifest, parse_manifest(manifest)))
 
     notes = {note["slug"]: note for note in data["notes"]}
     assert all(len(notes[f"items-item-{index}"]["tables"]) == 1 for index in range(NOTES))
@@ -130,7 +130,7 @@ def test_link_prefilter_keeps_reference_and_comment_split_links(tmp_path):
     manifest = tmp_path / "manifest.md"
     manifest.write_text("- [[start]]\n", encoding="utf-8")
 
-    data = decode_report_data(render_report(manifest, parse_manifest(manifest)))
+    data = decode_artifact_data(render_artifact(manifest, parse_manifest(manifest)))
 
     slugs = {note["slug"] for note in data["notes"]}
     assert {"reference", "comment"} <= slugs

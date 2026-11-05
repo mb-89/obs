@@ -3,8 +3,8 @@ import json
 import pytest
 
 from obs_html.content import ContentError, parse_manifest
-from obs_html.renderer import render_report
-from obs_html.report_data import REPORT_PATTERN, decode_report_data
+from obs_html.renderer import render_artifact
+from obs_html.artifact_data import ARTIFACT_PATTERN, decode_artifact_data
 
 SVG = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10"/>'
 
@@ -26,7 +26,7 @@ def build(tmp_path, chapters, figures=None, extra=None):
     manifest.write_text(front + "".join(f"- [[{name}]]\n" for name in chapters), encoding="utf-8")
     for name, body in {**chapters, **(extra or {})}.items():
         (tmp_path / f"{name}.md").write_text(body, encoding="utf-8")
-    data = decode_report_data(REPORT_PATTERN.search(render_report(manifest, parse_manifest(manifest)))[0])
+    data = decode_artifact_data(ARTIFACT_PATTERN.search(render_artifact(manifest, parse_manifest(manifest)))[0])
     return {note["slug"]: note["html"] for note in data["notes"]}
 
 
@@ -37,7 +37,7 @@ def test_captioned_figures_are_numbered_and_block_ids_become_anchors(tmp_path):
         "two": "# Two\n\n" + figure("Third", "fig-c"),
     }, figures={"numbering": "document"})
     one = notes["one"]
-    assert '<figure class="report-figure" data-report-figure id="one--block-fig-a" data-figure-number="Figure 1">' in one
+    assert '<figure class="artifact-figure" data-artifact-figure id="one--block-fig-a" data-figure-number="Figure 1">' in one
     assert '<figcaption><span class="figure-number">Figure 1:</span> First</figcaption>' in one
     assert '<span class="figure-number">Figure 2:</span> Second' in one
     assert "^fig-" not in one

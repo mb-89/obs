@@ -6,7 +6,7 @@ from urllib.parse import quote
 import pytest
 
 from obs_html.content import parse_manifest
-from obs_html.renderer import render_report
+from obs_html.renderer import render_artifact
 
 
 def test_native_generic_cards_follow_global_not_local_filters(tmp_path):
@@ -34,27 +34,27 @@ def test_native_generic_cards_follow_global_not_local_filters(tmp_path):
             "---\n" + json.dumps({"kind": "service", "healthy": healthy, "region": region}) + "\n---\n",
             encoding="utf-8",
         )
-    report = tmp_path / "report.html"
+    artifact = tmp_path / "artifact.html"
     manifest = tmp_path / "manifest.md"
-    report.write_text(render_report(manifest, parse_manifest(manifest)), encoding="utf-8")
+    artifact.write_text(render_artifact(manifest, parse_manifest(manifest)), encoding="utf-8")
     with sync_playwright() as playwright:
         browser = playwright.chromium.launch(executable_path=executable)
         page = browser.new_page()
         errors = []
         page.on("pageerror", lambda error: errors.append(str(error)))
-        page.goto(report.as_uri())
-        page.evaluate("obsPages.setPaged(false); obsReport.activateChapter('home')")
+        page.goto(artifact.as_uri())
+        page.evaluate("obsPages.setPaged(false); obsArtifact.activateChapter('home')")
         card = page.locator("[data-active-chapter] [data-record-card]").first
         expect(card.locator("strong").first).to_have_text("66.7%")
         expect(card.locator("[data-record-metric='1'] strong")).to_have_text("2")
         evidence = page.locator("[data-active-chapter] [data-record-card]").nth(1).inner_text()
-        page.evaluate("obsReport.setFilter(obsQuery.compile('region:north'))")
+        page.evaluate("obsArtifact.setFilter(obsQuery.compile('region:north'))")
         expect(card.locator("strong").first).to_have_text("100.0%")
-        page.evaluate("obsReport.setFilter(obsQuery.compile('region:missing'))")
+        page.evaluate("obsArtifact.setFilter(obsQuery.compile('region:missing'))")
         expect(card.locator("strong").first).to_have_text("-")
         expect(card.locator("[data-record-metric='1'] strong")).to_have_text("0")
         assert page.locator("[data-active-chapter] [data-record-card]").nth(1).inner_text() == evidence
-        page.evaluate("obsReport.setFilter(obsQuery.compile(''))")
+        page.evaluate("obsArtifact.setFilter(obsQuery.compile(''))")
         expect(card.locator("strong").first).to_have_text("66.7%")
         assert errors == []
         browser.close()
@@ -83,13 +83,13 @@ def test_native_weighted_coverage_pills_are_compact_and_evidence_is_wider(tmp_pa
         '---\nkind: trace\nstatus: "yes"\n---\n', encoding="utf-8",
     )
     manifest = tmp_path / "manifest.md"
-    report = tmp_path / "report.html"
-    report.write_text(render_report(manifest, parse_manifest(manifest)), encoding="utf-8")
+    artifact = tmp_path / "artifact.html"
+    artifact.write_text(render_artifact(manifest, parse_manifest(manifest)), encoding="utf-8")
     with sync_playwright() as playwright:
         browser = playwright.chromium.launch(executable_path=executable)
         page = browser.new_page(viewport={"width": 1400, "height": 900})
-        page.goto(report.as_uri())
-        page.evaluate("obsPages.setPaged(false); obsReport.activateChapter('chapter')")
+        page.goto(artifact.as_uri())
+        page.evaluate("obsPages.setPaged(false); obsArtifact.activateChapter('chapter')")
         columns = page.locator(".markdown-columns--weighted")
         expect(columns).to_have_count(1)
         first, second = columns.locator(".markdown-column").nth(0), columns.locator(".markdown-column").nth(1)
@@ -203,16 +203,16 @@ def test_native_card_metric_link_filters_and_focuses_embedded_table_group(tmp_pa
             }) + "\n---\nService details.\n",
             encoding="utf-8",
         )
-    report = tmp_path / "report.html"
+    artifact = tmp_path / "artifact.html"
     manifest = tmp_path / "manifest.md"
-    report.write_text(render_report(manifest, parse_manifest(manifest)), encoding="utf-8")
+    artifact.write_text(render_artifact(manifest, parse_manifest(manifest)), encoding="utf-8")
     with sync_playwright() as playwright:
         browser = playwright.chromium.launch(executable_path=executable)
         page = browser.new_page(viewport={"width": 1440, "height": 900})
         errors = []
         page.on("pageerror", lambda error: errors.append(str(error)))
-        page.goto(report.as_uri())
-        page.evaluate("obsPages.setPaged(false); obsReport.activateChapter('home')")
+        page.goto(artifact.as_uri())
+        page.evaluate("obsPages.setPaged(false); obsArtifact.activateChapter('home')")
         card = page.locator("[data-active-chapter] [data-record-card]").first
         metric = card.locator(".record-metric-value").first
         expect(metric.locator("strong")).to_have_text("66.7%")
@@ -258,7 +258,7 @@ def test_native_card_metric_link_filters_and_focuses_embedded_table_group(tmp_pa
             '[data-active-chapter] [data-data-table="chapter-base-3"] [data-row-key]',
         )
         expect(rows).to_have_count(2)
-        page.evaluate("obsReport.activateChapter('home')")
+        page.evaluate("obsArtifact.activateChapter('home')")
         card.locator(".record-metric-value").nth(1).click()
         exact_table = page.locator(
             '[data-active-chapter] [data-data-table="chapter-base-4"]',
@@ -279,7 +279,7 @@ def test_native_card_metric_link_filters_and_focuses_embedded_table_group(tmp_pa
             };
         }""")
         page.evaluate(
-            "obsReport.activateChapter("
+            "obsArtifact.activateChapter("
             "'chapter/@table-group--chapter-base-3--region--missing?tableFilter=region%3Amissing')",
         )
         expect(table.locator(".data-table-filter").first).to_have_value("region:missing")
@@ -355,17 +355,17 @@ def test_native_card_desktop_layout_keeps_metrics_and_embedded_table_compact(tmp
             + "\n---\nExisting evidence note.\n",
             encoding="utf-8",
         )
-    report = tmp_path / "report.html"
+    artifact = tmp_path / "artifact.html"
     manifest = tmp_path / "manifest.md"
-    report.write_text(
-        render_report(manifest, parse_manifest(manifest)),
+    artifact.write_text(
+        render_artifact(manifest, parse_manifest(manifest)),
         encoding="utf-8",
     )
     with sync_playwright() as playwright:
         browser = playwright.chromium.launch(executable_path=executable)
         page = browser.new_page(viewport={"width": 1600, "height": 1000})
-        page.goto(report.as_uri())
-        page.evaluate("obsPages.setPaged(false); obsReport.activateChapter('home')")
+        page.goto(artifact.as_uri())
+        page.evaluate("obsPages.setPaged(false); obsArtifact.activateChapter('home')")
         cards = page.locator("[data-active-chapter] [data-record-card]")
         metric_card, evidence_card = cards.nth(0), cards.nth(1)
         metrics = metric_card.locator(".record-metric")

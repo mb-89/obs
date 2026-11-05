@@ -3,7 +3,7 @@ from pathlib import Path
 import pytest
 
 from obs_html.content import parse_manifest
-from obs_html.renderer import render_report
+from obs_html.renderer import render_artifact
 
 
 def _manifest(root: Path) -> Path:
@@ -16,11 +16,11 @@ def _manifest(root: Path) -> Path:
 def test_default_style_is_packaged_generic_and_has_no_external_module(tmp_path: Path) -> None:
     manifest = _manifest(tmp_path)
 
-    report = render_report(manifest, parse_manifest(manifest))
+    artifact = render_artifact(manifest, parse_manifest(manifest))
 
-    assert 'font-content: Georgia, "Times New Roman", serif' in report
-    assert "file:///" not in report
-    assert '<link rel="stylesheet"' not in report
+    assert 'font-content: Georgia, "Times New Roman", serif' in artifact
+    assert "file:///" not in artifact
+    assert '<link rel="stylesheet"' not in artifact
 
 
 def test_explicit_style_module_overrides_the_default(tmp_path: Path) -> None:
@@ -33,12 +33,12 @@ def test_explicit_style_module_overrides_the_default(tmp_path: Path) -> None:
         encoding="utf-8",
     )
 
-    report = render_report(manifest, parse_manifest(manifest), style_folder=style)
+    artifact = render_artifact(manifest, parse_manifest(manifest), style_folder=style)
 
-    assert "--module-style: selected" in report
-    assert 'font-content: Georgia, "Times New Roman", serif' not in report
-    assert "#123456" in report
-    assert ".paper-sheet" in report
+    assert "--module-style: selected" in artifact
+    assert 'font-content: Georgia, "Times New Roman", serif' not in artifact
+    assert "#123456" in artifact
+    assert ".paper-sheet" in artifact
 
 
 @pytest.mark.parametrize("geometry", ["@page { size: A4; }", ":root { --paper-width: 1mm; }"])
@@ -49,4 +49,4 @@ def test_style_module_cannot_declare_page_geometry(tmp_path: Path, geometry: str
     (style / "style.css").write_text(geometry, encoding="utf-8")
 
     with pytest.raises(ValueError, match="page geometry"):
-        render_report(manifest, parse_manifest(manifest), style_folder=style)
+        render_artifact(manifest, parse_manifest(manifest), style_folder=style)

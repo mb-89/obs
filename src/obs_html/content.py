@@ -936,12 +936,12 @@ def render_chapter(
     markdown.renderer.rules["fence"] = render_fence
     markdown.renderer.rules["base_embed"] = lambda *_: render_base_table_placeholder()
     def render_paragraph_open(tokens, index, options, env) -> str:
-        if tokens[index].meta.get("report_figure"):
-            return '<figure class="report-figure" data-report-figure>\n'
+        if tokens[index].meta.get("artifact_figure"):
+            return '<figure class="artifact-figure" data-artifact-figure>\n'
         return default_paragraph_open(tokens, index, options, env)
 
     def render_paragraph_close(tokens, index, options, env) -> str:
-        if tokens[index].meta.get("report_figure"):
+        if tokens[index].meta.get("artifact_figure"):
             return "</figure>\n"
         return default_paragraph_close(tokens, index, options, env)
 
@@ -965,9 +965,9 @@ def render_chapter(
             continue
         children = token.children or []
         if len(children) == 1 and children[0].type == "image":
-            tokens[index - 1].meta["report_figure"] = True
+            tokens[index - 1].meta["artifact_figure"] = True
             if index + 1 < len(tokens) and tokens[index + 1].type == "paragraph_close":
-                tokens[index + 1].meta["report_figure"] = True
+                tokens[index + 1].meta["artifact_figure"] = True
             continue
         if sum(child.type == "image" for child in children) >= 2 and all(
             child.type == "image" or (

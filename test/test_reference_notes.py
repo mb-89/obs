@@ -4,7 +4,7 @@ from pathlib import Path
 
 from obs_html.cli import main
 from obs_html.content import compile_base_filter
-from obs_html.report_data import decode_report_data
+from obs_html.artifact_data import decode_artifact_data
 
 URL = "https://webstore.iec.ch/publication/1234"
 # The references register is an authored Bases view (input-model.md "Registers"), not a macro.
@@ -22,7 +22,7 @@ def build(vault: Path, capsys=None) -> tuple[dict, str]:
     output = vault.parent / f"{vault.name}.html"
     assert main(["--source", str(vault), "--output", str(output)]) == 0
     errors = capsys.readouterr().err if capsys else ""
-    return decode_report_data(output.read_text(encoding="utf-8")), errors
+    return decode_artifact_data(output.read_text(encoding="utf-8")), errors
 
 
 def reference_vault(root: Path) -> Path:

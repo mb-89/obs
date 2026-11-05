@@ -10,8 +10,8 @@ from zipfile import ZipFile
 import pytest
 
 from obs_html.content import ContentError, parse_manifest
-from obs_html.renderer import render_report
-from obs_html.report_data import decode_report_data
+from obs_html.renderer import render_artifact
+from obs_html.artifact_data import decode_artifact_data
 
 SNIPPET = ".brand-note h1 { color: rgb(1, 2, 3); }\n"
 
@@ -35,20 +35,20 @@ def _styled_vault(tmp_path: Path, *, snippets: str = "[brand]", classes: str = "
 
 def test_listed_snippets_and_cssclasses_reach_the_rendered_html(tmp_path):
     manifest = _styled_vault(tmp_path)
-    html = render_report(manifest, parse_manifest(manifest))
+    html = render_artifact(manifest, parse_manifest(manifest))
     styles = re.findall(r'<style data-css-snippet="([^"]+)">(.*?)</style>', html, re.S)
     assert styles == [("brand", SNIPPET)]
-    assert html.index('id="report-styles"') < html.index('data-css-snippet="brand"') < html.index("</head>")
+    assert html.index('id="artifact-styles"') < html.index('data-css-snippet="brand"') < html.index("</head>")
     assert "rgb(9, 9, 9)" not in html
-    notes = {note["slug"]: note for note in decode_report_data(html)["notes"]}
+    notes = {note["slug"]: note for note in decode_artifact_data(html)["notes"]}
     assert notes["styled"]["cssClasses"] == ["brand-note", "compact"]
     assert notes["plain"]["cssClasses"] == []
 
 
 def test_a_single_cssclasses_string_is_one_class(tmp_path):
     manifest = _styled_vault(tmp_path, classes="brand-note")
-    notes = {note["slug"]: note for note in decode_report_data(
-        render_report(manifest, parse_manifest(manifest)))["notes"]}
+    notes = {note["slug"]: note for note in decode_artifact_data(
+        render_artifact(manifest, parse_manifest(manifest)))["notes"]}
     assert notes["styled"]["cssClasses"] == ["brand-note"]
 
 
@@ -61,7 +61,7 @@ def test_a_single_cssclasses_string_is_one_class(tmp_path):
 def test_unusable_styling_hooks_are_input_errors(tmp_path, snippets, classes, message):
     manifest = _styled_vault(tmp_path, snippets=snippets, classes=classes)
     with pytest.raises(ContentError, match=message):
-        render_report(manifest, parse_manifest(manifest))
+        render_artifact(manifest, parse_manifest(manifest))
 
 
 def test_a_snippet_cannot_close_its_style_element(tmp_path):
@@ -70,7 +70,7 @@ def test_a_snippet_cannot_close_its_style_element(tmp_path):
         "/* </style><script>alert(1)</script> */", encoding="utf-8",
     )
     with pytest.raises(ContentError, match="brand"):
-        render_report(manifest, parse_manifest(manifest))
+        render_artifact(manifest, parse_manifest(manifest))
 
 
 def test_source_archive_carries_listed_snippets_but_no_other_dotfiles(tmp_path):
@@ -96,22 +96,22 @@ def test_native_snippet_styles_classed_notes_in_reader_pages_and_print(tmp_path)
     from playwright.sync_api import sync_playwright
 
     manifest = _styled_vault(tmp_path)
-    report = tmp_path.parent / f"{tmp_path.name}-report.html"
-    report.write_text(render_report(manifest, parse_manifest(manifest)), encoding="utf-8")
+    artifact = tmp_path.parent / f"{tmp_path.name}-artifact.html"
+    artifact.write_text(render_artifact(manifest, parse_manifest(manifest)), encoding="utf-8")
     with sync_playwright() as playwright:
         browser = playwright.chromium.launch(executable_path=os.environ["OBS_HTML_TEST_NATIVE_BROWSER"])
         page = browser.new_page(viewport={"width": 1600, "height": 1000})
         errors = []
         page.on("pageerror", lambda error: errors.append(str(error)))
         try:
-            page.goto(report.as_uri() + "#styled")
+            page.goto(artifact.as_uri() + "#styled")
             heading = page.locator("[data-active-chapter] h1").filter(has_text="Styled").first
             heading.wait_for()
             assert heading.evaluate("node => getComputedStyle(node).color") == "rgb(1, 2, 3)"
             assert page.locator(".paged-reader .paper-sheet.brand-note.compact").count() >= 1
             page.evaluate("obsPages.setPaged(false)")
             assert heading.evaluate("node => getComputedStyle(node).color") == "rgb(1, 2, 3)"
-            page.goto(report.as_uri() + "#plain")
+            page.goto(artifact.as_uri() + "#plain")
             plain = page.locator("[data-active-chapter] h1").filter(has_text="Plain").first
             plain.wait_for()
             assert plain.evaluate("node => getComputedStyle(node).color") != "rgb(1, 2, 3)"
@@ -147,7 +147,7 @@ def _print_vault(tmp_path: Path, profile: str = "") -> Path:
 ])
 def test_manifest_print_setup_resolves_paper_geometry(tmp_path, profile, paper):
     manifest = _print_vault(tmp_path, profile)
-    assert decode_report_data(render_report(manifest, parse_manifest(manifest)))["paper"] == paper
+    assert decode_artifact_data(render_artifact(manifest, parse_manifest(manifest)))["paper"] == paper
 
 
 @pytest.mark.parametrize("profile,message", [
@@ -160,7 +160,7 @@ def test_manifest_print_setup_resolves_paper_geometry(tmp_path, profile, paper):
 def test_unusable_manifest_print_setup_is_an_input_error(tmp_path, profile, message):
     manifest = _print_vault(tmp_path, profile)
     with pytest.raises(ContentError, match=message):
-        render_report(manifest, parse_manifest(manifest))
+        render_artifact(manifest, parse_manifest(manifest))
 
 
 @pytest.mark.skipif(not os.environ.get("OBS_HTML_TEST_NATIVE_BROWSER"),
@@ -174,8 +174,8 @@ def test_native_manifest_print_setup_shapes_the_printed_pdf(tmp_path, profile, s
     from pypdf import PdfReader
 
     manifest = _print_vault(tmp_path, profile)
-    report = tmp_path.parent / f"{tmp_path.name}-report.html"
-    report.write_text(render_report(manifest, parse_manifest(manifest)), encoding="utf-8")
+    artifact = tmp_path.parent / f"{tmp_path.name}-artifact.html"
+    artifact.write_text(render_artifact(manifest, parse_manifest(manifest)), encoding="utf-8")
     points = 72 / 25.4
     with sync_playwright() as playwright:
         browser = playwright.chromium.launch(executable_path=os.environ["OBS_HTML_TEST_NATIVE_BROWSER"])
@@ -183,7 +183,7 @@ def test_native_manifest_print_setup_shapes_the_printed_pdf(tmp_path, profile, s
         errors = []
         page.on("pageerror", lambda error: errors.append(str(error)))
         try:
-            page.goto(report.as_uri())
+            page.goto(artifact.as_uri())
             page.evaluate("window.print = () => {}; obsPages.exportPDF()")
             page.emulate_media(media="print")
             pdf = PdfReader(BytesIO(page.pdf(prefer_css_page_size=True, print_background=True)))

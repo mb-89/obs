@@ -35,15 +35,15 @@
                 }
             }
         },
-        "report": {
+        "artifact": {
             "type": "object",
             "additionalProperties": false,
             "properties": {
                 "dataCompression": {
-                    "$ref": "cfg.schema.json#/properties/report/properties/dataCompression"
+                    "$ref": "cfg.schema.json#/properties/artifact/properties/dataCompression"
                 },
                 "assetIndex": {
-                    "$ref": "cfg.schema.json#/properties/report/properties/assetIndex"
+                    "$ref": "cfg.schema.json#/properties/artifact/properties/assetIndex"
                 },
                 "reading": {
                     "$ref": "cfg.schema.json#/$defs/reading"
@@ -53,23 +53,23 @@
                 },
                 "print": {"$ref": "cfg.schema.json#/$defs/print"},
                 "printReadyTimeoutMilliseconds": {
-                    "$ref": "cfg.schema.json#/properties/report/properties/printReadyTimeoutMilliseconds"
+                    "$ref": "cfg.schema.json#/properties/artifact/properties/printReadyTimeoutMilliseconds"
                 },
                 "tablePageSize": {
                     "type": "integer",
                     "minimum": 1
                 },
                 "tableDetailFontSizePoints": {
-                    "$ref": "cfg.schema.json#/properties/report/properties/tableDetailFontSizePoints"
+                    "$ref": "cfg.schema.json#/properties/artifact/properties/tableDetailFontSizePoints"
                 },
                 "tableColumnMinimumPixels": {
-                    "$ref": "cfg.schema.json#/properties/report/properties/tableColumnMinimumPixels"
+                    "$ref": "cfg.schema.json#/properties/artifact/properties/tableColumnMinimumPixels"
                 },
                 "tableCompactColumnMinimumPixels": {
-                    "$ref": "cfg.schema.json#/properties/report/properties/tableCompactColumnMinimumPixels"
+                    "$ref": "cfg.schema.json#/properties/artifact/properties/tableCompactColumnMinimumPixels"
                 },
                 "dockPaneMinimumPixels": {
-                    "$ref": "cfg.schema.json#/properties/report/properties/dockPaneMinimumPixels"
+                    "$ref": "cfg.schema.json#/properties/artifact/properties/dockPaneMinimumPixels"
                 },
                 "borderedTags": {
                     "$ref": "cfg.schema.json#/$defs/borderedTags"

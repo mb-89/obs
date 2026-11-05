@@ -19,7 +19,7 @@
     "relativeThreshold": 0.5,
     "absoluteThresholdSeconds": 0.25
   },
-  "report": {
+  "artifact": {
     "inactiveIconOpacity": 0.45,
     "guidedCard": {"widthPixels": 440, "heightPixels": 640},
     "assetIndex": null,

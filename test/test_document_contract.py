@@ -25,7 +25,7 @@ def write_reference(path: Path) -> Path:
 def document_fixture(capabilities: list[str] | None = None) -> dict[str, object]:
     return {
         "schemaVersion": 1,
-        "manifest": {"title": "Fixture", "metadata": {"kind": "report"}},
+        "manifest": {"title": "Fixture", "metadata": {"kind": "artifact"}},
         "chapters": [{
             "id": "chapter",
             "title": "Chapter",

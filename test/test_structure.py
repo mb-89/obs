@@ -123,7 +123,7 @@ def test_dogfood_subtitle_owns_hosted_logos_not_abstract() -> None:
     assert '<img src="https://img.shields.io/badge/HTML5-' in rendered
     assert 'alt="HTML5"' in rendered
     assert rendered.index('alt="Obsidian"') < rendered.index("→") < rendered.index('alt="HTML5"')
-    assert "This report describes" not in rendered
+    assert "This artifact describes" not in rendered
     assert "img.shields.io" not in manifest.abstract
     assert "data:image" not in rendered
     assert '<p class="media-strip">' in rendered

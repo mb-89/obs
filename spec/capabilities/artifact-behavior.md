@@ -1,11 +1,11 @@
 ---
 kind: adapter-behavior
 capability:
-  id: report-behavior
-  summary: Declare portable report behavior without executable author code.
+  id: artifact-behavior
+  summary: Declare portable artifact behavior without executable author code.
   authoring: Use the bounded input mappings described by the input model.
   dependsOn: ["[[capabilities/manifest]]", "[[capabilities/markdown-frontmatter]]"]
-  source: "[[input-model#Report behavior]]"
+  source: "[[input-model#Artifact behavior]]"
 ---
 
 The register presents the owning metadata as the capability reference.

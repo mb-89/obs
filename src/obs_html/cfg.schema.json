@@ -10,7 +10,7 @@
     "input",
     "execution",
     "timings",
-    "report"
+    "artifact"
   ],
   "properties": {
     "$schema": {
@@ -117,7 +117,7 @@
         }
       }
     },
-    "report": {
+    "artifact": {
       "type": "object",
       "additionalProperties": false,
       "required": [
@@ -160,7 +160,7 @@
           "pattern": "^(?![/\\\\])(?!.*[:\\\\])\\S.*\\.json$",
           "description": "Optional vault-relative semantic asset index; null uses packaged resources."
         },
-        "dataCompression": {"type": "string", "enum": ["gzip", "none"], "description": "Canonical report-data transport. Gzip embeds base64 compressed JSON, with plain fallback when smaller; none embeds plain JSON."},
+        "dataCompression": {"type": "string", "enum": ["gzip", "none"], "description": "Canonical artifact-data transport. Gzip embeds base64 compressed JSON, with plain fallback when smaller; none embeds plain JSON."},
         "embedPdfs": {"type": "boolean", "description": "Embed PDF attachments; otherwise link to local source files."},
         "reading": {
           "$ref": "#/$defs/reading",

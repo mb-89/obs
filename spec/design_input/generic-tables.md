@@ -23,7 +23,7 @@ trusted application bundle; the trust and transaction boundary is owned by
 [[input-model]]. The action receives the row's exact canonical note identity and
 the selected file. Optional `helpProperty` resolves current record instructions.
 
-Optional `card` declares a guided action card ([[input-model]], [[report-ui]]) whose
+Optional `card` declares a guided action card ([[input-model]], [[artifact-ui]]) whose
 Apply passes the staged file and declared text value to that same action.
 Singular and composed icon cells use this same dispatch, without authored callbacks.
 
@@ -37,7 +37,7 @@ consume the same applied global Filter; a table's local query remains independen
 - This implementation is the reference for future table UIs: reuse its runtime and semantic
   visual primitives where possible, and use this contract plus its interaction tests when
   integrating elsewhere. Do not fork another table design for the same behavior.
-- A generic table is the report's reusable tree-view projection over canonical records. It is not
+- A generic table is the artifact's reusable tree-view projection over canonical records. It is not
   a second data store and never discovers records from rendered HTML.
 - The standalone HTML embeds canonical source records and table definitions, including their queries;
   it does not embed precomputed table result sets. Opening a table resolves its source collection,
@@ -46,11 +46,11 @@ consume the same applied global Filter; a table's local query remains independen
   interaction. Embedded Bases adapters supply declarative table definitions to that runtime.
   Definitions come from `base` fences and embedded `.base` files in ordinary notes.
 - The runtime may delegate mechanics to an established table framework such as Tabulator when that
-  reduces implementation risk. The framework sits behind the report adapter: it does not own query
-  semantics or canonical records, and its controls and states are restyled with report design tokens.
-  A packaged or embedded dependency must preserve the standalone report's portability contract.
+  reduces implementation risk. The framework sits behind the artifact adapter: it does not own query
+  semantics or canonical records, and its controls and states are restyled with artifact design tokens.
+  A packaged or embedded dependency must preserve the standalone artifact's portability contract.
 - Table state is local to one table instance. A table filter, group, sort, expanded row, or column
-  order never changes the report-wide Filter, another table, the table of contents, or source data.
+  order never changes the artifact-wide Filter, another table, the table of contents, or source data.
 - Canonical notes are independent of the tables displaying them. Table membership and authored
   row order belong to the view definition, never migration-only `table`, `position`, or `origin`
   properties on a note. Use the note's file identity rather than duplicating it in an `id`
@@ -89,7 +89,7 @@ consume the same applied global Filter; a table's local query remains independen
   Formulas and summaries are
   later extensions of the same definition rather than separate table implementations.
 - An embedded `base` fence or an embedded `.base` file is the input adapter. Standard Obsidian keys
-  retain their meaning; report-specific behavior is permitted only under `obsHtml`.
+  retain their meaning; artifact-specific behavior is permitted only under `obsHtml`.
 
   A line `![[name.base]]` or `![[path/name.base#View]]` embeds a reusable `.base` file as in
   Obsidian. A target with a folder is vault-relative; a bare name must match exactly one
@@ -144,13 +144,13 @@ consume the same applied global Filter; a table's local query remains independen
   accessible unavailable reason rather than a broken link or false operational result.
 - A table view may declare `obsHtml.wide: true`. This is a page-composition hint,
   not a second dataset or a font-scaling instruction. Paged HTML and PDF orientation
-  behavior belong to [[report-ui]]; unmarked tables retain their default orientation.
+  behavior belong to [[artifact-ui]]; unmarked tables retain their default orientation.
 
 ## Query and filtering
 
-- The base query and interactive table filter use the shared report query language and the table's
-  row fields. They do not use or mutate the report Filter expression.
-  Field suggestions use the same curated report catalog when the table selects its
+- The base query and interactive table filter use the shared artifact query language and the table's
+  row fields. They do not use or mutate the artifact Filter expression.
+  Field suggestions use the same curated artifact catalog when the table selects its
   declared record population, rather than advertising flattened internal metadata.
 - Base-query evaluation is lazy. A chapter computes its table rows when activated and may recompute
   them when reopened; its query definition is the only view-specific data baked into HTML.
@@ -162,10 +162,10 @@ consume the same applied global Filter; a table's local query remains independen
 - An applied nonempty interactive table filter gives that table an orange outline
   and a compact filter-icon `Filtered` badge with an accessible clear-X action,
   at the top-right page margin beside the table. Use the shared semantic filtering
-  accent, not report-specific colors.
+  accent, not artifact-specific colors.
 
   This is a generic table behavior for all
-  reports, including unpaged views and all continuation sheets of a paged table.
+  artifacts, including unpaged views and all continuation sheets of a paged table.
   Keep badges associated with their own table and usable without overlapping
   adjacent content, table controls or another table's badge.
 
@@ -247,12 +247,12 @@ Counts are not Bases filters: they use the record-metric conditions owned by
 - Leaving the editor or toggling back validates the definition and rerenders from canonical records
   when valid. Invalid YAML or unsupported semantics reports a visible error, preserves the draft
   for correction, and retains the last valid table definition/results.
-- Edits are local to that table in the open report, survive chapter navigation during that session,
-  and never write to vault files. Reloading the report restores its generated definitions.
+- Edits are local to that table in the open artifact, survive chapter navigation during that session,
+  and never write to vault files. Reloading the artifact restores its generated definitions.
 - Editing uses the same supported definition semantics as authored `base` fences; it does not
   execute arbitrary code or introduce another query dialect.
 - A shared definition schema owns the supported YAML shape. Browser YAML parsing is bundled
-  with the report so query editing works offline. Applying a definition resets that table's
+  with the artifact so query editing works offline. Applying a definition resets that table's
   interactive controls to the edited definition's defaults.
 
   This includes clearing its previous visible-column order (whether changed in this session
@@ -307,7 +307,7 @@ Counts are not Bases filters: they use the record-metric conditions owned by
   Ordinary note-detail expansion remains the default unless this mode is declared.
 
   Opening a row or switching its subject tab updates that row's existing detail
-  view; it must not rebuild the report, rerun unrelated tables/queries, recompute
+  view; it must not rebuild the artifact, rerun unrelated tables/queries, recompute
   all review items or reconstruct the canonical model.
 
   Reuse prepared tab content while the owning canonical revision and view are
@@ -315,9 +315,9 @@ Counts are not Bases filters: they use the record-metric conditions owned by
   largest-tab height, current editors/comments and links.
 
   Verify expansion and repeated tab-switch latency
-  in the actual large report against the legacy reader, with rebuild/review-pass
+  in the actual large artifact against the legacy reader, with rebuild/review-pass
   counts as well as native timings; a tiny fixture or source substring is not
-  sufficient evidence of large-report interaction performance.
+  sufficient evidence of large-artifact interaction performance.
 
   Selection-only detail events preserve prepared page numbering and review
   controls; opening/collapsing reflows the live chapter without preparing other
@@ -422,7 +422,7 @@ Counts are not Bases filters: they use the record-metric conditions owned by
   wrapping. Recompute this reservation when columns move or visibility changes.
 
   **A table that can fit never shows a horizontal scrollbar.** This holds for every table in
-  every document, on screen and in print, at any browser zoom, display scaling or device pixel
+  every artifact, on screen and in print, at any browser zoom, display scaling or device pixel
   ratio.
 
   A table can fit when its required width fits the available width: explicit and
@@ -472,7 +472,7 @@ Counts are not Bases filters: they use the record-metric conditions owned by
 
   Reader-resized widths are session-only view state: they
   survive chapter navigation in that session but are not reader state, never mark the
-  document changed, never show the change notice, and are not saved. Legacy saved `widths`
+  artifact changed, never show the change notice, and are not saved. Legacy saved `widths`
   mappings are accepted and ignored.
 - No column width is hard-coded. At startup each displayed column is sized from its rendered
   content across ALL base rows (not just the current page), unwrapped, plus header label,
@@ -508,7 +508,7 @@ Counts are not Bases filters: they use the record-metric conditions owned by
   freely editable positive-integer page size.
 
   The view's `obsHtml.pageSize` (a positive integer) sets its initial size; otherwise the
-  configured document default `report.tablePageSize` applies. A view cannot combine
+  configured artifact default `artifact.tablePageSize` applies. A view cannot combine
   `pageSize` with `pagination: false`.
 
   Filtering resets to page one; grouping and sorting are evaluated before pagination.
@@ -534,7 +534,7 @@ Counts are not Bases filters: they use the record-metric conditions owned by
 - Tables remain semantic HTML tables. Hierarchy is conveyed by indentation and expand/collapse state
   in the first visible column; accessible names expose row depth, groups, and column manipulation.
 - Narrow layouts keep headers and cells readable through a table-local horizontal scroller rather
-  than overflowing the report reader.
+  than overflowing the artifact reader.
   Compact action collections share one final labelled column. The table-options
   control belongs to the actual last displayed column, not the last ordinary text field.
 
@@ -542,7 +542,7 @@ Counts are not Bases filters: they use the record-metric conditions owned by
   consistently across one table's continuation projections; an inert copied handle
   or a change that appears only on the first sheet is not acceptable.
 - A view may opt into a vertical viewport through `obsHtml.maxRows`, a positive
-  ordinary-row threshold under the report-specific `obsHtml` namespace. It limits visual height
+  ordinary-row threshold under the artifact-specific `obsHtml` namespace. It limits visual height
   without changing the page size, record population, grouping, or filtering.
 
   Pagination and scrolling may both be active: for example, twenty page items in a viewport
@@ -558,7 +558,7 @@ Counts are not Bases filters: they use the record-metric conditions owned by
 - A table appears at the exact position of its source fence inside an ordinary chapter. Surrounding
   prose remains authored chapter content and is reviewable normally; the table projection is not.
 - Authored chapter labels, order, hierarchy, and whether a parent is called Appendix come only from
-  the manifest. Generated document pages are owned by [[input-model]]; the generator contains no
+  the manifest. Generated artifact pages are owned by [[input-model]]; the generator contains no
   predefined Appendix or register chapter list.
 - Ordinary authored links navigate to the chapter containing a table. Table filters are owned by
-  that table, independently of chapter navigation and the report-wide Filter.
+  that table, independently of chapter navigation and the artifact-wide Filter.

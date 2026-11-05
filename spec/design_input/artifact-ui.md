@@ -1,11 +1,11 @@
 ---
 kind: design-input
-area: report-ui
+area: artifact-ui
 ---
 
-# Report UI
+# Artifact UI
 
-The orange global Filter overlay is the report-wide applied-filter status owner.
+The orange global Filter overlay is the artifact-wide applied-filter status owner.
 Do not also show a redundant green applied-filter badge/pill on the menu icon.
 This does not remove useful selected states from filter/value controls.
 Filter-field pills use the shared value/count selection interaction specified by
@@ -27,7 +27,7 @@ owns their data-only declarations and [[generic-tables]] owns their interactions
 `views[0].obsHtml.wide: true`, consumed by the page-composition owner.
 
 Data-only card groups compose the existing `content-card` primitive in responsive columns,
-with headings, authored Markdown, and optional report-filtered metrics. Metrics use compact,
+with headings, authored Markdown, and optional artifact-filtered metrics. Metrics use compact,
 wrapping label/value rows; at ordinary desktop widths each metric should remain one compact
 label/value line, with wrapping reserved for narrow layouts or genuinely long labels.
 
@@ -67,7 +67,7 @@ without an avoidable inner scrollbar; do not hide real overflow or drop actions.
 A compact metrics column need not occupy half a two-column overview: let a
 content-sized compact pill block leave more width for its evidence neighbour.
 Preserve semantic light/dark metric pills at a page-fitting density through shared
-primitives, without hard-coded report names or deleting metric links.
+primitives, without hard-coded artifact names or deleting metric links.
 
 An optional metric value link uses the existing internal chapter and table-filter route.
 Static evidence cards do not change under filtering.
@@ -77,7 +77,7 @@ highlighting.
 
 Framing, expansion and printing continue to use the shared figure owner.
 
-The report is understated and content-first. Its visual system is defined once in a
+The artifact is understated and content-first. Its visual system is defined once in a
 central stylesheet embedded into the generated HTML.
 
 ## Styling
@@ -85,7 +85,7 @@ central stylesheet embedded into the generated HTML.
 - A style module is a folder containing `style.css`, with optional fonts, assets, and configuration
   defaults. The converter embeds its CSS into each output. The packaged `generic` module is the
   default; a project may select a vault-relative module with `input.styleFolder`, and `--style`
-  selects an explicit module folder for one invocation. No report component names a style.
+  selects an explicit module folder for one invocation. No artifact component names a style.
   Page geometry (paper size, orientation, sheet dimensions, margins, and `@page`) belongs only to
   the structural stylesheet; a style module must not declare or assume it.
 - All colors are semantic custom properties projected from [[semantic-assets]].
@@ -107,13 +107,13 @@ central stylesheet embedded into the generated HTML.
   Appearance is session-only: do not read or write the old remembered appearance
   key or show an appearance-storage warning. Reviewer-name persistence is unchanged.
 
-  The removed `report.reading.theme` and `report.reading.paged` configuration keys are
+  The removed `artifact.reading.theme` and `artifact.reading.paged` configuration keys are
   rejected with a diagnostic naming the replacement (Light is not configurable; the layout is
   the manifest's `obsHtml.layout`). Other reading settings retain their meaning.
 - Typography, spacing, borders, focus states, and control sizes are shared stylesheet
   rules rather than inline styles.
 - Generated markup uses semantic elements and purpose-based class names.
-- Expand/collapse affordances throughout the report are bare disclosure icons, not boxed buttons:
+- Expand/collapse affordances throughout the artifact are bare disclosure icons, not boxed buttons:
   no fill, border, radius, or button chrome, including on hover.
 
   One shared disclosure style owns
@@ -126,7 +126,7 @@ central stylesheet embedded into the generated HTML.
 - Presentation is never inferred from source content or frontmatter. The packaged
   stylesheet defines the same visual system for every vault.
 - Source notes cannot provide inline styles, style tokens, themes, or component classes.
-- Authors style a document explicitly, as in Obsidian: the CSS snippets the manifest lists
+- Authors style an artifact explicitly, as in Obsidian: the CSS snippets the manifest lists
   ([[input-model#Document presentation profile]]) follow the packaged stylesheet.
 
   A note's `cssclasses` are classes on the element containing that note's rendering: the
@@ -141,8 +141,8 @@ central stylesheet embedded into the generated HTML.
 
 ## Takeaways and orientation
 
-- A report presents its subject, not its migration, benchmark, or tool-comparison history.
-  Keep development provenance in build/review artifacts, not in the reader's subtitle or prose.
+- An artifact presents its subject, not its migration, benchmark, or tool-comparison history.
+  Keep development provenance in build/review files, not in the reader's subtitle or prose.
 - A subtitle can orient an unfamiliar reader with a small set of existing subject figures:
   for example, the physical system and an illustrative result/distribution.
 
@@ -218,7 +218,7 @@ central stylesheet embedded into the generated HTML.
   Do not distort aspect or enlarge inline images merely to fill space. Narrow screens
   constrain
   figures to the available width without horizontal page overflow. The prose-width
-  multiplier and viewport gutter are shared report configuration, not figure-local styling.
+  multiplier and viewport gutter are shared artifact configuration, not figure-local styling.
 - Use the shared semantic border tokens for a restrained figure frame, including top and
   bottom separators. Center the caption horizontally below the visual inside the frame,
   then draw the bottom separator after the caption. Plot legends have a visible border.
@@ -232,7 +232,7 @@ central stylesheet embedded into the generated HTML.
   When the manifest enables figure numbering, a bold generated number (for example
   `Figure 2.4:`) precedes the first caption paragraph and block-id references to the figure
   link to its anchor, scrolling it below the reader's top controls.
-- Use the expand affordance as the common report-level figure control. Remove persistent
+- Use the expand affordance as the common artifact-level figure control. Remove persistent
   custom inspection/reset/zoom button rows from the normal reading view; keep necessary
   pan, zoom, reset and subplot selection available within the enlarged view and existing
   engine interaction.
@@ -248,33 +248,33 @@ central stylesheet embedded into the generated HTML.
   logarithmic scales, units, limits, secondary axes, line styles and collision shading.
 - The initial interaction is zoom with reset and usable pan. Readers can inspect individual
   subplots without losing the overall composition; navigation must not silently synchronize
-  unrelated axes or distort geometric aspect. Keep labels and controls usable at report width.
-- Ordinary plots, including those of the Node report, are authored through Markdown fences declaring
+  unrelated axes or distort geometric aspect. Keep labels and controls usable at artifact width.
+- Ordinary plots, including those of the Node artifact, are authored through Markdown fences declaring
   equations and plot details. Support legend-click trace visibility alongside zoom, pan and
   reset; hiding a trace must not delete its data. Complex geometry compositions may continue
-  to come from report-owned scripts, using the same generic figure presentation layer.
+  to come from artifact-owned scripts, using the same generic figure presentation layer.
 - Use a reusable figure interaction owner, not figure-specific event handlers. Leave room for
   later capabilities without implementing speculative controls or changing engineering models.
-- Data-driven diagrams may project fields from the report's canonical record store.
-  Their generic view recomputes from the shared report-wide filter; it does not create a
-  second filter or duplicate report records. Table-local filters remain independent.
+- Data-driven diagrams may project fields from the artifact's canonical record store.
+  Their generic view recomputes from the shared artifact-wide filter; it does not create a
+  second filter or duplicate artifact records. Table-local filters remain independent.
 - Interactive figure state is view-local. A dynamic diagram's portable and print rendering
   shows the authored unfiltered default; browser filter changes update only its live view.
 - The shared figure framework applies in both paged and continuous reading views.
   Ordinary figures retain readable bounds in either mode: fit the available reader width
   and viewport height while preserving aspect ratio, without stretching small source images.
 
-  The normal image height limit is shared report configuration; print retains paper-specific sizing.
+  The normal image height limit is shared artifact configuration; print retains paper-specific sizing.
   Wider-than-prose presentation is not unrestricted enlargement. Only the explicit expand
   control requests viewport-filling inspection; switching pages off must not implicitly
   enlarge an image or bypass the shared figure sizing rules.
-- Normal report and PDF presentation retain the complete default composition, captions and
+- Normal artifact and PDF presentation retain the complete default composition, captions and
   provenance. Interactive state is view-local; zoom does not alter source data or calculations.
   Static source figures remain available until visual and numerical parity is verified.
 
 ## Reading shell
 
-- The Node report has one Appendix chapter. Its direct children are the handwritten appendices
+- The Node artifact has one Appendix chapter. Its direct children are the handwritten appendices
   first, followed by generated open points, glossary and references. There is no intermediate
   generated-appendices chapter or additional glossary navigation level. Its open-point rows
   represent the canonical marked paragraphs rather than a second authored register.
@@ -322,7 +322,7 @@ central stylesheet embedded into the generated HTML.
 - On Home, the document title is centered; authored chapter headings retain their normal alignment.
   An explicitly empty manifest title omits the visible title heading, without leaving an
   empty heading or removing any other cover element. The filename fallback continues to
-  identify the document to browser and assistive navigation; title semantics belong to
+  identify the artifact to browser and assistive navigation; title semantics belong to
   [[input-model]].
 - Activating the current page's breadcrumb reveals its immediate children instead of reloading the
   page.
@@ -343,7 +343,7 @@ central stylesheet embedded into the generated HTML.
   This applies at desktop and narrow widths, with no separate menu-height spacer.
 - Each table-options icon shows a small, top-right funnel bubble while its interactive
   filter is active, even if it matches every record. Its label/tooltip expose that state.
-  The orange global overlay is the sole report-wide warning: no redundant green
+  The orange global overlay is the sole artifact-wide warning: no redundant green
   applied-filter menu badge/indicator accompanies it.
 
   Clearing the filter removes its warning; invalid input preserves the last successfully
@@ -453,7 +453,7 @@ Do not silently claim simultaneous visibility, force OS window arrangements, emb
 an arbitrary corporate site, inject into foreign tabs or require extensions/installations.
 Browser size hints use packaged cfg/schema defaults, not duplicated constants.
 
-Exactly one floating window exists per document (decided 29 Oct 2026, see
+Exactly one floating window exists per artifact (decided 29 Oct 2026, see
 [[#Floating window|floating window]]). While it holds the card, the HTML shows no card, placeholder or status
 for it. Closing the window discards an unfinished action and releases owned listeners, without
 closing the unrelated source tab or committing that action.
@@ -471,7 +471,7 @@ Floating cards are transient: they do not appear in printed or saved HTML.
 
 Decided 29 Oct 2026, implemented 4 Nov 2026
 (`spec/backlog/reference-items.md`). The floating-content host is one window per
-document, shared by all its uses: evidence collection, context, and later context-sensitive help.
+artifact, shared by all its uses: evidence collection, context, and later context-sensitive help.
 This matches the platform rule that a page has one Picture-in-Picture window. It is never a
 sidebar.
 
@@ -523,13 +523,13 @@ Lifecycle and content (decided by the user, 4 Nov 2026, option B):
 Decided by the user, 4 Nov 2026: there is one overlay system with exactly two tiers, so every
 hover behaves the same way.
 
-1. **Hover card** (simple, inside the page): one shared card for every hover in the document.
+1. **Hover card** (simple, inside the page): one shared card for every hover in the artifact.
    - Users: internal-link previews, the link hover card, table action and informational help,
      and any future hover.
    - One owner module (`hover-card.js`) places it next to its trigger, fits it into the
      viewport and renders it. Features register a trigger selector and a content resolver;
      a plain explanation needs no code: any element may carry `data-hover-help` text instead of
-     a native `title`. Its show delay and excerpt limits are the `report.hoverCard`
+     a native `title`. Its show delay and excerpt limits are the `artifact.hoverCard`
      configuration.
    - Lifecycle: it stays until Escape, a click outside, or a hover on another trigger, which
      replaces its content in place. Keyboard focus opens it like hover. If its trigger scrolls
@@ -661,7 +661,7 @@ Implementation decisions (4 Nov 2026, worker, reversible):
 
   A table explicitly marked wide starts a landscape sheet. All continuation sheets containing
   that table remain landscape, including repeated headers and expanded content, and ordinary
-  content after the table returns to portrait. Do not rotate the entire report or infer wide
+  content after the table returns to portrait. Do not rotate the entire artifact or infer wide
   mode from a role name or a guessed overflow threshold. Keep the table's heading/caption with
   its first rows.
 
@@ -672,7 +672,7 @@ Implementation decisions (4 Nov 2026, worker, reversible):
 
   Previous/next arrows still change chapters, not individual sheets.
 
-  Page numbers are continuous across the filtered document, including title, abstract, and
+  Page numbers are continuous across the filtered artifact, including title, abstract, and
   contents pages; they never restart when changing chapters.
   HTML assigns its logical page numbers once for the current global filter and
   keeps them stable while rows expand, subject tabs change, local table pages
@@ -745,19 +745,19 @@ Implementation decisions (4 Nov 2026, worker, reversible):
   canonical reference/editable-field values with empty placeholders.
 
   Verify table-specific identities and displayed values against explicit expected results, not only
-  report totals.
-  The first export from a freshly opened report must already use settled current canonical,
+  artifact totals.
+  The first export from a freshly opened artifact must already use settled current canonical,
   query and resource state, without first visiting every lazy chapter. Repeated export,
   canonical edits, filtering and reviewed-copy reopening preserve that contract.
 
-  Reopening the report or PDF is not a correctness workaround; check the generated artifact itself.
+  Reopening the artifact or PDF is not a correctness workaround; check the generated artifact itself.
   PDF is a presentation export, not a source distribution: it does not embed the HTML
   runtime, source archives or original evidence attachments, or expand collapsed note
   details merely for printing. Necessary rendered images and font resources remain.
 
   For comparable visible content, preserve the working export's compactness; investigate
   material size regressions with measured resource/stream breakdowns rather than retaining
-  hidden content or duplicating fonts, images or whole-document payloads per sheet.
+  hidden content or duplicating fonts, images or whole-artifact payloads per sheet.
 
   When the PDF action opens the browser's print dialog, explain the browser-native
   Save as PDF destination. An operating-system PDF printer is not an equivalent
@@ -784,7 +784,7 @@ Implementation decisions (4 Nov 2026, worker, reversible):
 
 ### Neutral document presentation
 
-The generic style is a plain, content-first document: system serif body text, black headings,
+The generic style is a plain, content-first artifact: system serif body text, black headings,
 neutral grays, simple A4 margins and no branded hierarchy. Interactive application chrome remains
 separate from document presentation.
 
@@ -796,19 +796,19 @@ separate from document presentation.
   Omit absent fields;
   renderer support does not confer approval, compliance or a controlled-document status.
 
-  Keep absent values omitted. Generic covers use simple flowing document content.
+  Keep absent values omitted. Generic covers use simple flowing artifact content.
 
   Revision/date belong only to History, not the cover; metadata belongs on its own page.
 
   Organization is authored only in manifest metadata and is not repeated in the metadata table.
 - Retain the subject-image row and takeaway/derived-overview improvements. Do not import
   yellow placeholders, blue template instructions, approval/export dashboards, glossary-loading
-  notices or the surrounding Catalog application interface into the report.
+  notices or the surrounding Catalog application interface into the artifact.
 - Use a shared page frame with reserved running-header/footer areas, document/chapter
   identification and Page X of Y, including the cover in the count. Contents page numbers
   derive from final PDF layout. Hierarchical section labels remain deferred; preserve authored titles.
 
-  Table continuation sheets and current pagination state contribute to the real document
+  Table continuation sheets and current pagination state contribute to the real artifact
   layout and page offsets. If Results ends on page 9, the next chapter starts on page 10;
   navigating or repaginating a table must not reset or overlap those page numbers.
   Screen page frames, Contents and PDF use the same final-layout numbering owner.
@@ -840,12 +840,12 @@ separate from document presentation.
   Evidence snapshot links may download their explicitly selected original from the
   same compressed owner; supported evidence replacement happens in the HTML and
   must not require downloading sources or installing tools.
-  Initialization is progressive. Show the report shell and available static content
+  Initialization is progressive. Show the artifact shell and available static content
   without waiting for every chapter, table, figure, search index or derived summary.
 
   Compression still has one asynchronous canonical-model decode boundary; controls
   that depend on that model must remain honestly unavailable until it is ready.
-  Never show a blank successful report or enable actions against a partial model.
+  Never show a blank successful artifact or enable actions against a partial model.
   The same readiness gate applies on reviewed-copy reopening; saved control DOM
   does not establish that the current model is ready.
 
@@ -866,12 +866,12 @@ separate from document presentation.
   Keep the shell responsive between substantial initialization steps; scheduling
   all expensive work before the browser can paint is not progressive loading.
   Initialize nonvisible/unused views when needed and reuse existing caches rather
-  than moving an unchanged whole-report calculation onto the first interaction.
+  than moving an unchanged whole-artifact calculation onto the first interaction.
 
   Static chapter projections may be reused within the current canonical revision,
   filter application and table/view presentation. Subject-content availability is
   revision-bound; changing canonical values invalidates it. Row expansion and local
-  pagination must not launch unrelated whole-document page-measurement passes.
+  pagination must not launch unrelated whole-artifact page-measurement passes.
 
   Pending content must settle visibly or surface an explicit error; it cannot remain
   an indefinite loading placeholder after failure. Export/print and reviewed saving
@@ -976,7 +976,7 @@ separate from document presentation.
   every other bar. No comment surface is open initially.
 - The Comments bar has two sections separated by a rule. The first contains the locally
   remembered reviewer name plus Download HTML and Load reviewed HTML commands. Load
-  accepts one or more returned HTML documents, validates their comment islands, merges unique
+  accepts one or more returned HTML artifacts, validates their comment islands, merges unique
   comments and per-reviewer decisions, and assigns collision-free local comment identifiers.
 
   At ordinary bar widths, Save and Load share a compact row in the left half;
@@ -989,7 +989,7 @@ separate from document presentation.
   context, stable paragraph/item identity or table/row/subject-column identity,
   author and replies in context.
 
-  Include the current document page when reliably resolved; a page is a supplemental locator,
+  Include the current artifact page when reliably resolved; a page is a supplemental locator,
   never the sole anchor. Inactive,
   filtered or unresolved targets retain their canonical anchors and an explicit
   unavailable-page/location indication rather than an invented page number.
@@ -998,7 +998,7 @@ separate from document presentation.
 
   Report success only after the clipboard write succeeds; handle empty comments and
   denied/unavailable clipboard access explicitly using the
-  existing bar diagnostics. Do not rebuild or navigate the whole report to copy.
+  existing bar diagnostics. Do not rebuild or navigate the whole artifact to copy.
   Compact visible labels are `Save` and `Load`; retain their full command names as
   accessible labels and tooltips.
 
@@ -1031,7 +1031,7 @@ separate from document presentation.
   section heading, the scope is the chapter's introductory content; a chapter heading
   scopes the complete chapter.
 
-  Ctrl+Shift-click applies to still-waiting items throughout the document, including
+  Ctrl+Shift-click applies to still-waiting items throughout the artifact, including
   inactive chapters. Scope follows canonical structure, not
   screen pages or current visibility. Waiting means undecided for the named reviewer;
   preserve that reviewer's existing decisions and all other reviewers' decisions.
@@ -1049,10 +1049,10 @@ separate from document presentation.
   Persistent text beneath the review counts also states that normal clicks affect one item,
   Shift-click applies to still-waiting items in the current section (or the introductory
   content/whole chapter when structurally applicable), and Ctrl+Shift-click applies to
-  still-waiting items throughout the report.
+  still-waiting items throughout the artifact.
 
   An unnamed reviewer uses the same fallback identity for decisions, controls and
-  derived counts. Document review covers canonical report chapters, not unrelated
+  derived counts. Artifact review covers canonical artifact chapters, not unrelated
   vault notes merely available to table queries. Section boundaries derive from the
   unfiltered chapter structure before pagination or disclosure.
 
@@ -1090,26 +1090,26 @@ separate from document presentation.
   not change any review decision.
 
   A compact summary in
-  Comments shows the named reviewer's full-document accepted, rejected, and waiting review-item
+  Comments shows the named reviewer's full-artifact accepted, rejected, and waiting review-item
   counts.
 
   Expanding or collapsing a table detail updates the affected table and active-chapter review
-  controls without rebuilding static views for the full report. Cached review-item identities
+  controls without rebuilding static views for the full artifact. Cached review-item identities
   are invalidated when their canonical chapter content, contributing canonical table rows or
   committed table definitions change.
 
   Reviewer decisions and view-local filtering, sorting, paging and detail expansion do not
   invalidate those identities; review summaries and fields
   still derive their current states from the review island. Reuse the canonical and table
-  owners' change boundaries rather than repeatedly serializing the whole report to detect edits.
+  owners' change boundaries rather than repeatedly serializing the whole artifact to detect edits.
 
   Typical native-browser detail toggles target less than 50 ms.
 
   Activating a summary state opens Filter and applies an exact `review:` clause for that
-  reviewer across the whole report: matching chapters remain in navigation and only matching
+  reviewer across the whole artifact: matching chapters remain in navigation and only matching
   review items remain visible in the active chapter.
 
-  The full-document totals do not change as
+  The full-artifact totals do not change as
   the reader navigates chapters.
 - The first section's save controls have persistent, discoverable guidance explaining that
   Save reviewed copy preserves review annotations, decisions, and canonical editable-property
@@ -1119,7 +1119,7 @@ separate from document presentation.
   is requested only while dirty;
   no custom browser warning text is required.
 - A persistent changed-HTML notice also appears in the shared heading notice area
-  whenever persisted document state differs from the last confirmed saved snapshot.
+  whenever persisted artifact state differs from the last confirmed saved snapshot.
   It says that this HTML has changed and includes a button to download the changed HTML.
 
   It uses the existing save/serialization owner, not a second download implementation.
@@ -1127,10 +1127,10 @@ separate from document presentation.
   persisted reader-state changes all participate; transient hover, scrolling and other
   nonserialized presentation do not.
 
-  This document-level state does not relabel a view-only change as a semantic review edit.
+  This artifact-level state does not relabel a view-only change as a semantic review edit.
   Failed or cancelled saves do not clear it;
   retain the existing distinction between confirmed file writes and unconfirmed downloads.
-  The native unload warning uses that same unsaved-document state.
+  The native unload warning uses that same unsaved-artifact state.
 
   A Limited functionality notice joins the changed-HTML and applied-filter notices in the
   shared heading notice area when any capability canary reports limited. The canaries
@@ -1174,7 +1174,7 @@ separate from document presentation.
   canonical within the reviewed copy, including selections that cross block or heading
   boundaries; the quote is display/context data and does not gate range reconstruction.
 
-  Anchors are not re-anchored across regenerated reports.
+  Anchors are not re-anchored across regenerated artifacts.
 
   Comment queries use the shared
   language and match only comment records, including `status`, `author`, `chapter`, `quote`,
@@ -1208,7 +1208,7 @@ separate from document presentation.
 - Saving uses the File System Access API when available and downloads a commented copy
   otherwise.
 - Search and Filter use the same query runtime. All chapter frontmatter fields participate in
-  bare and field-specific queries. That runtime owns the report's browser port
+  bare and field-specific queries. That runtime owns the artifact's browser port
   of the filter language implemented by `quack_v5/src/tui/draw/filter.go`.
 - A field clause selects by the one rule set ([[capabilities/bases#Comparisons]]): it resolves
   a note property and tests its text as [[capabilities/queries#Conditions]] does. Words,
@@ -1236,11 +1236,11 @@ separate from document presentation.
   materialization or page clones.
 
   Counts refresh after typed or figure-generated queries and after clearing. A
-  record-scoped report may additionally show its
+  record-scoped artifact may additionally show its
   matching/total record population; unchanged chapter counts must not conceal that
   a record filter is active. Table-local query controls remain table-local.
 
-  Orange is the shared filtering accent throughout reports. A table's applied
+  Orange is the shared filtering accent throughout artifacts. A table's applied
   interactive filter is additionally visible through the scoped outline and
   margin badge specified in [[generic-tables]]; its clear action must not clear
   the global filter.
@@ -1262,33 +1262,33 @@ separate from document presentation.
   with the preceding valid query, not the draft. A stored query that no longer compiles stays
   visible with its error rather than disappearing.
 
-  Fresh reports remain unfiltered. Restoring a query does not restore session appearance:
+  Fresh artifacts remain unfiltered. Restoring a query does not restore session appearance:
   every opening still starts Light with Pages. Filtering alone is not a dirty review change;
   persistence and semantic dirty-state boundaries belong to [[input-model]].
 
   On reopen, rebuild Filter presets and attribute controls once from their canonical data;
   do not append them to copied rendered controls.
   Reviewed table column visibility/order (resized widths are session-only and never a
-  document change) follows the bounded
+  artifact change) follows the bounded
   table-local presentation contract in [[generic-tables]], independently of the global query.
 - Opening Filter immediately shows its preset and attribute pill panel. Presets come from the
   vault's project configuration; clicking one replaces the text expression and applies it
   through the shared query runtime.
 
-  A domain report supplies its own meaningful presets and configured-level controls,
+  A domain artifact supplies its own meaningful presets and configured-level controls,
   rather than inheriting irrelevant chapter/frontmatter examples. Preserve the
   source application's level-switch semantics in its record-driven views; do not
   repurpose them as authored-chapter exclusion.
 - Filter attributes are derived from structured chapter fields: title, slug, depth, semantic
   fields, and every flattened frontmatter field.
 
-  A report may declare a curated record-query scope and field catalog using canonical
+  An artifact may declare a curated record-query scope and field catalog using canonical
   fields/references and display aliases. Such a catalog exposes its subject's meaningful
   fields, not storage paths, array indexes, relation bookkeeping or private intermediate
   notes.
 
-  It does not duplicate records or move report-owned classification into the query
-  runtime. Default reports retain their existing field discovery. Record-scoped queries
+  It does not duplicate records or move artifact-owned classification into the query
+  runtime. Default artifacts retain their existing field discovery. Record-scoped queries
   preserve authored TOC/navigation/PDF chapters while narrowing record-driven views.
 
   Full prose remains queryable as text but is
@@ -1317,10 +1317,10 @@ separate from document presentation.
   Facet selections remain visible as
   removable `field: value` pills after their value menu closes.
 
-  This report does not provide
+  This artifact does not provide
   grouping or sorting directives.
 - Search runs as the input changes without a separate submit button. It reads the canonical
-  report store and displays linked result excerpts inside the edge where its bar is docked.
+  artifact store and displays linked result excerpts inside the edge where its bar is docked.
 - **Hard rule: search and filters operate on the complete content, independent of rendering,
   pagination and expansion state.**
 
@@ -1343,13 +1343,13 @@ separate from document presentation.
 - Search keyboard shortcuts (listed in the Search query help and `aria-keyshortcuts`):
   Ctrl+F (Cmd+F) opens Search, focuses its input and selects the query text; pressed while
   Search is open and its input focused, it closes Search. The browser's own find therefore
-  only remains reachable when the document Search is unavailable.
+  only remains reachable when the artifact Search is unavailable.
 
   F3 and Shift+F3 step to the next and previous result in document order, wrapping around;
   each step reveals the hit
   exactly like activating it (table page, expanded sections, scroll and highlight) and the
   status reads `n of m results.`. With no active query, F3 opens Search. Esc closes Search
-  when focus is in Search or in the document content (not inside another control or bar).
+  when focus is in Search or in the artifact content (not inside another control or bar).
 - A half-typed or invalid query reports its error and preserves the last valid Search or Filter
   state.
 - Search and Filter expose their shared language summary from a compact help control on hover
@@ -1378,7 +1378,7 @@ separate from document presentation.
   Only vertical margins change the surrounding text flow.
 
   Cards share one stylesheet primitive; semantic tags retain their separate right-hand icon rail.
-- Tag borders are optional presentation flags configured through `report.borderedTags` in the
+- Tag borders are optional presentation flags configured through `artifact.borderedTags` in the
   configuration owner.
 
   No tag kind draws a box by default.
@@ -1401,11 +1401,11 @@ separate from document presentation.
   never by a hardcoded chapter name. Glossary links use italic text without underlining.
 - The generated Home follows the document contract in [[input-model]], using ordinary
   generic tables rather than a separate summary renderer.
-- The generated document cover precedes the manifest-authored abstract. Card groups remain
+- The generated artifact cover precedes the manifest-authored abstract. Card groups remain
   in authored abstract order; metric compaction does not promote them into or overlap the
   cover, and cards have no independent placement option.
 - The dogfood abstract authors its Obsidian-to-HTML5 logo strip as ordinary Markdown with hosted
-  logo images. It is vault content, not generator branding injected into other reports; loading
+  logo images. It is vault content, not generator branding injected into other artifacts; loading
   these images requires network access.
 - Markdown paragraphs consisting of multiple images and symbolic separators form a centered media
   strip. Images and separators align vertically at their centers; normal prose/image paragraphs

@@ -11,7 +11,7 @@ QUERY_HELP = (
 
 
 def render_query_input(kind: str, label: str, extra_help: str = "", shortcuts: str = "") -> str:
-    input_id = f"report-{kind}"
+    input_id = f"artifact-{kind}"
     keys = f' aria-keyshortcuts="{escape(shortcuts)}"' if shortcuts else ""
     help_text = f"{QUERY_HELP} {extra_help}".strip()
     return (

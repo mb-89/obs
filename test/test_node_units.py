@@ -17,7 +17,7 @@ def test_node_unit_tests_are_present():
 
 def test_runtime_scripts_include_bar_and_storage_runtimes():
     names = {path.relative_to(PACKAGE_ROOT).as_posix() for path in RUNTIME_SCRIPTS}
-    assert names >= {"report.js", "storage.js", "reader-startup.js", "bars/comments.js",
+    assert names >= {"artifact.js", "storage.js", "reader-startup.js", "bars/comments.js",
                      "bars/filter.js", "bars/search.js", "bars/settings.js"}
 
 

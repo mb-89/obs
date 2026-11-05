@@ -2,7 +2,7 @@ import json
 import os
 
 from obs_html.content import parse_manifest
-from obs_html.renderer import render_report
+from obs_html.renderer import render_artifact
 
 SVG = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10"/>'
 
@@ -25,7 +25,7 @@ def lint(tmp_path, chapters, figures=None, config=None):
     for name, body in chapters.items():
         (tmp_path / f"{name}.md").write_text(body, encoding="utf-8")
     warnings = []
-    render_report(manifest, parse_manifest(manifest), warning_handler=warnings.append,
+    render_artifact(manifest, parse_manifest(manifest), warning_handler=warnings.append,
                   figure_references=config)
     return [warning.replace(f"{tmp_path}{os.sep}", "") for warning in warnings]
 

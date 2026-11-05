@@ -22,9 +22,12 @@ configuration design principles.
 - Document decisions belong to the document, not to configuration: paper and margin are the
 	manifest's `obsHtml.print` ([[input-model#Document presentation profile]]).
 - Configuration owns only the cross-cutting catalogue such decisions choose from
-	(`report.print.paperSizes`) and the physical limits in `cfg.schema.json`.
+	(`artifact.print.paperSizes`) and the physical limits in `cfg.schema.json`.
 - A removed configuration key that moved to the manifest is rejected with a diagnostic naming
 	its manifest replacement.
+- A renamed configuration key (`report` became `artifact`) is rejected, in the packaged or
+	`--config` file as in the vault override, with a diagnostic naming the old key, the new key
+	and the file. No alias reads the old key.
 - The maximum distinct-value/populated-record ratio for enumerated Filter facets is a packaged
 	default that projects may override.
 - Semantic presentation resources use one optional project asset-index selection.

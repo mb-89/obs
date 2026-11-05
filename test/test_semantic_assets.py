@@ -15,8 +15,8 @@ import yaml
 
 from obs_html.content import parse_manifest
 from obs_html.cli import main
-from obs_html.renderer import render_report
-from obs_html.report_data import decode_report_data
+from obs_html.renderer import render_artifact
+from obs_html.artifact_data import decode_artifact_data
 from obs_html.reproduction import embedded_archive
 from obs_html.semantic_assets import SemanticAssets
 from test_named_icons import PIXEL, icon_fixture, write_index
@@ -78,7 +78,7 @@ def semantic_fixture(root):
 
 def test_semantic_hierarchy_alias_and_state_merge_reach_base_projection(tmp_path):
     manifest = semantic_fixture(tmp_path)
-    data = decode_report_data(render_report(manifest, parse_manifest(manifest), asset_index="assets.json",
+    data = decode_artifact_data(render_artifact(manifest, parse_manifest(manifest), asset_index="assets.json",
                                               embed_attachments=True))
     assert "icons" not in data
     assert data["assets"]["snapshotAlias"]["ref"] == "project.evidence.snapshot"
@@ -148,7 +148,7 @@ def test_invalid_semantic_resources_fail_build_and_check(tmp_path, capsys, case,
         path.write_text('{"schemaVersion":1,"assets":{"a":{},"a":{}}}', encoding="utf-8")
     else:
         path.write_text(json.dumps(data), encoding="utf-8")
-    (source / "cfg.json").write_text('{"report":{"assetIndex":"assets.json"}}', encoding="utf-8")
+    (source / "cfg.json").write_text('{"artifact":{"assetIndex":"assets.json"}}', encoding="utf-8")
     with pytest.raises(SystemExit) as failure:
         main(["--source", str(source), "--output", str(tmp_path / "bad.html")] + (["--check"] if check else []))
     assert failure.value.code == 2
@@ -164,7 +164,7 @@ def test_native_obsidian_parent_states_resolve_icon_image_and_computed_color(tmp
 
     manifest = semantic_fixture(tmp_path)
     output = tmp_path / "semantic.html"
-    output.write_text(render_report(manifest, parse_manifest(manifest), asset_index="assets.json",
+    output.write_text(render_artifact(manifest, parse_manifest(manifest), asset_index="assets.json",
                                               embed_attachments=True),
                       encoding="utf-8")
     with sync_playwright() as playwright:
@@ -175,8 +175,8 @@ def test_native_obsidian_parent_states_resolve_icon_image_and_computed_color(tmp
         try:
             page.goto(output.as_uri() + "#chapter")
             page.evaluate("obsHtmlReady")
-            page.evaluate("obsPages.setPaged(false); obsReport.activateChapter('chapter')")
-            page.evaluate("obsReport.whenChapterReady()")
+            page.evaluate("obsPages.setPaged(false); obsArtifact.activateChapter('chapter')")
+            page.evaluate("obsArtifact.whenChapterReady()")
             active = page.locator('[data-row-key="note:entry"] [aria-label="Download evidence"]')
             missing = page.locator('[data-row-key="note:missing"] .data-table-icon-action')
             expect(active.locator("img")).to_have_count(1)
@@ -192,7 +192,7 @@ def test_native_obsidian_parent_states_resolve_icon_image_and_computed_color(tmp
             assert source.get_attribute("download") is None
             assert active.get_attribute("download") == ""
             page.screenshot(path=str(tmp_path / "semantic-active-states.png"), full_page=True)
-            page.evaluate("obsReport.commitCanonicalProjection([{slug:'entry',fields:{document:''}}])")
+            page.evaluate("obsArtifact.commitCanonicalProjection([{slug:'entry',fields:{document:''}}])")
             unavailable = page.locator('[data-row-key="note:entry"] [aria-label="Download evidence: Missing snapshot"]')
             expect(unavailable).to_be_disabled()
             expect(unavailable.locator("[data-icon]")).to_have_text("IN")
@@ -230,7 +230,7 @@ def test_native_semantic_resources_compose_with_early_header_and_reviewed_reopen
     index["assets"]["icon"]["children"]["menu"] = {"value": {"asset": "pixel.png"}}
     (tmp_path / "assets.json").write_text(json.dumps(index), encoding="utf-8")
     output = tmp_path / "composed.html"
-    output.write_text(render_report(manifest, parse_manifest(manifest), asset_index="assets.json",
+    output.write_text(render_artifact(manifest, parse_manifest(manifest), asset_index="assets.json",
                                               embed_attachments=True),
                       encoding="utf-8")
     with sync_playwright() as playwright:
@@ -253,7 +253,7 @@ def test_native_semantic_resources_compose_with_early_header_and_reviewed_reopen
                 with page.expect_navigation(wait_until="load"):
                     navigation.send("Page.navigate", {"url": path.as_uri()})
                 navigation.detach()
-                page.wait_for_function("document.documentElement.dataset.reportStatus === 'loading'")
+                page.wait_for_function("document.documentElement.dataset.artifactStatus === 'loading'")
                 expect(page.locator(".reader-opening [role=status]")).to_be_visible()
                 assert page.locator(".reader-opening .paper-header > span").all_text_contents() == [
                     "Product <&> · Matrix", "Internal",
@@ -267,12 +267,12 @@ def test_native_semantic_resources_compose_with_early_header_and_reviewed_reopen
                 expect(menu).to_have_count(1)
                 page.wait_for_function(
                     "document.querySelector('[data-menu-button] img')?.naturalWidth === 1")
-                page.evaluate("obsPages.setPaged(false); obsReport.activateChapter('chapter')")
-                page.evaluate("obsReport.whenChapterReady()")
+                page.evaluate("obsPages.setPaged(false); obsArtifact.activateChapter('chapter')")
+                page.evaluate("obsArtifact.whenChapterReady()")
                 expect(page.locator(
                     '[data-row-key="note:missing"] .data-table-icon-action [data-icon]').first).to_have_text("IN")
                 if path == output:
-                    page.evaluate("obsReport.commitCanonicalProjection([{slug:'entry',fields:{document:''}}])")
+                    page.evaluate("obsArtifact.commitCanonicalProjection([{slug:'entry',fields:{document:''}}])")
                     page.evaluate("""() => {
                         document.querySelector('#running-header-script').dataset.headerMetadata =
                             JSON.stringify({product: {name: 'Stale product'}});
@@ -281,7 +281,7 @@ def test_native_semantic_resources_compose_with_early_header_and_reviewed_reopen
                         page.evaluate("obsComments.reviewedHtml()"), encoding="utf-8")
                 else:
                     assert page.evaluate(
-                        "JSON.parse(obsReport.serializeModel()).notes.find(note => note.slug === 'entry').frontmatter.document") == ""
+                        "JSON.parse(obsArtifact.serializeModel()).notes.find(note => note.slug === 'entry').frontmatter.document") == ""
             assert errors == []
         finally:
             context.close()
@@ -335,12 +335,12 @@ def test_one_image_used_once_in_markdown_and_icon_has_one_payload_owner(tmp_path
     write_index(source / "assets.json", {"project.evidence": {"asset": "shared.png"}})
     with (source / "chapter.md").open("a", encoding="utf-8") as chapter:
         chapter.write("\n![Shared original](shared.png)\n")
-    (source / "cfg.json").write_text('{"report":{"assetIndex":"assets.json"}}', encoding="utf-8")
+    (source / "cfg.json").write_text('{"artifact":{"assetIndex":"assets.json"}}', encoding="utf-8")
     output = tmp_path / "shared.html"
     assert main(["--source", str(manifest), "--output", str(output)]
                 + (["--embed-source"] if archive else [])) == 0
-    report = output.read_text(encoding="utf-8")
-    data = decode_report_data(report)
+    artifact = output.read_text(encoding="utf-8")
+    data = decode_artifact_data(artifact)
     key = data["assets"]["project.evidence"]["value"]["asset"].split(":")[1]
     chapter = next(note for note in data["notes"] if note["slug"] == "chapter")
     assert f'src="obs-asset:{key}"' in chapter["html"]
@@ -348,7 +348,7 @@ def test_one_image_used_once_in_markdown_and_icon_has_one_payload_owner(tmp_path
     assert json.dumps(data).count(uri) == (0 if archive else 1)
     if archive:
         descriptor = data["embeddedAssets"][key]
-        with ZipFile(BytesIO(embedded_archive(report))) as payload:
+        with ZipFile(BytesIO(embedded_archive(artifact))) as payload:
             assert descriptor["archivePath"] == "vault/shared.png"
             assert payload.read(descriptor["archivePath"]) == raw
             assert sum(payload.read(name) == raw for name in payload.namelist()
@@ -410,7 +410,7 @@ def _contained_icon_screenshot(page, icon, path):
 @pytest.mark.skipif(not os.environ.get("OBS_HTML_TEST_NATIVE_BROWSER"),
                     reason="Set OBS_HTML_TEST_NATIVE_BROWSER for actual resource pixel checks.")
 @pytest.mark.parametrize("archive", [False, True])
-def test_native_packaged_svg_pixels_follow_foreground_in_screen_print_and_saved_report(tmp_path, archive):
+def test_native_packaged_svg_pixels_follow_foreground_in_screen_print_and_saved_artifact(tmp_path, archive):
     from playwright.sync_api import sync_playwright
 
     source = tmp_path / "source"
@@ -445,7 +445,7 @@ def test_native_packaged_svg_pixels_follow_foreground_in_screen_print_and_saved_
     (source / "chapter.md").write_text(
         "# Native semantic color\n\n```base\n" + yaml.safe_dump(definition, sort_keys=False) + "```\n",
         encoding="utf-8")
-    (source / "cfg.json").write_text('{"report":{"assetIndex":"assets.json"}}', encoding="utf-8")
+    (source / "cfg.json").write_text('{"artifact":{"assetIndex":"assets.json"}}', encoding="utf-8")
     output = tmp_path / "colors.html"
     assert main(["--source", str(source), "--output", str(output), "--embed-attachments"]
                 + (["--embed-source"] if archive else [])) == 0
@@ -460,8 +460,8 @@ def test_native_packaged_svg_pixels_follow_foreground_in_screen_print_and_saved_
                 page.emulate_media(media="screen")
                 page.goto(path.as_uri() + "#chapter")
                 page.evaluate("obsHtmlReady")
-                page.evaluate("obsPages.setPaged(false); obsReport.activateChapter('chapter')")
-                page.evaluate("obsReport.whenChapterReady()")
+                page.evaluate("obsPages.setPaged(false); obsArtifact.activateChapter('chapter')")
+                page.evaluate("obsArtifact.whenChapterReady()")
                 for mode in ("light", "dark", "print"):
                     if mode == "print":
                         page.evaluate("window.print=()=>{}; obsPages.exportPDF()")
@@ -559,10 +559,10 @@ def test_native_text_icons_and_conditional_card_tones_share_overridden_color_own
         + "```\n\n```base\n" + yaml.safe_dump(base) + "```\n", encoding="utf-8")
     (source / "chapter.md").write_text("# Shared appearance\n", encoding="utf-8")
     (source / "entry.md").write_text("---\nkind: entry\ntitle: Selected\n---\n", encoding="utf-8")
-    (source / "cfg.json").write_text('{"report":{"assetIndex":"assets.json"}}', encoding="utf-8")
+    (source / "cfg.json").write_text('{"artifact":{"assetIndex":"assets.json"}}', encoding="utf-8")
     output = tmp_path / "shared-colors.html"
     assert main(["--source", str(source), "--output", str(output)]) == 0
-    data = decode_report_data(output.read_text(encoding="utf-8"))
+    data = decode_artifact_data(output.read_text(encoding="utf-8"))
     assert "Canonical paragraph" not in json.dumps(data["assets"])
     assert "Canonical card prose" not in json.dumps(data["assets"])
     assert "Canonical paragraph" in next(note for note in data["notes"] if note["slug"] == "home")["html"]
@@ -575,8 +575,8 @@ def test_native_text_icons_and_conditional_card_tones_share_overridden_color_own
         try:
             page.goto(output.as_uri() + "#home")
             page.evaluate("obsHtmlReady")
-            page.evaluate("obsPages.setPaged(false); obsReport.activateChapter('home')")
-            page.evaluate("obsReport.whenChapterReady()")
+            page.evaluate("obsPages.setPaged(false); obsArtifact.activateChapter('home')")
+            page.evaluate("obsArtifact.whenChapterReady()")
             root = page.locator("[data-active-chapter]")
             metric = root.locator(".record-metric")
             paragraph = root.get_by_text("Canonical paragraph content.", exact=True)
@@ -584,13 +584,13 @@ def test_native_text_icons_and_conditional_card_tones_share_overridden_color_own
             for theme, positive, negative in (("light", "rgb(18, 107, 84)", "rgb(154, 52, 33)"),
                                               ("dark", "rgb(185, 232, 215)", "rgb(248, 179, 153)")):
                 page.evaluate("theme=>document.documentElement.dataset.theme=theme", theme)
-                page.evaluate("obsReport.setFilter(obsQuery.compile(''))")
+                page.evaluate("obsArtifact.setFilter(obsQuery.compile(''))")
                 expect(metric).to_have_class(re.compile("record-metric--positive"))
                 expect(metric.locator("strong")).to_have_text("1")
                 actual = [node.evaluate("e=>getComputedStyle(e).color")
                           for node in (paragraph, icon, metric.locator(".record-metric-value"))]
                 assert actual == [positive] * 3
-                page.evaluate("obsReport.setFilter(obsQuery.compile('title:NoSuchRecord'))")
+                page.evaluate("obsArtifact.setFilter(obsQuery.compile('title:NoSuchRecord'))")
                 expect(metric).to_have_class(re.compile("record-metric--negative"))
                 expect(metric.locator("strong")).to_have_text("0")
                 selected = metric.locator(".record-metric-value").evaluate("e=>getComputedStyle(e).color")
@@ -598,7 +598,7 @@ def test_native_text_icons_and_conditional_card_tones_share_overridden_color_own
                 colors.append({"theme": theme, "paragraphIconPositiveMetric": actual,
                                "zeroCountNegativeMetric": selected})
                 page.screenshot(path=str(tmp_path / f"conditional-{theme}.png"), full_page=True)
-            page.evaluate("obsReport.setFilter(obsQuery.compile('')); window.print=()=>{}; obsPages.exportPDF()")
+            page.evaluate("obsArtifact.setFilter(obsQuery.compile('')); window.print=()=>{}; obsPages.exportPDF()")
             page.emulate_media(media="print")
             printed = page.locator(".print-book .record-metric-value").first
             assert printed.evaluate("e=>getComputedStyle(e).color") == "rgb(18, 107, 84)"

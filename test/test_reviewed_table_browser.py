@@ -4,7 +4,7 @@ import re
 import pytest
 
 from obs_html.cli import main
-from obs_html.report_data import decode_report_data, encode_report_data
+from obs_html.artifact_data import decode_artifact_data, encode_artifact_data
 
 
 @pytest.fixture
@@ -28,8 +28,8 @@ def reviewed_table_page(tmp_path):
             + base + ("\n" + base if slug == "one" else ""),
             encoding="utf-8",
         )
-    report = tmp_path / "report.html"
-    args = ["--source", str(vault), "--output", str(report)]
+    artifact = tmp_path / "artifact.html"
+    args = ["--source", str(vault), "--output", str(artifact)]
     assert main([*args, "--check"]) == 0
     assert main(args) == 0
     with sync_playwright() as playwright:
@@ -41,7 +41,7 @@ def reviewed_table_page(tmp_path):
         errors = []
         page.on("pageerror", lambda error: errors.append(str(error)))
         try:
-            yield page, report
+            yield page, artifact
             assert errors == []
         finally:
             browser.close()
@@ -52,7 +52,7 @@ def _columns(table):
 
 
 def _save(page, path):
-    page.evaluate("obsReport.openBar('comments')")
+    page.evaluate("obsArtifact.openBar('comments')")
     with page.expect_download() as download:
         page.locator("[data-comment-save]").click()
     download.value.save_as(path)
@@ -63,8 +63,8 @@ def test_native_reviewed_table_columns_survive_without_leaking_or_dirtying(
 ):
     from playwright.sync_api import expect
 
-    page, report = reviewed_table_page
-    page.goto(report.as_uri() + "#one")
+    page, artifact = reviewed_table_page
+    page.goto(artifact.as_uri() + "#one")
     page.evaluate("obsPages.setPaged(false)")
     table = page.locator('.chapter-scroll [data-data-table="one-base-1"]')
     other = page.locator('.chapter-scroll [data-data-table="one-base-2"]')
@@ -83,7 +83,7 @@ def test_native_reviewed_table_columns_survive_without_leaking_or_dirtying(
     assert width >= 96
     assert _columns(table) == ["explanation", "title"]
     assert _columns(other) == defaults
-    page.evaluate("obsReport.openBar('filter')")
+    page.evaluate("obsArtifact.openBar('filter')")
     page.locator("[data-filter-input]").fill("status:finding-at-eit")
     guidance = page.locator("[data-review-save-guidance]")
     expect(guidance).to_have_attribute("data-dirty", "false")
@@ -102,18 +102,18 @@ def test_native_reviewed_table_columns_survive_without_leaking_or_dirtying(
     expect(page.locator("html")).to_have_class("paged-mode")
     expect(page.locator("[data-filter-input]")).to_have_value("status:finding-at-eit")
     expect(guidance).to_have_attribute("data-dirty", "false")
-    model = page.evaluate("JSON.parse(obsReport.serializeModel())")
+    model = page.evaluate("JSON.parse(obsArtifact.serializeModel())")
     assert len(model["notes"]) == 3
     assert model["readerState"]["tables"]["one-base-1"] == {
         "columns": ["explanation", "title"],
     }
-    page.evaluate("obsReport.activateChapter('two')")
+    page.evaluate("obsArtifact.activateChapter('two')")
     expect(page.locator("[data-active-chapter]")).to_have_attribute("data-chapter", "home")
-    page.evaluate("obsFilter.setExpression(''); obsReport.activateChapter('two')")
+    page.evaluate("obsFilter.setExpression(''); obsArtifact.activateChapter('two')")
     other_chapter = page.locator('.chapter-scroll [data-data-table="two-base-1"]')
     expect(other_chapter.locator("thead th")).to_have_count(len(defaults))
     assert _columns(other_chapter) == defaults
-    page.evaluate("obsReport.activateChapter('one')")
+    page.evaluate("obsArtifact.activateChapter('one')")
     assert _columns(table) == ["explanation", "title"]
     editor = page.locator(".paged-reader [data-property-editor]")
     editor.fill("Edited after restoring columns")
@@ -133,10 +133,10 @@ def test_native_reviewed_table_columns_survive_without_leaking_or_dirtying(
     assert page.evaluate("obsComments.data.annotations[0].text") == "Keep table review"
     assert page.evaluate("obsComments.data.reviews[0].state") == "accepted"
     assert page.evaluate(
-        "obsReport.records.find(record => record.slug === 'one').frontmatter.explanation",
+        "obsArtifact.records.find(record => record.slug === 'one').frontmatter.explanation",
     ) == "Edited after restoring columns"
     expect(guidance).to_have_attribute("data-dirty", "false")
-    page.goto(report.as_uri() + "#one")
+    page.goto(artifact.as_uri() + "#one")
     assert _columns(table) == defaults
     expect(page.locator("[data-filter-input]")).to_have_value("")
     expect(guidance).to_have_attribute("data-dirty", "false")
@@ -156,14 +156,14 @@ def test_native_invalid_saved_table_columns_show_atomic_diagnostic(
 ):
     from playwright.sync_api import expect
 
-    page, report = reviewed_table_page
-    html = report.read_text(encoding="utf-8")
-    pattern = r'(<script[^>]*data-report-data[^>]*>)(.*?)(</script>)'
-    model = decode_report_data(html)
+    page, artifact = reviewed_table_page
+    html = artifact.read_text(encoding="utf-8")
+    pattern = r'(<script[^>]*data-artifact-data[^>]*>)(.*?)(</script>)'
+    model = decode_artifact_data(html)
     model["readerState"] = {"tables": {"one-base-1": state}}
     invalid = tmp_path / "invalid-table-state.html"
     invalid.write_text(
-        re.sub(pattern, lambda match: encode_report_data(model), html, count=1, flags=re.S),
+        re.sub(pattern, lambda match: encode_artifact_data(model), html, count=1, flags=re.S),
         encoding="utf-8",
     )
     page.goto(invalid.as_uri() + "#one")
@@ -179,8 +179,8 @@ def test_native_invalid_saved_table_columns_show_atomic_diagnostic(
 def test_native_hidden_column_and_unvisited_table_state_survive(reviewed_table_page, tmp_path):
     from playwright.sync_api import expect
 
-    page, report = reviewed_table_page
-    page.goto(report.as_uri() + "#one")
+    page, artifact = reviewed_table_page
+    page.goto(artifact.as_uri() + "#one")
     page.evaluate("obsPages.setPaged(false)")
     one = page.locator('.chapter-scroll [data-data-table="one-base-1"]')
     one.locator(".data-table-options-toggle").scroll_into_view_if_needed()
@@ -189,7 +189,7 @@ def test_native_hidden_column_and_unvisited_table_state_survive(reviewed_table_p
     one.locator('button[title="Hide title"]').click()
     page.keyboard.press("Escape")
     assert _columns(one) == ["status", "explanation"]
-    page.evaluate("obsReport.activateChapter('two')")
+    page.evaluate("obsArtifact.activateChapter('two')")
     two = page.locator('.chapter-scroll [data-data-table="two-base-1"]')
     two.locator('th[data-column-key="title"]').press("Alt+ArrowRight")
     saved = tmp_path / "two-tables.html"
@@ -207,7 +207,7 @@ def test_native_hidden_column_and_unvisited_table_state_survive(reviewed_table_p
     one.locator('th[data-column-key="title"]').press("Alt+ArrowLeft")
     one.locator('th[data-column-key="title"]').press("Alt+ArrowLeft")
     expect(page.locator("[data-review-save-guidance]")).to_have_attribute("data-dirty", "false")
-    assert set(page.evaluate("JSON.parse(obsReport.serializeModel()).readerState.tables")) == {
+    assert set(page.evaluate("JSON.parse(obsArtifact.serializeModel()).readerState.tables")) == {
         "one-base-1", "two-base-1",
     }
 
@@ -219,14 +219,14 @@ def test_native_hidden_column_and_unvisited_table_state_survive(reviewed_table_p
 def test_native_invalid_saved_table_presentation_can_be_corrected(reviewed_table_page, tmp_path, tables):
     from playwright.sync_api import expect
 
-    page, report = reviewed_table_page
-    html = report.read_text(encoding="utf-8")
-    pattern = r'(<script[^>]*data-report-data[^>]*>)(.*?)(</script>)'
-    model = decode_report_data(html)
+    page, artifact = reviewed_table_page
+    html = artifact.read_text(encoding="utf-8")
+    pattern = r'(<script[^>]*data-artifact-data[^>]*>)(.*?)(</script>)'
+    model = decode_artifact_data(html)
     model["readerState"] = {"tables": tables}
     invalid = tmp_path / "unknown-table.html"
     invalid.write_text(
-        re.sub(pattern, lambda match: encode_report_data(model), html, count=1, flags=re.S),
+        re.sub(pattern, lambda match: encode_artifact_data(model), html, count=1, flags=re.S),
         encoding="utf-8",
     )
     page.goto(invalid.as_uri() + "#one")
@@ -236,15 +236,15 @@ def test_native_invalid_saved_table_presentation_can_be_corrected(reviewed_table
     expect(table.locator("[data-table-presentation-error]")).to_be_visible()
     table.locator('th[data-column-key="title"]').press("Alt+ArrowRight")
     expect(table.locator("[data-table-presentation-error]")).to_be_hidden()
-    state = page.evaluate("JSON.parse(obsReport.serializeModel()).readerState.tables['one-base-1']")
+    state = page.evaluate("JSON.parse(obsArtifact.serializeModel()).readerState.tables['one-base-1']")
     assert state == {"columns": ["status", "title", "explanation"]}
     expect(page.locator("[data-review-save-guidance]")).to_have_attribute("data-dirty", "false")
 
 def test_native_columns_size_from_content_and_resize_is_session_only(reviewed_table_page):
     from playwright.sync_api import expect
 
-    page, report = reviewed_table_page
-    page.goto(report.as_uri() + "#one")
+    page, artifact = reviewed_table_page
+    page.goto(artifact.as_uri() + "#one")
     page.evaluate("obsPages.setPaged(false)")
     result = page.evaluate("""async () => {
         const host = document.createElement('div');
@@ -286,6 +286,6 @@ def test_native_columns_size_from_content_and_resize_is_session_only(reviewed_ta
     assert result["scroller"]
     table = page.locator('.chapter-scroll [data-data-table="one-base-1"]')
     table.locator('th[data-column-key="title"] .data-table-column-resize').press("ArrowRight")
-    expect(page.locator("[data-document-warning]")).to_be_hidden()
+    expect(page.locator("[data-artifact-warning]")).to_be_hidden()
     expect(page.locator("[data-review-save-guidance]")).to_have_attribute("data-dirty", "false")
-    assert page.evaluate("obsReport.readerState().tables") == {}
+    assert page.evaluate("obsArtifact.readerState().tables") == {}

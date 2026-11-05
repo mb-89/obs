@@ -3,8 +3,8 @@ import json
 import pytest
 
 from obs_html.content import ContentError, parse_manifest
-from obs_html.renderer import render_report
-from obs_html.report_data import REPORT_PATTERN, decode_report_data
+from obs_html.renderer import render_artifact
+from obs_html.artifact_data import ARTIFACT_PATTERN, decode_artifact_data
 
 SVG = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10"/>'
 FIGURES = "".join(
@@ -21,8 +21,8 @@ def build(tmp_path, prose, figures=None, config=None):
                         "- [[one]]\n- [[two]]\n", encoding="utf-8")
     (tmp_path / "one.md").write_text("# One\n", encoding="utf-8")
     (tmp_path / "two.md").write_text("# Two\n\n" + FIGURES + prose + "\n", encoding="utf-8")
-    html = render_report(manifest, parse_manifest(manifest), figure_references=config)
-    notes = decode_report_data(REPORT_PATTERN.search(html)[0])["notes"]
+    html = render_artifact(manifest, parse_manifest(manifest), figure_references=config)
+    notes = decode_artifact_data(ARTIFACT_PATTERN.search(html)[0])["notes"]
     return next(note["html"] for note in notes if note["slug"] == "two")
 
 

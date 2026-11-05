@@ -1,4 +1,4 @@
-"""Runtime records and Base row projections, observed in the rendered report.
+"""Runtime records and Base row projections, observed in the rendered artifact.
 
 Owners: flattened frontmatter is the JS ``flattenFrontmatter`` (metadata-flatten-once);
 projected rows follow the Bases filter grammar in generic-tables.md; mark ids belong to the
@@ -10,9 +10,9 @@ from pathlib import Path
 import pytest
 
 from obs_html.content import parse_manifest
-from obs_html.renderer import render_report
-from obs_html.report_data import decode_report_data
-from test_browser import run_report_dom_contract
+from obs_html.renderer import render_artifact
+from obs_html.artifact_data import decode_artifact_data
+from test_browser import run_artifact_dom_contract
 
 
 def _base(filters: str, order: str, records: str = "") -> str:
@@ -57,11 +57,11 @@ def projected(tmp_path_factory):
         encoding="utf-8",
     )
     manifest = vault / "manifest.md"
-    html = render_report(manifest, parse_manifest(manifest))
-    report = vault / "report.html"
-    report.write_text(html, encoding="utf-8")
-    notes = decode_report_data(html)["notes"]
-    inspected = json.loads(run_report_dom_contract(report, "--inspect-json", arguments=(json.dumps(["registers"]),)))
+    html = render_artifact(manifest, parse_manifest(manifest))
+    artifact = vault / "artifact.html"
+    artifact.write_text(html, encoding="utf-8")
+    notes = decode_artifact_data(html)["notes"]
+    inspected = json.loads(run_artifact_dom_contract(artifact, "--inspect-json", arguments=(json.dumps(["registers"]),)))
     return {"notes": {note["sourcePath"]: note["slug"] for note in notes}, **inspected}
 
 

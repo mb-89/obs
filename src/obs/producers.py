@@ -10,7 +10,7 @@ from obs.input import InputError, validate_command
 
 
 class ProducerError(ValueError):
-    """Raised when an authorized producer cannot create its vault artifacts."""
+    """Raised when an authorized producer cannot create its vault files."""
 
 
 def run_producers(vault_root: Path, authorized: bool, timeout_seconds: int) -> int:

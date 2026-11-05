@@ -40,7 +40,7 @@ text:
   query needs to count.
 
   No other derived field is a property: a title, a slug, the text or a reader alias
-  ([[report-ui]]) selects nothing in a condition. A `distinct` count and a Sankey node's
+  ([[artifact-ui]]) selects nothing in a condition. A `distinct` count and a Sankey node's
   `unique` read their property the same way.
 
 The core evaluates conditions to decide inclusion, the browser for counts, query populations,

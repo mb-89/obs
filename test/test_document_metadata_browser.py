@@ -4,7 +4,7 @@ from pathlib import Path
 import pytest
 
 from obs_html.content import parse_manifest
-from obs_html.renderer import render_report
+from obs_html.renderer import render_artifact
 
 
 @pytest.mark.skipif(not os.environ.get("OBS_HTML_TEST_NATIVE_BROWSER"),
@@ -21,8 +21,8 @@ def test_document_metadata_rows_are_plain_keys_with_aligned_text_values(tmp_path
         "    order: [key, value]\nobsHtml: {records: documentMetadata}\n```\n",
         encoding="utf-8",
     )
-    report = tmp_path / "report.html"
-    report.write_text(render_report(
+    artifact = tmp_path / "artifact.html"
+    artifact.write_text(render_artifact(
         manifest, parse_manifest(manifest),
         generator_provenance={"name": "obs_html", "version": "e95e452-dirty", "commit": "e95e452"},
         target_provenance={"name": "reference", "version": "ddde511", "commit": "ddde511"},
@@ -33,7 +33,7 @@ def test_document_metadata_rows_are_plain_keys_with_aligned_text_values(tmp_path
         errors = []
         page.on("pageerror", lambda error: errors.append(str(error)))
         try:
-            page.goto(report.as_uri())
+            page.goto(artifact.as_uri())
             table = page.locator('[data-page-chapter="@metadata"] table').first
             table.wait_for()
             rows = table.evaluate("""(table) => Object.fromEntries([...table.querySelectorAll("tbody tr")]

@@ -7,8 +7,8 @@ import pytest
 
 from obs_html.bars import discover_bars
 from obs_html.content import parse_manifest
-from obs_html.renderer import render_report
-from test_browser import run_report_dom_contract
+from obs_html.renderer import render_artifact
+from test_browser import run_artifact_dom_contract
 from test_reader_controls import _write_reader_fixture, reader_browser  # noqa: F401
 
 
@@ -82,12 +82,12 @@ def test_renderer_infers_menu_and_content_from_discovered_bars(tmp_path: Path) -
     manifest = tmp_path / "manifest.md"
     manifest.write_text("- [[one]]\n", encoding="utf-8")
 
-    report = render_report(manifest, parse_manifest(manifest))
+    artifact = render_artifact(manifest, parse_manifest(manifest))
 
     for bar in discover_bars():
-        assert f'data-dock-bar="{bar.key}"' in report
-        assert f'data-bar="{bar.key}"' in report
-        assert bar.icon in report
+        assert f'data-dock-bar="{bar.key}"' in artifact
+        assert f'data-bar="{bar.key}"' in artifact
+        assert bar.icon in artifact
 
 
 def test_filter_and_search_are_separate_discovered_bars(tmp_path: Path) -> None:
@@ -114,10 +114,10 @@ def test_filter_and_search_are_separate_discovered_bars(tmp_path: Path) -> None:
             f"# {name}\n\n{'Draft' if index < 3 else 'Final'} prose.\n",
             encoding="utf-8",
         )
-    report = tmp_path / "report.html"
-    report.write_text(render_report(manifest, parse_manifest(manifest)), encoding="utf-8")
+    artifact = tmp_path / "artifact.html"
+    artifact.write_text(render_artifact(manifest, parse_manifest(manifest)), encoding="utf-8")
     runtimes = [files("obs_html.bars") / f"{key}.js" for key in ("filter", "search")]
-    run_report_dom_contract(report, "--discovered-query-controls-only", *runtimes)
+    run_artifact_dom_contract(artifact, "--discovered-query-controls-only", *runtimes)
 
 
 def test_comments_is_a_discovered_review_bar() -> None:
@@ -199,8 +199,8 @@ def test_dock_buttons_use_left_right_top_bottom_order(tmp_path: Path) -> None:
     manifest = tmp_path / "manifest.md"
     manifest.write_text("- [[one]]\n", encoding="utf-8")
 
-    report = render_report(manifest, parse_manifest(manifest))
-    positions = [report.index(f'data-dock-direction="{direction}"') for direction in (
+    artifact = render_artifact(manifest, parse_manifest(manifest))
+    positions = [artifact.index(f'data-dock-direction="{direction}"') for direction in (
         "left",
         "right",
         "top",
@@ -213,14 +213,14 @@ def test_dock_buttons_use_left_right_top_bottom_order(tmp_path: Path) -> None:
 @pytest.mark.parametrize("edge", ["left", "right", "top", "bottom"])
 def test_native_splitter_anchors_and_neighbor_only_geometry(tmp_path, reader_browser, edge):
     manifest = _write_reader_fixture(tmp_path)
-    report = tmp_path / "dock.html"
-    report.write_text(render_report(manifest, parse_manifest(manifest)), encoding="utf-8")
+    artifact = tmp_path / "dock.html"
+    artifact.write_text(render_artifact(manifest, parse_manifest(manifest)), encoding="utf-8")
     page = reader_browser.new_page(viewport={"width": 1800, "height": 1200})
     horizontal = edge in ("top", "bottom")
     axis, size = ("x", "width") if horizontal else ("y", "height")
     try:
-        page.goto(report.as_uri())
-        page.evaluate("edge => ['toc','filter','search'].forEach(bar => obsReport.openBar(bar,edge))", edge)
+        page.goto(artifact.as_uri())
+        page.evaluate("edge => ['toc','filter','search'].forEach(bar => obsArtifact.openBar(bar,edge))", edge)
         region = page.locator(f"[data-dock-region='{edge}']")
         dividers = region.locator(":scope > [data-bar-resize]")
         panes = region.locator(":scope > .dock-bar")
@@ -237,7 +237,7 @@ def test_native_splitter_anchors_and_neighbor_only_geometry(tmp_path, reader_bro
         moved = [divider.bounding_box()[axis] for divider in dividers.all()]
         assert moved[0] - before[0] == pytest.approx(36, abs=1)
         assert moved[1] == pytest.approx(before[1], abs=1)
-        page.evaluate("edge => obsReport.openBar('settings',edge)", edge)
+        page.evaluate("edge => obsArtifact.openBar('settings',edge)", edge)
         page.wait_for_timeout(100)
         added = [divider.bounding_box()[axis] for divider in dividers.all()]
         assert added[0] == pytest.approx(moved[0], abs=1)
