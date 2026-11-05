@@ -35,7 +35,7 @@ def test_adapters_configuration_names_the_cli_as_the_executable() -> None:
     assert adapters == {"adapters": {"html": "adapter.json"}}
     scripts = tomllib.loads((ROOT / "pyproject.toml").read_text(encoding="utf-8"))["project"]["scripts"]
     assert _manifest()["command"] == ["uv", "run", "obs-html"]
-    assert scripts == {"obs-html": "obs_html.cli:main"}
+    assert scripts["obs-html"] == "obs_html.cli:main"  # Other scripts, such as obs-html-inspect, are tools.
 
 
 def test_fixture_is_a_contract_valid_document_using_every_capability(document, document_validator) -> None:
