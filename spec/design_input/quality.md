@@ -89,6 +89,9 @@ definitions alike. Keeping the same fact in two places is an anti-pattern (user,
 - An input many tests read, such as obs's spec Document, a fixture artifact or the parity
   builds, is built once per run by `built_once` in the part's `conftest.py` and shared by every
   worker; the tests only read it.
+- No test reaches the network. Each part's `test/network_guard.py` fails a test that opens a
+  connection to anything but loopback, naming the test, the host and the remedy; a subprocess a
+  test starts reads remote data from a fake too, as the parity gate's `obs-document` does.
 - Browser checks are batched: a sweep evaluates a whole layout in one page evaluation, a test
   reaches into a frame through its `Frame`, and a step waits for an event the artifact gives,
   never for a fixed time.
