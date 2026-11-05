@@ -15,7 +15,7 @@ const vm = require("node:vm");
 const NAME = "test/browser/report-harness.cjs";
 const STARTUP_SCRIPTS = ["reader-startup-script", "running-header-script", "report-bootstrap-script"];
 const RUNTIME_SCRIPTS = ["query-script", "yaml-script", "base-script", "data-table-script",
-    "assets-script", "canonical-transaction-script", "report-script", "pages-script"];
+    "assets-script", "notices-script", "canonical-transaction-script", "report-script", "pages-script"];
 
 class HarnessError extends Error {
     constructor(step, problem, remedy) {
