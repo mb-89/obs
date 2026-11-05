@@ -12,8 +12,9 @@ from test_report_harness import run_harness
 pytestmark = pytest.mark.dom
 
 
-def record(identifier: str, path: str, **fields: object) -> dict:
-    return {"id": identifier, "type": "note", "path": path, "fields": fields}
+def record(identifier: str, path: str, ignored: bool = False, **fields: object) -> dict:
+    return {"id": identifier, "type": "note", "path": path, "fields": fields,
+            **({"ignored": True} if ignored else {})}
 
 
 RECORDS = (
@@ -22,6 +23,7 @@ RECORDS = (
     record("items-gamma", "items/gamma.md", kind="item", status="open", rank=3),
     record("archive-delta", "archive/delta.md", kind="item", status="open", rank=4),
 )
+IGNORED = record("items-hidden", "items/hidden.md", ignored=True, kind="item", status="open", rank=0)
 
 
 def base(filters: object, order: list[str], sort: list[dict] | None = None) -> dict:
@@ -57,3 +59,17 @@ def test_sorting_orders_the_records(tmp_path: Path) -> None:
                                   [{"property": "rank", "direction": "DESC"}]))
     assert [cells[0] for cells in result["cells"]] == ["delta", "gamma", "alpha", "beta"]
 
+
+def test_an_ignored_record_that_matches_is_neither_listed_nor_counted(tmp_path: Path) -> None:
+    result = table(tmp_path, base('status == "open"', ["file.name"]), (*RECORDS, IGNORED))
+    assert "note:items-hidden" not in result["rows"]
+    assert result["count"] == "3 of 3 items"
+
+
+def test_the_runtime_query_population_does_not_count_an_ignored_record(tmp_path: Path) -> None:
+    source = document("Records", chapter("items", "Items"), records=(*RECORDS, IGNORED),
+                      abstract=(node("profiles", profile={"query": {"scope": "records"}}),))
+    report = tmp_path / "report.html"
+    report.write_text(render(source, load_config()), encoding="utf-8")
+    [summary] = run_harness(report, tmp_path, {"step": "summary"})
+    assert summary == {"records": 5, "totalRecords": 5}  # The chapter and four records.
