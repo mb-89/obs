@@ -62,6 +62,11 @@ beyond the paths replaced above. They inherit only `PATH`, `PATHEXT`, `SYSTEMROO
 tool settings and caches), `TMPDIR`, `TEMP`, `TMP` (temporary folders) and `LANG`, `LC_ALL` (text
 encoding), where they are set; a command that needs more sets it itself.
 
+Every build then checks the finished report, the HTML and the decoded report data, for the home
+folder, the user name as a path component and the command root, and fails naming where it found
+one and the remedy, before anything is written. A hit in captured output is an obs-html defect;
+a hit in authored content is fixed in the source.
+
 ## License
 
 [MIT](LICENSE).

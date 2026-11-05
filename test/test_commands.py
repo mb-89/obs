@@ -1,11 +1,14 @@
 import json
+import re
 import sys
 from pathlib import Path
 
+import pytest
+
 from conftest import FIXTURE, ROOT
-from obs_html import cli
+from obs_html import cli, exposure
 from obs_html.commands import MINIMAL_ENVIRONMENT
-from obs_html.report_data import decode_report_data
+from obs_html.report_data import decode_report_data, encode_report_data
 
 
 def _with_command(tmp_path: Path, command: str) -> Path:
@@ -66,3 +69,35 @@ def test_commands_run_with_the_documented_minimal_environment(tmp_path, monkeypa
     assert "OBS_HTML_BUILDER_SECRET" not in names
     readme = (ROOT / "README.md").read_text(encoding="utf-8")
     assert all(f"`{name}`" in readme for name in MINIMAL_ENVIRONMENT)
+
+
+def test_a_report_exposing_the_build_machine_fails_naming_where_and_the_remedy(
+        tmp_path, monkeypatch, capsys) -> None:
+    home = tmp_path / "home" / "builder"
+    home.mkdir(parents=True)
+    (tmp_path / "vault").mkdir()
+    monkeypatch.setenv("HOME", str(home))
+    monkeypatch.setenv("USERPROFILE", str(home))
+    text = FIXTURE.read_text(encoding="utf-8")
+    leaked = json.dumps(f"see {home / 'notes'}")[1:-1]
+    source = tmp_path / "document.json"
+    source.write_text(text.replace("Intro", leaked, 1), encoding="utf-8")
+    destination = tmp_path / "document.html"
+    with pytest.raises(SystemExit) as exit_info:
+        cli.main([str(source), str(destination), "--execute-commands", "--command-root", str(tmp_path / "vault")])
+    assert exit_info.value.code == 2
+    error = capsys.readouterr().err
+    assert f"the build machine's home folder '{home}'" in error
+    assert re.search(r"in report-data notes\[\d+\]\.title\. Remedy: ", error)
+    assert not destination.exists()
+
+
+def test_the_exposure_check_finds_the_command_root_and_the_user_name(tmp_path, monkeypatch) -> None:
+    monkeypatch.setattr(exposure, "_user_name", lambda: "builder")
+    root = tmp_path / "vault"
+    report = encode_report_data({"notes": [{"html": f"<p>{root / 'a.md'}</p>"}]})
+    with pytest.raises(exposure.ExposureError, match=r"command root .* report-data notes\[0\]\.html"):
+        exposure.check_report(report, root)
+    with pytest.raises(exposure.ExposureError, match=r"user name 'builder' .* HTML line 1"):
+        exposure.check_report("<p>/mnt/builder/x</p>", None)
+    exposure.check_report("<p>builder https://example.com/builder/x</p>", None)

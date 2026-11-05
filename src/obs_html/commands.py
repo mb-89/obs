@@ -11,10 +11,10 @@ from obs_html.timings import stage
 LOCAL_PATH = "<local-path>"
 """Stands in for an absolute path of the build machine outside the command root and home folder."""
 
-_SEGMENT = r"""[^\s/\\:*?"'<>|`,;()\[\]{}=]"""
-_ABSOLUTE = re.compile(
-    r"(?<![\w.~/\\:<>])(?:[A-Za-z]:[/\\]|\\\\|/)"  # POSIX root, drive letter or UNC prefix
-    rf"(?:{_SEGMENT}+[/\\])*{_SEGMENT}+"
+SEGMENT = r"""[^\s/\\:*?"'<>|`,;()\[\]{}=]"""
+ABSOLUTE_PATH = re.compile(
+    r"(?<![\w.~/\\:<])(?:[A-Za-z]:[/\\]|\\\\|/)"  # POSIX root, drive letter or UNC prefix
+    rf"(?:{SEGMENT}+[/\\])*{SEGMENT}+"
 )
 
 MINIMAL_ENVIRONMENT = (
@@ -67,18 +67,18 @@ def redact_local_paths(text: str, root: Path) -> str:
     other absolute path becomes LOCAL_PATH. README.md, section "Command fences", owns the rule.
     """
     flags = re.IGNORECASE if os.name == "nt" else 0
-    end = rf"(?!{_SEGMENT})"
-    for folder in _spellings(root):
-        text = re.sub(rf"{re.escape(folder)}(?:[/\\](?={_SEGMENT})|{end})",
+    end = rf"(?!{SEGMENT})"
+    for folder in path_spellings(root):
+        text = re.sub(rf"{re.escape(folder)}(?:[/\\](?={SEGMENT})|{end})",
                       lambda match: "" if match[0][-1:] in "/\\" else ".", text, flags=flags)
     home = Path.home()
     if home.parent != home:
-        for folder in _spellings(home):
+        for folder in path_spellings(home):
             text = re.sub(rf"{re.escape(folder)}(?=[/\\]|{end})", "~", text, flags=flags)
-    return _ABSOLUTE.sub(LOCAL_PATH, text)
+    return ABSOLUTE_PATH.sub(LOCAL_PATH, text)
 
 
-def _spellings(folder: Path) -> list[str]:
+def path_spellings(folder: Path) -> list[str]:
     """The folder as written and resolved, with native and forward slashes, longest first."""
     paths = {folder.absolute(), folder.resolve()}
     spellings = {spelling for path in paths for spelling in (str(path), path.as_posix())}
