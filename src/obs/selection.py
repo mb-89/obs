@@ -147,11 +147,13 @@ def _texts(value: object) -> list[str]:
         return []
     if isinstance(value, bool):
         return ["true" if value else "false"]
+    if isinstance(value, float) and value.is_integer():
+        return [str(int(value))]
     return [str(value)]
 
 
 def conditions_select(conditions: list[dict[str, object]], fields: dict[str, object], path: str) -> bool:
-    """Whether a note record has every query condition (``equals`` text, ``exists``)."""
+    """Whether a note record has every query condition; see capabilities/queries#Conditions."""
     if not selectable(fields):
         return False
     for condition in conditions:

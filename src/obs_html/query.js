@@ -262,14 +262,25 @@
         "equals" in condition ? exactClause(condition.field, condition.equals)
             : `${JSON.stringify(condition.field)}: /\\S/`,
     ).join(" AND ");
-    const conditionQueries = new WeakMap();
-    const compileConditions = (conditions) => {
-        if (!conditions) return compile("");
-        if (!conditionQueries.has(conditions)) {
-            conditionQueries.set(conditions, compile(conditionsExpression(conditions)));
-        }
-        return conditionQueries.get(conditions);
+    // Query conditions compare text by capabilities/queries#Conditions, as the core's
+    // conditions_select does: a property resolves like a Bases property, and a missing
+    // property or null has no text.
+    const conditionTexts = (value) => {
+        if (Array.isArray(value)) return value.flatMap(conditionTexts);
+        if (value === undefined || value === null || typeof value === "object") return [];
+        return [typeof value === "boolean" ? (value ? "true" : "false") : String(value)];
     };
+    const conditionValue = (record, field) => {
+        const value = record.frontmatter ? globalThis.obsBases.recordValue(record, field) : undefined;
+        return value === undefined ? record.fields?.[field.toLocaleLowerCase()] : value;
+    };
+    const conditionsMatch = (record, conditions = []) => conditions.every((condition) => {
+        const texts = conditionTexts(conditionValue(record, condition.field));
+        return "equals" in condition ? texts.includes(condition.equals)
+            : texts.some((text) => text.trim() !== "");
+    });
+    const compileConditions = (conditions) => ({match: (record) => conditionsMatch(record, conditions || [])});
 
-    globalThis.obsQuery = {compile, exactClause, conditionsExpression, compileConditions, incomplete: INCOMPLETE};
+    globalThis.obsQuery = {compile, exactClause, conditionsExpression, conditionsMatch, compileConditions,
+        incomplete: INCOMPLETE};
 })();
