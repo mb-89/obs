@@ -2,10 +2,12 @@
 import base64
 import hashlib
 import json
+import re
 import shutil
 from pathlib import Path
 
 import pytest
+import yaml
 
 from obs.document import DocumentError, build_document, call_adapter, validate_document, write_document
 from test_vault import capability_reference
@@ -134,6 +136,24 @@ def test_a_remote_image_in_the_subtitle_becomes_an_asset_with_its_fetched_bytes(
         {"asset": "obsidian", "label": "Obsidian"}, {"asset": "obsidian", "label": "Again"},
     ]
     assert fetched == [BADGE]
+    assert document["diagnostics"] == []
+
+
+def test_the_spec_s_subtitle_badges_arrive_as_image_nodes(tmp_path, remote_images) -> None:
+    served, _ = remote_images
+    manifest = (ROOT / "spec" / "manifest.md").read_text(encoding="utf-8")
+    subtitle = yaml.safe_load(manifest.split("---\n")[1])["subtitle"]
+    for href in re.findall(r"\]\((\S+)\)", subtitle):
+        served[href] = (SVG, "image/svg+xml")
+    vault = subtitle_vault(tmp_path, subtitle)
+
+    document = build_document(vault / "manifest.md", capability_reference())
+
+    nodes = subtitle_nodes(document)
+    assert [node["type"] for node in nodes] == ["attachments", "text", "attachments"]
+    assert [node["attrs"] for node in nodes[::2]] == [
+        {"asset": "obsidian", "label": "Obsidian"}, {"asset": "html5", "label": "HTML5"},
+    ]
     assert document["diagnostics"] == []
 
 
