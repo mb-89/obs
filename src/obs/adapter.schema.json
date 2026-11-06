@@ -13,7 +13,7 @@
     },
     "contractVersion": {"type": "integer", "minimum": 1},
     "serve": {
-      "description": "The command obs-document --serve runs after the build, with the artifact's path and, with --wait, --wait (spec/design_input/cli.md, One-call build).",
+      "description": "The command obs-document --serve runs after the build, with the artifact's path, then --wait with --wait and --timeout S with --timeout (spec/design_input/cli.md, One-call build).",
       "type": "array",
       "minItems": 1,
       "items": {"type": "string", "minLength": 1}

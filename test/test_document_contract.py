@@ -693,17 +693,19 @@ def test_serve_starts_the_adapters_serve_command_on_the_built_artifact_and_retur
     destination = tmp_path / "spec.out"
 
     assert main(["--source", str(SPEC_MANIFEST), "--adapter", "fixture", "--destination", str(destination),
-                 "--execute-commands", "--serve", "--wait"]) == 3
+                 "--execute-commands", "--serve", "--wait", "--timeout", "60"]) == 3
 
     assert json.loads(destination.read_text(encoding="utf-8"))["manifest"] == "manifest.md"  # Built first.
-    assert json.loads(capfd.readouterr().out.strip().splitlines()[-1]) == [str(destination.resolve()), "--wait"]
+    assert json.loads(capfd.readouterr().out.strip().splitlines()[-1]) == [
+        str(destination.resolve()), "--wait", "--timeout", "60"]
 
 
 @pytest.mark.parametrize("arguments, declared, field", [
     (["--serve"], {}, "--serve"),
     (["--wait"], {"serve": ["serve"]}, "--wait"),
+    (["--serve", "--timeout", "60"], {"serve": ["serve"]}, "--timeout"),
     (["--serve", "--source", str(SPEC_MANIFEST), "--destination", "second.out"], {"serve": ["serve"]}, "--serve"),
-], ids=["adapter-without-serve", "wait-without-serve", "several-sources"])
+], ids=["adapter-without-serve", "wait-without-serve", "timeout-without-wait", "several-sources"])
 def test_serve_is_refused_before_the_build_naming_its_option(tmp_path, monkeypatch, arguments, declared, field,
                                                             shared_spec_build) -> None:
     recording_adapter(tmp_path, **declared)
