@@ -109,7 +109,8 @@ def _describe(error: ValidationError) -> tuple[list[object], str, str]:
         if isinstance(expected, dict) and list(expected) == ["required"]:
             names = " and ".join(expected["required"])
             return [], f"cannot hold both {names}", "Keep only one of them"
-        return [], "is not allowed here", "Remove it"
+        return [], "is not allowed here", expected.get("description", "Remove it") \
+            if isinstance(expected, dict) else "Remove it"
     if keyword in {"oneOf", "anyOf"} and isinstance(instance, dict) and all(
         isinstance(branch, dict) and len(branch.get("required", [])) == 1 for branch in expected
     ):
