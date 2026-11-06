@@ -147,8 +147,29 @@
           "maxLength": 128
         },
         "label": {"type": "string", "minLength": 1, "maxLength": 256},
-        "maxLength": {"type": "integer", "minimum": 1, "maximum": 100000, "default": 4096}
+        "maxLength": {"type": "integer", "minimum": 1, "maximum": 100000, "default": 4096},
+        "projection": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["blank", "nonblank"],
+          "properties": {
+            "blank": {"$ref": "#/$defs/projectionFields"},
+            "nonblank": {"$ref": "#/$defs/projectionFields"}
+          }
+        }
       }
-    }
+    },
+    "projectionFields": {
+      "type": "object",
+      "minProperties": 1,
+      "propertyNames": {"minLength": 1, "maxLength": 128},
+      "additionalProperties": {
+        "anyOf": [
+          {"$ref": "#/$defs/projectionPrimitive"},
+          {"type": "array", "items": {"$ref": "#/$defs/projectionPrimitive"}}
+        ]
+      }
+    },
+    "projectionPrimitive": {"type": ["string", "number", "boolean", "null"]}
   }
 }
