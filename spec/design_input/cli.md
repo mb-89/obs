@@ -13,9 +13,11 @@ adapter's own command line is part of that adapter's specification.
 
 ## Command fences through the core
 
-A build through the core authorizes command fences once, on the core:
+A build through the core authorizes command fences once, on the core. It reads the capability
+reference, which the first command writes from the capability notes:
 
 ```sh
+uv run python -m obs.capabilities --notes spec/capabilities --output <scratch>/capabilities.json
 uv run obs-document --source spec/manifest.md --document <scratch>/spec.json \
   --capability-reference <scratch>/capabilities.json --execute-commands \
   --adapter html --adapter-config adapters.json --destination <scratch>/spec.html
