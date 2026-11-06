@@ -103,6 +103,13 @@ The boundary has no Python types, package entry points, application names, or
 output-format terms. An implementation may change language without changing either
 JSON contract.
 
+### Adapter call
+
+The core starts an adapter as its manifest's `command` followed by the Document's path, the
+destination and the arguments of the options the call passes: an option exists only where the
+manifest's `options` declare it, and each kind of option has one form on the command line
+([[cli#Adapter options]]). The core never names an adapter or one of its options.
+
 ### Asset bytes
 
 The Document embeds the bytes of every vault file it references as an image or a

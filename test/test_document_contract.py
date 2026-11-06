@@ -394,6 +394,34 @@ def test_a_given_document_is_kept(tmp_path, monkeypatch) -> None:
         str((tmp_path / "kept.json").resolve()), str((tmp_path / "out.json").resolve())]
 
 
+@pytest.mark.parametrize(("value", "passed"), [("true", ["--flag"]), ("false", [])])
+def test_a_declared_adapter_option_is_passed_as_the_adapter_declares_it(tmp_path, value, passed) -> None:
+    document = tmp_path / "document.json"
+    write_document(document_fixture(), document, capability_reference())
+    configuration = recording_adapter(tmp_path, options={"flag": {"type": "boolean", "summary": "A flag."}})
+
+    assert main(["--document", str(document), "--adapter", "fixture", "--adapter-config", str(configuration),
+                 "--destination", str(tmp_path / "out.json"), "--adapter-option", f"flag={value}"]) == 0
+
+    assert json.loads((tmp_path / "out.json").read_text(encoding="utf-8"))["arguments"][2:] == passed
+
+
+@pytest.mark.parametrize("option", ["other=true", "flag", "flag=yes"])
+def test_an_adapter_option_the_adapter_does_not_declare_names_the_adapter_and_its_options(
+        tmp_path, option) -> None:
+    document = tmp_path / "document.json"
+    write_document(document_fixture(), document, capability_reference())
+    configuration = recording_adapter(tmp_path, options={"flag": {"type": "boolean", "summary": "A flag."}})
+
+    with pytest.raises(SystemExit) as failure:
+        main(["--document", str(document), "--adapter", "fixture", "--adapter-config", str(configuration),
+              "--destination", str(tmp_path / "out.json"), "--adapter-option", option])
+
+    message = str(failure.value.code)
+    assert "--adapter-option" in message and str(tmp_path / "adapter.json") in message and "flag" in message
+    assert not (tmp_path / "out.json").exists()
+
+
 def test_a_document_is_required_without_an_adapter(tmp_path) -> None:
     (tmp_path / "manifest.md").write_text("Text.\n", encoding="utf-8")
 
