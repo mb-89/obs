@@ -26,10 +26,6 @@ globalThis.obsPugh = (() => {
   const signed = value => (value > 0 ? `+${number(value)}` : value < 0 ? `−${number(-value)}` : "0");
   const symbol = mark => (mark === null || mark === undefined ? "?" : engine().SYMBOL[Math.round(mark)]);
   const letterOf = index => String.fromCharCode(65 + index);
-  const SHORT_WORDS = 5;  // The most words of a label that serves as a short name (the core checks short's).
-  /** An option's short name: its short, else its label where that has at most SHORT_WORDS words,
-      else "" and its letter stands alone (obs input-model, Pugh decision figures; bless_record.py, short_name). */
-  const shortName = (candidate, label) => candidate.short || (label.trim().split(/\s+/).length <= SHORT_WORDS ? label : "");
   /** An option where there is room: its letter and short name, "B · Close". */
   const tag = option => (option.short ? `${option.letter} · ${option.short}` : option.letter);
 
@@ -52,11 +48,13 @@ globalThis.obsPugh = (() => {
   }
   const texts = value => (value === undefined ? [] : [].concat(value));
 
-  /** The options with their letters, the failed checklist items and the matrix the engine decides. */
+  /** The options with their letters, the failed checklist items and the matrix the engine decides.
+      An option's short name is the one the core resolved (spec.shortNames; obs input-model, Pugh
+      decision figures), null where its letter stands alone. */
   function model(spec) {
     const options = spec.matrix.candidates.map((candidate, index) => {
       const name = String(candidate.label ?? candidate.key);
-      return {key: candidate.key, letter: letterOf(index), name, short: shortName(candidate, name), what: candidate.what || "",
+      return {key: candidate.key, letter: letterOf(index), name, short: spec.shortNames[index], what: candidate.what || "",
         wins: texts(candidate.wins), losses: texts(candidate.losses)};
     });
     const byLetter = Object.fromEntries(options.map(option => [option.letter, option]));
@@ -651,6 +649,17 @@ globalThis.obsPugh = (() => {
     }
     draw(figure, spec, host);
   }
+  /** Opens the tab that holds ``target``, a chapter section the page rendered into a decision
+      figure or a place inside one, for the artifact's one way of revealing a place (artifact.js,
+      revealSource); a figure not yet drawn opens at that tab. Elsewhere it does nothing. */
+  function reveal(target) {
+    const section = target?.closest?.(".pugh-extra");
+    const figure = section?.closest('[data-figure-kind="pugh"]');
+    if (!figure) return;
+    const spec = JSON.parse(figure.dataset.figureSpec);
+    state(figure.id, spec.answered).tab = `extra-${extras(figure).indexOf(section) + 1}`;
+    if (figure.classList.contains("figure-pugh-ready") && !figure.closest(".print-book")) draw(figure, spec);
+  }
   /** The options menu's Reset (figures.js, FIGURE_OPTIONS): the fence's weights and marks back. */
   function option(figure) {
     const reset = element("button", {type: "button", className: "filter-pill pugh-reset", textContent: "Reset",
@@ -680,5 +689,5 @@ globalThis.obsPugh = (() => {
   /** A figure's options as it letters and names them: letter, name and short name (model), for the
       bless pill's "Picked B · Close" (bless.js). */
   const options = spec => model(spec).options.map(({letter, name, short}) => ({letter, name, short}));
-  return {render, print, option, decide, allWeights, readerState, options, VIEW_NOTE};
+  return {render, print, option, reveal, decide, allWeights, readerState, options, VIEW_NOTE};
 })();
