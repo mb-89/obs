@@ -134,7 +134,8 @@ def _adapter(name: str, configuration_path: Path, options: Sequence[str]) -> tup
 def _deliver(adapter: dict[str, object], arguments: list[str], configuration_path: Path,
              document: dict[str, object], document_path: Path, destination: Path,
              reference: dict[str, object]) -> None:
-    """Start the adapter on the validated ``document``, which ``document_path`` holds."""
+    """Start the adapter on the validated ``document``, which ``document_path`` holds, with the
+    standard ``arguments`` (``--vault-root``) and its options' arguments after DESTINATION."""
     adapter_name = adapter["name"]
     if adapter["contractVersion"] != document["schemaVersion"]:
         raise AdapterError(
@@ -246,9 +247,9 @@ def main(argv: Sequence[str] | None = None) -> int:
                 folder = stack.enter_context(tempfile.TemporaryDirectory(prefix="obs-document-"))
                 document_path = Path(folder) / "document.json"
             _write(document, document_path)  # build_document validated it.
-            if options.adapter:
-                _deliver(adapter, arguments, options.adapter_config, document, document_path,
-                         options.destination, reference)
+            if options.adapter:  # The vault root as given, for the adapter's messages only.
+                _deliver(adapter, ["--vault-root", str(options.source.parent), *arguments],
+                         options.adapter_config, document, document_path, options.destination, reference)
     except (AdapterError, DocumentError) as error:
         raise SystemExit(f"obs-document: {error}") from error
     return 0
