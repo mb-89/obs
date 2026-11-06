@@ -16,8 +16,10 @@ network_guard.install()
 
 
 def pytest_sessionstart(session):
-    """A focused run installs the suite's Node test packages where they are missing or stale."""
+    """A focused run installs the suite's Node test packages where they are missing or stale; the
+    JUnit report, where the run writes one, names the part's worker count."""
     suite.set_up_focused_run(session.config)
+    suite.record_workers(session.config)
 
 
 @pytest.hookimpl(tryfirst=True)
