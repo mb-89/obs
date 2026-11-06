@@ -168,3 +168,63 @@ def test_the_source_archive_carries_the_snippets_despite_their_hidden_folder(tmp
 
     assert sorted(_files(document)) == [".obsidian/snippets/house-style.css", ".obsidian/snippets/wide.css",
                                         "chapter.md", "manifest.md"]
+
+
+def two_vaults(tmp_path: Path) -> list[Path]:
+    manifests = []
+    for name in ("first", "second"):
+        vault = tmp_path / name
+        vault.mkdir()
+        (vault / "manifest.md").write_text(f"---\ntitle: {name}\n---\n- [[chapter]]\n", encoding="utf-8")
+        (vault / "chapter.md").write_text("# Chapter\n", encoding="utf-8")
+        manifests.append(vault / "manifest.md")
+    return manifests
+
+
+def test_one_call_builds_each_source_into_the_destination_that_follows_it(tmp_path) -> None:
+    first, second = two_vaults(tmp_path)
+    configuration = recording_adapter(tmp_path)
+
+    assert main(["--adapter", "fixture", "--adapter-config", str(configuration),
+                 "--source", str(first), "--destination", str(tmp_path / "first.json"),
+                 "--source", str(second), "--destination", str(tmp_path / "second.json")]) == 0
+
+    for name, manifest in (("first", first), ("second", second)):
+        called = json.loads((tmp_path / f"{name}.json").read_text(encoding="utf-8"))
+        assert called["arguments"][1:] == [str((tmp_path / f"{name}.json").resolve()),
+                                           "--vault-root", str(manifest.parent)]
+
+
+@pytest.mark.parametrize(("adapter", "extra", "named"), [
+    (True, ["--destination", "first.json"], "--destination"),
+    (True, ["--destination", "first.json", "--destination", "second.json", "--document", "kept.json"],
+     "--document"),
+    (False, ["--destination", "first.json", "--destination", "second.json"], "--adapter"),
+])
+def test_several_sources_need_one_destination_each_an_adapter_and_no_document(
+        tmp_path, adapter, extra, named) -> None:
+    first, second = two_vaults(tmp_path)
+    configuration = recording_adapter(tmp_path)
+    given = ["--source", str(first), "--source", str(second), "--adapter-config", str(configuration),
+             *[str(tmp_path / item) if item.endswith(".json") else item for item in extra],
+             *(["--adapter", "fixture"] if adapter else [])]
+
+    with pytest.raises(SystemExit) as refused:
+        main(given)
+
+    assert named in str(refused.value.code) and "--source" in str(refused.value.code)
+    assert not (tmp_path / "first.json").exists()
+
+
+def test_a_failing_source_stops_the_call_naming_it_and_keeps_the_artifacts_built_before(tmp_path) -> None:
+    first, second = two_vaults(tmp_path)
+    (second.parent / "chapter.md").unlink()
+    configuration = recording_adapter(tmp_path)
+
+    with pytest.raises(SystemExit) as refused:
+        main(["--adapter", "fixture", "--adapter-config", str(configuration),
+              "--source", str(first), "--destination", str(tmp_path / "first.json"),
+              "--source", str(second), "--destination", str(tmp_path / "second.json")])
+
+    assert str(second) in str(refused.value.code)
+    assert (tmp_path / "first.json").is_file() and not (tmp_path / "second.json").exists()
