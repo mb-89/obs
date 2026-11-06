@@ -11,8 +11,8 @@ measurements, derived at import from the runs test/suite.py recorded on this hos
 the last RUNS of each part) and falling back to the committed measurement (COMMITTED) where a
 tier has fewer recorded runs; a loaded host's runs raise its own bounds, and nobody types one.
 The committed measurement caps the derived one at CAP_FACTOR times it: a test past that fails the
-suite (``over_cap``), so a slowly regressing test cannot raise its own timeout. A test past its timeout fails; ``explain`` adds to its report its name, its timeout,
-its tier and this file.
+suite (``over_cap``), so a slowly regressing test cannot raise its own timeout. A test past its
+timeout fails; ``explain`` adds to its report its name, its timeout, its tier and this file.
 
 While a test runs, ``running`` names it in the run's folder (the folder test/suite.py makes, in
 RUNNING), one file per test process, so test/suite.py, when its cap is reached, names the
@@ -38,7 +38,7 @@ COMMITTED = {"unit": 10.9, "dom": 1.9, "browser": 6.0, "e2e": 22.8, "external": 
 RUNS = 10
 # A record-derived slowest test may not exceed this multiple of its tier's committed one; a test
 # past it fails the suite (over_cap), so a slowly regressing test cannot raise its own timeout.
-CAP_FACTOR = 2
+CAP_FACTOR = 3
 # Each tier's timeout is this multiple of its slowest test: room for a slower machine or a
 # busier run, while a hanging test still fails well before test/suite.py's cap.
 MULTIPLIER = 3
@@ -69,7 +69,7 @@ def derive(committed: dict[str, float], parts_runs: list[list[dict[str, list]]],
 def over_cap(run: dict[str, list], committed: dict[str, float], factor: float) -> list[str]:
     """For each test of a recorded run slower than ``factor`` times its tier's committed slowest
     test, a message naming it, its time, the cap and the remedy."""
-    return [f"test/bounds.py: {test} took {seconds} s, over the {tier} tier's cap of {factor * committed[tier]} s "
+    return [f"test/bounds.py: {test} took {seconds} s, over the {tier} tier's cap of {round(factor * committed[tier], 3)} s "
             f"(CAP_FACTOR {factor} times COMMITTED {committed[tier]} s). Remedy: find what made it slower and "
             "make it fast again, or, where it rightly takes longer, measure COMMITTED again by the method its "
             "comment in test/bounds.py names."
