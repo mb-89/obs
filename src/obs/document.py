@@ -334,6 +334,11 @@ def _build(options: argparse.Namespace, source: Path, destination: Path | None, 
         source = manifest_note(source, options.config)
     except VaultError as error:
         raise DocumentError(str(error)) from error
+    vault = source.resolve().parent
+    if adapter is not None and destination.resolve().is_relative_to(vault):
+        raise DocumentError(f"--destination {destination} is inside the vault {vault}: the artifact would become "
+                            f"a file of the vault it is built from (spec/design_input/cli.md, One-call build). "
+                            f"Name a --destination outside {vault}.")
     delivery = ["--adapter", options.adapter, "--destination", destination.name] if adapter is not None else []
     for option in options.adapter_option:
         delivery += ["--adapter-option", option]
