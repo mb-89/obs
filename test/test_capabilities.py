@@ -6,7 +6,7 @@ from jsonschema import validate
 import yaml
 
 from obs.capabilities import build_capability_reference
-from obs.figure import validate_figure_descriptor
+from obs.figure import FIGURE_KINDS, validate_figure_descriptor
 from obs_html_interim.content import Chapter, collect_notes, read_chapter_content, read_manifest
 
 
@@ -113,13 +113,36 @@ def test_capability_reference_is_schema_valid_and_covers_the_input_model() -> No
 
 def test_figure_descriptor_capability_examples_show_each_data_shape_schema_valid() -> None:
     note = (CAPABILITIES / "figure-descriptor.md").read_text(encoding="utf-8")
-    fences = [yaml.safe_load(body) for body in re.findall(r"```figure\n(.*?)\n```", note, flags=re.DOTALL)]
+    [example] = re.findall(r"^````markdown\n(.*?)^````$", note, flags=re.DOTALL | re.MULTILINE)
+    fences = [yaml.safe_load(body) for body in re.findall(r"```figure\n(.*?)\n```", example, flags=re.DOTALL)]
 
     assert all(fence["kind"] == "plot" for fence in fences)
     for fence in fences:
         validate_figure_descriptor(fence["content"])
     assert sorted(shape for fence in fences for shape in fence["content"]["data"]
                   if shape != "countLabels") == ["sankey", "traces"]
+
+
+def _nodes(nodes):
+    for node in nodes:
+        yield node
+        yield from _nodes(node.get("children", []))
+
+
+def _chapters(chapters):
+    for chapter in chapters:
+        yield chapter
+        yield from _chapters(chapter.get("children", []))
+
+
+def test_the_spec_shows_one_real_figure_descriptor_in_its_capability_note(spec_document) -> None:
+    [node_type] = [kind for kind, figure in FIGURE_KINDS.items() if figure.capability == "figure-descriptor"]
+    shown = [(chapter["id"], node) for chapter in _chapters(spec_document["chapters"])
+             for node in _nodes(chapter["content"]) if node["type"] == node_type]
+
+    assert [chapter for chapter, _ in shown] == ["capabilities-figure-descriptor"]
+    validate_figure_descriptor(shown[0][1]["attrs"]["descriptor"])
+    assert "figure-descriptor" in spec_document["capabilities"]
 
 
 def test_adapter_notes_can_depend_on_a_supplied_reference(tmp_path) -> None:

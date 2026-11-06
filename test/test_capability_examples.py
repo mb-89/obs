@@ -1,4 +1,4 @@
-"""Every capability note's authoring example is valid input; see capability-reference."""
+"""Every capability note's authoring example, quoted or a parsed figure fence, is valid input; see capability-reference."""
 from pathlib import Path
 import re
 
@@ -25,10 +25,16 @@ def _examples() -> list:
         identifier = yaml.safe_load(text.split("---", 2)[1])["capability"]["id"]
         companions = {match["file"]: match["body"] for match in FENCE.finditer(text) if match["file"]}
         for match in FENCE.finditer(text):
+            line = text.count("\n", 0, match.start()) + 1
+            place = f"{path.relative_to(ROOT).as_posix()}:{line}"
             if match["language"] == "markdown":
-                line = text.count("\n", 0, match.start()) + 1
-                place = f"{path.relative_to(ROOT).as_posix()}:{line}"
                 examples.append(pytest.param(place, identifier, match["body"], companions, id=place))
+            elif match["language"] == "figure":
+                # A parsed figure fence is shown by the spec itself: it is an example as it stands,
+                # with the file it names as its source.
+                source = yaml.safe_load(match["body"]).get("source")
+                files = {**companions, **({source: (path.parent / source).read_text(encoding="utf-8")} if source else {})}
+                examples.append(pytest.param(place, identifier, match[0] + "\n", files, id=place))
     return examples
 
 
@@ -98,3 +104,10 @@ def test_the_property_editor_projection_example_carries_its_projection(tmp_path:
         [editor] = [node for node in document["chapters"][0]["content"] if node["type"] == "property-editors"]
         fence = FENCE.search(example)
         assert editor["attrs"]["spec"]["projection"] == yaml.safe_load(fence["body"])["projection"], place
+
+
+def test_a_parsed_figure_fence_of_a_capability_note_is_an_example_of_its_capability() -> None:
+    lines = (CAPABILITIES / "figure-descriptor.md").read_text(encoding="utf-8").splitlines()
+    parsed = [place for place, capability, _, _ in (param.values for param in _examples())
+              if capability == "figure-descriptor" and lines[int(place.rsplit(":", 1)[1]) - 1] == "```figure"]
+    assert len(parsed) == 1, "spec/capabilities/figure-descriptor.md has no parsed figure fence among its examples."
