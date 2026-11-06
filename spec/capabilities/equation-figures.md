@@ -68,3 +68,18 @@ variables:
   u: {default: 1}
 plot: {x: t, y: y}
 ```
+
+A parallel-coordinates plot sweeps a grid of the other movable variables: each line is one
+combination, each axis a variable or a computed value, here the settling time and the error
+area of each step response. [[input-model#Equation figures]] owns `grid` and `computed`.
+
+```yaml
+plot:
+  x: t
+  y: y
+  parallelCoordinates: true
+  grid: {zeta: {values: [0.2, 0.5, 0.8, 1.3]}, w: {steps: 4}}
+  computed:
+    - {name: settling, summary: settlingTime, of: y, tolerance: 0.02}
+    - {name: error area, summary: absoluteArea, of: u - y}
+```

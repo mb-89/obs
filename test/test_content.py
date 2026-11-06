@@ -727,6 +727,21 @@ def test_note_links_in_code_remain_literal_and_heading_links_resolve(tmp_path: P
         render_chapter(chapters[0], chapters, tmp_path)
 
 
+def test_an_unlabelled_heading_link_shows_the_note_title_and_the_heading(tmp_path: Path) -> None:
+    """As the core labels it (capabilities/wikilinks#Link text); within its note, the heading alone."""
+    (tmp_path / "one.md").write_text(
+        "# One\n\n## Authorization\n\n[[command-fences#Authorization]] [[#Authorization]]\n", encoding="utf-8")
+    (tmp_path / "command-fences.md").write_text("# Commands\n\n## Authorization\n", encoding="utf-8")
+    manifest = tmp_path / "manifest.md"
+    manifest.write_text("- [[one]]\n- [[command-fences]]\n", encoding="utf-8")
+    chapters = parse_manifest(manifest)
+
+    rendered = render_chapter(chapters[0], chapters, tmp_path)
+
+    assert '<a href="#command-fences/authorization">Command Fences &gt; Authorization</a>' in rendered
+    assert '<a href="#one/authorization">Authorization</a>' in rendered
+
+
 def test_silent_command_fence_renders_nothing_and_is_not_a_display_command(tmp_path: Path) -> None:
     (tmp_path / "chapter.md").write_text(
         "# Chapter\n\nBefore.\n\n```cmd silent\nproduce-file\n```\n\nAfter.\n",

@@ -227,9 +227,9 @@
           "then": {"properties": {"attrs": {
             "type": "object", "additionalProperties": false, "required": ["target", "chapter", "heading", "label"],
             "properties": {
-              "target": {"description": "The note as written; empty for a block link within its own note ([[#^name]]).", "type": "string"},
+              "target": {"description": "The note as written; empty for a link within its own note ([[#Heading]], [[#^name]]).", "type": "string"},
               "chapter": {"$ref": "#/$defs/chapterReference"},
-              "heading": {"type": "string"}, "label": {"type": "string", "minLength": 1},
+              "heading": {"type": "string"}, "label": {"description": "The text an adapter shows (capabilities/wikilinks#Link text).", "type": "string", "minLength": 1},
               "figure": {"description": "A block link's target: the block id, without its ^, of the figures node in chapter that carries it (capabilities/wikilinks).", "type": "string", "pattern": "^[A-Za-z0-9-]+$"},
               "svg": {"description": "Only on a link inside a figure, a child of the figure's body: the link exactly as the figure's SVG holds it, an a element's href or the wikilink text with its brackets (capabilities/wikilinks#Links inside a figure).", "type": "string", "minLength": 1}
             }
@@ -368,8 +368,46 @@
                 "properties": {"variable": {"type": "string", "pattern": "^[A-Za-z][A-Za-z0-9_]{0,39}$"}, "values": {"type": "array", "minItems": 1, "items": {"type": "number"}}, "siValues": {"type": "array", "minItems": 1, "items": {"type": "number"}}}
               },
               "parallelCoordinates": {
-                "type": "object", "additionalProperties": false, "required": ["axes"],
-                "properties": {"axes": {"type": "array", "minItems": 2, "items": {"$ref": "#/$defs/plottedExpression"}}}
+                "description": "The parallel-coordinates plot (input-model, Equation figures): shown says whether it shows from the start; its axes are the grid variables, then the computed axes. The core computes the grid; the adapter evaluates every computed axis over the combinations.",
+                "type": "object", "additionalProperties": false, "required": ["shown", "axes"],
+                "properties": {
+                  "shown": {"type": "boolean"},
+                  "axes": {"type": "array", "minItems": 1, "items": {"oneOf": [
+                    {
+                      "description": "A grid variable: its values in its unit and in SI.",
+                      "type": "object", "additionalProperties": false, "required": ["label", "variable", "dimension", "values", "siValues"],
+                      "properties": {
+                        "label": {"type": "string", "minLength": 1}, "variable": {"type": "string", "pattern": "^[A-Za-z][A-Za-z0-9_]{0,39}$"},
+                        "dimension": {"$ref": "#/$defs/quantity/properties/dimension"},
+                        "values": {"type": "array", "minItems": 1, "items": {"type": "number"}},
+                        "siValues": {"type": "array", "minItems": 1, "items": {"type": "number"}}
+                      }
+                    },
+                    {
+                      "description": "An expression of the variables without the x sweep, evaluated once per combination.",
+                      "type": "object", "additionalProperties": false, "required": ["label", "source", "tree", "dimension"],
+                      "properties": {
+                        "label": {"type": "string", "minLength": 1}, "source": {"type": "string", "minLength": 1},
+                        "tree": {"$ref": "#/$defs/expression"}, "dimension": {"$ref": "#/$defs/quantity/properties/dimension"}
+                      }
+                    },
+                    {
+                      "description": "A summary of the curve of `of` over the full x range: maximum, minimum, the x at either, the final value, the area under the curve or under its absolute value, the value at siAt (SI), or the settling time, the first x after which the curve stays within tolerance times |final - first value| of its final value.",
+                      "type": "object", "additionalProperties": false, "required": ["label", "summary", "of", "dimension"],
+                      "properties": {
+                        "label": {"type": "string", "minLength": 1},
+                        "summary": {"enum": ["maximum", "minimum", "xAtMaximum", "xAtMinimum", "final", "area", "absoluteArea", "valueAt", "settlingTime"]},
+                        "of": {"$ref": "#/$defs/plottedExpression"}, "dimension": {"$ref": "#/$defs/quantity/properties/dimension"},
+                        "at": {"type": "number"}, "siAt": {"type": "number"},
+                        "tolerance": {"type": "number", "exclusiveMinimum": 0, "exclusiveMaximum": 1}
+                      },
+                      "allOf": [
+                        {"if": {"properties": {"summary": {"const": "valueAt"}}}, "then": {"required": ["at", "siAt"]}, "else": {"not": {"anyOf": [{"required": ["at"]}, {"required": ["siAt"]}]}}},
+                        {"if": {"properties": {"summary": {"const": "settlingTime"}}}, "then": {"required": ["tolerance"]}, "else": {"not": {"required": ["tolerance"]}}}
+                      ]
+                    }
+                  ]}}
+                }
               }
             }
           }

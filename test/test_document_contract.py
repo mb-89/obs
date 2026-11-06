@@ -617,3 +617,68 @@ def test_an_invalid_document_is_refused_before_the_adapter_runs(tmp_path) -> Non
               "--destination", str(tmp_path / "out.json")])
 
     assert not (tmp_path / "out.json").exists()
+
+
+# A fixture adapter that warns as an adapter does (architecture.md, Adapter call): one line per
+# warning on stderr, in the error form, naming the note below the vault root; it exits with EXIT.
+WARNING_ADAPTER = (
+    "import sys; from pathlib import Path; root = sys.argv[sys.argv.index('--vault-root') + 1]; "
+    "print(f'Warning: {root}/chapter.md: figure.style: has the at-rule @import, which applies to the whole '"
+    "'page and cannot be kept inside the figure; it is dropped. Remove it from the figure.', file=sys.stderr); "
+    "Path(sys.argv[2]).write_text('built', encoding='utf-8'); raise SystemExit({exit})"
+)
+
+
+def warning_adapter(folder: Path, exit: int = 0) -> Path:
+    """An adapters.json in ``folder`` registering ``fixture``, which writes one figure-style warning."""
+    configuration = recording_adapter(folder)
+    manifest = json.loads((folder / "adapter.json").read_text(encoding="utf-8"))
+    manifest["command"] = [sys.executable, "-c", WARNING_ADAPTER.replace("{exit}", str(exit))]
+    (folder / "adapter.json").write_text(json.dumps(manifest), encoding="utf-8")
+    return configuration
+
+
+def _figure_style_warnings(capsys) -> list[str]:
+    return [line for line in capsys.readouterr().err.splitlines() if ": figure.style: " in line]
+
+
+def test_a_one_call_build_shows_the_adapter_s_warnings_prefixed_with_its_name(tmp_path, monkeypatch, capsys) -> None:
+    """cli.md, One-call build: a successful adapter's stderr reaches the person, line by line."""
+    small_vault(tmp_path)
+    warning_adapter(tmp_path)
+    monkeypatch.chdir(tmp_path)
+
+    assert main(["--source", "vault/manifest.md", "--adapter", "fixture", "--destination", "out.html"]) == 0
+
+    assert [line.split(": figure.style: ")[0] for line in _figure_style_warnings(capsys)] == [
+        "fixture: Warning: vault/chapter.md"]
+
+
+def test_several_documents_name_the_source_of_each_adapter_warning(tmp_path, monkeypatch, capsys) -> None:
+    """cli.md, Several documents per call: each document's warnings name its --source."""
+    for name in ("a", "b"):
+        (tmp_path / name).mkdir()
+        small_vault(tmp_path / name)
+    warning_adapter(tmp_path)
+    monkeypatch.chdir(tmp_path)
+    a, b = str(Path("a", "vault", "manifest.md")), str(Path("b", "vault", "manifest.md"))
+
+    assert main(["--adapter", "fixture", "--source", a, "--destination", "a.html",
+                 "--source", b, "--destination", "b.html"]) == 0
+
+    assert [line.split(": figure.style: ")[0] for line in _figure_style_warnings(capsys)] == [
+        f"--source {a}: fixture: Warning: {Path(a).parent}/chapter.md",
+        f"--source {b}: fixture: Warning: {Path(b).parent}/chapter.md"]
+
+
+def test_a_failing_adapter_s_stderr_is_only_in_the_failure(tmp_path, monkeypatch, capsys) -> None:
+    """On failure the behaviour is unchanged: the stderr is the detail of the one failure message."""
+    small_vault(tmp_path)
+    warning_adapter(tmp_path, exit=1)
+    monkeypatch.chdir(tmp_path)
+
+    with pytest.raises(SystemExit, match=r"^obs-document: Adapter 'fixture' exited with code 1: "
+                                         r"Warning: vault/chapter\.md: figure\.style: "):
+        main(["--source", "vault/manifest.md", "--adapter", "fixture", "--destination", "out.html"])
+
+    assert _figure_style_warnings(capsys) == []

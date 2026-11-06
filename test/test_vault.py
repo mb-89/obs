@@ -20,11 +20,14 @@ def capability_reference() -> dict[str, object]:
     )
 
 
-def node_types(document: dict[str, object]) -> set[str]:
-    def descend(node: dict[str, object]):
-        yield node["type"]
+def node_types(document: dict[str, object], bodies: bool = True) -> set[str]:
+    """Every node type in the Document; without ``bodies``, not the type of a figure's body node,
+    which is the figure's kind (document.schema.json, figures), though still the types inside it."""
+    def descend(node: dict[str, object], body: bool = False):
+        if bodies or not body:
+            yield node["type"]
         for child in node["children"]:
-            yield from descend(child)
+            yield from descend(child, node["type"] == "figures")
 
     def chapters(items: list[dict[str, object]]):
         for chapter in items:
@@ -651,17 +654,20 @@ def test_spec_document_wikilinks_name_their_included_chapter(spec_document) -> N
 
     def chapters(items: list[dict[str, object]]):
         for chapter in items:
-            yield from links(chapter["content"])
+            yield from ((chapter["id"], attrs) for attrs in links(chapter["content"]))
             yield from chapters(chapter["children"])
 
     resolved = list(chapters(document["chapters"]))
-    included = [attrs for attrs in resolved if listed_chapter(attrs["target"])]
+    included = [attrs for _, attrs in resolved if listed_chapter(attrs["target"])]
     assert included
     assert all(attrs["chapter"] == listed_chapter(attrs["target"]) for attrs in included)
+    own = [(chapter, attrs) for chapter, attrs in resolved if not attrs["target"]]
+    assert own, "the spec links a heading of its own note ([[#Heading]])"
+    assert all(attrs["chapter"] == chapter for chapter, attrs in own)
     unlisted = {chapter["id"] for chapter in document["chapters"] if chapter.get("toc") is False}
     assert all(
         attrs["chapter"] in unlisted | {"home"}
-        for attrs in resolved if not listed_chapter(attrs["target"])
+        for _, attrs in resolved if attrs["target"] and not listed_chapter(attrs["target"])
     )
 
 
@@ -671,7 +677,7 @@ def test_core_parses_the_spec_vault_as_neutral_document(tmp_path, spec_document)
     structural = STRUCTURAL_NODE_TYPES
     references = {item["id"] for item in reference["capabilities"]}
     types = node_types(document)
-    assert types <= structural | references
+    assert node_types(document, bodies=False) <= structural | references
     assert {"wikilinks", "bases", "command-fences", "marks"} <= types
     assert set(document["capabilities"]) <= references
     assert set(document["capabilities"]) == types & references

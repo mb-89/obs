@@ -31,3 +31,13 @@ def test_asset_bytes_records_that_a_fetched_remote_image_carries_data_without_a_
 
     assert "carries neither `path` nor `data`" not in decision
     assert "A remote image carries the `data` the build fetched" in decision
+
+
+def test_the_adapter_call_states_how_an_adapter_writes_warnings() -> None:
+    """An adapter's warnings: stderr, one per line, in the error form, which the core shows (cli.md)."""
+    architecture = (ROOT / "spec" / "design_input" / "architecture.md").read_text(encoding="utf-8")
+    call = " ".join(architecture.split("### Adapter call", 1)[1].split("\n### ", 1)[0].split())
+
+    assert "writes each warning to stderr, one per line" in call
+    assert "[[input-model#Chapter content|" in call
+    assert "[[cli#One-call build]]" in call

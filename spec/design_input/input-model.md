@@ -709,7 +709,8 @@ a numeric-value note shows its value and unit (and range or tolerance once typed
 note shows its title. There is no placeholder syntax such as `$value` in link text.
 "Unlabelled" means a wikilink without `|label`: `[[alias]]` and `[[note-name]]` show the
 target's title, not the alias or file name written; a Markdown link always has its own text.
-Heading and block links keep their existing labels.
+An unlabelled heading or block link shows the note's title and the heading
+([[capabilities/wikilinks#Link text]]).
 
 The lint runs with the paragraph warnings on every build (stderr, never in the artifact): a
 Markdown link, autolink or bare `http(s)` URL in a note body (code excluded), and a base
@@ -867,11 +868,12 @@ Implementation decisions, same date:
 
 Core and adapter, 6 Nov 2026:
 
-- The core resolves a block link written as a wikilink (`[[#^name]]`, `[[note#^name]]`) to the
-  figure that carries the block id, as [[capabilities/wikilinks]] owns; an unknown block id and
-  a block id two figures of one note carry are build errors that name the note and the link or
-  figure. The Markdown form `[](note.md#^name)` is not yet a reference the core resolves.
-- The core runs the figure lint on every build: a figure fence without caption, an image file
+- The core resolves a block link, written as a wikilink (`[[#^name]]`, `[[note#^name]]`) or in
+  the Markdown form (`[](note.md#^name)`, `[label](note.md#^name)`), to the figure that carries
+  the block id, as [[capabilities/wikilinks]] owns; an unknown block id and a block id two
+  figures of one note carry are build errors that name the note and the link or figure.
+- The core runs the figure lint on every build: a figure fence without caption, a figure fence
+  without block id (its remedy names the `^name` line, so a reference can be offered), an image file
   alone in its paragraph (`![...]` of another file is an attachment), a caption outside the
   figure and a typed figure number, each a Document diagnostic with its note line. It knows no
   numbers and reads no adapter's options: typed numbers are recognised after the labels of the
@@ -992,10 +994,12 @@ its complete labels and controls. Avoid an artificially narrow centered drawing
 with large unused horizontal margins; filling the width must not compress glyphs
 or reintroduce label/bar collisions.
 
-Node membership is the union of incident links' conditions, restricted by `data.where`;
-a strand uses its own conditions restricted by that population. Equality clauses are
-anchored exact values, not substring matches; existence requires a nonempty value.
-Dynamic node counts use that same visible incident-link union.
+Node membership is the union of incident links' conditions, restricted by `data.where`
+and, for a counted node, by its own `records.where`; a strand uses its own conditions
+restricted by that population. Equality clauses are anchored exact values, not substring
+matches; existence requires a nonempty value. A dynamic node's count and its drill-down
+are one selection over its visible incident links: the label counts what that expression
+matches, and the drill-down selects it.
 
 An optional link `unique` names a canonical field containing its distinct target-item
 identities.
@@ -1047,8 +1051,22 @@ An equation figure is a `figure` fence of `kind: equations`. Its content, inline
   string or `{expression, axis: secondary}`.
 - `plot.family`, optional: one curve per value of a third variable, `{variable, values}`, or
   `{variable, steps}` for that many values spread evenly over its range.
-- `plot.parallelCoordinates: true`, optional: its axes are the movable variables and the `y`
-  expressions.
+- `plot.parallelCoordinates: true`, optional: the figure shows its parallel-coordinates plot
+  from the start; without it, the reader opens the plot from the figure's menu. Each line of
+  the plot is one combination of the grid variables' values, and the curves below are the
+  combinations the reader selects ([[capabilities/equation-figures]]).
+- The grid: every movable variable that is neither an unknown, a function nor the x sweep is an
+  axis, in the order of `variables`; a fixed variable is not. `plot.grid`, optional, gives a
+  variable `{values}` (in its unit, inside its range) or `{steps}` spread evenly over its range;
+  any other grid variable gets 5 steps.
+- `plot.computed`, optional: computed axes after the grid's, each with an optional `name` (its
+  label; else its expression or `summary(of)`). `{expression}` is an expression of the
+  variables without the x sweep, its unknowns or functions. `{summary, of}` summarizes the
+  curve of the expression `of` over the full x range: `maximum`, `minimum`, `xAtMaximum`,
+  `xAtMinimum`, `final` (its last value), `area` (under the curve, over x), `absoluteArea`
+  (under its absolute value), `valueAt` with `at` (an x in x's unit, inside its range), and
+  `settlingTime` with `tolerance` (a fraction between 0 and 1): the first x after which the
+  curve stays within `tolerance` times its change, |final − first value|, of its final value.
 
 Range rule: a variable's range is where it can move. A quantity note's `range` and the fence's
 `range` intersect; with one of them, that one is the range; with neither, the variable is fixed
@@ -1079,6 +1097,12 @@ A tree evaluates in complex arithmetic with principal branches. A result is a po
 plot where its imaginary part vanishes, so an exact solution with complex intermediates (an
 underdamped oscillator) plots for every parameter. `src/obs/document.schema.json` owns the tree
 (`$defs/expression`) and the figure's body (`$defs/figureBodies/equations`).
+
+The Document's `plot.parallelCoordinates` carries `shown` and the axes: a grid variable's
+values in its unit and in SI, a computed expression's tree, and a summary's kind, the `of`
+expression's tree, `at` in SI and `tolerance`, each with its dimension. The core computes the
+grid; the adapter evaluates the curves, so it computes every computed axis's values, applies
+its own cap on the number of combinations and draws the plot.
 
 The shared test vectors, `test/fixtures/expression-vectors.json`, hold expression trees,
 variable values and expected results. The core checks them against SymPy; an adapter's live

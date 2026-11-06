@@ -86,6 +86,13 @@ it, so they read `spec/manifest.md: …`. ROOT is for messages only: the Documen
 machine-independent and never carries it, and neither does the artifact. Without the argument, on
 a direct adapter call on a Document, messages name paths relative to the vault.
 
+An adapter writes each warning to stderr, one per line, in the error form of
+[[input-model#Chapter content|contract failures]] after `Warning: `:
+`Warning: <note path>: <field path>: <what is wrong>. <remedy>.`, its note path below ROOT. A
+warning does not fail the build: the adapter still writes the artifact and exits with 0. The core
+shows these lines on success, each after the adapter's name ([[cli#One-call build]]); on failure,
+a nonzero exit, the adapter's stderr is the detail of the core's failure message.
+
 A call that builds several documents ([[cli#Several documents per call]]) starts the adapter once
 per document, each with its own Document, destination and vault root: the call shape stays one
 Document to one artifact for every adapter, and the core's start is what the call shares.
