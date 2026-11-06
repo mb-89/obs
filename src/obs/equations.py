@@ -35,6 +35,12 @@ OPERATORS: dict[type, str] = {
 }
 """SymPy's functions the expression tree has an operator for (document.schema.json, $defs/expression)."""
 
+RELATIONS: dict[type, str] = {
+    sympy.Eq: "eq", sympy.Ne: "ne", sympy.StrictLessThan: "lt", sympy.LessThan: "le",
+    sympy.StrictGreaterThan: "gt", sympy.GreaterThan: "ge",
+}
+"""SymPy's relations a piecewise condition carries (document.schema.json, $defs/condition)."""
+
 NAMES = {"Eq", "Derivative", "sqrt", "pi", "E", "I", "exp", "log", "sin", "cos", "tan", "asin", "acos", "atan",
          "atan2", "sinh", "cosh", "tanh", "Abs", "sign", "Min", "Max", "Heaviside"}
 """The SymPy names an equation may use besides its variables; ``.diff`` is its one method."""
@@ -265,10 +271,30 @@ class _Figure:
         if isinstance(expression, sympy.Derivative) and isinstance(expression.expr, AppliedUndef):
             [(_, order)] = expression.variable_count
             return {"derivative": type(expression.expr).__name__, "order": int(order)}
+        if isinstance(expression, sympy.Piecewise):
+            cases = []
+            for value, condition in expression.args:
+                if condition is sympy.true:
+                    cases.append({"value": self.tree(value, nodes)})
+                    break
+                if condition is not sympy.false:
+                    cases.append({"when": self.condition(condition, nodes), "value": self.tree(value, nodes)})
+            return {"piecewise": cases}
         operator = OPERATORS.get(type(expression))
         if operator is None:
             raise _Unsupported(expression)
         return {"op": operator, "args": [self.tree(arg, nodes) for arg in expression.args]}
+
+    def condition(self, condition: sympy.Basic, nodes: dict | None = None) -> dict[str, object]:
+        """A piecewise case's condition (document.schema.json, $defs/condition), or _Unsupported."""
+        if type(condition) in RELATIONS:
+            return {"relation": RELATIONS[type(condition)], "args": [self.tree(arg, nodes) for arg in condition.args]}
+        if isinstance(condition, (sympy.And, sympy.Or)):
+            key = "all" if isinstance(condition, sympy.And) else "any"
+            return {key: [self.condition(arg, nodes) for arg in condition.args]}
+        if isinstance(condition, sympy.Not):
+            return {"not": self.condition(condition.args[0], nodes)}
+        raise _Unsupported(condition)
 
 
 class _Unsupported(ValueError):
@@ -318,33 +344,99 @@ def resolve(content: dict[str, object], context: FigureContext) -> dict[str, obj
             raise figure.fail(f"variables.{name}", "is an unknown " + (
                 "of a differential system but no function" if differential else "with of, but no equation has a derivative"),
                 "Give each unknown of a differential system of: <variable> and initial, and no other variable of")
-    body: dict[str, object] = {
+    shown = _plot(figure, plot, y_items, variables, unknowns, differential)
+    return {
         "equations": [{"source": source, "lhs": figure.tree(equation.lhs), "rhs": figure.tree(equation.rhs)}
                       for source, equation in equations],
         "variables": variables, "unknowns": unknowns,
         "solution": (_differential if differential else _algebraic)(figure, [eq for _, eq in equations], unknowns,
-                                                                    variables),
+                                                                    variables, shown["sweep"]),
+        "plot": shown,
     }
-    body["plot"] = _plot(figure, plot, y_items, variables, unknowns, differential)
-    return body
 
 
-def _algebraic(figure: _Figure, equations: list, unknowns: list[str], variables: dict) -> dict[str, object]:
+def _exact(figure: _Figure, expression: sympy.Expr, variables: dict, unknowns: list[str],
+           sweep: str) -> tuple[dict[str, object], list[dict[str, object]]]:
+    """An exact solution's tree, piecewise where a denominator vanishes inside a variable's range, with
+    the limit there; and the condition of each such value of a variable besides the sweep whose limit
+    SymPy cannot find or the tree cannot carry, where the numeric solver takes over."""
+    tree = figure.tree(expression)
+    if expression.has(sympy.Piecewise):
+        return tree, []
+    cases, marks = [], []
+    for symbol, value in _singular(figure, expression, variables, unknowns):
+        try:
+            when = {"relation": "eq", "args": [figure.tree(symbol), figure.tree(value)]}
+        except _Unsupported:
+            continue
+        try:
+            limit = sympy.limit(expression, symbol, value)
+        except (NotImplementedError, ValueError, TypeError, ArithmeticError, sympy.PoleError):
+            limit = sympy.nan
+        if limit.has(sympy.oo, -sympy.oo, sympy.zoo):
+            continue  # A pole: no point there.
+        try:
+            if limit.has(sympy.nan, sympy.Limit, sympy.AccumBounds):
+                raise _Unsupported(limit)
+            cases.append({"when": when, "value": figure.tree(limit)})
+        except _Unsupported:
+            if symbol.name != sweep:
+                marks.append(when)
+    return ({"piecewise": [*cases, {"value": tree}]} if cases else tree), marks
+
+
+def _singular(figure: _Figure, expression: sympy.Expr, variables: dict, unknowns: list[str]) -> list[tuple]:
+    """Each (variable, SI value) inside the variable's range at which a denominator of the expression
+    vanishes; a value that depends on other variables counts as inside."""
+    ranges = {figure.symbols[name]: variable["quantity"]["siRange"] for name, variable in variables.items()
+              if "siRange" in variable["quantity"] and name not in unknowns}
+    found = []
+    for power in sorted(expression.atoms(sympy.Pow), key=sympy.default_sort_key):
+        if not power.exp.is_negative:
+            continue
+        for symbol in sorted(power.base.free_symbols & set(ranges), key=str):
+            try:
+                roots = sympy.solve(power.base, symbol)
+            except (NotImplementedError, ValueError, TypeError):
+                continue
+            low, high = ranges[symbol]
+            found += [(symbol, root) for root in roots if (root.is_real is not False if root.free_symbols
+                                                          else root.is_real and low <= float(root) <= high)]
+    return list(dict.fromkeys(found))
+
+
+def _numeric(figure: _Figure, solution: dict[str, object], marks: list[dict], system) -> dict[str, object]:
+    """The exact solution, and where marks hold, the system the live evaluator solves numerically."""
+    if marks:
+        solution["numeric"] = {"when": marks[0] if len(marks) == 1 else {"any": marks}, "system": system()}
+    return solution
+
+
+def _algebraic(figure: _Figure, equations: list, unknowns: list[str], variables: dict,
+               sweep: str) -> dict[str, object]:
     symbols = [figure.symbols[name] for name in unknowns]
     try:
         solutions = sympy.solve(equations, symbols, dict=True)
     except (NotImplementedError, ValueError, TypeError):
         solutions = []
-    branches = []
+    branches, marks = [], []
     allowed = set(figure.symbols.values()) - set(symbols)
     for solution in solutions:
         try:
             if set(solution) == set(symbols) and all(value.free_symbols <= allowed for value in solution.values()):
-                branches.append({name: figure.tree(solution[figure.symbols[name]]) for name in unknowns})
+                exact = {name: _exact(figure, solution[figure.symbols[name]], variables, unknowns, sweep)
+                         for name in unknowns}
+                branches.append({name: tree for name, (tree, _) in exact.items()})
+                marks += [mark for _, found in exact.values() for mark in found if mark not in marks]
         except _Unsupported:
             continue
     if branches:
-        return {"method": "exact", "branches": branches}
+        return _numeric(figure, {"method": "exact", "branches": branches}, marks,
+                        lambda: _residuals(figure, equations, unknowns, variables))
+    return _residuals(figure, equations, unknowns, variables)
+
+
+def _residuals(figure: _Figure, equations: list, unknowns: list[str], variables: dict) -> dict[str, object]:
     guess = {}
     for name in unknowns:
         if "siValue" not in variables[name]["quantity"]:
@@ -355,7 +447,8 @@ def _algebraic(figure: _Figure, equations: list, unknowns: list[str], variables:
             "guess": guess}
 
 
-def _differential(figure: _Figure, equations: list, unknowns: list[str], variables: dict) -> dict[str, object]:
+def _differential(figure: _Figure, equations: list, unknowns: list[str], variables: dict,
+                  sweep: str) -> dict[str, object]:
     independents = {figure.functions[name] for name in unknowns}
     if len(independents) != 1:
         raise figure.fail("unknowns", f"are functions of {', '.join(sorted(independents))}",
@@ -391,8 +484,12 @@ def _differential(figure: _Figure, equations: list, unknowns: list[str], variabl
         solved = solved if isinstance(solved, list) else [solved]
         allowed = set(figure.symbols.values()) - {figure.symbols[name] for name in unknowns}
         if all(solution.rhs.free_symbols <= allowed and not solution.rhs.atoms(AppliedUndef) for solution in solved):
-            return {"method": "exact", "branches": [{type(solution.lhs).__name__: figure.tree(solution.rhs)
-                                                     for solution in solved}]}
+            exact = {type(solution.lhs).__name__: _exact(figure, solution.rhs, variables, unknowns, sweep)
+                     for solution in solved}
+            marks = [mark for _, found in exact.values() for mark in found]
+            return _numeric(figure, {"method": "exact", "branches": [{name: tree for name, (tree, _) in exact.items()}]},
+                            marks, lambda: _state_form(figure, equations, unknowns, functions, orders, independent,
+                                                       start, initial))
     except (NotImplementedError, ValueError, TypeError, _Unsupported, AttributeError):
         pass
     return _state_form(figure, equations, unknowns, functions, orders, independent, start, initial)
