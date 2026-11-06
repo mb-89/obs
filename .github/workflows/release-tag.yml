@@ -1,0 +1,10 @@
+name: release-tag
+
+on: push
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    uses: mb-89/SE/.github/workflows/release.yml@se
