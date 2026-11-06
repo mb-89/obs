@@ -765,9 +765,11 @@ A diagram becomes SVG when the core builds the Document, on the build machine an
 network: the core runs the diagram's library (Mermaid, or PlantUML's JavaScript build) in a
 local headless browser, the one the project's tests already use, and refuses every request
 the library makes. The libraries are pinned in `src/obs/diagrams/package-lock.json`; every build
-of the core's package installs them from it and ships them as package data, which the core reads
-only through `importlib.resources` (`hatch_build.py`); a package build without npm, or whose
-`npm ci` fails, fails naming the lockfile and the remedy. Building a Document never fetches them. The
+of the core's package unpacks the files it serves from the tarballs the lockfile pins (only
+those packages' own, checked against the lockfile's integrity) and ships them as package data,
+which the core reads only through `importlib.resources` (`hatch_build.py`); a package build
+without npm, whose `npm pack` fails or whose tarball is not the pinned one, fails naming the
+lockfile and the remedy. Building a Document never fetches them. The
 figure's body holds the diagram's text as authored, for review, and the SVG, which every
 adapter shows as the figure's picture, so none needs a diagram library and print shows the
 same drawing. The same text gives the same SVG, whether inline or from a file. A diagram its
