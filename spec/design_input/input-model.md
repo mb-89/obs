@@ -867,6 +867,13 @@ Core and adapter, 6 Nov 2026:
   figure that carries the block id, as [[capabilities/wikilinks]] owns; an unknown block id and
   a block id two figures of one note carry are build errors that name the note and the link or
   figure. The Markdown form `[](note.md#^name)` is not yet a reference the core resolves.
+- The core runs the figure lint on every build: a figure fence without caption, an image file
+  alone in its paragraph (`![...]` of another file is an attachment), a caption outside the
+  figure and a typed figure number, each a Document diagnostic with its note line. It knows no
+  numbers and reads no adapter's options: typed numbers are recognised after the labels of the
+  core configuration (`input.figureReferences.labels`, whose default
+  `src/obs/config.schema.json` owns), and the suggested link is the note's figure at the
+  position the number's last component gives.
 - The adapter numbers the figures, shows the number, renders a reference as the figure's label
   and number and merges adjacent references; the error for an unlabelled reference to an
   unnumbered figure is the adapter's, since only it knows numbers.

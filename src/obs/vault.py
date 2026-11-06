@@ -20,7 +20,7 @@ import yaml
 
 from obs.commands import CommandError, run_command
 from obs.config import (
-    DEFAULT_COMMAND_TIMEOUT_SECONDS, CoreConfig, CoreConfigError, load_core_config,
+    DEFAULT_COMMAND_TIMEOUT_SECONDS, DEFAULT_FIGURE_LABELS, CoreConfig, CoreConfigError, load_core_config,
 )
 from obs.figure import FIGURE_KINDS, FIGURE_SCHEMA_PATH, FigureContentError
 from obs.input import (
@@ -42,6 +42,7 @@ from obs.input import (
     validate_quantity,
 )
 from obs.note import IGNORED, Note, VaultError, lines, parser, read_note
+from obs.figure_lint import figure_warnings
 from obs.quantity import document_quantity
 from obs.producers import ProducerError, run_producers
 from obs.selection import (
@@ -100,6 +101,8 @@ class _Vault:
     files: dict[str, list[Path]] | None = None
     records: list[Record] = field(default_factory=list)
     notes_by_id: dict[str, tuple[Path, Record]] = field(default_factory=dict)
+    figure_labels: tuple[str, ...] = DEFAULT_FIGURE_LABELS
+    """The labels before a typed figure number, which the figure lint warns about."""
     blocks: dict[Path, set[str]] = field(default_factory=dict)
     """Each parsed note's figure block ids (input-model, Figure captions and references)."""
     block_links: list[tuple[dict[str, object], Path, Path, str]] = field(default_factory=list)
@@ -177,6 +180,8 @@ def build_document(
             except (OSError, json.JSONDecodeError, InputError) as error:
                 raise VaultError(str(error)) from error
     vault = _read_vault(manifest_path, metadata, body)
+    if configuration is not None:
+        vault.figure_labels = configuration.figure_labels
     _validate_note(manifest_path, vault)
     chapters, abstract = _parse_manifest(manifest, manifest_path, vault_root, vault.identities)
     _add_records(vault, chapters, title)
@@ -665,6 +670,10 @@ class _Context:
 
 def _nodes(source: str, context: _Context) -> list[dict[str, object]]:
     tokens = parser().parse(source)
+    if context.first_line is not None:  # The note's own text: the figure lint names its lines.
+        note = context.vault.relative(context.source_path)
+        for line, message in figure_warnings(tokens, partial(_note_line, context), context.vault.figure_labels):
+            context.vault.warnings.append(f"{note}{'' if line is None else f':{line}'}: {message}")
     return _blocks(tokens, 0, len(tokens), context)
 
 
