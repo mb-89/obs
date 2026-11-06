@@ -9,6 +9,13 @@ from pathlib import Path
 from jsonschema import Draft202012Validator
 
 
+_SCHEMA = json.loads(files("obs").joinpath("config.schema.json").read_text(encoding="utf-8"))
+DEFAULT_COMMAND_TIMEOUT_SECONDS: int = (
+    _SCHEMA["properties"]["execution"]["properties"]["commandTimeoutSeconds"]["default"]
+)
+"""The cmd fence timeout of a build without core configuration; the schema owns the value."""
+
+
 class CoreConfigError(ValueError):
     """Raised when core configuration cannot be read or validated."""
 
@@ -25,8 +32,7 @@ def load_core_config(path: Path) -> CoreConfig:
         value = json.loads(path.read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError) as error:
         raise CoreConfigError(f"Invalid core configuration: {path}: {error}") from error
-    schema = json.loads(files("obs").joinpath("config.schema.json").read_text(encoding="utf-8"))
-    errors = list(Draft202012Validator(schema).iter_errors(value))
+    errors = list(Draft202012Validator(_SCHEMA).iter_errors(value))
     if errors:
         raise CoreConfigError(f"Invalid core configuration: {errors[0].message}")
     return CoreConfig(

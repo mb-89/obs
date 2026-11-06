@@ -58,7 +58,9 @@ and runtime defaults are owned by [[cli]] and [[configuration]], respectively.
 - Top-level items are chapters; nested items are subchapters of their parent.
 - The sequence in which items appear in the source is authoritative at every nesting depth.
 - A chapter is a non-hidden line of the manifest's TOC list, and nothing else is; a line is
-  hidden when Markdown does not show it, for example inside an Obsidian `%%` comment. The table
+  hidden when Markdown does not show it, for example inside an Obsidian `%%` comment
+  ([Obsidian comments](#chapter-content)), and the list continues at the depth of the next
+  visible line. The table
   of contents and previous/next walk exactly the chapters, in manifest order (depth first,
   after Home), so they always match. A note reached only through a link is not a chapter, gets
   no previous/next, and stays reachable through its link.
@@ -664,6 +666,13 @@ Generation time remains separate from document revision dates.
 
 ## Chapter content
 
+- Obsidian comments are removed from every note body, the manifest's included, before anything
+  reads it, so comment text never renders and a commented manifest line is no chapter. A `%%`
+  outside code opens a comment and the next `%%` closes it, on the same line (inline) or a
+  later one (a block, usually `%%` on its own line); a `%%` in a fenced code block or a code
+  span is text. A line that held only comment text goes with it. A `%%` no `%%` closes is an
+  error naming the note and the line it opens on, as an unclosed frontmatter is (worker
+  decision, 5 Nov 2026; Obsidian hides the rest of the note instead).
 - The manifest is the inclusion root.
 
   Its TOC targets, abstract and metadata links seed inclusion;
@@ -1688,7 +1697,9 @@ missing or unsupported local images fail validation.
 Base64 PDF/plain-text/JSON/binary
 attachment links are allowed; this does not enable raw HTML or HTML/script data URLs.
 
-Math is rendered as static MathML without remote scripts.
+Math is rendered as static MathML without remote scripts. Display math written inside a paragraph
+(`Text $$a^2$$ text`) stays inside that paragraph, as in Obsidian: obs_html writes it as
+phrasing content shown as a block, since HTML allows no block element inside a paragraph.
 
 Ordinary Markdown citations such
 as `[[1]](references.md#ref-1)` are links with bracketed labels, not nested wikilinks.
