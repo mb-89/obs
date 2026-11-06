@@ -1196,7 +1196,7 @@ these bullets are part of.
   The file holds the same YAML as a fence and passes the same validation once per build.
   `![[file.base]]` embeds all views with the selector; `#View` embeds only that view. Every
   embed is its own table instance with its own key and state, so two notes embedding one
-  file render it twice from one definition. Registers use this mechanism ([[input-model]]).
+  file render it twice from one definition. Registers use this mechanism ([[#Registers]]).
 - A view may declare ordered `obs.members` entries containing a vault-relative note `path`
   and optional view-local `label`. This set intersects the ordinary Base query; its order is the
   initial row order, in which the core emits the view's rows, and its labels are projected as a derived cell without modifying canonical
@@ -1261,9 +1261,9 @@ frontmatter text or tag backlinks, are never filter values.
 
 Document metadata rows (`recordType` `documentMetadata`: `key`, `value`) and history rows
 (`documentHistory`: `version`, `date`, `author`, `change`) never include a note; all their
-fields are own fields. [[input-model]] owns their content. The core emits a manifest metadata
+fields are own fields. [[#Cover metadata and history]] owns their content. The core emits a manifest metadata
 row per frontmatter key other than `history`, `obs` and an adapter's namespace
-([[input-model#Core and adapter namespaces]]), with its value as authored; the
+([[#Core and adapter namespaces]]), with its value as authored; the
 adapter adds the rows of its own generation provenance.
 
 The core emits every projection as records of its type in the Document's `records`, a
@@ -1272,7 +1272,7 @@ defines each record type and its fields.
 
 Inclusion, table rows and tag navigation to the table holding a row use the grammar above.
 Counts are not Bases filters: they use the record-metric conditions owned by
-[[input-model#Document home and abstract|cards]].
+[[#Document home and abstract|cards]].
 
 ### Glossary
 
