@@ -16,7 +16,7 @@ from obs.discriminator import discriminating_validator
 from obs.input import schema_error
 from obs.output import write_output
 from obs.sources import SourceError, source_archive, validate_source_archive
-from obs.vault import VaultError, build_document as _build_document
+from obs.vault import VaultError, build_document as _build_document, manifest_note
 
 
 DOCUMENT_SCHEMA_PATH = Path(__file__).with_name("document.schema.json")
@@ -235,7 +235,8 @@ def build_parser() -> argparse.ArgumentParser:
                              "--adapter it is optional, and without it the Document is a temporary "
                              "file the build removes.")
     parser.add_argument("--source", type=Path, action="append",
-                        help="Manifest note to parse into --document. Repeat --source, each followed by its "
+                        help="Manifest note, or vault folder holding it (input.manifestFilename of --config, "
+                             "default manifest.md), to parse into --document. Repeat --source, each followed by its "
                              "--destination, to build several artifacts with --adapter in one call, in "
                              "argument order; every other option applies to each.")
     parser.add_argument("--config", type=Path, help="Core configuration JSON for --source.")
@@ -329,6 +330,10 @@ def _build(options: argparse.Namespace, source: Path, destination: Path | None, 
            adapter: dict[str, object] | None, arguments: list[str], label: str = "") -> None:
     """Build the Document of ``source`` and, with an ``adapter``, its artifact at ``destination``;
     ``label`` leads each adapter warning (cli.md, Several documents per call)."""
+    try:
+        source = manifest_note(source, options.config)
+    except VaultError as error:
+        raise DocumentError(str(error)) from error
     delivery = ["--adapter", options.adapter, "--destination", destination.name] if adapter is not None else []
     for option in options.adapter_option:
         delivery += ["--adapter-option", option]
