@@ -48,10 +48,15 @@ def mark(items) -> None:
             item.add_marker(pytest.mark.timeout(TIMEOUTS[tier(item)]))
 
 
+def timed_out(report) -> bool:
+    """Whether the report is of a test phase pytest-timeout stopped."""
+    text = str(report.longrepr) if report.failed else ""
+    return "Timeout" in text and "pytest-timeout" in text
+
+
 def explain(item, report) -> None:
     """Name the test, its timeout and its tier in the report of a test past its timeout."""
-    text = str(report.longrepr) if report.failed else ""
-    if "Timeout" not in text or "pytest-timeout" not in text:
+    if not timed_out(report):
         return
     seconds = item.get_closest_marker("timeout").args[0]
     report.sections.append(("test/bounds.py", (
