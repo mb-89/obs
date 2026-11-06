@@ -69,7 +69,7 @@ def test_the_parts_run_side_by_side_and_any_failed_part_fails_the_suite(monkeypa
 
     together = threading.Barrier(len(suite.PARTS), timeout=10)
 
-    def run_part(part, arguments):
+    def run_part(part, arguments, run_folder):
         together.wait()
         return (1 if part == suite.ROOT else 0), f"== {suite.part_name(part)} {arguments}\n"
 
@@ -80,3 +80,25 @@ def test_the_parts_run_side_by_side_and_any_failed_part_fails_the_suite(monkeypa
     output = capsys.readouterr()
     assert all(f"== {suite.part_name(part)} ['-x']" in output.out for part in suite.PARTS)
     assert "failed parts: core." in output.err
+
+
+def test_a_part_past_the_suite_cap_is_stopped_naming_the_test_it_was_running(monkeypatch, capsys) -> None:
+    import sys
+
+    import suite
+
+    # Each part's command names a test in the run's folder, as test/bounds.py does, and waits forever.
+    hang = ("import os, pathlib, threading; record = pathlib.Path(os.environ['OBS_SPEC_BUILD'], 'running', "
+            "str(os.getpid()) + '.txt'); record.parent.mkdir(exist_ok=True); "
+            "record.write_text(os.getcwd() + '\\ntest/test_hangs.py::test_waits'); print('started', flush=True); "
+            "threading.Event().wait()")
+    monkeypatch.setattr(suite, "part_command", lambda part, arguments, environment: [sys.executable, "-c", hang])
+    monkeypatch.setattr(suite, "is_installed", lambda package: True)
+    monkeypatch.setattr(suite, "CAP_SECONDS", 1)
+
+    assert suite.main([]) == 1
+    output = capsys.readouterr()
+    for part in suite.PARTS:
+        assert (f"test/suite.py: {suite.part_name(part)} reached the suite's cap of 1 s (CAP_SECONDS) "
+                "and was stopped while running test/test_hangs.py::test_waits") in output.out
+    assert f"failed parts: {', '.join(map(suite.part_name, suite.PARTS))}." in output.err
