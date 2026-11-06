@@ -46,6 +46,37 @@ The root `adapters.json` registers each adapter by the path of
 its `adapter.json`. Each part tests only itself; `uv run python test/suite.py` runs every
 part's suite in its own pytest process.
 
+The decision, 5 to 6 Nov 2026, as a matrix ([[capabilities/pugh-decisions]]): the datum is the
+first adapter as it stood, a repository of its own that pinned the core by commit; the marks
+read this section and that repository's history, whose 113 commits of 5 Nov hold 4 pin moves.
+
+```figure
+version: 1
+kind: pugh
+caption: One repository against the adapter in a repository of its own.
+content:
+  title: Where an integrated adapter lives
+  chosen: folder
+  criteria:
+    - {key: pins, label: "Pin moves of the core (5 Nov)", weight: 2, better: lower, floor: 1}
+    - {key: commit, label: Core and adapter change in one commit, weight: 3, better: higher, kind: judged}
+    - {key: bookkeeping, label: "No pin file, sync step or second lock file", weight: 1, better: higher,
+       kind: judged}
+    - {key: suite, label: One command runs every suite, weight: 1, better: higher, kind: judged}
+    - {key: own, label: "Each part keeps its package, tests and spec", weight: 2, better: higher,
+       kind: judged}
+    - {key: later, label: A later adapter may still live apart, weight: 1, better: higher, kind: judged}
+  candidates:
+    - {key: apart, label: The adapter in its own repository,
+       what: "The first adapter as it stood, pinning the core by commit and syncing it as a module.",
+       values: {pins: 4}}
+    - {key: folder, label: The adapter as a folder of this repository,
+       what: A uv workspace member under adapters/ that depends on the core by path.,
+       values: {pins: 0}, marks: {commit: 2, bookkeeping: 1, suite: 1, own: 0, later: 0}}
+  datum: {prefer: [apart]}
+```
+^repository-layout-decision
+
 ## Core attachment metadata
 
 The core already provides the neutral Document contract, vault and asset resolution,

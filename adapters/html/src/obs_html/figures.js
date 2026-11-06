@@ -856,6 +856,8 @@
     swap: figure => globalThis.obsEquations.option("swap", figure),
     family: figure => globalThis.obsEquations.option("family", figure),
     parallel: figure => globalThis.obsEquations.option("parallel", figure),
+    // A decision figure's Reset weights (pugh-figure.js).
+    weights: figure => globalThis.obsPugh.option(figure),
   };
   function optionsMenu(figure) {
     const keys = (figure.dataset.figureOptions || "").split(" ").filter(key => FIGURE_OPTIONS[key]);
@@ -884,6 +886,7 @@
     const spec = JSON.parse(figure.dataset.figureSpec);
     const host = figure.querySelector(".figure-live");
     if (spec.kind === "svg") { svgInspector(figure, spec, host); return; }
+    if (spec.kind === "pugh") { globalThis.obsPugh.render(figure, spec, host); return; }
     if (!window.Plotly) {
       const message = document.createElement("p");
       message.setAttribute("role", "status");
@@ -998,6 +1001,13 @@
       this.projectSankeys(document);
     },
     pageNode: node => overlayPlaceholders.get(node) || node,
+    // A figure the page layout places (pages.js): a decision figure's height is its drawn view,
+    // so it is drawn at once, as the reader sees it, or in a print copy as it prints.
+    place(figure) {
+      if (figure.dataset.figureKind !== "pugh" || figure.classList.contains("figure-pugh-ready")) return;
+      if (figure.closest(".print-book")) globalThis.obsPugh.print(figure, JSON.parse(figure.dataset.figureSpec));
+      else initialize(figure);
+    },
     projectSankeys(container) {
       container.querySelectorAll('[data-figure-kind="sankey"]').forEach(figure => {
         const spec = JSON.parse(figure.dataset.figureSpec);
@@ -1005,6 +1015,10 @@
       });
     },
     async preparePrint(container) {
+      // A decision figure prints the reader's view (pugh-figure.js).
+      for (const figure of container.querySelectorAll('[data-figure-kind="pugh"]')) {
+        globalThis.obsPugh.print(figure, JSON.parse(figure.dataset.figureSpec));
+      }
       // An equation figure prints the reader's view; a caption note says where it changed.
       for (const figure of container.querySelectorAll('[data-figure-kind="equations"]:not(:has(> img))')) {
         if (!window.Plotly) throw new Error("Cannot print graph: Plotly could not load.");
