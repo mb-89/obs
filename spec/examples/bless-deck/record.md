@@ -15,7 +15,8 @@ candidates:
   - {key: export, label: Comment export, what: A document-level comment in the comment export., values: {places: 2},
      losses: The verdict lives beside the decision.}
   - {key: html, label: Answered artifact, what: obs-document --answers builds the artifact with the answers in it.,
-     values: {places: 1}, marks: {readable: 2}, wins: The changed artifact is its own record.}
+     values: {places: 1}, marks: {readable: 2}, wins: The changed artifact is its own record.,
+     success: Every answered artifact opens with its verdicts in place.}
   - {key: json, label: Answers file alone, what: The answers.json the server writes., values: {places: 1},
      marks: {readable: -1}, losses: Read without the decision it answers.}
 datum: {prefer: [export]}
