@@ -33,28 +33,28 @@ its path without `.md`.
 - `cards[].title`: the card's plain-text title.
 - `cards[].body`: Markdown, parsed like chapter content (see [Document node](#document-node)).
 - `cards[].metricStyle`: `pills` or `lines`; how an adapter lays out the metrics.
-- `cards[].obsHtml`: the namespace for the interim adapter's card fields.
-- `cards[].obsHtml.metricsFrom`: a metric series: one metric per entry of a list held in
+- `cards[].obs`: the core's namespace for a card's fields.
+- `cards[].obs.metricsFrom`: a metric series: one metric per entry of a list held in
   another note's frontmatter, instead of hand-written metrics.
-- `cards[].obsHtml.metricsFrom.sourceNote`: the note (query reference) that holds the list.
-- `cards[].obsHtml.metricsFrom.property`: the dotted path of the list in that note's
+- `cards[].obs.metricsFrom.sourceNote`: the note (query reference) that holds the list.
+- `cards[].obs.metricsFrom.property`: the dotted path of the list in that note's
   frontmatter.
-- `cards[].obsHtml.metricsFrom.labelProperty`: the entry field that is the metric's label;
+- `cards[].obs.metricsFrom.labelProperty`: the entry field that is the metric's label;
   labels are unique and nonblank.
-- `cards[].obsHtml.metricsFrom.distinctProperty`: the entry field that is the metric's
+- `cards[].obs.metricsFrom.distinctProperty`: the entry field that is the metric's
   `distinct` field.
-- `cards[].obsHtml.metricsFrom.where`: the conditions every series metric counts.
-- `cards[].obsHtml.metricsFrom.tone`: the tone of every series metric, as a metric's `tone`.
-- `cards[].obsHtml.metricsFrom.toneRules`: the tone rules of every series metric, as a
+- `cards[].obs.metricsFrom.where`: the conditions every series metric counts.
+- `cards[].obs.metricsFrom.tone`: the tone of every series metric, as a metric's `tone`.
+- `cards[].obs.metricsFrom.toneRules`: the tone rules of every series metric, as a
   metric's `toneRules`.
-- `cards[].obsHtml.metricsFrom.link`: routes each series metric to a table filtered to its
+- `cards[].obs.metricsFrom.link`: routes each series metric to a table filtered to its
   label.
-- `cards[].obsHtml.metricsFrom.link.note`: the note (query reference) whose table it opens.
-- `cards[].obsHtml.metricsFrom.link.groupProperty`: the property filtered to the label.
+- `cards[].obs.metricsFrom.link.note`: the note (query reference) whose table it opens.
+- `cards[].obs.metricsFrom.link.groupProperty`: the property filtered to the label.
 - `cards[].metrics`: up to 64 metrics; a card without metrics is static.
 - `cards[].metrics[].key`: an optional stable identifier for the metric.
-- `cards[].metrics[].obsHtml`: the namespace for the interim adapter's metric fields.
-- `cards[].metrics[].obsHtml.projection`: the name of a trusted record projection the metric
+- `cards[].metrics[].obs`: the core's namespace for a metric's fields.
+- `cards[].metrics[].obs.projection`: the name of a trusted record projection the metric
   counts over instead of the canonical fields; lowercase, dots, underscores and hyphens.
 - `cards[].metrics[].from`: the quantity note (query reference) whose query narrows the
   population, as a query's `from`.

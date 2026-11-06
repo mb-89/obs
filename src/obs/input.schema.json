@@ -73,7 +73,7 @@
               "title": {"type": "string", "minLength": 1, "maxLength": 256},
               "body": {"type": "string", "maxLength": 100000},
               "metricStyle": {"enum": ["pills", "lines"]},
-              "obsHtml": {
+              "obs": {
                 "type": "object",
                 "additionalProperties": false,
                 "properties": {
@@ -111,7 +111,7 @@
                   "required": ["label", "where"],
                   "properties": {
                     "key": {"type": "string", "minLength": 1, "maxLength": 256},
-                    "obsHtml": {
+                    "obs": {
                       "type": "object",
                       "additionalProperties": false,
                       "properties": {"projection": {"type": "string", "pattern": "^[a-z][a-z0-9._-]*$"}}

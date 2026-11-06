@@ -156,6 +156,8 @@ def register_rows(tmp_path_factory):
         Path(__file__).parents[1] / "spec" / "capabilities",
         Path(__file__).parents[1] / "spec" / "capabilities" / "coverage.json",
     )
+    # The interim adapter reads records in its own namespace; the core reads them in obs.
+    (vault / "x.base").write_text(REGISTER_BASE.replace("obsHtml:", "obs:"), encoding="utf-8")
     document = build_document(manifest, reference)
     records = {record["id"]: record for record in document["records"]}
     [chapter] = [item for item in document["chapters"] if item["id"] == "registers"]
