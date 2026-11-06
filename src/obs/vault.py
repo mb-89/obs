@@ -31,6 +31,7 @@ from obs.input import (
     parse_callout,
     parse_card_spec,
     parse_property_editor,
+    property_editor_writes,
     schema_error,
     validate_base_definition,
     validate_command,
@@ -894,6 +895,7 @@ def _fence_node(token: Token, context: _Context) -> dict[str, object]:
             attrs["spec"] = _json_value(spec)
     elif language == "property-editor":
         attrs["spec"] = _json_value(specification)
+        attrs["writes"] = property_editor_writes(specification)
     elif language == "cards":
         attrs["spec"] = _json_value(specification)
         context.capabilities.update(body_context.capabilities)

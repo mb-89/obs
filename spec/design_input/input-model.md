@@ -1351,8 +1351,8 @@ plain-text editing, including empty strings.
 
 Generated Home and presentation-semantic properties are not editable, whether directly or
 through a derived projection. [[capabilities/property-editors#Projection rules]] owns that
-constraint for a projection; the adapter's editor schema applies it to the edited field and at
-the runtime transaction boundary.
+constraint for the edited field and a projection; at the runtime transaction boundary the adapter
+writes only the fields the editor's node declares ([[capabilities/property-editors#Document node]]).
 
 How an adapter saves a reviewed copy, with its review comments, decisions and reader state, and
 how its runtime commits an edit, is that adapter's; its specification is listed in

@@ -72,6 +72,20 @@ The boundary has no Python types, package entry points, application names, or
 output-format terms. An implementation may change language without changing either
 JSON contract.
 
+### Adapter call
+
+The core starts an adapter as its manifest's `command` followed by the Document's path, the
+destination, the standard arguments and the arguments of the options the call passes: an option
+exists only where the manifest's `options` declare it, and each kind of option has one form on the
+command line ([[cli#Adapter options]]). The core never names an adapter or one of its options.
+
+The one standard argument is `--vault-root ROOT`, which every adapter accepts. Where the core built
+the Document from a manifest, ROOT is the manifest's folder as the user gave it (`spec` for
+`--source spec/manifest.md`), and the adapter names each vault-relative path in its messages below
+it, so they read `spec/manifest.md: …`. ROOT is for messages only: the Document stays
+machine-independent and never carries it, and neither does the artifact. Without the argument, on
+a direct adapter call on a Document, messages name paths relative to the vault.
+
 ### Asset bytes
 
 The Document embeds the bytes of every vault file it references as an image or a
