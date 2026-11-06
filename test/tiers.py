@@ -40,52 +40,76 @@ def strict() -> bool:
 
 
 class _Sources:
-    """Collects the source a test depends on inside the test package."""
+    """Collects the source a test depends on inside the test package.
+
+    Every xdist worker classifies every collected test, so each module's file is resolved and
+    parsed once (``_Module``) and each function's source is read from that parse, not tokenized
+    again per function."""
 
     def __init__(self, root: Path):
         self.root = root.resolve()
         self.functions: dict[object, str] = {}
-        self.assignments: dict[str, dict[str, str]] = {}
+        self.modules: dict[str, _Module | None] = {}
 
-    def local(self, module: types.ModuleType | None) -> bool:
+    def module(self, module: types.ModuleType | None) -> "_Module | None":
+        """The parsed test-package module, or None for a module outside the package or its conftest."""
         file = getattr(module, "__file__", None)
-        return bool(file) and Path(file).resolve().parent == self.root and Path(file).name != "conftest.py"
-
-    def module_assignments(self, module) -> dict[str, str]:
-        name = module.__name__
-        if name not in self.assignments:
-            source = inspect.getsource(module)
-            found = {}
-            for node in ast.parse(source).body:
-                if isinstance(node, (ast.Assign, ast.AnnAssign)):
-                    targets = node.targets if isinstance(node, ast.Assign) else [node.target]
-                    for target in targets:
-                        if isinstance(target, ast.Name):
-                            found[target.id] = ast.get_source_segment(source, node) or ""
-            self.assignments[name] = found
-        return self.assignments[name]
+        if not file:
+            return None
+        if file not in self.modules:
+            path = Path(file).resolve()
+            local = path.parent == self.root and path.name != "conftest.py"
+            self.modules[file] = _Module(inspect.getsource(module)) if local else None
+        return self.modules[file]
 
     def collect(self, function, seen: set, parts: list[str]) -> None:
         function = inspect.unwrap(function)
         if function in seen or not isinstance(function, types.FunctionType):
             return
-        module = sys.modules.get(function.__module__)
-        if not self.local(module):
+        module = self.module(sys.modules.get(function.__module__))
+        if module is None:
             return
         seen.add(function)
         if function not in self.functions:
-            try:
-                self.functions[function] = inspect.getsource(function)
-            except (OSError, TypeError):
-                self.functions[function] = ""
+            self.functions[function] = module.source(function)
         parts.append(self.functions[function])
-        assignments = self.module_assignments(module)
         for name in _names(function.__code__):
             value = function.__globals__.get(name)
             if isinstance(value, types.FunctionType):
                 self.collect(value, seen, parts)
-            elif name in assignments:
-                parts.append(assignments[name])
+            elif name in module.assignments:
+                parts.append(module.assignments[name])
+
+
+class _Module:
+    """One test module's source, parsed once: its module-level assignments by name and each
+    function definition's lines, decorators included, by its first line."""
+
+    def __init__(self, source: str):
+        lines = source.splitlines(keepends=True)
+        tree = ast.parse(source)
+        self.assignments: dict[str, str] = {}
+        for node in tree.body:
+            if isinstance(node, (ast.Assign, ast.AnnAssign)):
+                targets = node.targets if isinstance(node, ast.Assign) else [node.target]
+                for target in targets:
+                    if isinstance(target, ast.Name):
+                        self.assignments[target.id] = ast.get_source_segment(source, node) or ""
+        self.definitions: dict[int, str] = {}
+        for node in ast.walk(tree):
+            if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                first = min([node.lineno, *(decorator.lineno for decorator in node.decorator_list)])
+                self.definitions[first] = "".join(lines[first - 1:node.end_lineno])
+
+    def source(self, function) -> str:
+        """The function's source: its definition's lines, or for a lambda, what inspect reads."""
+        found = self.definitions.get(function.__code__.co_firstlineno)
+        if found is not None:
+            return found
+        try:
+            return inspect.getsource(function)
+        except (OSError, TypeError):
+            return ""
 
 
 def _names(code) -> set[str]:
