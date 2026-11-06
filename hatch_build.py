@@ -64,7 +64,8 @@ def pinned_files(package: Path, files: list[str], work: Path, run=subprocess.run
     to, at the versions the lockfile of ``package`` pins, into ``work``; the node_modules folder.
 
     Only those packages' own tarballs are fetched (one ``npm pack``, from npm's cache where it has
-    them), not their dependencies, and each is checked against the lockfile's integrity."""
+    them), not their dependencies, and each is checked against the lockfile's integrity, whole, before
+    the listed files are extracted from it as a stream."""
     lockfile = package / "package-lock.json"
     remedy = f"install Node.js and check that npm reaches its registry, then build again; {lockfile} pins it"
     pinned = _lockfile_packages(lockfile)
@@ -92,15 +93,18 @@ def pinned_files(package: Path, files: list[str], work: Path, run=subprocess.run
             raise BuildError(lockfile, f"packages.node_modules/{name}.integrity",
                              f"the tarball npm fetched, {packed['filename']}, is not the one the lockfile pins",
                              "clear npm's cache with `npm cache clean --force`, then build again")
-        with tarfile.open(fileobj=io.BytesIO(tarball), mode="r:gz") as archive:
-            members = {member.name.removeprefix("package/"): member for member in archive.getmembers()
-                       if member.isfile()}
-            for file in files:
-                member = members.get(file.removeprefix(f"{name}/")) if _npm_package(file) == name else None
-                if member is not None:
+        wanted = {file.removeprefix(f"{name}/"): file for file in files if _npm_package(file) == name}
+        # A stream, read only as far as the last listed file: the members it does not ship are
+        # neither indexed nor extracted (mermaid's LICENSE is its last member, so it is inflated whole).
+        with tarfile.open(fileobj=io.BytesIO(tarball), mode="r|gz") as archive:
+            for member in archive:
+                file = wanted.pop(member.name.removeprefix("package/"), None) if member.isfile() else None
+                if file is not None:
                     target = installed / file
                     target.parent.mkdir(parents=True, exist_ok=True)
                     target.write_bytes(archive.extractfile(member).read())
+                    if not wanted:
+                        break
     return installed
 
 

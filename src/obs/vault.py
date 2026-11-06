@@ -878,6 +878,21 @@ def _block_node() -> Draft202012Validator:
     return Draft202012Validator({**schema["$defs"]["blockNode"], "$defs": schema["$defs"]})
 
 
+@cache
+def _block_types() -> frozenset[str]:
+    """The types that key a branch of document.schema.json ($defs/blockNode), each by its ``const`` or
+    ``enum``: a node of any other type matches no branch (src/obs/discriminator.py)."""
+    schema = json.loads(Path(__file__).with_name("document.schema.json").read_text(encoding="utf-8"))
+    keys = [branch["properties"]["type"] for branch in schema["$defs"]["blockNode"]["anyOf"]]
+    return frozenset(value for key in keys for value in key.get("enum", [key.get("const")]))
+
+
+def _is_block(node: dict[str, object]) -> bool:
+    """Whether ``node`` is a block node, by the schema; only a node whose type keys a branch is checked."""
+    kind = node.get("type")
+    return isinstance(kind, str) and kind in _block_types() and _block_node().is_valid(node)
+
+
 def _paragraphs(children: list[dict[str, object]]) -> list[dict[str, object]]:
     """A paragraph's inline nodes as paragraphs with each block node between them, never inside
     one; see capabilities/markdown#Document nodes. The text around a block node keeps its
@@ -885,7 +900,7 @@ def _paragraphs(children: list[dict[str, object]]) -> list[dict[str, object]]:
     result: list[dict[str, object]] = []
     run: list[dict[str, object]] = []
     for child in [*children, None]:
-        if child is not None and not _block_node().is_valid(child):
+        if child is not None and not _is_block(child):
             run.append(child)
             continue
         if any(node["type"] != "text" or node["text"].strip() for node in run):
