@@ -163,7 +163,8 @@ definitions alike. Keeping the same fact in two places is an anti-pattern (user,
 - The browser tier needs `OBS_HTML_TEST_NATIVE_BROWSER`
   set to the absolute path of a Chromium or Chrome executable (for example `/usr/bin/chromium`
   or `C:\Program Files\Google\Chrome\Application\chrome.exe`). Playwright's own browser
-  downloads are not used. Unset, its tests skip.
+  downloads are not used. Unset, its tests skip; set to a browser that cannot start, they
+  fail with a message from `test/test_authored_artifact_browser.py` naming it.
 - Unit, dom and browser tiers run without a paired checkout: representative data comes from
   small vendored fixtures under `test/fixtures`.
 - Tests that call a paired application are e2e, including data it reads through
