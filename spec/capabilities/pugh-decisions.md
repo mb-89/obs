@@ -32,7 +32,7 @@ criteria:
 candidates:
   - {key: current, label: Current queue, what: The queue we run today., values: {latency: 12},
      wins: Nothing to migrate.}
-  - {key: managed, label: Managed queue, what: A hosted queue we rent., values: {latency: 14},
+  - {key: managed, label: Managed queue, short: Managed, what: A hosted queue we rent., values: {latency: 14},
      marks: {ops: [2, 1, 2]}, wins: No servers to run., losses: A bill every month.}
 datum: {prefer: [current]}
 checklist:
@@ -41,4 +41,9 @@ checklist:
 ````
 
 The options are lettered A, B, … in the order `candidates` lists them; a checklist item names
-the options it fails by letter.
+the options it fails by letter. An option's `short` name, at most 5 words, follows its letter
+where there is room ("B · Managed").
+
+In a chapter whose main content is the decision, each `##` section after the fence becomes one
+more tab of the figure, named by its heading: `## The record` becomes a tab "The record", and its
+text no longer runs under the one-pager.
