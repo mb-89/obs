@@ -13,6 +13,7 @@ from typing import Callable
 from urllib.parse import unquote, urlparse
 import urllib.request
 
+from jsonschema import Draft202012Validator
 from markdown_it import MarkdownIt
 from markdown_it.token import Token
 from mdit_py_plugins.dollarmath import dollarmath_plugin
@@ -708,12 +709,14 @@ def _blocks(
     result: list[dict[str, object]] = []
     while position < end:
         token = tokens[position]
-        if token.type in {"heading_open", "paragraph_open"}:
+        if token.type == "heading_open":
             result.append({
-                "type": "section" if token.type == "heading_open" else "paragraph",
-                "attrs": {"level": int(token.tag[1:])} if token.type == "heading_open" else {},
+                "type": "section", "attrs": {"level": int(token.tag[1:])},
                 "children": _inline_nodes(tokens[position + 1], context),
             })
+            position = _closing(tokens, position) + 1
+        elif token.type == "paragraph_open":
+            result.extend(_paragraphs(_inline_nodes(tokens[position + 1], context)))
             position = _closing(tokens, position) + 1
         elif token.type in {"bullet_list_open", "ordered_list_open"}:
             closing = _closing(tokens, position)
@@ -760,6 +763,31 @@ def _blocks(
             position += 1
         else:
             position += 1
+    return result
+
+
+@cache
+def _block_node() -> Draft202012Validator:
+    """Whether a node is a block node; document.schema.json ($defs/blockNode) owns the list."""
+    schema = json.loads(Path(__file__).with_name("document.schema.json").read_text(encoding="utf-8"))
+    return Draft202012Validator({**schema["$defs"]["blockNode"], "$defs": schema["$defs"]})
+
+
+def _paragraphs(children: list[dict[str, object]]) -> list[dict[str, object]]:
+    """A paragraph's inline nodes as paragraphs with each block node between them, never inside
+    one; see capabilities/markdown#Document nodes. The text around a block node keeps its
+    authored characters; a paragraph left with only whitespace is dropped."""
+    result: list[dict[str, object]] = []
+    run: list[dict[str, object]] = []
+    for child in [*children, None]:
+        if child is not None and not _block_node().is_valid(child):
+            run.append(child)
+            continue
+        if any(node["type"] != "text" or node["text"].strip() for node in run):
+            result.append({"type": "paragraph", "attrs": {}, "children": run})
+        run = []
+        if child is not None:
+            result.append(child)
     return result
 
 

@@ -82,10 +82,7 @@ def test_the_register_example_carries_its_companion_base_and_view(tmp_path: Path
     ]
     assert companions, f"Register example at {place} names no companion .base file."
     document = _read(tmp_path, example, companions)
-    [register] = [
-        node for paragraph in document["chapters"][0]["content"] if paragraph["type"] == "paragraph"
-        for node in paragraph["children"] if node["type"] == "registers"
-    ]
+    [register] = [node for node in document["chapters"][0]["content"] if node["type"] == "registers"]
     assert register["attrs"]["base"] == yaml.safe_load(next(iter(companions.values())))
     assert register["attrs"]["base"]["views"][register["attrs"]["view"]]["name"] == register["attrs"]["heading"]
     assert register["attrs"]["rows"] == [[]]
