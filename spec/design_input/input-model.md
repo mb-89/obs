@@ -861,6 +861,16 @@ Implementation decisions, same date:
   number keeps its link. A run of three or more numbers in the same chapter that increase by
   one renders as first–last, linking both ends.
 
+Core and adapter, 6 Nov 2026:
+
+- The core resolves a block link written as a wikilink (`[[#^name]]`, `[[note#^name]]`) to the
+  figure that carries the block id, as [[capabilities/wikilinks]] owns; an unknown block id and
+  a block id two figures of one note carry are build errors that name the note and the link or
+  figure. The Markdown form `[](note.md#^name)` is not yet a reference the core resolves.
+- The adapter numbers the figures, shows the number, renders a reference as the figure's label
+  and number and merges adjacent references; the error for an unlabelled reference to an
+  unnumbered figure is the adapter's, since only it knows numbers.
+
 Confirmed defaults, same date:
 
 - Numbering stays off unless the manifest sets it (documents opt in, nodes sets `chapter`):
