@@ -21,3 +21,16 @@ def test_quality_glossary_alone_defines_the_vocabulary() -> None:
         redefined = [term for term in DEFINITION.findall(path.read_text(encoding="utf-8"))
                      if term.lower() in terms]
         assert redefined == [], f"{path}: link [[quality#Glossary]] instead of defining {redefined}"
+
+
+def test_quality_names_the_one_selection_resolver() -> None:
+    """Every count, distinct value and drill-down calls one resolver per runtime (issue: one rule
+    set); quality.md names the core's, an adapter's specification its runtime's."""
+    import obs.selection
+
+    quality = (ROOT / "spec" / "design_input" / "quality.md").read_text(encoding="utf-8")
+    ownership = quality.split("\n## Knowledge ownership\n", 1)[1].split("\n## ", 1)[0]
+    rule = " ".join(next(item for item in ownership.split("\n- ") if "selection resolver" in item).split())
+    assert "`obs.selection.note_value`" in rule and callable(obs.selection.note_value)
+    assert "[[capabilities/bases#Comparisons]]" in rule
+    assert "adapter's specification" in rule
