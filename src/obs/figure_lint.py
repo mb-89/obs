@@ -2,8 +2,8 @@
 (input-model, Figure captions and references). It reads a note's Markdown tokens and returns
 warnings; it never changes the Document.
 
-Every figure has a caption inside the figure: a `figure` fence without `caption` warns, and so
-does an image alone in its paragraph (an image file; `![...]` of another file is an attachment). A paragraph directly before or after a figure that acts as
+Every figure has a caption inside the figure and a block id: a `figure` fence without `caption`
+or without a `^name` line after it warns, and an image alone in its paragraph warns (an image file; `![...]` of another file is an attachment). A paragraph directly before or after a figure that acts as
 its caption (italic-only, or starting with a figure label and a number) warns. Prose that names a
 figure by label and number warns and suggests the block link of the figure it most likely means:
 the core knows no numbers, so that is the note's figure at the position the number's last
@@ -86,6 +86,9 @@ def figure_warnings(tokens: Sequence[Token], line: Callable[[int], int | None],
     for position, block in fences:
         if not _caption(tokens[position].content):
             warn(tokens[position], "figure without caption. Add a caption to the figure fence")
+        if block is None:
+            warn(tokens[position], "figure without block id. Add a line ^name after the fence so "
+                                   "references can link it")
         neighbours.append((position - 1, position + (4 if block is not None else 1)))
     for index, token in enumerate(tokens):
         children = token.children or []

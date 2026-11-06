@@ -868,11 +868,12 @@ Implementation decisions, same date:
 
 Core and adapter, 6 Nov 2026:
 
-- The core resolves a block link written as a wikilink (`[[#^name]]`, `[[note#^name]]`) to the
-  figure that carries the block id, as [[capabilities/wikilinks]] owns; an unknown block id and
-  a block id two figures of one note carry are build errors that name the note and the link or
-  figure. The Markdown form `[](note.md#^name)` is not yet a reference the core resolves.
-- The core runs the figure lint on every build: a figure fence without caption, an image file
+- The core resolves a block link, written as a wikilink (`[[#^name]]`, `[[note#^name]]`) or in
+  the Markdown form (`[](note.md#^name)`, `[label](note.md#^name)`), to the figure that carries
+  the block id, as [[capabilities/wikilinks]] owns; an unknown block id and a block id two
+  figures of one note carry are build errors that name the note and the link or figure.
+- The core runs the figure lint on every build: a figure fence without caption, a figure fence
+  without block id (its remedy names the `^name` line, so a reference can be offered), an image file
   alone in its paragraph (`![...]` of another file is an attachment), a caption outside the
   figure and a typed figure number, each a Document diagnostic with its note line. It knows no
   numbers and reads no adapter's options: typed numbers are recognised after the labels of the

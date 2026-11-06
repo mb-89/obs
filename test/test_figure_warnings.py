@@ -1,5 +1,5 @@
-"""The figure lint runs in the core: a figure without a caption, a caption outside its figure and
-a typed figure number are source-located warnings in the Document's diagnostics, which every
+"""The figure lint runs in the core: a figure without a caption, a figure without a block id, a
+caption outside its figure and a typed figure number are source-located warnings in the Document's diagnostics, which every
 build prints (input-model, Figure captions and references).
 
 Reader: whoever changes the figure lint.
@@ -42,6 +42,15 @@ def test_a_figure_without_caption_and_a_lone_image_warn_at_their_line(tmp_path) 
     assert "kind: image, source: img.svg" in found[1]
 
 
+def test_a_figure_without_block_id_warns_at_its_line_and_suggests_a_block_id_line(tmp_path) -> None:
+    found = warnings(tmp_path, figure() + figure(None) + "![Drawing](img.svg)\n")
+
+    assert [message.split(": ", 1)[0] for message in found] == ["one.md:14", "one.md:21"]
+    assert "^name" in found[0]  # The remedy: a ^name line after the fence.
+    assert "img.svg" in found[1]  # The lone image gets only its own warning.
+    assert all(message.endswith(f"{OWNER}.") for message in found)
+
+
 def test_a_caption_outside_the_figure_warns_once(tmp_path) -> None:
     found = warnings(tmp_path, "*The drawing.*\n\n" + figure() + "Figure 1: the drawing.\n\nProse after.\n")
 
@@ -53,10 +62,11 @@ def test_a_typed_figure_number_suggests_the_block_link_of_the_figure_at_that_pos
     found = warnings(tmp_path, figure("a") + figure("b") + figure(None) + "As Fig. 2 and Abb. 1.3 show, "
                      "see `Figure 4`.\n\n" + figure("c", "Unlike Figure 9."))
 
-    assert [message.split(": ", 1)[0] for message in found] == ["one.md:29", "one.md:29", "one.md:31"]
-    assert "[[#^b]]" in found[0]
-    assert "line 22" in found[1]  # The third figure has no block id: the suggestion adds one.
-    assert "[[#^" in found[2]
+    assert [message.split(": ", 1)[0] for message in found] == ["one.md:22", "one.md:29", "one.md:29", "one.md:31"]
+    assert "^name" in found[0]  # The third figure has no block id.
+    assert "[[#^b]]" in found[1]
+    assert "line 22" in found[2]  # The third figure has no block id: the suggestion adds one.
+    assert "[[#^" in found[3]
     assert all(message.endswith(f"{OWNER}.") for message in found)
 
 
