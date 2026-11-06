@@ -736,6 +736,11 @@ remedy. A kind's own options sit beside them in the fence. The kinds and their c
   JSON file; inline `content` is the same mapping.
 - `plot`: a stored-data plot, a FigureDescriptor (below). `source` names the descriptor's JSON
   file; inline `content` is the same mapping.
+- `mermaid` and `plantuml`: a diagram in that language ([[capabilities/mermaid]],
+  [[capabilities/plantuml]]). `source` names its `.mmd` or `.puml` file; inline `content` is
+  the diagram's text. A plain ```` ```mermaid ```` or ```` ```plantuml ```` fence, as Obsidian
+  shows it, is a figure of that kind without caption, alt or block id, and its whole text is the
+  content.
 
 An optional `caption` supplies visible figure prose; omission renders no caption or placeholder.
 
@@ -746,6 +751,19 @@ inline and external content give the same node, and no kind repeats a shared att
 figure's number is not in the node: numbering is an adapter's presentation decision (below).
 The kinds are one registry, `FIGURE_KINDS` in `src/obs/figure.py`: adding a kind is one entry
 there (its parser) and one body schema in `src/obs/document.schema.json` (`$defs/figureBodies`).
+
+A diagram becomes SVG when the core builds the Document, on the build machine and with no
+network: the core runs the diagram's library (Mermaid, or PlantUML's JavaScript build) in a
+local headless browser, the one the project's tests already use, and refuses every request
+the library makes. The libraries are pinned in `src/obs/diagrams/package-lock.json` and
+installed from it with `npm --prefix src/obs/diagrams ci`; the build never fetches them. The
+figure's body holds the diagram's text as authored, for review, and the SVG, which every
+adapter shows as the figure's picture, so none needs a diagram library and print shows the
+same drawing. The same text gives the same SVG, whether inline or from a file. A diagram its
+library cannot read is an input error that names the note, the note's line the library names
+(for a `source` file: the fence's line and the file's line) and the library's own message; a
+build without the libraries installed, or without a browser, is an input error that names the
+note, the fence's line and the install command. No diagram is ever an empty figure.
 
 Paths are relative to the note, confined to the vault, and files are read-only
 inputs. Rendering/checking never runs

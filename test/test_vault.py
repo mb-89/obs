@@ -87,7 +87,9 @@ def additional_capability_vault(tmp_path) -> Path:
         '"label": "Time"}]}], '
         '"provenance": {"command": ["generate-figure"]}}\n'
         "```\n\n"
-        "```property-editor\nversion: 1\nfield: source\nlabel: Source\n```\n",
+        "```property-editor\nversion: 1\nfield: source\nlabel: Source\n```\n\n"
+        "```mermaid\ngraph LR\n  Open --> Done\n```\n\n"
+        "```plantuml\n@startuml\nOpen -> Done\n@enduml\n```\n",
         encoding="utf-8",
     )
     return vault
@@ -334,16 +336,17 @@ def test_core_emits_data_only_nodes_for_additional_input_capabilities(tmp_path) 
     assert [node["type"] for node in emitted] == [
         "markdown-frontmatter", "profiles", "quantities", "queries", "count-query",
         "references", "chapter-inclusion", "markdown", "attachments", "registers",
-        "cards-metrics", "figures", "property-editors",
+        "cards-metrics", "figures", "property-editors", "figures", "figures",
     ]
-    assert emitted[-2]["children"][0]["attrs"]["descriptor"]["id"] == "comparison"
-    assert emitted[-1]["attrs"] == {
+    assert emitted[-4]["children"][0]["attrs"]["descriptor"]["id"] == "comparison"
+    assert [node["attrs"]["kind"] for node in emitted[-2:]] == ["mermaid", "plantuml"]
+    assert emitted[-3]["attrs"] == {
         "source": "version: 1\nfield: source\nlabel: Source\n",
         "spec": {"version": 1, "field": "source", "label": "Source"}, "writes": ["source"],
     }
     assert {
         "attachments", "cards-metrics", "count-query", "figures",
-        "markdown-frontmatter", "profiles", "property-editors", "quantities", "queries",
+        "markdown-frontmatter", "mermaid", "plantuml", "profiles", "property-editors", "quantities", "queries",
         "references", "registers",
     } <= set(document["capabilities"])
 
