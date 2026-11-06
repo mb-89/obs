@@ -1168,6 +1168,24 @@ evaluator checks itself against the same file.
   and `\\` escape a literal quote and backslash.
 - The reader may expose frontmatter as derived metadata outside the Markdown body.
 
+#### Long paragraphs
+
+The core warns about a paragraph too long to read in one pass, on every build and `--check`, as
+a Document diagnostic with its note line (`<note>:<line>: long paragraph (...)`). Like the figure
+lint, it never changes the Document, and no adapter writes it into an artifact.
+
+- The estimate is the interim adapter's, unchanged: the paragraph's text and inline code pieces,
+  joined by spaces and wrapped at `lineCharacters` with Python's `textwrap`, warn above
+  `warningLines` lines.
+- A wikilink counts as what it shows: its label, else the linked note's title, then ` > ` and
+  the heading. Images, math, a Markdown link's target and tables are not prose; neither are a
+  callout's `[!type]` marker and a piece starting with `#mark/`.
+- The home measures only the authored abstract, not the title, subtitle or other metadata. A
+  card body is not a note's own text and is not measured.
+- The numbers are the core configuration's `input.longParagraphs.warningLines` and
+  `input.longParagraphs.lineCharacters`, which `src/obs/config.schema.json` owns. They keep the
+  interim's `artifact.reading` defaults and limits, and belong to the core, which owns the lint.
+
 ### Mark tags
 
 Replaced by callout types (user, 4 Nov 2026; see [Callouts](#callouts)); this section describes
