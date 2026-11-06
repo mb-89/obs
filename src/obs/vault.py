@@ -365,18 +365,18 @@ def _unlisted_chapter(path: Path, vault: _Vault) -> dict[str, object]:
     }
 
 
-def _metadata_links(metadata: object, source_path: Path, vault: _Vault) -> None:
-    """Follow wikilinks and embeds in frontmatter string values."""
+def _metadata_links(metadata: object, source_path: Path, vault: _Vault, name: str = "") -> None:
+    """Follow wikilinks and embeds in frontmatter string values, named by field path as _field_nodes."""
     if isinstance(metadata, dict):
-        for value in metadata.values():
-            _metadata_links(value, source_path, vault)
+        for key, value in metadata.items():
+            _metadata_links(value, source_path, vault, f"{name}.{key}" if name else str(key))
     elif isinstance(metadata, list):
-        for value in metadata:
-            _metadata_links(value, source_path, vault)
+        for index, value in enumerate(metadata):
+            _metadata_links(value, source_path, vault, f"{name}.{index}")
     elif isinstance(metadata, str):
         for match in _SEMANTIC.finditer(metadata):
             if match["target"]:
-                _link(match["target"].strip(), source_path, vault)
+                _link(match["target"].strip(), source_path, vault, field=name)
 
 
 def _select(selects, vault: _Vault) -> None:
@@ -1109,7 +1109,7 @@ def _semantic_text_nodes(text: str, context: _Context) -> list[dict[str, object]
             nodes.append({"type": "text", "attrs": {}, "children": [], "text": text[position:match.start()]})
         value = match.group(0)
         target = (match["target"] or "").strip()
-        resolved = _link(target, source_path, vault, value) if target else None
+        resolved = _link(target, source_path, vault, value, context.field_path) if target else None
         is_base = bool(match["embed"]) and Path(target).suffix == ".base"
         definition: object = None
         if is_base and resolved is None:
@@ -1277,12 +1277,13 @@ def _image_file(src: str, label: str, context: _Context) -> Path | None:
     return path
 
 
-def _link(target: str, source_path: Path, vault: _Vault, syntax: str = "") -> Path | None:
+def _link(target: str, source_path: Path, vault: _Vault, syntax: str = "", field: str = "") -> Path | None:
     """Resolve a link or embed target and include a reached note; warn for a missing note.
 
     Resolution follows input-model ("Remaining chapter content"): source-relative path,
     vault-relative path, then a bare name that matches exactly one non-hidden vault file (a
-    Markdown note by its name, then by its alias). ``syntax`` is the link as written, for errors.
+    Markdown note by its name, then by its alias). ``syntax`` is the link as written, for errors;
+    ``field`` is the dotted frontmatter path of a link in a field value, for its warning.
     """
     syntax = syntax or f"[[{target}]]"
     relative = Path(target)
@@ -1320,7 +1321,7 @@ def _link(target: str, source_path: Path, vault: _Vault, syntax: str = "") -> Pa
     if path is None:
         if relative.suffix == ".md":
             warning = (
-                f"Link target does not exist in {source}: [[{target}]]; "
+                f"Link target does not exist in {source}{f', field {field}' if field else ''}: [[{target}]]; "
                 f"create {relative.as_posix()} in the vault or correct the link."
             )
             if warning not in vault.warnings:

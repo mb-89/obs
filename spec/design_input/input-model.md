@@ -483,7 +483,8 @@ Generation time remains separate from document revision dates.
   A link's `attrs.chapter` names the chapter of its target; a link to the manifest names
   `home`, which no chapter identifier takes. Name lookup skips the manifest. `null` remains
   only for a target that does not exist; the build then warns, naming the source note, the
-  target and the remedy (decided 5 Nov 2026).
+  target and the remedy (decided 5 Nov 2026), and for a link in a frontmatter value also its
+  field, by the dotted path its field node names.
 - Obsidian `aliases` frontmatter supplies alternative names for the same note.
 
   It accepts a
