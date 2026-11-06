@@ -9,7 +9,9 @@ tiers are assigned. A tier's timeout is MULTIPLIER times its slowest test (setup
 teardown) in the complete suite, rounded up to whole tens of seconds. SLOWEST holds those
 measurements, derived at import from the runs test/suite.py recorded on this host (``derive``,
 the last RUNS of each part) and falling back to the committed measurement (COMMITTED) where a
-tier has fewer recorded runs; a loaded host's runs raise its own bounds, and nobody types one. A test past its timeout fails; ``explain`` adds to its report its name, its timeout,
+tier has fewer recorded runs; a loaded host's runs raise its own bounds, and nobody types one.
+The committed measurement caps the derived one at CAP_FACTOR times it: a test past that fails the
+suite (``over_cap``), so a slowly regressing test cannot raise its own timeout. A test past its timeout fails; ``explain`` adds to its report its name, its timeout,
 its tier and this file.
 
 While a test runs, ``running`` names it in the run's folder (the folder test/suite.py makes, in
@@ -34,15 +36,19 @@ COMMITTED = {"unit": 10.9, "dom": 1.9, "browser": 6.0, "e2e": 22.8, "external": 
 # How many of a part's recorded runs (test/suite.py, record_durations) the suite keeps and SLOWEST
 # is derived from.
 RUNS = 10
+# A record-derived slowest test may not exceed this multiple of its tier's committed one; a test
+# past it fails the suite (over_cap), so a slowly regressing test cannot raise its own timeout.
+CAP_FACTOR = 2
 # Each tier's timeout is this multiple of its slowest test: room for a slower machine or a
 # busier run, while a hanging test still fails well before test/suite.py's cap.
 MULTIPLIER = 3
 
 
-def derive(committed: dict[str, float], parts_runs: list[list[dict[str, list]]], runs: int):
+def derive(committed: dict[str, float], parts_runs: list[list[dict[str, list]]], runs: int, factor: float):
     """Each tier's slowest test over each part's last ``runs`` recorded runs (a run maps each test
     to its tier and seconds), and where each came from, "recorded" or "committed". A tier recorded
-    in fewer than ``runs`` runs keeps its committed value where that is slower."""
+    in fewer than ``runs`` runs keeps its committed value where that is slower; no recorded value
+    exceeds ``factor`` times the committed one (over_cap fails the run that records one)."""
     samples = {tier: [] for tier in committed}
     for part_runs in parts_runs:
         for run in part_runs[-runs:]:
@@ -53,11 +59,21 @@ def derive(committed: dict[str, float], parts_runs: list[list[dict[str, list]]],
                 samples.setdefault(tier, []).append(seconds)
     slowest, sources = {}, {}
     for tier, seconds in committed.items():
-        recorded = max(samples[tier], default=0.0)
+        recorded = min(max(samples[tier], default=0.0), factor * seconds)
         enough = len(samples[tier]) >= runs
         slowest[tier] = recorded if enough else max(recorded, seconds)
         sources[tier] = "recorded" if enough or recorded > seconds else "committed"
     return slowest, sources
+
+
+def over_cap(run: dict[str, list], committed: dict[str, float], factor: float) -> list[str]:
+    """For each test of a recorded run slower than ``factor`` times its tier's committed slowest
+    test, a message naming it, its time, the cap and the remedy."""
+    return [f"test/bounds.py: {test} took {seconds} s, over the {tier} tier's cap of {factor * committed[tier]} s "
+            f"(CAP_FACTOR {factor} times COMMITTED {committed[tier]} s). Remedy: find what made it slower and "
+            "make it fast again, or, where it rightly takes longer, measure COMMITTED again by the method its "
+            "comment in test/bounds.py names."
+            for test, (tier, seconds) in sorted(run.items()) if seconds > factor * committed.get(tier, math.inf)]
 
 
 def _recorded_runs() -> list[list[dict[str, list]]]:
@@ -72,7 +88,7 @@ def _recorded_runs() -> list[list[dict[str, list]]]:
 
 
 # Each tier's slowest test, derived from the recorded runs at import, and where it came from.
-SLOWEST, SOURCES = derive(COMMITTED, _recorded_runs(), RUNS)
+SLOWEST, SOURCES = derive(COMMITTED, _recorded_runs(), RUNS, CAP_FACTOR)
 TIMEOUTS = {tier: math.ceil(MULTIPLIER * seconds / 10) * 10 for tier, seconds in SLOWEST.items()}
 # How ``explain`` names where a tier's bound came from (SOURCES).
 EXPLAINED_SOURCES = {"recorded": f"SLOWEST recorded on this host over its last {RUNS} runs, test/suite.py",

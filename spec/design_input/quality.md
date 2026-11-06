@@ -152,7 +152,8 @@ definitions alike. Keeping the same fact in two places is an anti-pattern (user,
 
   Bounds are measured, never typed: each complete-suite run records every passed test's time on
   its host, and a tier's slowest test is the slowest over that host's recent runs, or the
-  committed measurement while the host has too few.
+  committed measurement while the host has too few, which also caps it: a test past a multiple
+  of the committed measurement fails the suite.
 
   The adapter's page pools launch their browsers with an explicit timeout. Where a pool's
   browser dies while a test holds one of its pages, that test fails, "browser crashed", naming
