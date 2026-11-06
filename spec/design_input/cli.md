@@ -27,6 +27,11 @@ where one is wanted. The file is generated beside the package that ships it rath
 ignored like every generated file. uv builds the package again when a capability note changes, and
 a test fails when the shipped reference is stale against the notes.
 
+The Document is an intermediate file most builds never keep: with `--source` and `--adapter` it
+goes to a temporary file the call removes, and `--document` names a file that keeps it. The call
+validates the Document once, as it builds it. `--adapter-config` defaults to `adapters.json` in the
+current folder, the registry at the repository root, so the call runs from there.
+
 A build through the core authorizes command fences once, on the core: `--execute-commands` makes
 the core run the vault's command fences from the vault root and put
 their captured output into the Document; without it, a command fence fails the build naming its

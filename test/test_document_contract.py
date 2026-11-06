@@ -330,3 +330,74 @@ def test_document_rejects_unknown_capability_and_requires_dependency_closure(tmp
 
     with pytest.raises(AdapterError, match="does not support Document capabilities"):
         call_adapter("fixture", configuration, document, tmp_path / "output.txt", reference_path)
+
+
+SPEC_MANIFEST = ROOT / "spec" / "manifest.md"
+# A fixture adapter: writes its arguments and the Document's manifest path to DESTINATION.
+RECORDING_ADAPTER = (
+    "import json, sys; from pathlib import Path; document = json.loads(Path(sys.argv[1]).read_text("
+    "encoding='utf-8')); Path(sys.argv[2]).write_text(json.dumps({'arguments': sys.argv[1:], "
+    "'manifest': document['manifest']['path']}), encoding='utf-8')"
+)
+
+
+def recording_adapter(folder: Path, **declared: object) -> Path:
+    """An adapters.json in ``folder`` registering the recording adapter ``fixture``."""
+    (folder / "adapter.json").write_text(json.dumps({
+        "name": "fixture", "command": [sys.executable, "-c", RECORDING_ADAPTER], "contractVersion": 1,
+        "capabilities": [item["id"] for item in capability_reference()["capabilities"]], **declared,
+    }), encoding="utf-8")
+    configuration = folder / "adapters.json"
+    configuration.write_text(json.dumps({"adapters": {"fixture": "adapter.json"}}), encoding="utf-8")
+    return configuration
+
+
+@pytest.fixture
+def offline_spec_commands(monkeypatch):
+    """The spec's cmd fences echo their command instead of starting it; its remote images are served."""
+    from obs import vault
+
+    monkeypatch.setattr(vault, "run_command", lambda command, cwd, timeout_seconds: f"{command}\n")
+    monkeypatch.setattr(vault, "fetch_remote", lambda url: (b"<svg xmlns='http://www.w3.org/2000/svg'/>",
+                                                             "image/svg+xml"))
+
+
+def test_one_call_builds_the_spec_without_a_capability_reference_or_a_document(
+        tmp_path, monkeypatch, offline_spec_commands) -> None:
+    """The packaged capability reference and a temporary Document; adapters.json in the current folder."""
+    recording_adapter(tmp_path)
+    monkeypatch.chdir(tmp_path)
+    destination = tmp_path / "spec.out"
+
+    assert main(["--source", str(SPEC_MANIFEST), "--adapter", "fixture", "--destination", str(destination),
+                 "--execute-commands"]) == 0
+
+    called = json.loads(destination.read_text(encoding="utf-8"))
+    assert called["manifest"] == "manifest.md"
+    assert called["arguments"][1:] == [str(destination.resolve())]
+    assert not Path(called["arguments"][0]).exists(), "the temporary Document outlives the build"
+
+
+def test_a_given_document_is_kept(tmp_path, monkeypatch) -> None:
+    vault = tmp_path / "vault"
+    vault.mkdir()
+    (vault / "manifest.md").write_text("- [[chapter]]\n", encoding="utf-8")
+    (vault / "chapter.md").write_text("Content.\n", encoding="utf-8")
+    recording_adapter(tmp_path)
+    monkeypatch.chdir(tmp_path)
+
+    assert main(["--source", "vault/manifest.md", "--document", "kept.json", "--adapter", "fixture",
+                 "--destination", "out.json"]) == 0
+
+    assert json.loads((tmp_path / "kept.json").read_text(encoding="utf-8"))["manifest"]["path"] == "manifest.md"
+    assert json.loads((tmp_path / "out.json").read_text(encoding="utf-8"))["arguments"] == [
+        str((tmp_path / "kept.json").resolve()), str((tmp_path / "out.json").resolve())]
+
+
+def test_a_document_is_required_without_an_adapter(tmp_path) -> None:
+    (tmp_path / "manifest.md").write_text("Text.\n", encoding="utf-8")
+
+    with pytest.raises(SystemExit) as failure:
+        main(["--source", str(tmp_path / "manifest.md")])
+
+    assert "--document" in str(failure.value.code)

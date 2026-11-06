@@ -3,6 +3,8 @@ import argparse
 import json
 import subprocess
 import sys
+import tempfile
+from contextlib import ExitStack
 from pathlib import Path
 from typing import Sequence
 
@@ -107,15 +109,25 @@ def read_document(path: Path, reference: dict[str, object]) -> dict[str, object]
 
 def write_document(document: dict[str, object], path: Path, reference: dict[str, object]) -> None:
     validate_document(document, reference)
+    _write(document, path)
+
+
+def _write(document: dict[str, object], path: Path) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(document, indent=2) + "\n", encoding="utf-8")
 
 
 def call_adapter(adapter_name: str, configuration_path: Path, document_path: Path,
                  destination: Path, capability_reference_path: Path) -> None:
-    adapter = load_adapter(adapter_name, configuration_path)
     reference = read_capability_reference(capability_reference_path)
-    document = read_document(document_path, reference)
+    _deliver(adapter_name, configuration_path, read_document(document_path, reference), document_path,
+             destination, reference)
+
+
+def _deliver(adapter_name: str, configuration_path: Path, document: dict[str, object], document_path: Path,
+             destination: Path, reference: dict[str, object]) -> None:
+    """Start the adapter on the validated ``document``, which ``document_path`` holds."""
+    adapter = load_adapter(adapter_name, configuration_path)
     if adapter["contractVersion"] != document["schemaVersion"]:
         raise AdapterError(
             f"Adapter {adapter_name!r} contract version {adapter['contractVersion']} does not "
@@ -157,12 +169,20 @@ def _capability_closure(requested: set[str], reference: dict[str, object]) -> se
     return required
 
 
+ADAPTER_CONFIGURATION = "adapters.json"
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="obs-document",
         description="Validate a JSON Document and deliver it to a configured adapter.",
+        epilog="One-call build: obs-document --source spec/manifest.md --adapter html "
+               "--destination out.html --execute-commands",
     )
-    parser.add_argument("--document", type=Path, required=True, help="JSON Document to read or write.")
+    parser.add_argument("--document", type=Path,
+                        help="JSON Document to read, or to write from --source; with --source and "
+                             "--adapter it is optional, and without it the Document is a temporary "
+                             "file the build removes.")
     parser.add_argument("--source", type=Path, help="Manifest note to parse into --document.")
     parser.add_argument("--config", type=Path, help="Core configuration JSON for --source.")
     parser.add_argument("--execute-commands", action="store_true",
@@ -171,7 +191,9 @@ def build_parser() -> argparse.ArgumentParser:
                              "whose captured output the Document carries. Review the commands "
                              "first; without this a cmd fence fails the build.")
     parser.add_argument("--adapter", help="Configured adapter name.")
-    parser.add_argument("--adapter-config", type=Path, help="Adapter configuration JSON.")
+    parser.add_argument("--adapter-config", type=Path, default=Path(ADAPTER_CONFIGURATION),
+                        help=f"Adapter configuration JSON (default: {ADAPTER_CONFIGURATION} in the "
+                             "current folder).")
     parser.add_argument("--capability-reference", type=Path, default=PACKAGED_CAPABILITY_REFERENCE,
                         help="Capability reference JSON (default: the one this package ships, "
                              "generated from spec/capabilities when it was built).")
@@ -182,24 +204,35 @@ def build_parser() -> argparse.ArgumentParser:
 def main(argv: Sequence[str] | None = None) -> int:
     options = build_parser().parse_args(argv)
     try:
+        if options.execute_commands and not options.source:
+            raise DocumentError("--execute-commands is only used with --source.")
+        if options.adapter and options.destination is None:
+            raise DocumentError("--destination is missing: --adapter writes the artifact there. "
+                                "Name the output file with --destination.")
+        if options.document is None and not (options.source and options.adapter):
+            raise DocumentError("--document is missing: without --source it is the Document to read, and "
+                                "--source without --adapter writes it. Name the JSON Document with --document, "
+                                "or build an artifact with --adapter and --destination.")
+        if not options.source and not options.adapter:
+            raise DocumentError("--adapter is required when --source is not supplied.")
         reference = read_capability_reference(options.capability_reference)
-        if options.source:
-            document = build_document(options.source, reference, options.config,
-                                      options.execute_commands)
+        with ExitStack() as stack:
+            if not options.source:
+                call_adapter(options.adapter, options.adapter_config, options.document, options.destination,
+                             options.capability_reference)
+                return 0
+            document = build_document(options.source, reference, options.config, options.execute_commands)
             for diagnostic in document["diagnostics"]:
                 if diagnostic["level"] == "warning":
                     print(f"obs-document: warning: {diagnostic['message']}", file=sys.stderr)
-            write_document(document, options.document, reference)
-        elif options.execute_commands:
-            raise DocumentError("--execute-commands is only used with --source.")
-        if not options.adapter:
-            if options.source:
-                return 0
-            raise DocumentError("--adapter is required when --source is not supplied.")
-        if options.adapter_config is None or options.destination is None:
-            raise DocumentError("--adapter-config and --destination are required with --adapter.")
-        call_adapter(options.adapter, options.adapter_config, options.document, options.destination,
-                     options.capability_reference)
+            document_path = options.document
+            if document_path is None:
+                folder = stack.enter_context(tempfile.TemporaryDirectory(prefix="obs-document-"))
+                document_path = Path(folder) / "document.json"
+            _write(document, document_path)  # build_document validated it.
+            if options.adapter:
+                _deliver(options.adapter, options.adapter_config, document, document_path,
+                         options.destination, reference)
     except (AdapterError, DocumentError) as error:
         raise SystemExit(f"obs-document: {error}") from error
     return 0
