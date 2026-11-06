@@ -158,12 +158,8 @@ definitions alike. Keeping the same fact in two places is an anti-pattern (user,
 - Structure tests, which check what a spec note owns and where it points, live in
   `test/structure/test_<note>.py`, one file per note, so changes to different notes touch
   different test files.
-- A bare `uv run pytest`, and so the complete suite, runs the unit and dom tiers and every
-  browser or e2e test that does not reach the interim adapter.
-
-  The interim adapter's browser and e2e tests run only with `uv run pytest --gate`: the adapter's parity gate
-  compares the interim adapter, and the cutover removes them with it. `test/tiers.py` decides
-  what reaches the interim adapter from the same source evidence as the tiers.
+- A bare `uv run pytest`, and so the complete suite, runs every tier except external, which
+  needs inputs from outside the repository and runs only when selected with `-m external`.
 - The browser tier needs `OBS_HTML_TEST_NATIVE_BROWSER`
   set to the absolute path of a Chromium or Chrome executable (for example `/usr/bin/chromium`
   or `C:\Program Files\Google\Chrome\Application\chrome.exe`). Playwright's own browser

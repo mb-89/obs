@@ -7,12 +7,10 @@ license = "MIT"
 license-files = ["LICENSE"]
 dependencies = [
     "jsonschema>=4.26.0",
-    "latex2mathml>=3.81.1",
     "markdown-it-py>=4.2.0",
     "mdit-py-plugins>=0.6.1",
     "pint>=0.25.3",
     "playwright>=1.64.0",
-    "pypdf>=6.21.2",
     "pyyaml>=6.0.3",
     "sympy>=1.14.0",
 ]
@@ -22,7 +20,6 @@ dependencies = [
 Repository = "https://github.com/mb-89/obs"
 
 [project.scripts]
-obs-html-interim = "obs_html_interim.cli:main"
 obs-document = "obs.document:main"
 
 [dependency-groups]
@@ -52,7 +49,7 @@ requires = ["hatchling", "pyyaml"]
 build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/obs_html_interim", "src/obs"]
+packages = ["src/obs"]
 
 [tool.hatch.build.targets.wheel.hooks.custom]
 # hatch_build.py: the packaged capability reference, src/obs/capability-reference.json, and the
@@ -63,8 +60,8 @@ directory = "data/data_output/dist"
 
 [tool.pytest.ini_options]
 testpaths = ["test"]
-# Tiers are assigned in test/conftest.py. A bare `pytest` runs unit and dom; naming files
-# runs every tier in them; `pytest --gate` runs everything except external.
+# Tiers are assigned in test/conftest.py (test/tiers.py). A bare `pytest` runs every tier except
+# external, which runs only when selected with -m external; naming a test runs it whatever its tier.
 markers = [
     "unit: in-process Python checks",
     "dom: Node.js + linkedom DOM contract checks",
@@ -72,8 +69,3 @@ markers = [
     "e2e: external integration, reproduction, PowerShell, or real browser pickers",
     "external: needs data outside both repositories; runs only when selected with -m external",
 ]
-
-[tool.obs-html.vendor]
-js-yaml = "4.1.1"
-pdf-lib = "1.17.1"
-plotly-basic = "2.35.3"

@@ -473,18 +473,6 @@ def test_an_unreadable_fence_names_the_note_and_the_fence(tmp_path, fence, expec
     assert re.match(re.escape(f"{tmp_path / 'chapter.md'}: ") + expected, message, re.DOTALL), message
 
 
-def test_the_adapter_names_a_nested_cards_fence_by_note_fence_and_card() -> None:
-    from obs_html_interim.cards import parse_card_spec as parse_adapter_cards
-
-    body = "```cards\\n{}\\n```"
-    text = f'{{"version": 1, "cards": [{{"title": "T", "body": "{body}", "metrics": []}}]}}'
-
-    assert _error_message(lambda: parse_adapter_cards(text, "note.md")) == (
-        "note.md: cards fence, cards[0].body: contains a nested cards fence. Move the inner cards "
-        "fence out of the card body; see capabilities/cards-metrics."
-    )
-
-
 @pytest.mark.parametrize("document", [True, False])
 def test_a_boolean_document_profile_is_accepted(tmp_path, document) -> None:
     validate_note_profile({"obs": {"document": document}}, tmp_path / "chapter.md")
