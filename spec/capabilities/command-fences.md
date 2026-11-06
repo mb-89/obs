@@ -67,5 +67,4 @@ encoding), where they are set; a command that needs more sets it itself.
 
 The core then checks the finished output for the vault root and the home folder and fails naming
 the fence's note; a hit is an obs defect to report, not an authoring error. Adapters check their
-finished artifact for what authored content may expose (the HTML adapter: its README, section
-"Command fences").
+finished artifact for what authored content may expose, each as its own specification says.

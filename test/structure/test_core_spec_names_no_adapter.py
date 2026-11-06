@@ -23,6 +23,8 @@ TERMS = re.compile(
     r"|dock menu|notice center|reading shell",
     re.IGNORECASE,
 )
+# An output format, matched in its exact case so paths such as `adapters/html` stay allowed.
+FORMATS = re.compile(r"\bHTML\b")
 
 # (note, line text) pairs allowed to name a term, each with its reason.
 ALLOWED = {
@@ -31,6 +33,22 @@ ALLOWED = {
     ("spec/manifest.md", "obsHtml:"),
     # The core suite's browser variable, a name in the core's tests (test/browser_pool.py).
     ("spec/design_input/quality.md", "- The browser tier needs `OBS_HTML_TEST_NATIVE_BROWSER`"),
+    # HTML as input: what authors and imported sources may write, which the core reads or refuses.
+    # No output format is named.
+    ("spec/design_input/input-model.md",
+     "HTML-style Markdown authoring comments (`<!-- ... -->`), including multiline comments,"),
+    ("spec/design_input/input-model.md",
+     "links and table structure, including supported entity-escaped HTML. Use the existing"),
+    ("spec/design_input/input-model.md",
+     "safe content-rendering boundary; never enable arbitrary source HTML or execute"),
+    ("spec/design_input/input-model.md",
+     "as HTML. Unsupported or malformed content remains safely readable without silently"),
+    ("spec/design_input/input-model.md",
+     "not silently discarded prose. This is artifact layout syntax, not source-authored HTML"),
+    ("spec/design_input/input-model.md",
+     "files use octet-stream, never an executable HTML/script media type. This keeps supplied"),
+    ("spec/design_input/input-model.md",
+     "attachment links are allowed; this does not enable raw HTML or HTML/script data URLs."),
 }
 
 
@@ -44,7 +62,7 @@ def adapter_statements() -> list[str]:
     for path in core_notes():
         relative = path.relative_to(ROOT).as_posix()
         for number, line in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):
-            for match in TERMS.finditer(line):
+            for match in [*TERMS.finditer(line), *FORMATS.finditer(line)]:
                 if (relative, line.strip()) in ALLOWED:
                     continue
                 found.append(
