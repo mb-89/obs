@@ -134,3 +134,14 @@ def test_adapter_notes_can_depend_on_a_supplied_reference(tmp_path) -> None:
     reference = build_capability_reference(notes, references=[external])
 
     assert reference["capabilities"][0]["dependsOn"] == ["manifest"]
+
+
+def test_the_packaged_capability_reference_is_current_with_the_capability_notes() -> None:
+    """The build writes it from spec/capabilities (hatch_build.py); `uv sync` writes it again."""
+    from importlib.resources import files
+
+    packaged = json.loads(files("obs").joinpath("capability-reference.json").read_text(encoding="utf-8"))
+
+    assert packaged == build_capability_reference(CAPABILITIES, CAPABILITIES / "coverage.json"), (
+        "src/obs/capability-reference.json is stale against spec/capabilities; remedy: uv sync "
+        "--reinstall-package obs, which writes it again from the notes (hatch_build.py)")
