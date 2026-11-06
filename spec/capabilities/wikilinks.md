@@ -22,5 +22,6 @@ See [[chapter#Details]].
 
 A `wikilinks` node keeps the `target`, `heading` and `label` as authored and adds `chapter`: the
 id of the included chapter the target resolves to, or `null` when the note is outside the
-manifest. Adapters link by `chapter` and never derive it from `target`. The node's attributes
+manifest. This holds wherever the node sits, in chapter content or in a field node of a note
+record ([[capabilities/bases#Note records]]). Adapters link by `chapter` and never derive it from `target`. The node's attributes
 are defined by `src/obs/document.schema.json`.

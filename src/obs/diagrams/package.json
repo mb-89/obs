@@ -1,0 +1,8 @@
+{
+  "private": true,
+  "description": "The diagram renderers the core runs in a local browser at build time (src/obs/diagram.py); installed with npm ci, never fetched while building.",
+  "dependencies": {
+    "@plantuml/core": "1.2026.9",
+    "mermaid": "11.17.2"
+  }
+}

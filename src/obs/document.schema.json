@@ -42,8 +42,9 @@
       ]
     },
     "blockNode": {
-      "description": "A block node: never a paragraph's child, always its sibling (capabilities/markdown#Document nodes). An embed is a block node unless it names an asset.",
+      "description": "A block node: never a paragraph's child, always its sibling (capabilities/markdown#Document nodes). An embed is a block node unless it names an asset. Each branch is keyed by type, so a paragraph's children are checked by their types (src/obs/discriminator.py).",
       "required": ["type"],
+      "discriminator": {"propertyName": "type"},
       "anyOf": [
         {"properties": {"type": {"enum": [
           "section", "paragraph", "list", "list-item", "quote", "table", "table-row", "table-cell", "rule",
@@ -53,7 +54,9 @@
       ]
     },
     "node": {
+      "description": "A Document node. Its type selects the one allOf clause keyed by that type (if.properties.type), by lookup (src/obs/discriminator.py); a type no clause names has no rule beyond these properties.",
       "type": "object", "additionalProperties": false, "required": ["type", "attrs", "children"],
+      "discriminator": {"propertyName": "type"},
       "properties": {
         "type": {"$ref": "#/$defs/id"},
         "attrs": {"type": "object"},
@@ -289,6 +292,8 @@
         "type": "object", "additionalProperties": false, "required": ["descriptor"],
         "properties": {"descriptor": {"$ref": "figure.schema.json"}}
       },
+      "mermaid": {"$ref": "#/$defs/diagramBody"},
+      "plantuml": {"$ref": "#/$defs/diagramBody"},
       "equations": {
         "description": "An equation figure (capabilities/equation-figures; input-model, Equation figures): its equations, variables and unknowns, the solution or the system to solve numerically, and the initial plot. Every expression is a $defs/expression tree evaluated with SI values.",
         "type": "object", "additionalProperties": false, "required": ["equations", "variables", "unknowns", "solution", "plot"],
@@ -357,6 +362,14 @@
             }
           }
         }
+      }
+    },
+    "diagramBody": {
+      "description": "A diagram figure: its text as authored, kept for review, and the SVG the core drew from it at build time (input-model, Figure input direction), so no adapter needs the diagram's library.",
+      "type": "object", "additionalProperties": false, "required": ["source", "svg"],
+      "properties": {
+        "source": {"description": "The diagram's text in its language.", "type": "string", "minLength": 1},
+        "svg": {"description": "The drawing's SVG markup.", "type": "string", "minLength": 1}
       }
     },
     "expression": {
