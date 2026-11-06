@@ -47,15 +47,18 @@ LOCKFILES = ("*uv.lock", "*package-lock.json")
 
 
 def source_archive(vault_root: Path, assets: list[dict[str, object]], snippets: list[dict[str, str]],
-                   arguments: Sequence[str], style: dict[str, str] | None = None) -> dict[str, object]:
+                   arguments: Sequence[str], style: dict[str, str] | None = None,
+                   option_files: Sequence[str] = ()) -> dict[str, object]:
     """The Document's ``sourceArchive``: each source file below ``vault_root`` and each CSS snippet
     file, with its bytes or with the id of the asset that already holds them, and the ``build``
     record of the running obs, the call's ``arguments`` that rebuild the artifact and the ``style``
-    the manifest declares (architecture, Declared style)."""
+    the manifest declares (architecture, Declared style). The vault-relative ``option_files`` the
+    call's vault-file options name are source files even where hidden (cli.md, Adapter options)."""
     held = {asset["path"]: asset["id"] for asset in assets if "path" in asset}
     files = []
     paths = _source_paths(vault_root) + [vault_root / snippet["path"] for snippet in snippets]
-    for path in sorted(paths, key=lambda path: path.relative_to(vault_root).as_posix()):
+    paths += [vault_root / name for name in option_files]
+    for path in sorted(set(paths), key=lambda path: path.relative_to(vault_root).as_posix()):
         relative = path.relative_to(vault_root).as_posix()
         if relative in held:
             files.append({"path": relative, "asset": held[relative]})
