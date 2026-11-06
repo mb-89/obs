@@ -22,7 +22,7 @@ from obs.commands import CommandError, run_command
 from obs.config import (
     DEFAULT_COMMAND_TIMEOUT_SECONDS, CoreConfig, CoreConfigError, load_core_config,
 )
-from obs.figure import FIGURE_KINDS, FIGURE_SCHEMA_PATH, FigureContentError
+from obs.figure import FIGURE_KINDS, FIGURE_SCHEMA_PATH, FigureContentError, FigureContext
 from obs.input import (
     ADAPTER_NAMESPACE,
     InputError,
@@ -983,6 +983,11 @@ def _figure(fence: dict[str, object], context: _Context, place: str, opener: int
             body = kind.read(path.read_bytes(), mimetypes.guess_type(path.name)[0])
         else:
             body = kind.read(fence["content"], None)
+        if kind.resolve:
+            body = kind.resolve(body, FigureContext(
+                "source" if "source" in fence else "content", lambda target: _figure_note(target, context),
+                (lambda snippet: _file_line(snippet, path, fence["source"])) if "source" in fence
+                else lambda snippet: _content_line(snippet, context, opener)))
     except FigureContentError as error:
         raise (located(error) if error.reference else fail(error.field, error.problem, error.remedy)) from error
     body |= options
@@ -1011,6 +1016,36 @@ def _figure(fence: dict[str, object], context: _Context, place: str, opener: int
 def _figure_registry() -> Registry:
     return Registry().with_resource(
         FIGURE_SCHEMA_PATH.name, Resource.from_contents(json.loads(FIGURE_SCHEMA_PATH.read_text(encoding="utf-8"))))
+
+
+def _figure_note(target: str, context: _Context) -> tuple[str, dict[str, object]] | None:
+    """The note a figure's link names, validated and included: its vault path and frontmatter."""
+    path = _link(target, context.source_path, context.vault)
+    if path is None or path not in context.vault.notes:
+        return None
+    _validate_note(path, context.vault)
+    return context.vault.relative(path), context.vault.notes[path][0]
+
+
+def _content_line(snippet: str, context: _Context, opener: int) -> str:
+    """Where ``snippet`` first stands in the fence that opens on body line ``opener``, such as
+    "line 12" of the note; empty where it is not found or the text is not the note's own."""
+    if context.first_line is None:
+        return ""
+    rows = read_note(context.source_path).body.splitlines()[context.first_line + opener + 1:]
+    index = _first_row(snippet, rows)
+    return "" if index is None else f"line {_note_line(context, opener + 1 + index)}"
+
+
+def _file_line(snippet: str, path: Path, source: str) -> str:
+    """Where ``snippet`` first stands in a figure's source file, such as "curve.yaml line 3"."""
+    index = _first_row(snippet, path.read_text(encoding="utf-8").splitlines())
+    return "" if index is None else f"{source} line {index + 1}"
+
+
+def _first_row(snippet: str, rows: list[str]) -> int | None:
+    start = snippet.strip().splitlines()[0][:40] if snippet.strip() else ""
+    return next((index for index, row in enumerate(rows) if start and start in row), None)
 
 
 def _note_line(context: _Context, body_line: int) -> int | None:

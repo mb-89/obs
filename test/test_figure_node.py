@@ -34,6 +34,11 @@ DESCRIPTOR = {
     }],
     "provenance": {"command": ["measure"]},
 }
+CURVE = {
+    "equations": "y = a*x",
+    "variables": {"x": {"default": 0, "range": [0, 1]}, "a": {"default": 2}, "y": {}},
+    "plot": {"x": "x", "y": "y"},
+}
 FLOW = "graph LR\n  A --> B\n"
 SEQUENCE = "@startuml\nA -> B\n@enduml\n"
 KINDS = {
@@ -42,6 +47,7 @@ KINDS = {
     "svg": ("panels.svg", SVG, json.dumps(SVG), "panels: [{id: all, title: All, box: [0, 0, 10, 10]}]\n"),
     "sankey": ("flow.json", json.dumps(GRAPH), json.dumps(GRAPH), "countLabels: {unit: items}\n"),
     "plot": ("response.json", json.dumps(DESCRIPTOR), json.dumps(DESCRIPTOR), ""),
+    "equations": ("curve.json", json.dumps(CURVE), json.dumps(CURVE), ""),
     "mermaid": ("flow.mmd", FLOW, json.dumps(FLOW), ""),
     "plantuml": ("sequence.puml", SEQUENCE, json.dumps(SEQUENCE), ""),
 }
@@ -101,6 +107,8 @@ def test_each_kind_carries_its_content_in_its_one_child(tmp_path) -> None:
     assert bodies["sankey"] == {"graph": GRAPH, "countLabels": {"unit": "items"}}
     assert bodies["plot"] == {"descriptor": DESCRIPTOR}
     assert [bodies["mermaid"]["source"], bodies["plantuml"]["source"]] == [FLOW, SEQUENCE]
+    assert bodies["equations"]["solution"]["branches"] == [
+        {"y": {"op": "mul", "args": [{"symbol": "a"}, {"symbol": "x"}]}}]
 
 
 def test_the_kind_registry_and_the_body_schemas_name_the_same_kinds() -> None:

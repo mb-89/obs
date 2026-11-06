@@ -89,7 +89,9 @@ def additional_capability_vault(tmp_path) -> Path:
         "```\n\n"
         "```property-editor\nversion: 1\nfield: source\nlabel: Source\n```\n\n"
         "```mermaid\ngraph LR\n  Open --> Done\n```\n\n"
-        "```plantuml\n@startuml\nOpen -> Done\n@enduml\n```\n",
+        "```plantuml\n@startuml\nOpen -> Done\n@enduml\n```\n\n"
+        "```figure\nversion: 1\nkind: equations\ncontent: {equations: y = a*x, "
+        "variables: {x: {default: 0, range: [0, 1]}, a: {default: 2}, y: {}}, plot: {x: x, y: y}}\n```\n",
         encoding="utf-8",
     )
     return vault
@@ -336,11 +338,11 @@ def test_core_emits_data_only_nodes_for_additional_input_capabilities(tmp_path) 
     assert [node["type"] for node in emitted] == [
         "markdown-frontmatter", "profiles", "quantities", "queries", "count-query",
         "references", "chapter-inclusion", "markdown", "attachments", "registers",
-        "cards-metrics", "figures", "property-editors", "figures", "figures",
+        "cards-metrics", "figures", "property-editors", "figures", "figures", "figures",
     ]
-    assert emitted[-4]["children"][0]["attrs"]["descriptor"]["id"] == "comparison"
-    assert [node["attrs"]["kind"] for node in emitted[-2:]] == ["mermaid", "plantuml"]
-    assert emitted[-3]["attrs"] == {
+    assert emitted[-5]["children"][0]["attrs"]["descriptor"]["id"] == "comparison"
+    assert [node["attrs"]["kind"] for node in emitted[-3:]] == ["mermaid", "plantuml", "equations"]
+    assert emitted[-4]["attrs"] == {
         "source": "version: 1\nfield: source\nlabel: Source\n",
         "spec": {"version": 1, "field": "source", "label": "Source"}, "writes": ["source"],
     }
@@ -681,8 +683,9 @@ def test_core_parses_the_spec_vault_as_neutral_document(tmp_path, spec_document)
         if coverage[item["source"].removesuffix("]]").split("#", 1)[1]] == "input"
     }
     recognized, additional = recognized_capability_document(tmp_path), additional_capability_document(tmp_path)
-    # A capability is emitted as a node type, or, like figure-descriptor, as a contract a node's
-    # body carries (a plot figure's descriptor), which the Document's capabilities list.
+    # A capability is emitted as a node type, or, like figure-descriptor and equation-figures, as
+    # a contract a node's body carries (a plot figure's descriptor, an equation figure's body),
+    # which the Document's capabilities list.
     emitted = types | node_types(recognized) | node_types(additional) | (
         set(recognized["capabilities"]) | set(additional["capabilities"])
     )

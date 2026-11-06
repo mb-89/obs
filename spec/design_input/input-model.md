@@ -747,6 +747,8 @@ remedy. A kind's own options sit beside them in the fence. The kinds and their c
   the diagram's text. A plain ```` ```mermaid ```` or ```` ```plantuml ```` fence, as Obsidian
   shows it, is a figure of that kind without caption, alt or block id, and its whole text is the
   content.
+- `equations`: symbolic equations, their variables and an initial plot ([[#Equation figures]]).
+  `source` names a YAML or JSON file; inline `content` is the same mapping.
 
 An optional `caption` supplies visible figure prose; omission renders no caption or placeholder.
 
@@ -869,30 +871,6 @@ Confirmed defaults, same date:
 - The Sankey option keeps the name `countLabels`: it says what it configures, the words shown
   with record counts, and renaming would only move every author's fence without new meaning.
 
-Equation figures are filed separately and are not yet a kind of the core. The interim
-reference renderer keeps them as `kind: plot` with `fallback` (a vault-relative SVG) and the
-following contract, which the equation kind takes over.
-
-For an equation plot, `domain: [minimum, maximum]`, `samples` (2–2000), ordered `equations`,
-`traces`, and `layout` are authored in the fence. Source JSON binds named finite numbers
-or arrays.
-
-Equations are a bounded arithmetic expression language, not Python execution: numeric
-literals, names, `+ - * / **`, unary signs, and calls to `sqrt`, `exp`, `log`,
-`sf` (standard-normal survival), `sum`, `mean`, and `prod` only. Arrays broadcast against
-scalars; array pairs require identical length.
-
-`x` is the sampled coordinate. Each ordered equation binds one name; source names cannot be
-overwritten. Attributes, indexing,
-comprehensions, strings, keywords, arbitrary calls, and nonfinite results are errors.
-Plot traces name equations and a primary/secondary y axis, color, dash and label.
-
-Optional `at` coordinates (a numeric array or exported array name) sample the same equations
-for markers without duplicating artifact calculations. `mode`, `marker` and `legend` control
-their presentation.
-Layout declares titles, limits, linear/log axes and legend. No executable strings are
-passed to the browser. Print always uses the complete artifact-owned default SVG.
-
 For `svg`, the fence's optional `panels` list (the interim reference renderer reads it from a
 source JSON with `version: 1`) declares per panel `id`, `title`,
 and `box: [x, y, width, height]` in SVG viewBox coordinates. Optional grid/span/aspect/axis
@@ -905,8 +883,7 @@ for engineering geometry, subplot placement, annotation,
 hatching and provenance. Interaction and visual parity are the adapter's.
 
 Python-generated figures follow one producer convention: the artifact-owned script writes the
-exact `<name>.svg` and its `<name>.figure.json` panel sidecar side by side (an ordinary plot
-writes `<name>.parameters.json` for its fence's equations, plus its SVG `fallback`).
+exact `<name>.svg` and its `<name>.figure.json` panel sidecar side by side.
 
 The author places, captions, numbers and references the figure only through the Markdown fence;
 the
@@ -1024,6 +1001,69 @@ The artifact owner defines node labels, stages, record predicates and the unfilt
 derived from its canonical model. Rendering, record selection, artifact-filter integration
 and SVG layout are generic. Conditions are data-only field checks, not query strings or
 executable expressions. Diagram interaction and print behavior are the adapter's.
+
+#### Equation figures
+
+Decided by the user, 5 Nov 2026 (work issue `feature/equation-figures-core-20261105`):
+equations are written as SymPy writes them, every variable has a default value and a range it
+can move in, and the author says which value goes on which axis.
+
+The domains, the equations and the initial plot are fixed in the Document; the plotting
+happens live in the artifact. There are no 3D plots of equations.
+
+An equation figure is a `figure` fence of `kind: equations`. Its content, inline under
+`content` or from a YAML or JSON `source` file, is a mapping:
+
+- `equations`: one equation or a list, in SymPy syntax: `lhs = rhs`, `Eq(lhs, rhs)`, or an
+  expression that equals zero. A derivative is `Derivative(y(t), t)`, `y(t).diff(t)` or `y'`.
+- `variables`: every symbol the equations use, by name. Each is a quantity note's `[[alias]]`
+  (its value is the default; its unit and range come from the note), a mapping with that
+  `quantity` and a `range` of its own, or its own `default`, optional `range` and `unit`.
+- A function, `y` in `y(t)`, names its variable in `of`. Its `initial` lists its value and
+  its derivatives below the equation's order at the start of that variable's range.
+- `unknowns`, optional: the variables the equations determine, one per equation. Without it,
+  they are the plotted `y` entries that are variables of an equation.
+- `plot`: `x`, a variable or an expression of one movable variable, swept over its range (a
+  differential system sweeps its independent variable); `y`, one or more expressions, each a
+  string or `{expression, axis: secondary}`.
+- `plot.family`, optional: one curve per value of a third variable, `{variable, values}`, or
+  `{variable, steps}` for that many values spread evenly over its range.
+- `plot.parallelCoordinates: true`, optional: its axes are the movable variables and the `y`
+  expressions.
+
+Range rule: a variable's range is where it can move. A quantity note's `range` and the fence's
+`range` intersect; with one of them, that one is the range; with neither, the variable is fixed
+at its default and cannot move. An empty intersection, or a default outside the range, is an
+input error that names the note, the fence and the remedy.
+
+The core resolves the symbolics once, with SymPy (`src/obs/equations.py`):
+
+- It parses every equation and refuses an unknown symbol, an undefined function and a function
+  the expression tree has no operator for, naming the note, the equation and its line.
+- It checks dimensions with the quantities' units ([[capabilities/quantities]]): the terms of a
+  sum, both sides of an equation, `Min` and `Max`, and the dimensionless arguments of `exp`,
+  `log` and the trigonometric functions. A mismatch names both quantities.
+- It solves the unknowns where SymPy can: `solve` for algebraic equations, `dsolve` with the
+  initial conditions for differential ones; each solution is one branch.
+- Where it cannot, the Document carries the system for numeric solving: algebraic equations as
+  residuals, with each unknown's `default` as its starting guess.
+- A differential system goes in state form: its independent variable and start, its state
+  (each function and its derivatives below the highest), each state's derivative and the
+  initial state.
+
+The Document carries every equation, solution and plotted expression as a JSON expression tree
+of numbers, variables, derivatives and operators, never a string to execute. Numbers in a tree
+are dimensionless; every variable carries its quantity with SI values (`$defs/quantity`), so a
+tree evaluated with SI values yields SI values.
+
+A tree evaluates in complex arithmetic with principal branches. A result is a point of the
+plot where its imaginary part vanishes, so an exact solution with complex intermediates (an
+underdamped oscillator) plots for every parameter. `src/obs/document.schema.json` owns the tree
+(`$defs/expression`) and the figure's body (`$defs/figureBodies/equations`).
+
+The shared test vectors, `test/fixtures/expression-vectors.json`, hold expression trees,
+variable values and expected results. The core checks them against SymPy; an adapter's live
+evaluator checks itself against the same file.
 
 ### Markdown body and frontmatter
 

@@ -186,9 +186,11 @@ downloads remain distinct from legacy-application navigation.
 ## Safety boundaries
 
 Figure support uses data-only Markdown contracts and a reusable generic presentation/runtime.
-Plot equations, SVG composition, and graph/diagram data remain artifact-owned calculations;
-generic figure infrastructure owns validation, confined inputs, presentation, interaction,
-and optional projection of canonical artifact records through the existing artifact filter.
+SVG composition and graph/diagram data remain artifact-owned calculations; the core resolves
+equation figures ([[input-model#Equation figures]]).
+
+Generic figure infrastructure owns validation, confined inputs, presentation, interaction, and
+optional projection of canonical artifact records through the existing artifact filter.
 
 Dynamic figures reference canonical record fields and never serialize a second copy of the
 record collection. No domain-specific geometry, collision model, named imperfection or trace

@@ -74,7 +74,7 @@ def _combine(operation: str, left: Operand, right: Operand) -> dict[str, object]
                           "Combine quantities that have a value; see capabilities/quantities")
     if left_quantity["dimension"] != right_quantity["dimension"]:
         raise input_error(sources, "unit", f"cannot {operation} {shown[0]} and {shown[1]}: their dimensions "
-                          f"{_shown(left_quantity['dimension'])} and {_shown(right_quantity['dimension'])} differ",
+                          f"{shown_dimension(left_quantity['dimension'])} and {shown_dimension(right_quantity['dimension'])} differ",
                           "Combine only quantities of one dimension, or correct the unit of one note; "
                           "see capabilities/quantities")
     quantities = [_registry().Quantity(quantity["value"], parse_unit(quantity["unit"]))
@@ -89,7 +89,7 @@ def _combine(operation: str, left: Operand, right: Operand) -> dict[str, object]
     return document_quantity({"value": value, "unit": left_quantity["unit"]})
 
 
-def _shown(dimension: dict[str, int | float]) -> str:
+def shown_dimension(dimension: dict[str, int | float]) -> str:
     """A dimension for a message, such as length*time^-1; a plain number is dimensionless."""
     return "*".join(name if power == 1 else f"{name}^{power}" for name, power in dimension.items()) \
         or "dimensionless"
