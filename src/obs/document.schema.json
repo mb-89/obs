@@ -519,13 +519,14 @@
       }
     },
     "sourceBuild": {
-      "description": "What rebuilds the artifact: obs's public repository, the commit of the checkout obs ran from, the package versions of every lockfile Git tracks there by repository-relative path, and the obs-document arguments of the call without the build machine's paths (architecture.md, Source archive).",
+      "description": "What rebuilds the artifact: obs's public repository, the commit of the checkout obs ran from, the package versions of every lockfile Git tracks there by repository-relative path, the obs-document arguments of the call without the build machine's paths and the declared style (architecture.md, Source archive).",
       "type": "object", "additionalProperties": false, "required": ["repository", "commit", "lockfiles", "arguments"],
       "properties": {
         "repository": {"type": "string", "minLength": 1},
         "commit": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
         "lockfiles": {"type": "object", "additionalProperties": {"type": "object", "additionalProperties": {"type": "string"}}},
-        "arguments": {"type": "array", "items": {"type": "string"}, "contains": {"const": "--embed-source"}}
+        "arguments": {"type": "array", "items": {"type": "string"}, "contains": {"const": "--embed-source"}},
+        "style": {"$ref": "#/$defs/styleIdentity", "description": "The style the manifest declares, which a rebuild resolves again (architecture.md, Declared style)."}
       }
     },
     "sourceFile": {

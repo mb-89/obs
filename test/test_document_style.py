@@ -3,6 +3,7 @@
 Owner: spec/design_input/architecture.md ("Declared style"). Errors are matched by their field path
 and owner reference (AGENTS.md), never by wording.
 """
+import base64
 from pathlib import Path
 
 import pytest
@@ -60,3 +61,29 @@ def test_a_style_that_names_no_pin_or_public_url_names_the_style_and_the_remedy(
     assert f"manifest.md: {field}:" in message and OWNER in message
     assert "example.org" in message and message.count("obs.style") >= 2, (
         "the message names the declared style and, in its remedy, how to declare it")
+
+
+def rebuilt(document: dict[str, object], folder: Path) -> dict[str, object]:
+    """The Document a rebuild from ``document``'s source archive builds: its files extracted into
+    ``folder``, then built again as the recorded arguments do (--embed-source)."""
+    for entry in document["sourceArchive"]["files"]:
+        target = folder / entry["path"]
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_bytes(base64.b64decode(entry["data"]))
+    assert document["sourceArchive"]["build"]["arguments"] == ["--embed-source"]
+    return build_document(folder / document["manifest"]["path"], capability_reference(), embed_source=True)
+
+
+def test_the_archive_records_the_declared_style_and_a_rebuild_resolves_the_same_one(tmp_path) -> None:
+    document = build_document(style_vault(tmp_path), capability_reference(), embed_source=True)
+
+    declared = {"url": URL, "ref": REF, "path": "styles/house"}
+    assert document["sourceArchive"]["build"]["style"] == declared
+    again = rebuilt(document, tmp_path / "extracted")
+    assert again["style"] == declared and again["sourceArchive"]["build"]["style"] == declared
+
+
+def test_without_a_declaration_the_archive_records_no_style(tmp_path) -> None:
+    document = build_document(style_vault(tmp_path, style=None), capability_reference(), embed_source=True)
+
+    assert "style" not in document["sourceArchive"]["build"]
