@@ -18,6 +18,11 @@ def test_every_test_has_its_tier_timeout(request) -> None:
     assert wrong == []
 
 
+def test_each_test_names_its_tier_in_its_report(request) -> None:
+    """The suite records each test's time by the tier its report names (test/suite.py, record_durations)."""
+    assert (bounds.TIER_PROPERTY, bounds.tier(request.node)) in request.node.user_properties
+
+
 def test_the_bounds_name_every_tier() -> None:
     assert tuple(bounds.SLOWEST) == tiers.TIERS
     assert all(bounds.TIMEOUTS[tier] >= bounds.MULTIPLIER * seconds for tier, seconds in bounds.SLOWEST.items())

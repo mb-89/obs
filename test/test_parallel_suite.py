@@ -85,6 +85,42 @@ def test_the_suite_records_each_groups_test_time_from_a_parts_report(tmp_path, m
     assert suite.record_weights(tmp_path / "missing.xml") == {}
 
 
+def _tiered_junit(path, cases) -> None:
+    """A part's JUnit report whose cases name their tier, as test/bounds.py's ``mark`` has them do;
+    a case is (name, tier, seconds, outcome), outcome an element such as "failure" or None."""
+    path.write_text("<testsuites><testsuite>" + "".join(
+        f'<testcase classname="test.x" name="{name}" time="{seconds}">'
+        + (f'<properties><property name="tier" value="{tier}"/></properties>' if tier else "")
+        + (f"<{outcome}/>" if outcome else "") + "</testcase>"
+        for name, tier, seconds, outcome in cases) + "</testsuite></testsuites>", encoding="utf-8")
+
+
+def test_the_suite_records_each_passed_tests_tier_and_time_per_run(tmp_path, monkeypatch) -> None:
+    """Each run appends its passed tests' tier and time to the part's record, keeping the last
+    runs; a failed or skipped test, or one without a tier, is not a measurement."""
+    monkeypatch.setattr(suite, "WEIGHTS", tmp_path / "weights")
+    report = tmp_path / "core.xml"
+    _tiered_junit(report, [("one@g", "unit", 1.5, None), ("two", "browser", 6.25, None),
+                           ("hung", "unit", 30.0, "failure"), ("skip", "dom", 0.0, "skipped"),
+                           ("untiered", None, 2.0, None)])
+
+    assert suite.record_durations(report, keep=2) == [
+        {"test.x::one@g": ["unit", 1.5], "test.x::two": ["browser", 6.25]}]
+    _tiered_junit(report, [("one@g", "unit", 2.0, None)])
+    suite.record_durations(report, keep=2)
+    _tiered_junit(report, [("one@g", "unit", 3.0, None)])
+
+    assert suite.record_durations(report, keep=2) == [{"test.x::one@g": ["unit", 2.0]},
+                                                      {"test.x::one@g": ["unit", 3.0]}]
+    assert suite.recorded_runs() == [[{"test.x::one@g": ["unit", 2.0]}, {"test.x::one@g": ["unit", 3.0]}]]
+    assert suite.record_durations(tmp_path / "missing.xml", keep=2) == []
+
+
+def test_without_records_no_runs_are_recorded(tmp_path, monkeypatch) -> None:
+    monkeypatch.setattr(suite, "WEIGHTS", tmp_path / "missing")
+    assert suite.recorded_runs() == []
+
+
 class _Grouped:
     def __init__(self, nodeid, group):
         self.nodeid = nodeid
