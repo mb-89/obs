@@ -503,9 +503,10 @@ of its chapter's sections after it ([[#Decision tabs from the chapter]]):
 - **What if:** the worlds in which another option wins, which the reader rules.
 
 The options view shows one option, "Option A of 5", with its letter and short name, its label in
-full where that says more, and its `what` sentence. The view says each name once: where the short
-name's words are the label's, all of them or a run of them ("Two lines" of "Keep two lines"), the
-label is not shown; without a short name it always is (`pugh-figure.js`, `labelAdds`).
+full where that says more, and its `what` sentence. The figure says each name once, in this view,
+the options list and a letter's popover alike: where the short name's words are the label's, all
+of them or a run of them ("Two lines" of "Keep two lines"), the label is not shown; without a
+short name it always is (`pugh-figure.js`, `labelAdds`).
 Previous and next keys, the arrow keys while it has focus, and a horizontal swipe move between
 the options; none of them walks the chapters.
 
@@ -572,9 +573,9 @@ beside the stepper in the narrowest figure, at a 360 px phone, and more wrap to 
 Nothing in the figure scrolls sideways.
 
 In the rows only the letter fits, and the letter is a control. Hovering it, focusing it or
-tapping it shows the option's letter and short name, its label and its `what` sentence in a small
-popover under the line; a second tap or a tap elsewhere closes it, with no browser dialog. The
-popover is the control's description for a screen reader.
+tapping it shows the option's letter and short name, its label where that says more and its
+`what` sentence in a small popover under the line; a second tap or a tap elsewhere closes it,
+with no browser dialog. The popover is the control's description for a screen reader.
 
 The letter heads its cell as a control of its own, above the cell's mark key, so a tap on the
 mark changes the mark and a tap on the letter opens the popover. A mark, a weight step and a Pick
@@ -705,7 +706,8 @@ dispatcher, 6 Nov 2026 (work issue `fix/decision-figure-follow-ups-20261106`).
   transparent when the pointer approaches, and is clearly visible on hover or focus.
 
   Reserve horizontal reader clearance for that pointer area in both continuous and
-  paged views, including narrow screens. It must not cover prose links or table
+  paged views, including narrow screens; on touch in screens the arrows are hidden and the
+  clearance goes to the content ([[#Screens]]). It must not cover prose links or table
   disclosures, resizing handles, and options. Screen clearance does not change PDF
   paper dimensions or margins.
 
