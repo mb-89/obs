@@ -402,8 +402,8 @@ def _shape(nodes: list[dict[str, object]]) -> list[object]:
 
 @pytest.mark.parametrize(("body", "shape"), [
     ("Text ![[x.base]] more", [[("text", "Text ")], "registers", [("text", " more")]]),
-    ("Text\n![[x.base]]\nmore", [[("text", "Text"), ("text", "\n")], "registers",
-                                 [("text", "\n"), ("text", "more")]]),
+    ("Text\n![[x.base]]\nmore", [[("text", "Text"), ("text", " ")], "registers",
+                                 [("text", " "), ("text", "more")]]),
     ("![[x.base]]", ["registers"]),
     ("Before ![[a-point]] ![[x.base]] after", [[("text", "Before ")], "embeds", "registers", [("text", " after")]]),
     ("- Item ![[x.base]] tail", ["list"]),
