@@ -61,9 +61,9 @@ def _hold_opening(page, artifact: Path, *, install: bool = True) -> None:
     [
         (
             {"product": {"name": "Example <&>"},
-             "document type": "Trace matrix",
+             "document type": "Example matrix",
              "confidentiality": "Internal <&>, Review"},
-            ["Example <&> · Trace matrix", "Internal <&>, Review"],
+            ["Example <&> · Example matrix", "Internal <&>, Review"],
         ),
         ({"document type": "Changed matrix"}, ["Changed matrix"]),
         ({"confidentiality": "Only right <&>"}, ["Only right <&>"]),
