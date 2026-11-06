@@ -16,6 +16,20 @@
       "type": "array",
       "items": {"type": "string", "pattern": "^[a-z][a-z0-9-]*$"},
       "uniqueItems": true
+    },
+    "options": {
+      "description": "The options obs-document --adapter-option NAME=VALUE may pass. A boolean option is passed as --NAME when its value is true and left out when it is false.",
+      "type": "object",
+      "propertyNames": {"pattern": "^[a-z][a-z0-9-]*$"},
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["type", "summary"],
+        "properties": {
+          "type": {"const": "boolean"},
+          "summary": {"type": "string", "minLength": 1}
+        }
+      }
     }
   }
 }

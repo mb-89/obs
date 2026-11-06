@@ -172,7 +172,7 @@
     },
     "projectionPrimitive": {"type": ["string", "number", "boolean", "null"]},
     "protectedField": {
-      "description": "Fields a property editor's projection never writes, compared in lower case; see capabilities/property-editors.",
+      "description": "Fields a property editor never edits and its projection never writes, compared in lower case; see capabilities/property-editors.",
       "enum": ["title", "kind", "aliases", "term", "definition", "__proto__", "constructor", "prototype"]
     }
   }
