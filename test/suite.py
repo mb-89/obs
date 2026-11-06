@@ -30,8 +30,10 @@ test/bounds.py derives each tier's timeout; a part whose test ran past its tier'
 The parts depend on Node packages: each part's `test/browser/package-lock.json`
 (today `adapters/html/test/browser` alone); the core's diagram renderers and the html
 adapter's maths library are built into their packages by each package's build (hatch_build.py,
-adapters/html/hatch_build.py). `--setup`, its only argument then, installs them
-and runs no part; se.toml's `[tests] setup` runs it before the suite, timed apart from the budget.
+adapters/html/hatch_build.py). The adapters' browser tests run on Playwright's headless shell
+(HEADLESS_SHELL). `--setup`, its only argument then, installs the packages, and the shell with
+Playwright (BROWSER_INSTALL) where Playwright's browsers folder (PLAYWRIGHT_BROWSERS_PATH, else
+Playwright's default) holds none, so a machine that has one downloads nothing; it runs no part; se.toml's `[tests] setup` runs it before the suite, timed apart from the budget.
 A package is installed with `npm ci` when its `node_modules` is missing or was installed from
 another lockfile: after each install the lockfile's SHA-256 is stored in `node_modules/` as
 `.obs-installed-lockfile`, so a warm checkout installs nothing. A failed install names the
@@ -48,6 +50,7 @@ import hashlib
 import json
 import math
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -73,6 +76,14 @@ NODE_PACKAGES = [part / "test" / "browser" for part in PARTS
 CAP_SECONDS = 300
 # In node_modules: the SHA-256 of the lockfile it was installed from.
 INSTALLED_LOCKFILE = ".obs-installed-lockfile"
+
+
+# The adapters' browser tests' engine (obs quality.md, Testing boundaries): Playwright's
+# chromium-headless-shell. Playwright installs it in its browsers folder as
+# <revision folder>/<platform folder>/<executable>; the newest revision installed is used.
+HEADLESS_SHELL = ("chromium_headless_shell-*", "chrome-headless-shell-*",
+                  "chrome-headless-shell.exe" if sys.platform == "win32" else "chrome-headless-shell")
+BROWSER_INSTALL = [sys.executable, "-m", "playwright", "install", "chromium-headless-shell"]
 
 
 class InstallError(Exception):
@@ -197,6 +208,37 @@ def install_node_packages(packages: list[Path], run=subprocess.run) -> list[Path
 WORKERS_PROPERTY = "workers"
 
 
+def playwright_browsers(environment=os.environ) -> Path:
+    """Playwright's browsers folder: PLAYWRIGHT_BROWSERS_PATH, else Playwright's default for this system."""
+    if environment.get("PLAYWRIGHT_BROWSERS_PATH"):
+        return Path(environment["PLAYWRIGHT_BROWSERS_PATH"])
+    if sys.platform == "win32":
+        return Path(environment["LOCALAPPDATA"]) / "ms-playwright"
+    if sys.platform == "darwin":
+        return Path.home() / "Library" / "Caches" / "ms-playwright"
+    return Path(environment.get("XDG_CACHE_HOME") or Path.home() / ".cache") / "ms-playwright"
+
+
+def headless_shell(browsers: Path) -> str | None:
+    """The HEADLESS_SHELL executable of the newest revision installed in ``browsers``, or None."""
+    revision, platform, executable = HEADLESS_SHELL
+    found = sorted((int(re.sub(r"\D", "", folder.name) or 0), path)
+                   for folder in browsers.glob(revision) for path in folder.glob(f"{platform}/{executable}"))
+    return str(found[-1][1]) if found else None
+
+
+def install_browser(browsers: Path, run=subprocess.run) -> bool:
+    """Install HEADLESS_SHELL with Playwright where ``browsers`` holds none; whether it installed."""
+    if headless_shell(browsers) is not None:
+        return False
+    result = run(BROWSER_INSTALL, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
+    if result.returncode != 0 or headless_shell(browsers) is None:
+        raise InstallError(f"test/suite.py: `{' '.join(BROWSER_INSTALL)}` did not install HEADLESS_SHELL in "
+                           f"{browsers} (exit code {result.returncode}). Run it by hand and rerun the setup.\n"
+                           f"{result.stdout}")
+    return True
+
+
 def record_workers(config) -> int | None:
     """From a part's ``pytest_sessionstart``: write the part's worker count, its xdist workers or 1
     without them, as WORKERS_PROPERTY of the JUnit report the run writes; the count written. An xdist
@@ -272,13 +314,16 @@ def stop(process: subprocess.Popen) -> None:
 
 
 def setup(arguments: list[str], clock) -> int:
-    """Install the Node test packages not installed from their current lockfiles."""
+    """Install the Node test packages not installed from their current lockfiles, and the browser
+    tests' engine where Playwright's browsers folder holds none."""
     if arguments != [SETUP]:
         print(f"test/suite.py: {SETUP} takes no other arguments; run `{SETUP_COMMAND}`.", file=sys.stderr)
         return 2
     started = clock()
     try:
         installed = install_node_packages(NODE_PACKAGES)
+        browsers = playwright_browsers()
+        browser_installed = install_browser(browsers)
     except InstallError as error:
         print(error, file=sys.stderr)
         return 1
@@ -287,6 +332,8 @@ def setup(arguments: list[str], clock) -> int:
         print(f"test/suite.py: installed Node test packages {packages} in {clock() - started:.1f} s.")
     else:
         print(f"test/suite.py: Node test packages {packages} are installed from their lockfiles.")
+    state = "installed" if browser_installed else "is installed"
+    print(f"test/suite.py: the browser tests' engine (HEADLESS_SHELL) {state} in {browsers}.")
     return 0
 
 

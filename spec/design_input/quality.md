@@ -107,8 +107,11 @@ definitions alike. Keeping the same fact in two places is an anti-pattern (user,
 
   A test states its engine by the fixture
   it takes; the adapter's `test/structure/test_quality.py` names the set and refuses a
-  full-Chromium test outside it, and its `test/conftest.py` names the shell and fails, with the
-  remedy, where it is not installed.
+  full-Chromium test outside it, and its `test/conftest.py` fails, with the remedy, where the shell
+  is not installed.
+
+  The suite's setup (`test/suite.py`) names the shell and installs it with Playwright where
+  Playwright's browsers folder holds none; CI runs that setup and installs nothing itself.
 - A browser test opens what shared fixtures give it: a leased page, and an artifact built once (by
   a fixture through `built_once`, or by the adapter's `test/artifacts.py`); several read-only
   checks of one artifact share one page load. It neither builds an artifact nor starts

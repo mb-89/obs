@@ -1,7 +1,8 @@
 """The complete suite's setup (`test/suite.py --setup`, se.toml's `[tests] setup`) installs its Node
 test packages, only when a package's `node_modules` is missing or was installed from another
-lockfile; the suite itself installs nothing and refuses to run without them. npm is faked: no test
-reaches the network."""
+lockfile, and the browser tests' engine where Playwright's browsers folder holds none; the suite
+itself installs nothing and refuses to run without its packages. npm and Playwright are faked: no
+test reaches the network."""
 import hashlib
 import subprocess
 from pathlib import Path
@@ -22,6 +23,37 @@ def _package(root: Path, name: str, lockfile: str = '{"lockfileVersion": 3}') ->
 @pytest.fixture(autouse=True)
 def npm_on_path(monkeypatch) -> None:
     monkeypatch.setattr(suite.shutil, "which", lambda name: f"/fake/bin/{name}")
+
+
+@pytest.fixture
+def browsers(tmp_path, monkeypatch) -> Path:
+    """Playwright's browsers folder, empty, as the setup finds it."""
+    folder = tmp_path / "ms-playwright"
+    folder.mkdir()
+    monkeypatch.setenv("PLAYWRIGHT_BROWSERS_PATH", str(folder))
+    return folder
+
+
+def _shell(browsers: Path, revision: int = 1248) -> Path:
+    revision_folder, platform, executable = suite.HEADLESS_SHELL
+    path = browsers / revision_folder.replace("*", str(revision)) / platform.replace("*", "linux64") / executable
+    path.parent.mkdir(parents=True)
+    path.write_text("", encoding="utf-8")
+    return path
+
+
+class FakePlaywright:
+    """Records each `playwright install` and, where it succeeds, installs the shell."""
+
+    def __init__(self, browsers: Path, returncode: int = 0) -> None:
+        self.browsers, self.returncode = browsers, returncode
+        self.calls: list[list[str]] = []
+
+    def __call__(self, command, **_):
+        self.calls.append(command)
+        if self.returncode == 0:
+            _shell(self.browsers)
+        return subprocess.CompletedProcess(command, self.returncode, stdout="playwright said why\n")
 
 
 class FakeNpm:
@@ -100,9 +132,47 @@ def test_without_npm_the_install_names_the_lockfile_and_the_command(tmp_path, mo
     assert f"npm --prefix {package} ci" in str(raised.value)
 
 
+def test_a_missing_browser_is_installed_with_playwright(browsers) -> None:
+    playwright = FakePlaywright(browsers)
+
+    assert suite.install_browser(browsers, run=playwright) is True
+
+    assert playwright.calls == [suite.BROWSER_INSTALL]
+    assert suite.BROWSER_INSTALL[-2:] == ["install", "chromium-headless-shell"]
+    assert suite.headless_shell(browsers) is not None
+
+
+def test_an_installed_browser_is_not_downloaded_again(browsers) -> None:
+    _shell(browsers, revision=1243)
+    playwright = FakePlaywright(browsers)
+
+    assert suite.install_browser(browsers, run=playwright) is False
+    assert playwright.calls == []
+
+
+def test_a_failed_browser_install_names_the_command_and_the_folder(browsers) -> None:
+    with pytest.raises(suite.InstallError) as raised:
+        suite.install_browser(browsers, run=FakePlaywright(browsers, returncode=1))
+
+    assert " ".join(suite.BROWSER_INSTALL) in str(raised.value)
+    assert str(browsers) in str(raised.value)
+
+
+def test_setup_installs_the_browser_into_playwrights_folder(monkeypatch, browsers, capsys) -> None:
+    monkeypatch.setattr(suite, "install_node_packages", lambda packages: [])
+    installed = []
+    monkeypatch.setattr(suite, "install_browser", lambda folder: installed.append(folder) or True)
+
+    assert suite.main(["--setup"]) == 0
+
+    assert installed == [browsers]
+    assert str(browsers) in capsys.readouterr().out
+
+
 def test_setup_installs_the_node_packages_and_runs_no_part(monkeypatch, capsys) -> None:
     ticks = iter([0.0, 7.0])
     monkeypatch.setattr(suite, "install_node_packages", lambda packages: list(packages))
+    monkeypatch.setattr(suite, "install_browser", lambda browsers: False)
     monkeypatch.setattr(suite, "run_part", lambda part, arguments, run_folder: pytest.fail("a part ran"))
 
     assert suite.main(["--setup"], clock=lambda: next(ticks)) == 0
@@ -118,6 +188,7 @@ def test_setup_takes_no_other_arguments(monkeypatch, capsys) -> None:
 
 
 def test_a_failed_setup_names_the_lockfile(monkeypatch, capsys) -> None:
+    monkeypatch.setattr(suite, "install_browser", lambda browsers: pytest.fail("installed a browser"))
     def install(packages):
         raise suite.InstallError("npm ci failed for /x/package-lock.json")
 
