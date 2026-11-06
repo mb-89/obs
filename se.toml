@@ -8,6 +8,7 @@ authored_content = [
   "adapters/html/AGENTS.md",
 ]
 identity = "mb <mb>"
+public_check = true
 
 [tests]
 # The complete suite and its time budget; test/suite.py's docstring says what the suite runs.
