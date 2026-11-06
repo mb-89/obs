@@ -18,7 +18,7 @@ The boolean field `ignored` (default `false`) marks a note as ignored, the way a
 underscore marks a Python name as private: no automatic selection selects it, while explicit
 references still reach it ([[input-model#Chapter content]]). Automatic selections are
 [[capabilities/queries]] and the counts over them, and [[capabilities/bases]], including a
-Base view's `obsHtml.members` list, which only narrows what the Base selects. Any other value than
+Base view's `obs.members` list, which only narrows what the Base selects. Any other value than
 `true` or `false` is an error that names the note. The note's record carries `ignored: true` ([[capabilities/bases#Note records]]).
 
 ## Document node

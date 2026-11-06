@@ -75,8 +75,8 @@ consume the same applied global Filter; a table's local query remains independen
   and the view owns its filters, groups, sorting, formulas, and summaries.
 
   A base may declare several table views, each with a unique nonempty `name` and its own
-  `order`, `filters`, `groupBy`, `sort` and view `obsHtml`; base-level `filters`, `properties`
-  and `obsHtml` apply to every view. Generation includes the notes that any view selects.
+  `order`, `filters`, `groupBy`, `sort`, view `obs` and view `obsHtml`; base-level `filters`,
+  `properties`, `obs` and `obsHtml` apply to every view. Generation includes the notes that any view selects.
 
   With more than one view, a compact pill selector of the view names sits above the table;
   the first view is the default. Choosing a view remounts the table with that view's columns
@@ -89,7 +89,8 @@ consume the same applied global Filter; a table's local query remains independen
   Formulas and summaries are
   later extensions of the same definition rather than separate table implementations.
 - An embedded `base` fence or an embedded `.base` file is the input adapter. Standard Obsidian keys
-  retain their meaning; artifact-specific behavior is permitted only under `obsHtml`.
+  retain their meaning; what the core reads is permitted only under `obs`, artifact-specific
+  behavior only under `obsHtml` ([[input-model#Core and adapter namespaces]]).
 
   A line `![[name.base]]` or `![[path/name.base#View]]` embeds a reusable `.base` file as in
   Obsidian. A target with a folder is vault-relative; a bare name must match exactly one
@@ -100,12 +101,14 @@ consume the same applied global Filter; a table's local query remains independen
   `![[file.base]]` embeds all views with the selector; `#View` embeds only that view. Every
   embed is its own table instance with its own key and state, so two notes embedding one
   file render it twice from one definition. Registers use this mechanism ([[input-model]]).
-- A view may declare ordered `obsHtml.members` entries containing a vault-relative note `path`
+- A view may declare ordered `obs.members` entries containing a vault-relative note `path`
   and optional view-local `label`. This set intersects the ordinary Base query; its order is the
-  initial row order, and its labels are projected as `obsHtml.label` without modifying canonical
-  note records. Missing, duplicate, absolute, or vault-escaping member paths are input errors.
+  initial row order, in which the core emits the view's rows, and its labels are projected as `obsHtml.label` without modifying canonical
+  note records. Missing, duplicate, absolute, or vault-escaping member paths, and paths that are
+  not Markdown notes, are input errors naming the note, the view, the entry
+  (`views[<view>].obs.members[<entry>].path`) and the remedy.
   Members belong to their view: each view selects its own members, and a Base-level
-  `obsHtml.members` is an input error naming the note; the remedy is to move it into the view.
+  `obs.members` is an input error naming the note; the remedy is to move it into the view.
 - Display labels for columns and grouped properties are presentation metadata over the
   existing field keys. Headers/group captions need not expose dotted storage paths;
   renaming a display label never changes filters, canonical properties or stable routes.
@@ -221,9 +224,9 @@ Generation fails on an unsupported filter. The error names the source file, the 
 fence, and the filter text; it never treats the filter as matching
 nothing. The browser Query view reports the same filter as invalid.
 
-A view's `obsHtml.records` evaluates projected rows of one kind instead of canonical notes;
-the base's `obsHtml.records` is the default for its views. A comparison on a bare
-`recordType` is rejected with a migration message naming `obsHtml.records`. Both
+A view's `obs.records` evaluates projected rows of one kind instead of canonical notes;
+the base's `obs.records` is the default for its views. A comparison on a bare
+`recordType` is rejected with a migration message naming `obs.records`. Both
 evaluators resolve a projected row's properties in the same way.
 
 A row's own fields resolve first: `sourcePath`, plus `chapter`, `title`,
@@ -237,7 +240,8 @@ frontmatter text or tag backlinks, are never filter values.
 Document metadata rows (`recordType` `documentMetadata`: `key`, `value`) and history rows
 (`documentHistory`: `version`, `date`, `author`, `change`) never include a note; all their
 fields are own fields. [[input-model]] owns their content. The core emits a manifest metadata
-row per frontmatter key other than `history` and `obsHtml`, with its value as authored; the
+row per frontmatter key other than `history`, `obs` and an adapter's namespace
+([[input-model#Core and adapter namespaces]]), with its value as authored; the
 adapter adds the rows of its own generation provenance.
 
 The core emits every projection as records of its type in the Document's `records`, a

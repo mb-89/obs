@@ -3,7 +3,7 @@ kind: capability
 capability:
   id: profiles
   summary: Select constrained note and artifact presentation profiles.
-  authoring: Declare the supported obsHtml profile mapping in frontmatter.
+  authoring: Declare the core obs profile mapping in frontmatter.
   dependsOn: ["[[capabilities/markdown-frontmatter]]"]
   source: "[[input-model#Profiles]]"
 ---
@@ -16,6 +16,13 @@ Select constrained note and artifact presentation profiles.
 
 ```markdown
 ---
-obsHtml: {document: false}
+obs: {document: false}
 ---
 ```
+
+## Document node
+
+A note whose frontmatter has `obs` gets a `profiles` node whose `profile` is that mapping as
+authored; `note-profile.schema.json` validates it. An adapter's own namespace, such as the
+manifest's `obsHtml` presentation mapping, is not in it: the adapter reads that from the
+frontmatter itself ([[input-model#Core and adapter namespaces]]).

@@ -623,7 +623,7 @@ def compile_base_filter(filters: object) -> selection.BaseFilter:
     except InputError as error:
         kinds = " | ".join(_base_schema()["properties"]["obsHtml"]["properties"]["records"]["enum"])
         raise ContentError(str(error).replace(
-            "select rows with obsHtml.records", f"select projected rows with obsHtml: {{records: {kinds}}}",
+            "select rows with obs.records", f"select projected rows with obsHtml: {{records: {kinds}}}",
         )) from error
 
 
