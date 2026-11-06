@@ -9,6 +9,7 @@ authored_content = [
 ]
 identity = "mb <mb>"
 public_check = true
+release = "workflow"
 version = "1.0.0"
 
 [tests]
