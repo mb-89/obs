@@ -106,6 +106,28 @@ def _descriptor(content: object, _media_type: str | None) -> dict[str, object]:
 
 
 @dataclass(frozen=True)
+class FigureContext:
+    """What a kind that resolves its content against the vault gets from the note it is in."""
+
+    field: str
+    """The fence field the content comes from: content, or source for a file."""
+    quantity: Callable[[str], "tuple[str, dict[str, object]] | None"]
+    """A link target's note: its vault-relative path and frontmatter, or None without a note."""
+    line: Callable[[str], str]
+    """Where text of the content stands, such as \"line 12\", or empty where it is not found."""
+
+
+def _equations(content: object, media_type: str | None) -> dict[str, object]:
+    from obs.equations import read  # SymPy loads only for an equation figure.
+    return read(content, media_type)
+
+
+def _equation_body(content: dict[str, object], context: FigureContext) -> dict[str, object]:
+    from obs.equations import resolve
+    return resolve(content, context)
+
+
+@dataclass(frozen=True)
 class FigureKind:
     """One kind of figure: how its content becomes its body (the figures node's one child).
 
@@ -117,6 +139,8 @@ class FigureKind:
     """The body from the content and, for a source file, its media type."""
     capability: str | None = None
     """A capability whose contract the body carries, which a Document with the kind uses."""
+    resolve: "Callable[[dict[str, object], FigureContext], dict[str, object]] | None" = None
+    """The body from what ``read`` returned and the note's vault, for a kind whose content links notes."""
 
 
 FIGURE_KINDS: dict[str, FigureKind] = {
@@ -124,6 +148,7 @@ FIGURE_KINDS: dict[str, FigureKind] = {
     "svg": FigureKind(lambda content, _type: {"svg": _svg_markup(content)}),
     "sankey": FigureKind(lambda content, _type: {"graph": _json(content)}),
     "plot": FigureKind(_descriptor, "figure-descriptor"),
+    "equations": FigureKind(_equations, "equation-figures", _equation_body),
 }
 """The figure kinds; see input-model, Figure input direction. Adding a kind is one entry here and
 one body schema in document.schema.json."""

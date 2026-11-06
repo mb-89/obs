@@ -22,7 +22,7 @@ from obs.commands import CommandError, run_command
 from obs.config import (
     DEFAULT_COMMAND_TIMEOUT_SECONDS, CoreConfig, CoreConfigError, load_core_config,
 )
-from obs.figure import FIGURE_KINDS, FIGURE_SCHEMA_PATH, FigureContentError
+from obs.figure import FIGURE_KINDS, FIGURE_SCHEMA_PATH, FigureContentError, FigureContext
 from obs.input import (
     ADAPTER_NAMESPACE,
     InputError,
@@ -864,7 +864,7 @@ def _fence_node(token: Token, context: _Context) -> dict[str, object]:
                 raise input_error(source_path, place, "is empty", "Write the command to run or "
                                   "remove the fence; see capabilities/command-fences") from error
         elif language == "figure":
-            figure = _figure(token.content, context, place)
+            figure = _figure(token.content, context, place, token.map[0] + 2 if token.map else 1)
     except (InputError, yaml.YAMLError) as error:
         raise VaultError(str(error)) from error
     fence_type = {
@@ -913,8 +913,10 @@ FIGURES = "capabilities/figures"
 """The note that owns the figure fence; see input-model, Figure input direction."""
 
 
-def _figure(text: str, context: _Context, place: str) -> dict[str, object]:
-    """The one figures node of a figure fence, whatever its kind; its one child is the kind's body."""
+def _figure(text: str, context: _Context, place: str, first_line: int) -> dict[str, object]:
+    """The one figures node of a figure fence, whatever its kind; its one child is the kind's body.
+
+    ``first_line`` is the note's line of the fence's first content line."""
     source_path = context.source_path
 
     def fail(field: str, problem: str, remedy: str) -> InputError:
@@ -946,6 +948,11 @@ def _figure(text: str, context: _Context, place: str) -> dict[str, object]:
             body = kind.read(path.read_bytes(), mimetypes.guess_type(path.name)[0])
         else:
             body = kind.read(fence["content"], None)
+        if kind.resolve:
+            located = (path.read_text(encoding="utf-8"), 1, f"{fence['source']} ") if "source" in fence else (text, first_line, "")
+            body = kind.resolve(body, FigureContext(
+                "source" if "source" in fence else "content", lambda target: _figure_note(target, context),
+                lambda snippet: _line(snippet, *located)))
     except FigureContentError as error:
         raise fail(error.field, error.problem, error.remedy) from error
     body |= options
@@ -974,6 +981,24 @@ def _figure(text: str, context: _Context, place: str) -> dict[str, object]:
 def _figure_registry() -> Registry:
     return Registry().with_resource(
         FIGURE_SCHEMA_PATH.name, Resource.from_contents(json.loads(FIGURE_SCHEMA_PATH.read_text(encoding="utf-8"))))
+
+
+def _figure_note(target: str, context: _Context) -> tuple[str, dict[str, object]] | None:
+    """The note a figure's link names, validated and included: its vault path and frontmatter."""
+    path = _link(target, context.source_path, context.vault)
+    if path is None or path not in context.vault.notes:
+        return None
+    _validate_note(path, context.vault)
+    return context.vault.relative(path), context.vault.notes[path][0]
+
+
+def _line(snippet: str, text: str, first: int, prefix: str) -> str:
+    """Where ``snippet`` first stands in ``text``, whose first line is ``first``: such as "line 12"."""
+    start = snippet.strip().splitlines()[0][:40] if snippet.strip() else ""
+    for index, row in enumerate(text.splitlines()):
+        if start and start in row:
+            return f"{prefix}line {first + index}"
+    return ""
 
 
 def _figure_file(source: str, context: _Context, fail: Callable[..., InputError]) -> Path:
