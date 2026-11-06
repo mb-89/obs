@@ -1561,8 +1561,8 @@ A `property-editor` fence contains `version: 1`, `field`, and `label`, plus an o
 positive `maxLength` (default and bound owned by its schema).
 
 An optional static `projection` mapping declares `blank` and `nonblank` maps of top-level frontmatter
-fields to safe primitive values. Projection keys cannot name the edited field; values must
-match the existing field types, and arrays must be flat and homogeneous.
+fields to safe primitive values. Which fields it may write is owned by
+[[capabilities/property-editors#Projection rules]].
 
 After validating the entire mapping, a committed edit selects `blank` for trimmed empty text
 and `nonblank` otherwise, then atomically commits the text and selected values. The mapping is
@@ -1573,9 +1573,9 @@ A property editor opts one existing top-level string property of that canonical 
 plain-text editing, including empty strings.
 
 Generated Home and presentation-semantic properties are not editable, whether directly or
-through a derived projection. The editor
-schema owns the shared protected-field constraint, applied case-insensitively at generation
-and at the runtime transaction boundary.
+through a derived projection. [[capabilities/property-editors#Projection rules]] owns that
+constraint for a projection; the adapter's editor schema applies it to the edited field and at
+the runtime transaction boundary.
 
 Enter or leaving the editor commits text; query fields and metadata caches are refreshed.
 Saved copies replace the artifact data island from the canonical model, not rendered inputs.
