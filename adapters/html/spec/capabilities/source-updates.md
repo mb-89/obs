@@ -4,7 +4,7 @@ capability:
   id: source-updates
   summary: Project current canonical source after a trusted update.
   authoring: Use the trusted update flow with declared canonical source identifiers.
-  dependsOn: ["[[capabilities/trusted-actions]]", "[[capabilities/source-archive]]"]
+  dependsOn: ["trusted-actions", "source-archive"]
   source: "[[input-model#Current source projection after a trusted update]]"
 ---
 

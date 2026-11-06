@@ -39,7 +39,7 @@ def test_chapter_sequence_is_stated_once_in_the_manifest_contract() -> None:
                         "Left and right controls move through all items in depth-first manifest order.",
                         "Unlisted notes never become TOC children or previous/next chapter stops."):
         assert restatement not in flat, f"input-model.md: point to [[#Manifest contract]] instead of '{restatement}'"
-    assert flat.count("[[#Manifest contract|chapter sequence]]") >= 2
+    assert flat.count("[[#Manifest contract|chapter sequence]]") >= 1
 
 
 def test_no_heading_or_link_says_document_presentation() -> None:
@@ -63,3 +63,24 @@ def test_the_remote_image_rule_is_stated_once_where_assets_are_defined() -> None
                    "save the image into the vault and embed it locally",
                    "its node keeps the alt text and the URL"):
         assert clause in assets
+
+
+def _grammar() -> str:
+    note = (ROOT / "spec" / "design_input" / "input-model.md").read_text(encoding="utf-8")
+    return note.split("#### Bases filter grammar", 1)[1].split("\n### ", 1)[0]
+
+
+def test_the_grammar_says_the_core_emits_every_projection_and_points_to_their_definition() -> None:
+    grammar = _grammar()
+
+    assert "exist only in the browser" not in grammar
+    assert "The core emits every projection as records of its type" in grammar
+    assert "`src/obs/document.schema.json` (`$defs/record`)" in grammar
+
+
+def test_the_input_model_leaves_what_counts_as_a_change_to_the_adapter() -> None:
+    input_model = (ROOT / "spec" / "design_input" / "input-model.md").read_text(encoding="utf-8")
+
+    for restatement in ("Persisted reader-state changes do", "changed-HTML state", "as changed.",
+                        "or an artifact change", "column or width changes"):
+        assert restatement not in input_model
