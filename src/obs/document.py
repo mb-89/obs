@@ -15,6 +15,7 @@ from obs.adapter import AdapterError, adapter_manifest_path, load_adapter, optio
 from obs.discriminator import discriminating_validator
 from obs.input import schema_error
 from obs.output import write_output
+from obs.sources import SourceError, source_archive, validate_source_archive
 from obs.vault import VaultError, build_document as _build_document
 
 
@@ -36,17 +37,20 @@ class DocumentError(ValueError):
 
 def build_document(
     manifest_path: Path, reference: dict[str, object], configuration_path: Path | None = None,
-    execute_commands: bool = False,
+    execute_commands: bool = False, embed_source: bool = False,
 ) -> dict[str, object]:
     """Parse a vault into a schema-valid neutral Document.
 
     ``execute_commands`` authorizes running the vault's cmd fences; see capabilities/command-fences.
+    ``embed_source`` discloses the vault's source files; see architecture, Source archive.
     """
     try:
         known = {item["id"] for item in reference["capabilities"]}
         document = _build_document(manifest_path, known, configuration_path, execute_commands)
+        if embed_source:
+            document["sourceArchive"] = source_archive(manifest_path.resolve().parent, document["assets"])
         validate_document(document, reference)
-    except VaultError as error:
+    except (SourceError, VaultError) as error:
         raise DocumentError(str(error)) from error
     return document
 
@@ -78,6 +82,9 @@ def validate_document(document: dict[str, object], reference: dict[str, object])
     error = schema_error(errors, "Invalid Document", "src/obs/document.schema.json")
     if error:
         raise DocumentError(str(error)) from None
+    error = validate_source_archive(document)
+    if error:
+        raise DocumentError(error)
     known = {item["id"] for item in reference["capabilities"]}
     unknown = sorted(set(document["capabilities"]) - known)
     if unknown:
@@ -227,6 +234,11 @@ def build_parser() -> argparse.ArgumentParser:
                              "producers (cmd silent) before conversion, then each other fence, "
                              "whose captured output the Document carries. Review the commands "
                              "first; without this a cmd fence fails the build.")
+    parser.add_argument("--embed-source", action="store_true",
+                        help="Disclose the source data of --source: the Document carries the vault's "
+                             "source files (sourceArchive), every file below the manifest's folder "
+                             "except hidden, generated and compiled ones, for an adapter that embeds a "
+                             "source archive. Nothing scans them for secrets: inspect the vault first.")
     parser.add_argument("--adapter", help="Configured adapter name.")
     parser.add_argument("--adapter-config", type=Path, default=Path(ADAPTER_CONFIGURATION),
                         help=f"Adapter configuration JSON (default: {ADAPTER_CONFIGURATION} in the "
@@ -246,6 +258,9 @@ def main(argv: Sequence[str] | None = None) -> int:
     try:
         if options.execute_commands and not options.source:
             raise DocumentError("--execute-commands is only used with --source.")
+        if options.embed_source and not options.source:
+            raise DocumentError("--embed-source is only used with --source: it archives the vault --source "
+                                "names. Build the Document from its manifest with --source.")
         if options.adapter and options.destination is None:
             raise DocumentError("--destination is missing: --adapter writes the artifact there. "
                                 "Name the output file with --destination.")
@@ -266,7 +281,8 @@ def main(argv: Sequence[str] | None = None) -> int:
                          read_document(options.document, reference), options.document, options.destination,
                          reference)
                 return 0
-            document = build_document(options.source, reference, options.config, options.execute_commands)
+            document = build_document(options.source, reference, options.config, options.execute_commands,
+                                      options.embed_source)
             for diagnostic in document["diagnostics"]:
                 if diagnostic["level"] == "warning":
                     print(f"obs-document: warning: {diagnostic['message']}", file=sys.stderr)

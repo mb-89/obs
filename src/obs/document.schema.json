@@ -30,6 +30,11 @@
         "properties": {"level": {"enum": ["error", "warning", "info"]}, "message": {"type": "string", "minLength": 1}}
       }
     },
+    "sourceArchive": {
+      "description": "The vault's source files, present only when the build was asked to disclose them (architecture.md, Source archive).",
+      "type": "object", "additionalProperties": false, "required": ["files"],
+      "properties": {"files": {"type": "array", "items": {"$ref": "#/$defs/sourceFile"}}}
+    },
     "capabilities": {"type": "array", "items": {"$ref": "#/$defs/id"}, "uniqueItems": true}
   },
   "$defs": {
@@ -229,7 +234,7 @@
             "type": "object", "additionalProperties": false, "required": ["target", "chapter"],
             "properties": {
               "target": {"type": "string", "minLength": 1}, "chapter": {"$ref": "#/$defs/chapterReference"},
-              "asset": {"description": "The id in assets of an embedded vault file that is not a note; absent for a note.", "$ref": "#/$defs/id"}
+    "asset": {"description": "The id in assets of an embedded vault file that is not a note; absent for a note.", "$ref": "#/$defs/id"}
             }
           }}}
         },
@@ -413,6 +418,16 @@
     "link": {
       "type": "object", "additionalProperties": false, "required": ["id", "href", "label"],
       "properties": {"id": {"$ref": "#/$defs/id"}, "href": {"type": "string", "minLength": 1}, "label": {"type": "string", "minLength": 1}}
+    },
+    "sourceFile": {
+      "description": "One source file of the vault: its vault-relative POSIX path and either its bytes as base64 data or the id of the asset that holds them (architecture.md, Source archive).",
+      "type": "object", "additionalProperties": false, "required": ["path"],
+      "properties": {
+        "path": {"type": "string", "pattern": "^(?!/)(?!.*(^|/)\\.\\.?(/|$)).+$"},
+        "data": {"type": "string", "contentEncoding": "base64", "pattern": "^[A-Za-z0-9+/]*={0,2}$"},
+        "asset": {"$ref": "#/$defs/id"}
+      },
+      "oneOf": [{"required": ["data"]}, {"required": ["asset"]}]
     },
     "asset": {
       "description": "A file the Document references as an image or a marked attachment (architecture.md, Asset bytes). A vault file carries its path and bytes, so an adapter never reads the vault; a remote (http or https) image carries the bytes fetched at build time and no path, or neither when the fetch failed.",
