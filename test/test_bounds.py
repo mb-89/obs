@@ -1,4 +1,5 @@
 """No test can hang the suite: each test has its tier's timeout (test/bounds.py)."""
+import math
 import os
 import subprocess
 import sys
@@ -25,7 +26,9 @@ def test_each_test_names_its_tier_in_its_report(request) -> None:
 
 def test_the_bounds_name_every_tier() -> None:
     assert tuple(bounds.SLOWEST) == tiers.TIERS
-    assert all(bounds.TIMEOUTS[tier] >= bounds.MULTIPLIER * seconds for tier, seconds in bounds.SLOWEST.items())
+    assert bounds.TIMEOUTS == {tier: math.ceil(bounds.MULTIPLIER * seconds / 10) * 10
+                               for tier, seconds in bounds.SLOWEST.items()}
+    assert (bounds.SLOWEST, bounds.SOURCES) == bounds.derive(bounds.COMMITTED, bounds._recorded_runs(), bounds.RUNS)
 
 
 COMMITTED = {"unit": 10.9, "browser": 6.0}
@@ -91,6 +94,7 @@ def test_next():
     assert result.returncode == 1, result.stdout
     assert "1 failed, 1 passed" in result.stdout
     assert "test/bounds.py: test_hangs.py::test_waits_forever ran past its timeout of 1 s (tier unit" in result.stdout
+    assert bounds.EXPLAINED_SOURCES[bounds.SOURCES["unit"]] in result.stdout, "it names where its tier's bound came from"
 
 
 def test_the_running_test_is_named_in_the_run_folder_while_it_runs(tmp_path: Path, request) -> None:
