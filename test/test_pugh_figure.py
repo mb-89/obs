@@ -22,7 +22,7 @@ MATRIX = {
         {"key": "ops", "label": "Ease of operation", "weight": 2, "better": "higher", "kind": "judged"},
     ],
     "candidates": [
-        {"key": "current", "label": "Current queue", "values": {"latency": 12}},
+        {"key": "current", "label": "Current queue", "short": "Current", "values": {"latency": 12}},
         {"key": "managed", "label": "Managed queue", "what": "A hosted queue we rent.",
          "wins": "No servers to run.", "losses": ["A bill every month", "Its latency"],
          "values": {"latency": 14}, "marks": {"ops": [2, 1, 2]}},
@@ -73,7 +73,8 @@ def test_a_pugh_fence_and_a_figure_fence_of_kind_pugh_carry_the_matrix_as_data(t
     (lambda m: m["datum"].update(prefer=["later"]), "content.datum.prefer[0]"),
     (lambda m: m.update(chosen="later"), "content.chosen"),
     (lambda m: m.pop("criteria"), "content.criteria"),
-    (lambda m: m["candidates"][0].update(short="Now"), "content.candidates[0].short"),
+    (lambda m: m["candidates"][0].update(short="The queue we run here today"), "content.candidates[0].short"),
+    (lambda m: m["candidates"][0].update(short=""), "content.candidates[0].short"),
     (lambda m: m["checklist"][1].update(options=["C"]), "content.checklist[1].options[0]"),
     (lambda m: m["checklist"][0].pop("pass"), "content.checklist[0].pass"),
     (lambda m: m["criteria"][1].update(key="checklist"), "content.criteria[1].key"),
