@@ -1,6 +1,7 @@
 """The figure kinds and the language-neutral FigureDescriptor contract."""
 import base64
 from dataclasses import dataclass
+from functools import cache
 import json
 from pathlib import Path
 from typing import Callable
@@ -13,6 +14,8 @@ from obs.input import schema_error
 
 
 FIGURE_SCHEMA_PATH = Path(__file__).with_name("figure.schema.json")
+FIGURES, DESCRIPTOR = "capabilities/figures", "capabilities/figure-descriptor"
+"""The notes owning a figure fence's and a FigureDescriptor's contracts."""
 
 
 class FigureDescriptorError(ValueError):
@@ -22,9 +25,7 @@ class FigureDescriptorError(ValueError):
 def validate_figure_descriptor(
     descriptor: dict[str, object], source: object = "FigureDescriptor", place: str = "",
 ) -> None:
-    schema = json.loads(FIGURE_SCHEMA_PATH.read_text(encoding="utf-8"))
-    error = schema_error(list(Draft202012Validator(schema).iter_errors(descriptor)), source,
-                         "capabilities/figure-descriptor", place=place)
+    error = schema_error(list(_figure_validator().iter_errors(descriptor)), source, DESCRIPTOR, place=place)
     if error:
         raise FigureDescriptorError(str(error))
 
@@ -96,16 +97,50 @@ def _json(content: object) -> object:
         raise FigureContentError("source", f"is not JSON: {error}", "Write the file as JSON") from error
 
 
-def _descriptor(content: object, _media_type: str | None) -> dict[str, object]:
-    descriptor = _json(content)
-    error = schema_error(
-        list(Draft202012Validator(json.loads(FIGURE_SCHEMA_PATH.read_text(encoding="utf-8")))
-             .iter_errors(descriptor)), "", "capabilities/figure-descriptor",
-        field="source" if isinstance(content, bytes) else "content")
+@cache
+def _figure_validator(definition: str | None = None) -> Draft202012Validator:
+    """figure.schema.json's validator: of the FigureDescriptor, or of one of its ``$defs``."""
+    schema = json.loads(FIGURE_SCHEMA_PATH.read_text(encoding="utf-8"))
+    return Draft202012Validator(schema if definition is None else {
+        "$schema": schema["$schema"], "$defs": schema["$defs"], "$ref": f"#/$defs/{definition}"})
+
+
+def _checked(value: object, validator: Draft202012Validator, field: str, reference: str) -> None:
+    """Raise the value's first schema failure, at ``field`` within the fence, its remedy naming
+    ``reference``."""
+    error = schema_error(list(validator.iter_errors(value)), "", reference, field=field)
     if error:
         message = str(error).removeprefix(": ")
-        field, _, rest = message.partition(": ")
-        raise FigureContentError(field, *rest.removesuffix(".").split(". ", 1))
+        at, _, rest = message.partition(": ")
+        raise FigureContentError(at, *rest.removesuffix(".").split(". ", 1))
+
+
+def _sankey_nodes_exist(graph: dict[str, object], field: str, reference: str) -> None:
+    """Refuse a link to a node the graph does not have, a cross-reference no schema states; the
+    graph has passed ``$defs/sankeyGraph``."""
+    ids = {node["id"] for node in graph["nodes"]}
+    for index, link in enumerate(graph["links"]):
+        for end in ("source", "target"):
+            if link[end] not in ids:
+                raise FigureContentError(
+                    f"{field}.links[{index}].{end}", f"is {link[end]!r}, which is no node of the graph",
+                    f"Name the id of one of the graph's nodes, or add a node with id {link[end]!r}; "
+                    f"see {reference}")
+
+
+def _sankey(content: object, _media_type: str | None) -> dict[str, object]:
+    """A Sankey graph, inline or from its JSON file, static or a dynamic projection."""
+    graph, field = _json(content), "source" if isinstance(content, bytes) else "content"
+    _checked(graph, _figure_validator("sankeyGraph"), field, FIGURES)
+    _sankey_nodes_exist(graph, field, FIGURES)
+    return {"graph": graph}
+
+
+def _descriptor(content: object, _media_type: str | None) -> dict[str, object]:
+    descriptor, field = _json(content), "source" if isinstance(content, bytes) else "content"
+    _checked(descriptor, _figure_validator(), field, DESCRIPTOR)
+    if "sankey" in descriptor["data"]:
+        _sankey_nodes_exist(descriptor["data"]["sankey"], f"{field}.data.sankey", DESCRIPTOR)
     return {"descriptor": descriptor}
 
 
@@ -175,7 +210,7 @@ class FigureKind:
 FIGURE_KINDS: dict[str, FigureKind] = {
     "image": FigureKind(_image),
     "svg": FigureKind(lambda content, _type: {"svg": _svg_markup(content)}),
-    "sankey": FigureKind(lambda content, _type: {"graph": _json(content)}),
+    "sankey": FigureKind(_sankey),
     "plot": FigureKind(_descriptor, "figure-descriptor"),
     "equations": FigureKind(_equations, "equation-figures", resolve=_equation_body),
     "mermaid": FigureKind(_diagram("mermaid"), "mermaid", fence=True),

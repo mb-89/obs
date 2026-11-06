@@ -21,6 +21,9 @@ GRAPH = {
     "nodes": [{"id": "a", "label": "A", "stage": 0}, {"id": "b", "label": "B", "stage": 1}],
     "links": [{"source": "a", "target": "b", "value": 2}],
 }
+UNKNOWN_TARGET = GRAPH | {"links": [{"source": "a", "target": "z", "value": 2}]}
+"""A graph whose link names a node it does not have: a rule the graph's schema cannot state."""
+DATA = {"where": [{"field": "kind", "equals": "trace"}]}
 DESCRIPTOR = {
     "schemaVersion": 1, "id": "response",
     "data": {"traces": [{"x": [0, 1], "y": [1, 2]}]},
@@ -34,6 +37,8 @@ DESCRIPTOR = {
     }],
     "provenance": {"command": ["measure"]},
 }
+SANKEY_DESCRIPTOR = {**{key: DESCRIPTOR[key] for key in ("schemaVersion", "id", "panels", "provenance")},
+                     "data": {"sankey": UNKNOWN_TARGET}}
 CURVE = {
     "equations": "y = a*x",
     "variables": {"x": {"default": 0, "range": [0, 1]}, "a": {"default": 2}, "y": {}},
@@ -125,7 +130,15 @@ def test_the_kind_registry_and_the_body_schemas_name_the_same_kinds() -> None:
         ("kind: image\n", "figure fence 1, source", "capabilities/figures"),
         ("kind: image\nsource: drawing.svg\ncontent: '<svg/>'\n", "figure fence 1, source", "capabilities/figures"),
         ("kind: chart\ncontent: {}\n", "figure fence 1, kind", "capabilities/figures"),
-        ("kind: sankey\ncontent: {}\ncountLabels: {colour: red}\n", "figure fence 1, countLabels", "capabilities/figures"),
+        (f"kind: sankey\ncontent: {json.dumps(GRAPH)}\ncountLabels: {{colour: red}}\n", "figure fence 1, countLabels",
+         "capabilities/figures"),
+        (f"kind: sankey\ncontent: {json.dumps(UNKNOWN_TARGET)}\n", "figure fence 1, content.links[0].target",
+         "capabilities/figures"),
+        ("kind: sankey\nsource: unknown.json\n", "figure fence 1, source.links[0].target", "capabilities/figures"),
+        (f"kind: sankey\ncontent: {json.dumps(GRAPH | {'data': DATA})}\n", "figure fence 1, content.links[0].where",
+         "capabilities/figures"),
+        (f"kind: plot\ncontent: {json.dumps(SANKEY_DESCRIPTOR)}\n", "figure fence 1, content.data.sankey.links[0].target",
+         "capabilities/figure-descriptor"),
         ("kind: plot\ncontent: {schemaVersion: 1}\n", "figure fence 1, content.id", "capabilities/figure-descriptor"),
         ("kind: image\nsource: missing.png\n", "figure fence 1, source", "capabilities/figures"),
         ("kind: image\nsource: ../outside.png\n", "figure fence 1, source", "capabilities/figures"),
@@ -135,7 +148,8 @@ def test_the_kind_registry_and_the_body_schemas_name_the_same_kinds() -> None:
 )
 def test_a_figure_input_error_names_the_note_the_field_and_the_owner(tmp_path, fence, field, owner) -> None:
     with pytest.raises(DocumentError) as failure:
-        _document(tmp_path, f"```figure\nversion: 1\n{fence}```\n", {"drawing.svg": SVG, "notes.txt": "x"})
+        _document(tmp_path, f"```figure\nversion: 1\n{fence}```\n",
+                  {"drawing.svg": SVG, "notes.txt": "x", "unknown.json": json.dumps(UNKNOWN_TARGET)})
 
     message = str(failure.value)
     assert message.startswith(f"{tmp_path / 'chapter.md'}: {field}"), message
@@ -146,6 +160,11 @@ def test_the_document_refuses_a_figure_body_of_an_unknown_kind_or_shape(tmp_path
     document = _document(tmp_path, _fence("sankey", f"content: {json.dumps(GRAPH)}"))
     figure = _figures(document)[0]
 
+    graph = figure["children"][0]["attrs"]["graph"]
+    graph["nodes"] = graph["nodes"][:1]
+    with pytest.raises(DocumentError, match=r"figureBodies"):  # The body's graph is $defs/sankeyGraph.
+        validate_document(document, capability_reference())
+    graph["nodes"] = GRAPH["nodes"]
     figure["children"][0]["attrs"]["extra"] = 1
     with pytest.raises(DocumentError, match=r"figureBodies"):
         validate_document(document, capability_reference())
