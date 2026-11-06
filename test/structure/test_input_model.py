@@ -117,3 +117,14 @@ def test_the_core_spec_names_every_figure_kind_and_carries_no_plot_evaluator_of_
         assert f"`{kind}`" in direction and f"`{kind}`" in figures, kind
     for evaluator in ("`samples`", "`traces`", "bounded arithmetic expression language", "parameters.json"):
         assert evaluator not in core_spec, evaluator
+
+
+def test_the_null_chapter_rule_points_to_its_owner_wikilinks() -> None:
+    model = (ROOT / "spec" / "design_input" / "input-model.md").read_text(encoding="utf-8")
+    flat = " ".join(model.split())
+
+    assert "`null` remains only for a target that does not exist" not in flat, (
+        "input-model.md: point to [[capabilities/wikilinks#Document node]] instead of restating when "
+        "`attrs.chapter` is `null`"
+    )
+    assert "`null` follows [[capabilities/wikilinks#Document node]]" in flat

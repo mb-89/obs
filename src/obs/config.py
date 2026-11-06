@@ -16,6 +16,10 @@ DEFAULT_COMMAND_TIMEOUT_SECONDS: int = (
 """The cmd fence timeout of a build without core configuration; the schema owns the value."""
 DEFAULT_CSS_SNIPPET_FOLDER: str = _SCHEMA["properties"]["input"]["properties"]["cssSnippetFolder"]["default"]
 """The vault's CSS snippet folder where core configuration names none; the schema owns the value."""
+DEFAULT_FIGURE_LABELS: tuple[str, ...] = tuple(
+    _SCHEMA["properties"]["input"]["properties"]["figureReferences"]["properties"]["labels"]["default"]
+)
+"""The typed-figure-number labels of a build without core configuration; the schema owns them."""
 
 
 class CoreConfigError(ValueError):
@@ -28,6 +32,7 @@ class CoreConfig:
     project_config_filename: str
     command_timeout_seconds: int
     css_snippet_folder: str = DEFAULT_CSS_SNIPPET_FOLDER
+    figure_labels: tuple[str, ...] = DEFAULT_FIGURE_LABELS
 
 
 def load_core_config(path: Path) -> CoreConfig:
@@ -43,4 +48,5 @@ def load_core_config(path: Path) -> CoreConfig:
         project_config_filename=value["input"]["projectConfigFilename"],
         command_timeout_seconds=value["execution"]["commandTimeoutSeconds"],
         css_snippet_folder=value["input"].get("cssSnippetFolder", DEFAULT_CSS_SNIPPET_FOLDER),
+        figure_labels=tuple(value["input"].get("figureReferences", {}).get("labels", DEFAULT_FIGURE_LABELS)),
     )
