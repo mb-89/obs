@@ -2,7 +2,7 @@
 from collections import Counter
 
 from obs.document import build_document
-from obs.vault import _parser
+from obs.note import parser as _parser
 from test_vault import capability_reference
 
 

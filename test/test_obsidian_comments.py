@@ -77,3 +77,16 @@ def test_an_unclosed_comment_fails_naming_the_note_and_its_line(tmp_path) -> Non
         build_document(manifest, capability_reference())
 
     assert "chapter.md: line 3:" in str(raised.value)
+
+
+def test_a_manifest_error_after_a_three_line_block_comment_names_the_source_line(tmp_path) -> None:
+    manifest = _vault(
+        tmp_path,
+        "---\ntitle: Book\n---\n%%\nhidden remark\n%%\n- [[one]]\n    - [[two]]\n",
+        one="One.\n", two="Two.\n",
+    )
+
+    with pytest.raises(DocumentError) as raised:
+        build_document(manifest, capability_reference())
+
+    assert "manifest.md: line 8:" in str(raised.value)

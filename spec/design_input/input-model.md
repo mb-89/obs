@@ -673,6 +673,11 @@ Generation time remains separate from document revision dates.
   span is text. A line that held only comment text goes with it. A `%%` no `%%` closes is an
   error naming the note and the line it opens on, as an unclosed frontmatter is (worker
   decision, 5 Nov 2026; Obsidian hides the rest of the note instead).
+- Every part of the core reads a note through one reader, `src/obs/note.py`, which also owns
+  the one Markdown parser: producers, inclusion and conversion see the same body, so nothing
+  in a comment runs or renders. The reader keeps each body line's source line, so every error
+  that names a line names the line in the source file, frontmatter and removed comments
+  counted.
 - The manifest is the inclusion root.
 
   Its TOC targets, abstract and metadata links seed inclusion;
