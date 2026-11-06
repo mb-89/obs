@@ -158,8 +158,22 @@ Carrying the files was chosen over carrying a finished ZIP or a reference the ad
 a ZIP would hold a second copy of every asset's bytes and fix a packaging an adapter may want
 otherwise (compression, a rebuild script, its own sources beside the vault's), and a reference ties
 the adapter to the source machine's vault, as an asset root would. The archive holds the vault
-only: what rebuilds an artifact beyond the vault (the core's and the adapter's sources, their
-settings) is the adapter's to add.
+only: it refers to the generator instead of copying it.
+
+The `sourceArchive.build` record says what rebuilds the artifact, since the adapter builds from
+the Document alone and the core is what knows it: the public `repository` (the `Repository` URL
+of obs's `pyproject.toml`), the `commit` of the checkout obs runs from (core and adapter come from
+this one repository), the package versions of every lockfile Git tracks there (`lockfiles`, by
+repository-relative path: `uv.lock` and each `package-lock.json`), and the `arguments` of the
+call that rebuild it, in the order `--adapter NAME`, `--destination` with the destination's file
+name only, each `--adapter-option`, `--execute-commands`, `--embed-source`. The record names no
+path of the build machine: `--source` is the manifest the Document names, and `--document`,
+`--config`, `--adapter-config` and `--capability-reference` name files outside the vault, so they
+are left out. An obs that runs from no Git checkout cannot name its commit: `--embed-source` then
+fails naming the folder and the remedy, to run obs from a clone of its repository. The working
+tree's uncommitted changes are not recorded. Reading the commit and lockfiles from the checkout
+was chosen over package metadata, because only a checkout holds the lockfiles and the commit
+together.
 
 ### CSS snippets
 
