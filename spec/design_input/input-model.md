@@ -1051,8 +1051,22 @@ An equation figure is a `figure` fence of `kind: equations`. Its content, inline
   string or `{expression, axis: secondary}`.
 - `plot.family`, optional: one curve per value of a third variable, `{variable, values}`, or
   `{variable, steps}` for that many values spread evenly over its range.
-- `plot.parallelCoordinates: true`, optional: its axes are the movable variables and the `y`
-  expressions.
+- `plot.parallelCoordinates: true`, optional: the figure shows its parallel-coordinates plot
+  from the start; without it, the reader opens the plot from the figure's menu. Each line of
+  the plot is one combination of the grid variables' values, and the curves below are the
+  combinations the reader selects ([[capabilities/equation-figures]]).
+- The grid: every movable variable that is neither an unknown, a function nor the x sweep is an
+  axis, in the order of `variables`; a fixed variable is not. `plot.grid`, optional, gives a
+  variable `{values}` (in its unit, inside its range) or `{steps}` spread evenly over its range;
+  any other grid variable gets 5 steps.
+- `plot.computed`, optional: computed axes after the grid's, each with an optional `name` (its
+  label; else its expression or `summary(of)`). `{expression}` is an expression of the
+  variables without the x sweep, its unknowns or functions. `{summary, of}` summarizes the
+  curve of the expression `of` over the full x range: `maximum`, `minimum`, `xAtMaximum`,
+  `xAtMinimum`, `final` (its last value), `area` (under the curve, over x), `absoluteArea`
+  (under its absolute value), `valueAt` with `at` (an x in x's unit, inside its range), and
+  `settlingTime` with `tolerance` (a fraction between 0 and 1): the first x after which the
+  curve stays within `tolerance` times its change, |final − first value|, of its final value.
 
 Range rule: a variable's range is where it can move. A quantity note's `range` and the fence's
 `range` intersect; with one of them, that one is the range; with neither, the variable is fixed
@@ -1083,6 +1097,12 @@ A tree evaluates in complex arithmetic with principal branches. A result is a po
 plot where its imaginary part vanishes, so an exact solution with complex intermediates (an
 underdamped oscillator) plots for every parameter. `src/obs/document.schema.json` owns the tree
 (`$defs/expression`) and the figure's body (`$defs/figureBodies/equations`).
+
+The Document's `plot.parallelCoordinates` carries `shown` and the axes: a grid variable's
+values in its unit and in SI, a computed expression's tree, and a summary's kind, the `of`
+expression's tree, `at` in SI and `tolerance`, each with its dimension. The core computes the
+grid; the adapter evaluates the curves, so it computes every computed axis's values, applies
+its own cap on the number of combinations and draws the plot.
 
 The shared test vectors, `test/fixtures/expression-vectors.json`, hold expression trees,
 variable values and expected results. The core checks them against SymPy; an adapter's live
