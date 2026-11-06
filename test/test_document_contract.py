@@ -252,6 +252,14 @@ def test_a_discriminated_clause_must_be_keyed_by_its_property() -> None:
         discriminating_validator(schema)
 
 
+def test_a_discriminated_branch_a_paragraph_rule_negates_must_be_keyed_by_its_property() -> None:
+    schema = {"$defs": {"block": {"discriminator": {"propertyName": "type"}, "anyOf": [{"required": ["type"]}]}},
+              "items": {"not": {"$ref": "#/$defs/block"}}}
+
+    with pytest.raises(ValueError, match=r"^#/\$defs/block/anyOf/0: .*src/obs/discriminator\.py\.$"):
+        discriminating_validator(schema)
+
+
 def test_a_wrong_field_node_on_a_note_record_is_refused_at_its_field_path(tmp_path) -> None:
     document = document_fixture()
     document["records"][0]["fieldNodes"][0]["attrs"] = {}
