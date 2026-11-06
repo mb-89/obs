@@ -18,8 +18,9 @@ example `--durations=20`. Where `SE_TEST_REPORTS` names a directory, each part w
 XML report there as `<part>.xml` (`core.xml`, `adapters-html.xml`), from which se's
 `work_tickets.py suite` names the slowest tests.
 
-The parts depend on Node test packages: each part's `test/browser/package-lock.json`
-(`test/browser`, `adapters/html/test/browser`). `--setup`, its only argument then, installs them
+The parts depend on Node packages: each part's `test/browser/package-lock.json`
+(`test/browser`, `adapters/html/test/browser`) and the core's diagram renderers
+(`src/obs/diagrams`, which src/obs/diagram.py runs). `--setup`, its only argument then, installs them
 and runs no part; se.toml's `[tests] setup` runs it before the suite, timed apart from the budget.
 A package is installed with `npm ci` when its `node_modules` is missing or was installed from
 another lockfile: after each install the lockfile's SHA-256 is stored in `node_modules/` as
@@ -47,9 +48,10 @@ SETUP = "--setup"
 SETUP_COMMAND = f"uv run python test/suite.py {SETUP}"
 PARALLEL = ["-n", "auto", "--dist", "loadgroup", "--no-loadscope-reorder"]
 REPORTS_VARIABLE = "SE_TEST_REPORTS"
-# Each part's Node test package, where it has one.
-NODE_PACKAGES = [part / "test" / "browser" for part in PARTS
-                 if (part / "test" / "browser" / "package-lock.json").is_file()]
+# Each part's Node test package, where it has one, and the core's diagram renderers.
+NODE_PACKAGES = [*(part / "test" / "browser" for part in PARTS
+                   if (part / "test" / "browser" / "package-lock.json").is_file()),
+                 ROOT / "src" / "obs" / "diagrams"]
 # In node_modules: the SHA-256 of the lockfile it was installed from.
 INSTALLED_LOCKFILE = ".obs-installed-lockfile"
 
