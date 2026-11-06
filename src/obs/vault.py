@@ -20,7 +20,8 @@ import yaml
 
 from obs.commands import CommandError, run_command
 from obs.config import (
-    DEFAULT_COMMAND_TIMEOUT_SECONDS, DEFAULT_FIGURE_LABELS, CoreConfig, CoreConfigError, load_core_config,
+    DEFAULT_COMMAND_TIMEOUT_SECONDS, DEFAULT_CSS_SNIPPET_FOLDER, DEFAULT_FIGURE_LABELS, CoreConfig,
+    CoreConfigError, load_core_config,
 )
 from obs.figure import FIGURE_KINDS, FIGURE_SCHEMA_PATH, FigureContentError, FigureContext
 from obs.input import (
@@ -46,6 +47,7 @@ from obs import svg_links
 from obs.figure_lint import figure_warnings
 from obs.quantity import document_quantity
 from obs.producers import ProducerError, run_producers
+from obs.sources import SourceError, css_snippets
 from obs.selection import (
     Record, base_selects, conditions_select, member_order, note_marks, paragraph_marks,
     view_selectors,
@@ -180,6 +182,11 @@ def build_document(
                 )
             except (OSError, json.JSONDecodeError, InputError) as error:
                 raise VaultError(str(error)) from error
+    try:
+        snippets = css_snippets(vault_root, configuration.css_snippet_folder if configuration is not None
+                                else DEFAULT_CSS_SNIPPET_FOLDER)
+    except SourceError as error:
+        raise VaultError(str(error)) from error
     vault = _read_vault(manifest_path, metadata, body)
     if configuration is not None:
         vault.figure_labels = configuration.figure_labels
@@ -284,6 +291,7 @@ def build_document(
         "semanticResources": [],
         "diagnostics": [{"level": "warning", "message": message} for message in vault.warnings],
         "capabilities": sorted(capabilities),
+        "cssSnippets": snippets,
     }
 
 
