@@ -1137,7 +1137,10 @@ def _inline_nodes(token: Token, context: _Context) -> list[dict[str, object]]:
     open_nodes = [result]
     link: dict[str, str] | None = None
     children = token.children or []
+    skip = 0
     for index, child in enumerate(children):
+        if index < skip:
+            continue
         output = open_nodes[-1]
         mark = child.type.removesuffix("_open").removesuffix("_close")
         if mark in _INLINE_MARKS and child.type.endswith("_open"):
@@ -1146,6 +1149,11 @@ def _inline_nodes(token: Token, context: _Context) -> list[dict[str, object]]:
             open_nodes.append(node["children"])
         elif mark in _INLINE_MARKS:
             open_nodes.pop()
+        elif child.type == "link_open" and (block := _block_href(child.attrGet("href") or "", context)):
+            label, (target, heading, resolved) = _link_label(children[index + 1:]), block
+            output.append(_wikilink(target, heading, label, resolved, f"[{label}]({unquote(child.attrGet('href') or '')})", context))
+            skip = next((end for end in range(index + 1, len(children)) if children[end].type == "link_close"),
+                        len(children)) + 1
         elif child.type == "link_open":
             href = child.attrGet("href") or ""
             link = _resource(context.links, context.link_ids, _link_label(children[index + 1:]), href)
@@ -1310,6 +1318,22 @@ def _wikilink(target: str, heading: str, label: str, resolved: Path | None, synt
     _resource(context.links, context.link_ids, attrs["label"], target or f"#{heading}")
     context.capabilities.add("wikilinks")
     return {"type": "wikilinks", "attrs": attrs, "children": []}
+
+
+_BLOCK_HREF = re.compile(r"(?P<target>[^#:]*)#(?P<heading>\^[^#]+)")
+"""A Markdown link's href that names a block id: ``note.md#^name`` or ``#^name``; capabilities/wikilinks."""
+
+
+def _block_href(href: str, context: _Context) -> tuple[str, str, Path | None] | None:
+    """The target, heading and resolved note of a Markdown block link, which resolves like the
+    wikilink form ``[[note#^name]]`` (capabilities/wikilinks), or None for any other link."""
+    href = unquote(href.strip())
+    match = _BLOCK_HREF.fullmatch(href)
+    if match is None or "wikilinks" not in context.capability_ids:
+        return None
+    target = match["target"].strip()
+    resolved = _link(target, context.source_path, context.vault, f"[]({href})") if target else context.source_path
+    return target, match["heading"], resolved
 
 
 def _figure_links(svg: str, context: _Context, place: str) -> list[dict[str, object]]:
