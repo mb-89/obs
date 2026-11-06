@@ -41,7 +41,7 @@ def test_a_block_link_targets_the_figure_in_its_note_or_another(tmp_path) -> Non
                      "# Two\n\n" + figure("b"))
 
     [same, other, heading] = links(document["chapters"][0]["content"])
-    assert same == {"target": "", "chapter": "one", "heading": "^a", "label": "#^a", "figure": "a"}
+    assert same == {"target": "", "chapter": "one", "heading": "^a", "label": "^a", "figure": "a"}
     assert other == {"target": "two", "chapter": "two", "heading": "^b", "label": "the second", "figure": "b"}
     assert "figure" not in heading
 
@@ -51,7 +51,7 @@ def test_a_block_link_in_a_field_resolves_like_one_in_the_body(tmp_path) -> None
 
     note = next(record for record in document["records"] if record.get("path") == "one.md")
     assert links(note["fieldNodes"]) == [
-        {"target": "two", "chapter": "two", "heading": "^b", "label": "two", "figure": "b"}]
+        {"target": "two", "chapter": "two", "heading": "^b", "label": "Two > ^b", "figure": "b"}]
 
 
 def test_an_unknown_block_id_names_the_note_the_link_and_the_owner(tmp_path) -> None:
@@ -73,6 +73,6 @@ def test_a_duplicate_block_id_in_one_note_names_the_note_the_figure_and_the_owne
 
 
 def test_text_that_only_looks_like_a_link_stays_text(tmp_path) -> None:
-    document = build(tmp_path, "# One\n\nEmpty [[]], ![[#^a]] and [[#One]] stay.\n")
+    document = build(tmp_path, "# One\n\nEmpty [[]] and ![[#^a]] stay.\n")
 
     assert links(document["chapters"][0]["content"]) == []

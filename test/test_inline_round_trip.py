@@ -41,11 +41,12 @@ def _token_text(child) -> str:
     return "\n" if child.type in {"softbreak", "hardbreak"} else child.content
 
 
-def _node_text(node: dict[str, object]) -> str:
+def _node_text(node: dict[str, object], titles: dict[str, str]) -> str:
     attrs = node["attrs"]
-    if node["type"] == "wikilinks":
+    if node["type"] == "wikilinks":  # An unaliased link's label follows capabilities/wikilinks#Link text.
         heading = f"#{attrs['heading']}" if attrs["heading"] else ""
-        label = f"|{attrs['label']}" if attrs["label"] != attrs["target"] else ""
+        unaliased = f"{titles[attrs['chapter']]} > {attrs['heading']}" if heading else attrs["target"]
+        label = f"|{attrs['label']}" if attrs["label"] != unaliased else ""
         return f"[[{attrs['target']}{heading}{label}]]"
     if node["type"] == "embeds":
         return f"![[{attrs['target']}]]"
@@ -89,7 +90,8 @@ def test_every_inline_construct_of_a_note_survives_into_the_document(tmp_path) -
     linked = [node for node in nodes if node["type"] == "text" and "link" in node["attrs"]]
     assert "".join(node["text"] for node in linked) == "a marked link"
     inline_kinds = set(TOKEN_KINDS.values()) | SEMANTIC
-    assert "".join(_node_text(node) for node in nodes if node["type"] in inline_kinds) == "".join(
+    titles = {chapter["id"]: chapter["title"] for chapter in document["chapters"]}
+    assert "".join(_node_text(node, titles) for node in nodes if node["type"] in inline_kinds) == "".join(
         _token_text(child) for child in tokens if child.type not in CLOSING | {"link_open"}
     )
 
