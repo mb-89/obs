@@ -190,7 +190,7 @@ def test_spec_document_leaves_no_link_to_an_existing_note_unresolved(spec_docume
 
 INVALID_NOTES = {
     "quantity": "---\nkind: quantity\naliases: [maxLoad]\nsource: '[[chapter]]'\nvalue: 12 kN\n---\n",
-    "profile": "---\nobsHtml: {layout: sideways}\n---\n",
+    "profile": "---\nobs: {layout: sideways}\n---\n",
     "query": "---\nquery: {where: invalid}\n---\n",
 }
 
@@ -228,7 +228,7 @@ def test_a_card_includes_its_source_notes_and_populations(tmp_path) -> None:
     """input-model "Chapter content": card references are inclusion edges."""
     cards = json.dumps({"version": 1, "cards": [{
         "title": "Series", "body": "",
-        "obsHtml": {"metricsFrom": {
+        "obs": {"metricsFrom": {
             "sourceNote": "lists/categories", "property": "categories", "labelProperty": "name",
             "distinctProperty": "field", "where": [{"field": "kind", "equals": "counted"}],
             "link": {"note": "register", "groupProperty": "category"},
@@ -254,7 +254,7 @@ def test_a_card_includes_its_source_notes_and_populations(tmp_path) -> None:
 
 
 def test_a_card_source_note_that_does_not_resolve_names_card_field_and_remedy(tmp_path) -> None:
-    cards = json.dumps({"version": 1, "cards": [{"title": "Series", "body": "", "obsHtml": {
+    cards = json.dumps({"version": 1, "cards": [{"title": "Series", "body": "", "obs": {
         "metricsFrom": {"sourceNote": "missing", "property": "p", "labelProperty": "l",
                         "distinctProperty": "d", "where": []},
     }}]})
@@ -267,7 +267,7 @@ def test_a_card_source_note_that_does_not_resolve_names_card_field_and_remedy(tm
         build_document(manifest, capability_reference())
 
     assert str(error.value) == (
-        "Card metricsFrom.sourceNote does not resolve in dashboard.md: missing; "
+        "Card obs.metricsFrom.sourceNote does not resolve in dashboard.md: missing; "
         "name a vault note by its path without .md."
     )
 
@@ -277,13 +277,13 @@ def test_empty_conditions_select_every_selectable_note_so_the_build_validates_it
         "manifest.md": "- [[chapter]]\n",
         "chapter.md": "---\nquery: {where: []}\n---\nChapter.\n",
         "stray.md": INVALID_NOTES["profile"],
-        "hidden.md": "---\nignored: true\nobsHtml: {layout: sideways}\n---\n",
+        "hidden.md": "---\nignored: true\nobs: {layout: sideways}\n---\n",
     })
 
     with pytest.raises(ValueError) as error:
         build_document(manifest, capability_reference())
 
-    assert str(error.value).startswith(f"{tmp_path / 'stray.md'}: obsHtml.layout: ")
+    assert str(error.value).startswith(f"{tmp_path / 'stray.md'}: obs.layout: ")
     (tmp_path / "stray.md").write_text("Stray.\n", encoding="utf-8")
     chapters = [chapter["id"] for chapter in build_document(manifest, capability_reference())["chapters"]]
     assert "stray" in chapters and "hidden" not in chapters

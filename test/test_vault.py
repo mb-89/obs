@@ -75,7 +75,7 @@ def additional_capability_vault(tmp_path) -> Path:
     (vault / "source.csv").write_text("value\n1\n", encoding="utf-8")
     (vault / "chapter.md").write_text(
         "---\nkind: quantity\naliases: [coverage]\nsource: '[[manifest]]'\nquery: {where: []}\n"
-        "obsHtml: {document: false}\n"
+        "obs: {document: false}\n"
         "reference: https://example.test/source\n---\n"
         "![Source](source.csv)\n\n![[register.base#Open]]\n\n"
         "```cards\nversion: 1\ncards: [{title: Coverage, body: Current state.}]\n```\n\n"
@@ -357,7 +357,7 @@ def register_vault(tmp_path, embed: str = "![[x.base#Open points]]") -> Path:
         "  - type: table\n    name: All points\n    order: [file.name]\n"
         "  - type: table\n    name: Open points\n    filters: 'status == \"open\"'\n"
         "    order: [file.name, status]\n"
-        "  - type: table\n    name: Marked\n    order: [label]\n    obsHtml: {records: tag}\n",
+        "  - type: table\n    name: Marked\n    order: [label]\n    obs: {records: tag}\n",
         encoding="utf-8",
     )
     for name, status in (("a-point", "open"), ("b-point", "closed"), ("c-point", "Open")):
@@ -455,9 +455,9 @@ def test_each_view_selects_its_own_members(tmp_path) -> None:
         "filters: 'kind == \"point\"'\n"
         "views:\n"
         "  - type: table\n    name: First\n    order: [file.name]\n"
-        "    obsHtml:\n      members:\n        - path: b-point.md\n        - path: a-point.md\n"
+        "    obs:\n      members:\n        - path: b-point.md\n        - path: a-point.md\n"
         "  - type: table\n    name: Second\n    order: [file.name]\n"
-        "    obsHtml:\n      members:\n        - path: c-point.md\n"
+        "    obs:\n      members:\n        - path: c-point.md\n"
         "  - type: table\n    name: All\n    order: [file.name]\n",
         encoding="utf-8",
     )
@@ -465,14 +465,77 @@ def test_each_view_selects_its_own_members(tmp_path) -> None:
     document = build_document(vault / "manifest.md", capability_reference())
 
     [register] = _registers(document)
-    assert register["attrs"]["rows"] == [["a-point", "b-point"], ["c-point"], ["a-point", "b-point", "c-point"]]
+    assert register["attrs"]["rows"] == [["b-point", "a-point"], ["c-point"], ["a-point", "b-point", "c-point"]]
+
+
+def test_a_view_with_members_yields_its_rows_in_member_order(tmp_path) -> None:
+    """generic-tables: the members' order is the view's initial row order, which the core emits."""
+    vault = register_vault(tmp_path, "![[x.base]]")
+    (vault / "x.base").write_text(
+        "views:\n  - type: table\n    order: [file.name]\n    obs:\n      members:\n"
+        "        - path: c-point.md\n        - path: a-point.md\n        - path: b-point.md\n"
+        "  - type: table\n    order: [label]\n    obs:\n      records: tag\n      members:\n"
+        "        - path: c-point.md\n        - path: a-point.md\n",
+        encoding="utf-8",
+    )
+    for name in ("a-point", "c-point"):
+        (vault / f"{name}.md").write_text(f"---\nkind: point\n---\nRisk. #mark/risk/{name[0]}\n", encoding="utf-8")
+
+    [register] = _registers(build_document(vault / "manifest.md", capability_reference()))
+
+    assert register["attrs"]["rows"] == [["c-point", "a-point", "b-point"],
+                                         ["tag-c-point-risk-c", "tag-a-point-risk-a"]]
+
+
+@pytest.mark.parametrize("entries", [
+    ["a-point.md", "missing.md"],
+    ["a-point.md", "a-point.md"],
+    ["a-point.md", "../outside.md"],
+    ["a-point.md", "/abs/a-point.md"],
+    ["a-point.md", "a-point"],
+])
+@pytest.mark.parametrize("embedded", [True, False])
+def test_a_bad_member_path_names_the_note_the_view_the_entry_and_the_remedy(tmp_path, entries, embedded) -> None:
+    """generic-tables: missing, duplicate, absolute or vault-escaping member paths are input errors."""
+    vault = register_vault(tmp_path, "![[x.base]]")
+    (tmp_path / "outside.md").write_text("Outside.\n", encoding="utf-8")
+    members = "".join(f"        - path: {entry}\n" for entry in entries)
+    base = ("views:\n  - type: table\n    name: All\n    order: [file.name]\n"
+            "  - type: table\n    name: Chosen\n    order: [file.name]\n    obs:\n      members:\n" + members)
+    if embedded:
+        (vault / "x.base").write_text(base, encoding="utf-8")
+    else:
+        (vault / "chapter.md").write_text(f"# Chapter\n\n```base\n{base}```\n", encoding="utf-8")
+
+    with pytest.raises(DocumentError) as raised:
+        build_document(vault / "manifest.md", capability_reference())
+
+    message = str(raised.value)
+    owner, place = (vault / "x.base", "") if embedded else (vault / "chapter.md", "base fence 1, ")
+    assert message.startswith(f"{owner}: {place}views[1].obs.members[1].path: "), message
+    assert "Chosen" in message and entries[1] in message
+    assert "; see capabilities/bases." in message
+
+
+def test_member_paths_that_resolve_to_vault_notes_build(tmp_path) -> None:
+    vault = register_vault(tmp_path, "![[x.base]]")
+    (vault / "sub").mkdir()
+    (vault / "sub" / "e-point.md").write_text("---\nkind: point\n---\n", encoding="utf-8")
+    (vault / "x.base").write_text(
+        "views:\n  - type: table\n    order: [file.name]\n    obs:\n      members:\n"
+        "        - path: sub/e-point.md\n        - path: a-point.md\n", encoding="utf-8",
+    )
+
+    [register] = _registers(build_document(vault / "manifest.md", capability_reference()))
+
+    assert sorted(register["attrs"]["rows"][0]) == ["a-point", "sub-e-point"]
 
 
 @pytest.mark.parametrize(("note", "text", "field"), [
-    ("chapter.md", "# Chapter\n\n```base\nobsHtml:\n  members:\n    - path: a-point.md\n"
-     "views:\n  - type: table\n    order: [file.name]\n```\n", "base fence 1, obsHtml.members"),
-    ("x.base", "obsHtml:\n  members:\n    - path: a-point.md\n"
-     "views:\n  - type: table\n    order: [file.name]\n", "obsHtml.members"),
+    ("chapter.md", "# Chapter\n\n```base\nobs:\n  members:\n    - path: a-point.md\n"
+     "views:\n  - type: table\n    order: [file.name]\n```\n", "base fence 1, obs.members"),
+    ("x.base", "obs:\n  members:\n    - path: a-point.md\n"
+     "views:\n  - type: table\n    order: [file.name]\n", "obs.members"),
 ])
 def test_base_level_members_fail_naming_the_note_and_the_remedy(tmp_path, note: str, text: str, field: str) -> None:
     vault = register_vault(tmp_path, "![[x.base]]")
@@ -847,7 +910,7 @@ def projection_vault(tmp_path) -> Path:
     }
     (vault / "x.base").write_text("views:\n" + "".join(
         f"  - type: table\n    name: {kind}\n    filters: '{filters[kind].replace(chr(39), chr(39) * 2)}'\n"
-        f"    order: [file.name]\n    obsHtml: {{records: {kind}}}\n"
+        f"    order: [file.name]\n    obs: {{records: {kind}}}\n"
         for kind in RECORD_TYPES
     ), encoding="utf-8")
     return vault

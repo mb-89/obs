@@ -116,7 +116,7 @@ def compile_base_filter(filters: object) -> BaseFilter:
             raise _unsupported(filters)
         simple, spaced, operator, literal = match.groups()
         if simple == "recordType":
-            raise _unsupported(filters, " (recordType filters were removed; select rows with obsHtml.records)")
+            raise _unsupported(filters, " (recordType filters were removed; select rows with obs.records)")
         name = simple or f'note["{spaced}"]'
         if (re.match(r'^note(?:\.file\.|\["file\.)', name) or name.startswith(("formula.", "this."))
                 or name.startswith("file.") and name not in _FILE_PROPERTIES):
@@ -170,17 +170,16 @@ def record_value(record: Record, note: Record | None, field: str) -> object:
 
 
 def view_selectors(definition: dict[str, object]) -> list[RecordSelector]:
-    """One selector per view of a Base definition, over the record type its obsHtml.records names
-    and, where the view declares obsHtml.members, over those notes alone."""
+    """One selector per view of a Base definition, over the record type its obs.records names
+    and, where the view declares obs.members, over those notes alone."""
     base = compile_base_filter(definition.get("filters"))
-    profile = definition.get("obsHtml") if isinstance(definition.get("obsHtml"), dict) else {}
+    profile = definition.get("obs") if isinstance(definition.get("obs"), dict) else {}
 
     def selector(view: dict[str, object]) -> RecordSelector:
-        own_profile = view.get("obsHtml") if isinstance(view.get("obsHtml"), dict) else {}
+        own_profile = view.get("obs") if isinstance(view.get("obs"), dict) else {}
         kind = own_profile.get("records", profile.get("records", "note"))
         own = compile_base_filter(view.get("filters"))
-        members = own_profile.get("members")
-        paths = None if not isinstance(members, list) else {member.get("path") for member in members}
+        paths = member_order(view)
 
         def selects(record: Record, note: Record | None) -> bool:
             owner = record if record["type"] == "note" else note
@@ -193,6 +192,15 @@ def view_selectors(definition: dict[str, object]) -> list[RecordSelector]:
             return base(value_for) and own(value_for)
         return selects
     return [selector(view) for view in definition.get("views", [])]
+
+
+def member_order(view: dict[str, object]) -> dict[str, int] | None:
+    """A view's members as note path to position, or None when it declares none (generic-tables)."""
+    profile = view.get("obs")
+    members = profile.get("members") if isinstance(profile, dict) else None
+    if not isinstance(members, list):
+        return None
+    return {member.get("path"): index for index, member in enumerate(members)}
 
 
 def base_selects(definition: dict[str, object]) -> RecordSelector:
