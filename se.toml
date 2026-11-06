@@ -17,3 +17,7 @@ setup = ["uv", "run", "python", "test/suite.py", "--setup"]
 command = ["uv", "run", "python", "test/suite.py", "--durations=10"]
 target_seconds = 60
 limit_seconds = 120
+
+[modules.se]
+url = "https://github.com/mb-89/SE.git"
+ref = "6517b8e90f674bacb98fe916a6c54fd8ff353e5c"
