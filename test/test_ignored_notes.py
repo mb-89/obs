@@ -98,12 +98,12 @@ def test_the_spec_manifest_is_not_selected_by_a_query_or_base_matching_all_notes
 
 
 def test_an_ignored_note_is_not_a_member_of_a_base_members_projection_that_would_select_it(tmp_path) -> None:
-    members = {"views": [{"type": "table", "obsHtml": {"members": [{"path": "hidden.md"}, {"path": "finding.md"}]}}]}
+    members = {"views": [{"type": "table", "obs": {"members": [{"path": "hidden.md"}, {"path": "finding.md"}]}}]}
     manifest = _vault(tmp_path, {
         "manifest.md": "- [[register]]\n",
         "register.md": (
             "```base\nviews:\n  - type: table\n    order: [file.name]\n"
-            "    obsHtml:\n      members:\n        - path: hidden.md\n        - path: finding.md\n```\n"
+            "    obs:\n      members:\n        - path: hidden.md\n        - path: finding.md\n```\n"
         ),
         "finding.md": "Selected.\n",
         "hidden.md": "---\nignored: true\n---\nIgnored.\n",

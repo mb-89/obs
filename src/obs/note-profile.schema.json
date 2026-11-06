@@ -1,17 +1,10 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "title": "obs note profile input",
+  "$comment": "A note's frontmatter obs mapping, the core's namespace (capabilities/profiles).",
   "type": "object",
-  "additionalProperties": true,
+  "additionalProperties": false,
   "properties": {
-    "document": {"type": "boolean", "$comment": "input-model#Chapter content: false keeps a record-only note."},
-    "layout": {"enum": ["paged", "scrolling"]},
-    "heading": {"enum": ["cover", "compact"]},
-    "query": {
-      "oneOf": [
-        {"type": "object"},
-        {"type": "string", "pattern": "^\\[\\[[^\\]|#]+(?:\\|[^\\]]+)?\\]\\]$"}
-      ]
-    }
+    "document": {"type": "boolean", "$comment": "input-model#Chapter content: false keeps a record-only note."}
   }
 }
