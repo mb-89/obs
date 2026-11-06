@@ -174,9 +174,9 @@ def test_native_rich_metadata_fallback_empty_tables_and_literal_percentages(tmp_
 def test_native_actual_imported_source_tables(tmp_path, reader_browser, source_kind):
     from playwright.sync_api import expect
 
-    source = os.environ.get("REFERENCE_EXAMPLE_SNAPSHOT")
+    source = os.environ.get("OBS_HTML_TEST_IMPORTED_SNAPSHOT")
     if not source:
-        pytest.skip("Set REFERENCE_EXAMPLE_SNAPSHOT for actual imported-source acceptance.")
+        pytest.skip("Set OBS_HTML_TEST_IMPORTED_SNAPSHOT for actual imported-source acceptance.")
     snapshot = json.loads(Path(source).read_text(encoding="utf-8-sig"))
     role = next(role for role in snapshot["roleData"] if role["kind"] == source_kind)
     items = role.get("sourceItems") or role["items"]
