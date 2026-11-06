@@ -19,7 +19,9 @@ CAP_SECONDS, at which a part still running is stopped, with every process it sta
 suite names the part and the tests it was running and fails. Arguments are passed on to every
 part's pytest, for example `--durations=20`. Where `SE_TEST_REPORTS` names a directory, each part writes its JUnit
 XML report there as `<part>.xml` (`core.xml`, `adapters-html.xml`), from which se's
-`work_tickets.py suite` names the slowest tests.
+`work_tickets.py suite` names the slowest tests; each part's `conftest.py` names its worker
+count there as the `workers` testsuite property (record_workers), by which se divides the part's
+test time.
 
 The parts depend on Node packages: each part's `test/browser/package-lock.json`
 (today `adapters/html/test/browser` alone); the core's diagram renderers and the html
@@ -108,6 +110,26 @@ def install_node_packages(packages: list[Path], run=subprocess.run) -> list[Path
                                f"{result.stdout}")
         (package / "node_modules" / INSTALLED_LOCKFILE).write_text(lockfile_hash(package), encoding="utf-8")
     return stale
+
+
+# The JUnit testsuite property that holds a part's xdist worker count, which se's work_tickets.py
+# suite divides the part's test time by.
+WORKERS_PROPERTY = "workers"
+
+
+def record_workers(config) -> int | None:
+    """From a part's ``pytest_sessionstart``: write the part's worker count, its xdist workers or 1
+    without them, as WORKERS_PROPERTY of the JUnit report the run writes; the count written. An xdist
+    worker leaves this to its controller, and a run without a report writes nothing."""
+    from _pytest.junitxml import xml_key
+
+    report = config.stash.get(xml_key, None)
+    if hasattr(config, "workerinput") or report is None:
+        return None
+    distributed = config.getoption("dist", "no") != "no"
+    workers = max(1, len(config.getoption("tx", None) or [])) if distributed else 1
+    report.add_global_property(WORKERS_PROPERTY, workers)
+    return workers
 
 
 def set_up_focused_run(config, packages: list[Path] | None = None, run=None) -> list[Path]:
