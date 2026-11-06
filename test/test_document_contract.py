@@ -457,17 +457,15 @@ def recording_adapter(folder: Path, **declared: object) -> Path:
 
 
 @pytest.fixture
-def offline_spec_commands(monkeypatch):
-    """The spec's cmd fences echo their command instead of starting it; its remote images are served."""
-    from obs import vault
+def shared_spec_build(monkeypatch, spec_document):
+    """The one-call build's Document is the run's shared build of the spec (test/spec_build.py)."""
+    from obs import document as core
 
-    monkeypatch.setattr(vault, "run_command", lambda command, cwd, timeout_seconds: f"{command}\n")
-    monkeypatch.setattr(vault, "fetch_remote", lambda url: (b"<svg xmlns='http://www.w3.org/2000/svg'/>",
-                                                             "image/svg+xml"))
+    monkeypatch.setattr(core, "build_document", lambda *_arguments: spec_document)
 
 
 def test_one_call_builds_the_spec_without_a_capability_reference_or_a_document(
-        tmp_path, monkeypatch, offline_spec_commands) -> None:
+        tmp_path, monkeypatch, shared_spec_build) -> None:
     """The packaged capability reference and a temporary Document; adapters.json in the current folder."""
     recording_adapter(tmp_path)
     monkeypatch.chdir(tmp_path)

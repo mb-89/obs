@@ -1,7 +1,8 @@
 """The core's `obs-document` without the network, for a test that runs the core as a subprocess.
 
-Reader: whoever runs the core from another part's tests, as the HTML adapter's parity gate
-(adapters/html/test/test_parity_browser.py) does.
+Reader: whoever runs the core as a subprocess of a test, as the run's shared build of obs's spec
+(test/spec_build.py) and the HTML adapter's archive rebuild
+(adapters/html/test/test_spec_archive_rebuild.py) do.
 
 Runs in the core's environment, with obs-document's arguments:
 `uv run --offline --project <core> python <core>/test/offline_obs_document.py --document ... --source ...`.
