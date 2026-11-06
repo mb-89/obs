@@ -1,0 +1,46 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "obs coverMetadata input",
+  "$comment": "The manifest's cover metadata and history once unassigned values are omitted (input-model#Cover metadata and history). The manifest's other frontmatter is not cover metadata and stays open.",
+  "type": "object",
+  "properties": {
+    "document type": {"$ref": "#/$defs/text"},
+    "document number": {"$ref": "#/$defs/text"},
+    "organization": {"$ref": "#/$defs/text"},
+    "template": {"$ref": "#/$defs/text"},
+    "copyright": {"$ref": "#/$defs/text"},
+    "confidentiality": {"$ref": "#/$defs/text"},
+    "legal entity": {"$ref": "#/$defs/text"},
+    "authors": {"$ref": "#/$defs/people"},
+    "reviewers": {"$ref": "#/$defs/people"},
+    "approvers": {"$ref": "#/$defs/people"},
+    "product": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name"],
+      "properties": {
+        "name": {"$ref": "#/$defs/text"},
+        "version": {"$ref": "#/$defs/text"}
+      }
+    },
+    "history": {
+      "type": "array",
+      "$comment": "Oldest first; versions are unique and only the last may end in * (checked in obs.input).",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["version", "author", "change"],
+        "properties": {
+          "version": {"$ref": "#/$defs/text"},
+          "author": {"$ref": "#/$defs/text"},
+          "change": {"$ref": "#/$defs/text"},
+          "date": {"type": "string", "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$", "$comment": "A calendar date, checked in obs.input."}
+        }
+      }
+    }
+  },
+  "$defs": {
+    "text": {"type": "string", "pattern": "\\S"},
+    "people": {"type": ["string", "array"], "pattern": "\\S", "minItems": 1, "items": {"$ref": "#/$defs/text"}}
+  }
+}
