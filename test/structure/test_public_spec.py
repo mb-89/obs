@@ -1,8 +1,9 @@
 """The public repository names no private work context.
 
 This file is the one owner of the deny list. It holds only salted SHA-256 hashes, never a term,
-so the check does not publish what it keeps out. It spans every authored file under `spec/`
-(generated `spec/design_output` excluded).
+so the check does not publish what it keeps out. It spans every text file Git tracks, except
+files nobody here authors: `SKIPPED` names them and why. Untracked and ignored files (generated
+`spec/design_output`, `data/data_output`, `node_modules`) are never listed by Git.
 
 To add a term without writing it anywhere public, the owner runs locally
 
@@ -16,6 +17,7 @@ allowed in lowercase). A term is its words as `WORD` finds them, joined by one s
 
 import hashlib
 import re
+import subprocess
 import sys
 from pathlib import Path
 
@@ -85,18 +87,35 @@ def test_matching_ignores_case_and_wrapping_but_not_compounds(monkeypatch) -> No
     assert denied_lines(text) == [2, 6]
 
 
+# Tracked files nobody here authors: third-party bundles copied verbatim (megabytes of minified
+# code, most of the scan's time) and the lock file uv generates from `pyproject.toml`.
+SKIPPED = re.compile(r"(^|/)vendor/|(^|/)uv\.lock$")
+
+
 def scanned_files() -> list[Path]:
-    return [
-        path for path in sorted((ROOT / "spec").rglob("*"))
-        if path.is_file() and "design_output" not in path.parts
-    ]
+    listed = subprocess.run(
+        ["git", "ls-files", "-z"], cwd=ROOT, capture_output=True, check=True, text=True,
+    ).stdout.split("\0")
+    return [ROOT / name for name in listed if name and not SKIPPED.search(name) and (ROOT / name).is_file()]
+
+
+def text_of(path: Path) -> str | None:
+    """The file's text; None for a binary file (a NUL byte, or not UTF-8)."""
+    data = path.read_bytes()
+    if b"\0" in data:
+        return None
+    try:
+        return data.decode("utf-8")
+    except UnicodeDecodeError:
+        return None
 
 
 def test_repository_names_no_denied_term() -> None:
     found = [
         f"{path.relative_to(ROOT).as_posix()}:{line}"
         for path in scanned_files()
-        for line in denied_lines(path.read_text(encoding="utf-8"))
+        if (text := text_of(path)) is not None
+        for line in denied_lines(text)
     ]
     assert not found, (
         "A denied term (private work context) matched; this check never names it. Rewrite each "
