@@ -13,6 +13,8 @@ from jsonschema import Draft202012Validator
 from jsonschema.exceptions import ValidationError, best_match
 import yaml
 
+from obs.quantity import UnitError, parse_unit
+
 
 class InputError(ValueError):
     """Raised when an authored input violates the core input contract."""
@@ -154,7 +156,7 @@ def _schema() -> dict[str, object]:
 
 
 @cache
-def _validator(name: str) -> Draft202012Validator:
+def input_validator(name: str) -> Draft202012Validator:
     schema = _schema()
     return Draft202012Validator({"$ref": f"#/$defs/{name}", "$defs": schema["$defs"]})
 
@@ -173,7 +175,7 @@ def parse_card_spec(text: str, source_path: object, place: str = "cards fence") 
             refuse_moved_keys(metric, "metric", source_path, f"cards[{index}].metrics[{number}]", place,
                               "capabilities/cards-metrics")
             _refuse_hand_written_drill_down(card, metric, source_path, f"cards[{index}].metrics[{number}]", place)
-    error = schema_error(list(_validator("cards").iter_errors(specification)), source_path,
+    error = schema_error(list(input_validator("cards").iter_errors(specification)), source_path,
                          "capabilities/cards-metrics", place=place)
     if error:
         raise error
@@ -196,7 +198,7 @@ def _refuse_hand_written_drill_down(card: dict[str, object], metric: object, sou
 
 
 def validate_count_query(query: object, source_path: object, field: str = "query") -> None:
-    error = schema_error(list(_validator("countQuery").iter_errors(query)), source_path,
+    error = schema_error(list(input_validator("countQuery").iter_errors(query)), source_path,
                          "capabilities/queries", field=field)
     if error:
         raise error
@@ -212,7 +214,7 @@ def parse_property_editor(
     except yaml.YAMLError as error:
         raise input_error(source_path, place, f"is not valid YAML: {error}",
                           "Write YAML; see capabilities/property-editors") from error
-    error = schema_error(list(_validator("propertyEditor").iter_errors(specification)), source_path,
+    error = schema_error(list(input_validator("propertyEditor").iter_errors(specification)), source_path,
                          "capabilities/property-editors", place=place)
     if error:
         raise error
@@ -312,6 +314,10 @@ _QUANTITY_ALIAS = re.compile(r"[A-Za-z][A-Za-z0-9_]{0,39}")
 _NOTE_LINK = re.compile(r"(?<!!)\[[^\]]+\]\([^)]+\)|\[\[[^\]]+\]\]")
 
 
+def _finite(value: object) -> bool:
+    return not isinstance(value, bool) and isinstance(value, (int, float)) and isfinite(value)
+
+
 def validate_quantity(metadata: dict[str, object], source_path: object) -> None:
     """Validate a quantity note's frontmatter; see capabilities/quantities."""
 
@@ -326,10 +332,7 @@ def validate_quantity(metadata: dict[str, object], source_path: object) -> None:
         fail("value or query", "is missing",
              "add value: <number> or query: {where: [...]} for a count")
     value = metadata.get("value")
-    if "value" in metadata and (
-        isinstance(value, bool) or not isinstance(value, (int, float))
-        or isinstance(value, float) and not isfinite(value)
-    ):
+    if "value" in metadata and not _finite(value):
         fail("value", f"must be a finite number, not {value!r}",
              "write the bare number and put the unit in unit")
     if "query" in metadata:
@@ -338,6 +341,21 @@ def validate_quantity(metadata: dict[str, object], source_path: object) -> None:
     if "unit" in metadata and (not isinstance(unit, str) or not unit.strip()):
         fail("unit", f"must be a non-empty string, not {unit!r}",
              "write the display unit, such as mm, or remove unit")
+    if "unit" in metadata:
+        try:
+            parse_unit(unit)
+        except UnitError as error:
+            fail("unit", str(error), "write an SI or common engineering unit with an optional prefix, "
+                 "such as mm, kN, N*m, km/h, rpm or %, or remove unit for a plain number")
+    if "range" in metadata:
+        bounds = metadata["range"]
+        if not isinstance(bounds, list) or len(bounds) != 2 or not all(map(_finite, bounds)) \
+                or bounds[0] > bounds[1]:
+            fail("range", f"must be [minimum, maximum], two finite numbers in order, not {bounds!r}",
+                 "write range: [minimum, maximum] in the note's unit, or remove range")
+        if "value" in metadata and not bounds[0] <= value <= bounds[1]:
+            fail("value", f"{value!r} lies outside range {bounds!r}",
+                 "correct value or widen range so that it holds value")
     aliases = metadata.get("aliases")
     aliases = [aliases] if isinstance(aliases, str) else aliases
     if not isinstance(aliases, list) or len(aliases) != 1 or not isinstance(aliases[0], str) \
