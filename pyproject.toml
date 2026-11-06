@@ -27,6 +27,11 @@ dev = [
     "pytest-xdist>=3.8.0",
 ]
 
+[tool.uv]
+# Build the core again when what hatch_build.py generates from changes.
+cache-keys = [{ file = "pyproject.toml" }, { file = "hatch_build.py" }, { file = "spec/capabilities/**" },
+              { file = "src/obs/capabilities.py" }]
+
 [tool.uv.workspace]
 members = ["adapters/html"]
 
@@ -34,11 +39,15 @@ members = ["adapters/html"]
 obs-html = { workspace = true }
 
 [build-system]
-requires = ["hatchling"]
+# pyyaml: hatch_build.py writes the packaged capability reference from the capability notes.
+requires = ["hatchling", "pyyaml"]
 build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/obs_html_interim", "src/obs"]
+
+[tool.hatch.build.targets.wheel.hooks.custom]
+# hatch_build.py: the packaged capability reference, src/obs/capability-reference.json.
 
 [tool.hatch.build]
 directory = "data/data_output/dist"

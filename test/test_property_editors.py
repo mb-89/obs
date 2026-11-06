@@ -5,6 +5,10 @@ import pytest
 from obs_html_interim.content import ContentError, parse_manifest
 from obs_html_interim.renderer import render_artifact
 from obs_html_interim.artifact_data import decode_artifact_data
+from obs_html_interim.properties import _schema as _editor_schema
+
+# The interim's own list (its property-editor.schema.json), until obs#3 deletes the interim.
+PROTECTED = sorted(_editor_schema()[2])
 
 
 def test_property_editor_is_explicit_and_canonical(tmp_path):
@@ -46,10 +50,7 @@ def test_property_editor_projection_is_preserved_as_static_data(tmp_path):
     }
 
 
-@pytest.mark.parametrize("field", [
-    "title", "kind", "aliases", "term", "definition",
-    "__proto__", "constructor", "prototype", "Title", "KiNd",
-])
+@pytest.mark.parametrize("field", [*PROTECTED, "Title", "KiNd"])
 @pytest.mark.parametrize("branch", ["blank", "nonblank"])
 def test_property_editor_projection_rejects_protected_fields(tmp_path, field, branch):
     value = ["Original"] if field == "aliases" else "Original"

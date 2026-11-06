@@ -13,3 +13,5 @@
 
 # Worktree-local worker queues
 /.se/
+# The core's packaged capability reference, written by every build (hatch_build.py)
+/src/obs/capability-reference.json

@@ -200,6 +200,9 @@ def parse_property_editor(
                          "capabilities/property-editors", place=place)
     if error:
         raise error
+    if specification["field"].lower() in protected_fields():
+        raise input_error(source_path, f"{place}, field", "is a protected field, which a property editor never edits",
+                          "Edit another field; see capabilities/property-editors")
     for branch, fields in (specification.get("projection") or {}).items():
         for name, value in fields.items():
             problem = _projection_problem(name, value, specification["field"], frontmatter)
@@ -209,11 +212,23 @@ def parse_property_editor(
     return specification
 
 
+def property_editor_writes(specification: dict[str, object]) -> list[str]:
+    """The fields a validated property editor may write: its edited field, then each projection
+    target once (capabilities/property-editors#Document node)."""
+    targets = [name for fields in (specification.get("projection") or {}).values() for name in fields]
+    return list(dict.fromkeys([specification["field"], *targets]))
+
+
+def protected_fields() -> frozenset[str]:
+    """The fields no property editor writes, in lower case: input.schema.json's ``protectedField``."""
+    return frozenset(_schema()["$defs"]["protectedField"]["enum"])
+
+
 def _projection_problem(
     name: str, value: object, edited: str, frontmatter: dict[str, object],
 ) -> tuple[str, str] | None:
     """What breaks a projection rule of capabilities/property-editors, and its remedy, or None."""
-    if name.lower() in _schema()["$defs"]["protectedField"]["enum"]:
+    if name.lower() in protected_fields():
         return "is a protected field, which a projection never writes", "Project onto another field"
     if name == edited:
         return ("is the edited field, which a projection never writes",

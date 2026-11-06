@@ -20,6 +20,14 @@ Run the platform wrapper from the project folder:
 The bundled specification embeds live command output through a `cmd` fence. Building it requires
 `--execute-commands`; without that authorization the build stops before running any command.
 
+Through the core, one call builds the specification:
+
+```sh
+uv run obs-document --source spec/manifest.md --adapter html --destination out.html --execute-commands
+```
+
+[One-call build](spec/design_input/cli.md#one-call-build) owns what this call reads and writes.
+
 ## Develop
 
 Follow [AGENTS.md](AGENTS.md) and the [testing policy](spec/design_input/quality.md). For example:
