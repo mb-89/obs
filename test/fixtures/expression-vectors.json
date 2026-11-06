@@ -1,0 +1,1172 @@
+{
+ "description": "Shared expression-tree vectors (document.schema.json, $defs/expression; input-model, Equation figures): each tree with its SI variable values and derivative values, and the expected value, or null where the result's imaginary part does not vanish (no point of the plot). Trees evaluate in complex arithmetic with principal branches; compare with a relative tolerance of 1e-9. The core checks them against SymPy (test/test_expression_vectors.py); an adapter's evaluator checks itself against this file.",
+ "tolerance": 1e-09,
+ "vectors": [
+  {
+   "name": "sum and product",
+   "tree": {
+    "op": "add",
+    "args": [
+     {
+      "number": 1
+     },
+     {
+      "op": "mul",
+      "args": [
+       {
+        "number": 2
+       },
+       {
+        "symbol": "a"
+       }
+      ]
+     }
+    ]
+   },
+   "values": {
+    "a": 3
+   },
+   "expected": 7.0
+  },
+  {
+   "name": "division as a negative power",
+   "tree": {
+    "op": "mul",
+    "args": [
+     {
+      "symbol": "a"
+     },
+     {
+      "op": "pow",
+      "args": [
+       {
+        "symbol": "b"
+       },
+       {
+        "number": -1
+       }
+      ]
+     }
+    ]
+   },
+   "values": {
+    "a": 1,
+    "b": 4
+   },
+   "expected": 0.25
+  },
+  {
+   "name": "square root",
+   "tree": {
+    "op": "pow",
+    "args": [
+     {
+      "symbol": "a"
+     },
+     {
+      "number": 0.5
+     }
+    ]
+   },
+   "values": {
+    "a": 2
+   },
+   "expected": 1.4142135623731
+  },
+  {
+   "name": "square root of a negative number is no point",
+   "tree": {
+    "op": "pow",
+    "args": [
+     {
+      "symbol": "a"
+     },
+     {
+      "number": 0.5
+     }
+    ]
+   },
+   "values": {
+    "a": -1
+   },
+   "expected": null
+  },
+  {
+   "name": "cube root of a negative number takes the principal branch, no point",
+   "tree": {
+    "op": "pow",
+    "args": [
+     {
+      "number": -8
+     },
+     {
+      "number": 0.3333333333333333
+     }
+    ]
+   },
+   "values": {},
+   "expected": null
+  },
+  {
+   "name": "integer power of a negative number",
+   "tree": {
+    "op": "pow",
+    "args": [
+     {
+      "symbol": "a"
+     },
+     {
+      "number": 3
+     }
+    ]
+   },
+   "values": {
+    "a": -2
+   },
+   "expected": -8.0
+  },
+  {
+   "name": "zero to a positive power",
+   "tree": {
+    "op": "pow",
+    "args": [
+     {
+      "symbol": "a"
+     },
+     {
+      "number": 2.5
+     }
+    ]
+   },
+   "values": {
+    "a": 0
+   },
+   "expected": 0.0
+  },
+  {
+   "name": "complex intermediates give a real result",
+   "tree": {
+    "op": "mul",
+    "args": [
+     {
+      "op": "pow",
+      "args": [
+       {
+        "number": -4
+       },
+       {
+        "number": 0.5
+       }
+      ]
+     },
+     {
+      "op": "pow",
+      "args": [
+       {
+        "number": -9
+       },
+       {
+        "number": 0.5
+       }
+      ]
+     }
+    ]
+   },
+   "values": {},
+   "expected": -6.0
+  },
+  {
+   "name": "imaginary unit squared",
+   "tree": {
+    "op": "pow",
+    "args": [
+     {
+      "constant": "i"
+     },
+     {
+      "number": 2
+     }
+    ]
+   },
+   "values": {},
+   "expected": -1.0
+  },
+  {
+   "name": "exponential",
+   "tree": {
+    "op": "exp",
+    "args": [
+     {
+      "symbol": "a"
+     }
+    ]
+   },
+   "values": {
+    "a": 1
+   },
+   "expected": 2.71828182845905
+  },
+  {
+   "name": "logarithm",
+   "tree": {
+    "op": "log",
+    "args": [
+     {
+      "symbol": "a"
+     }
+    ]
+   },
+   "values": {
+    "a": 10
+   },
+   "expected": 2.30258509299405
+  },
+  {
+   "name": "logarithm of a negative number is no point",
+   "tree": {
+    "op": "log",
+    "args": [
+     {
+      "symbol": "a"
+     }
+    ]
+   },
+   "values": {
+    "a": -1
+   },
+   "expected": null
+  },
+  {
+   "name": "trigonometric",
+   "tree": {
+    "op": "add",
+    "args": [
+     {
+      "op": "sin",
+      "args": [
+       {
+        "symbol": "a"
+       }
+      ]
+     },
+     {
+      "op": "cos",
+      "args": [
+       {
+        "symbol": "a"
+       }
+      ]
+     },
+     {
+      "op": "tan",
+      "args": [
+       {
+        "symbol": "a"
+       }
+      ]
+     }
+    ]
+   },
+   "values": {
+    "a": 0.5
+   },
+   "expected": 1.90331059033837
+  },
+  {
+   "name": "inverse trigonometric",
+   "tree": {
+    "op": "add",
+    "args": [
+     {
+      "op": "asin",
+      "args": [
+       {
+        "symbol": "a"
+       }
+      ]
+     },
+     {
+      "op": "acos",
+      "args": [
+       {
+        "symbol": "a"
+       }
+      ]
+     },
+     {
+      "op": "atan",
+      "args": [
+       {
+        "symbol": "a"
+       }
+      ]
+     }
+    ]
+   },
+   "values": {
+    "a": 0.25
+   },
+   "expected": 1.81577498992176
+  },
+  {
+   "name": "arcsine outside its domain is no point",
+   "tree": {
+    "op": "asin",
+    "args": [
+     {
+      "symbol": "a"
+     }
+    ]
+   },
+   "values": {
+    "a": 2
+   },
+   "expected": null
+  },
+  {
+   "name": "two-argument arctangent",
+   "tree": {
+    "op": "atan2",
+    "args": [
+     {
+      "symbol": "a"
+     },
+     {
+      "symbol": "b"
+     }
+    ]
+   },
+   "values": {
+    "a": 1,
+    "b": -1
+   },
+   "expected": 2.35619449019234
+  },
+  {
+   "name": "hyperbolic",
+   "tree": {
+    "op": "add",
+    "args": [
+     {
+      "op": "sinh",
+      "args": [
+       {
+        "symbol": "a"
+       }
+      ]
+     },
+     {
+      "op": "cosh",
+      "args": [
+       {
+        "symbol": "a"
+       }
+      ]
+     },
+     {
+      "op": "tanh",
+      "args": [
+       {
+        "symbol": "a"
+       }
+      ]
+     }
+    ]
+   },
+   "values": {
+    "a": 0.5
+   },
+   "expected": 2.11083842796014
+  },
+  {
+   "name": "absolute value",
+   "tree": {
+    "op": "abs",
+    "args": [
+     {
+      "symbol": "a"
+     }
+    ]
+   },
+   "values": {
+    "a": -2.5
+   },
+   "expected": 2.5
+  },
+  {
+   "name": "sign",
+   "tree": {
+    "op": "add",
+    "args": [
+     {
+      "op": "sign",
+      "args": [
+       {
+        "symbol": "a"
+       }
+      ]
+     },
+     {
+      "op": "mul",
+      "args": [
+       {
+        "number": 10
+       },
+       {
+        "op": "sign",
+        "args": [
+         {
+          "number": 0
+         }
+        ]
+       }
+      ]
+     }
+    ]
+   },
+   "values": {
+    "a": -3
+   },
+   "expected": -1.0
+  },
+  {
+   "name": "minimum and maximum: saturation",
+   "tree": {
+    "op": "min",
+    "args": [
+     {
+      "number": 1
+     },
+     {
+      "op": "max",
+      "args": [
+       {
+        "number": -1
+       },
+       {
+        "symbol": "a"
+       }
+      ]
+     }
+    ]
+   },
+   "values": {
+    "a": 1.7
+   },
+   "expected": 1.0
+  },
+  {
+   "name": "Heaviside step at zero is one half",
+   "tree": {
+    "op": "add",
+    "args": [
+     {
+      "op": "heaviside",
+      "args": [
+       {
+        "symbol": "a"
+       }
+      ]
+     },
+     {
+      "op": "heaviside",
+      "args": [
+       {
+        "number": 0
+       }
+      ]
+     }
+    ]
+   },
+   "values": {
+    "a": 2
+   },
+   "expected": 1.5
+  },
+  {
+   "name": "torque branch",
+   "tree": {
+    "op": "mul",
+    "args": [
+     {
+      "op": "pow",
+      "args": [
+       {
+        "symbol": "n_max"
+       },
+       {
+        "number": -2
+       }
+      ]
+     },
+     {
+      "op": "add",
+      "args": [
+       {
+        "op": "mul",
+        "args": [
+         {
+          "symbol": "T_max"
+         },
+         {
+          "symbol": "throttle"
+         },
+         {
+          "op": "pow",
+          "args": [
+           {
+            "symbol": "n_max"
+           },
+           {
+            "number": 2
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "op": "mul",
+        "args": [
+         {
+          "number": -1
+         },
+         {
+          "symbol": "T_max"
+         },
+         {
+          "symbol": "throttle"
+         },
+         {
+          "op": "pow",
+          "args": [
+           {
+            "symbol": "n"
+           },
+           {
+            "number": 2
+           }
+          ]
+         }
+        ]
+       }
+      ]
+     }
+    ]
+   },
+   "values": {
+    "T_max": 250,
+    "throttle": 0.5,
+    "n": 314.159265358979,
+    "n_max": 628.318530717959
+   },
+   "expected": 93.7500000000001
+  },
+  {
+   "name": "underdamped oscillator exact solution",
+   "tree": {
+    "op": "add",
+    "args": [
+     {
+      "symbol": "u"
+     },
+     {
+      "op": "mul",
+      "args": [
+       {
+        "op": "add",
+        "args": [
+         {
+          "op": "mul",
+          "args": [
+           {
+            "number": -0.5
+           },
+           {
+            "symbol": "u"
+           }
+          ]
+         },
+         {
+          "op": "mul",
+          "args": [
+           {
+            "number": 0.5
+           },
+           {
+            "symbol": "u"
+           },
+           {
+            "symbol": "zeta"
+           },
+           {
+            "op": "pow",
+            "args": [
+             {
+              "op": "add",
+              "args": [
+               {
+                "number": -1
+               },
+               {
+                "op": "pow",
+                "args": [
+                 {
+                  "symbol": "zeta"
+                 },
+                 {
+                  "number": 2
+                 }
+                ]
+               }
+              ]
+             },
+             {
+              "number": -0.5
+             }
+            ]
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "op": "exp",
+        "args": [
+         {
+          "op": "mul",
+          "args": [
+           {
+            "number": -1
+           },
+           {
+            "symbol": "t"
+           },
+           {
+            "symbol": "w"
+           },
+           {
+            "op": "add",
+            "args": [
+             {
+              "symbol": "zeta"
+             },
+             {
+              "op": "pow",
+              "args": [
+               {
+                "op": "add",
+                "args": [
+                 {
+                  "number": -1
+                 },
+                 {
+                  "op": "pow",
+                  "args": [
+                   {
+                    "symbol": "zeta"
+                   },
+                   {
+                    "number": 2
+                   }
+                  ]
+                 }
+                ]
+               },
+               {
+                "number": 0.5
+               }
+              ]
+             }
+            ]
+           }
+          ]
+         }
+        ]
+       }
+      ]
+     },
+     {
+      "op": "mul",
+      "args": [
+       {
+        "op": "add",
+        "args": [
+         {
+          "op": "mul",
+          "args": [
+           {
+            "number": -0.5
+           },
+           {
+            "symbol": "u"
+           }
+          ]
+         },
+         {
+          "op": "mul",
+          "args": [
+           {
+            "number": -0.5
+           },
+           {
+            "symbol": "u"
+           },
+           {
+            "symbol": "zeta"
+           },
+           {
+            "op": "pow",
+            "args": [
+             {
+              "op": "add",
+              "args": [
+               {
+                "number": -1
+               },
+               {
+                "op": "pow",
+                "args": [
+                 {
+                  "symbol": "zeta"
+                 },
+                 {
+                  "number": 2
+                 }
+                ]
+               }
+              ]
+             },
+             {
+              "number": -0.5
+             }
+            ]
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "op": "exp",
+        "args": [
+         {
+          "op": "mul",
+          "args": [
+           {
+            "symbol": "t"
+           },
+           {
+            "symbol": "w"
+           },
+           {
+            "op": "add",
+            "args": [
+             {
+              "op": "pow",
+              "args": [
+               {
+                "op": "add",
+                "args": [
+                 {
+                  "number": -1
+                 },
+                 {
+                  "op": "pow",
+                  "args": [
+                   {
+                    "symbol": "zeta"
+                   },
+                   {
+                    "number": 2
+                   }
+                  ]
+                 }
+                ]
+               },
+               {
+                "number": 0.5
+               }
+              ]
+             },
+             {
+              "op": "mul",
+              "args": [
+               {
+                "number": -1
+               },
+               {
+                "symbol": "zeta"
+               }
+              ]
+             }
+            ]
+           }
+          ]
+         }
+        ]
+       }
+      ]
+     }
+    ]
+   },
+   "values": {
+    "t": 1.5,
+    "zeta": 0.3,
+    "w": 2,
+    "u": 1
+   },
+   "expected": 1.35545399030448
+  },
+  {
+   "name": "overdamped oscillator exact solution",
+   "tree": {
+    "op": "add",
+    "args": [
+     {
+      "symbol": "u"
+     },
+     {
+      "op": "mul",
+      "args": [
+       {
+        "op": "add",
+        "args": [
+         {
+          "op": "mul",
+          "args": [
+           {
+            "number": -0.5
+           },
+           {
+            "symbol": "u"
+           }
+          ]
+         },
+         {
+          "op": "mul",
+          "args": [
+           {
+            "number": 0.5
+           },
+           {
+            "symbol": "u"
+           },
+           {
+            "symbol": "zeta"
+           },
+           {
+            "op": "pow",
+            "args": [
+             {
+              "op": "add",
+              "args": [
+               {
+                "number": -1
+               },
+               {
+                "op": "pow",
+                "args": [
+                 {
+                  "symbol": "zeta"
+                 },
+                 {
+                  "number": 2
+                 }
+                ]
+               }
+              ]
+             },
+             {
+              "number": -0.5
+             }
+            ]
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "op": "exp",
+        "args": [
+         {
+          "op": "mul",
+          "args": [
+           {
+            "number": -1
+           },
+           {
+            "symbol": "t"
+           },
+           {
+            "symbol": "w"
+           },
+           {
+            "op": "add",
+            "args": [
+             {
+              "symbol": "zeta"
+             },
+             {
+              "op": "pow",
+              "args": [
+               {
+                "op": "add",
+                "args": [
+                 {
+                  "number": -1
+                 },
+                 {
+                  "op": "pow",
+                  "args": [
+                   {
+                    "symbol": "zeta"
+                   },
+                   {
+                    "number": 2
+                   }
+                  ]
+                 }
+                ]
+               },
+               {
+                "number": 0.5
+               }
+              ]
+             }
+            ]
+           }
+          ]
+         }
+        ]
+       }
+      ]
+     },
+     {
+      "op": "mul",
+      "args": [
+       {
+        "op": "add",
+        "args": [
+         {
+          "op": "mul",
+          "args": [
+           {
+            "number": -0.5
+           },
+           {
+            "symbol": "u"
+           }
+          ]
+         },
+         {
+          "op": "mul",
+          "args": [
+           {
+            "number": -0.5
+           },
+           {
+            "symbol": "u"
+           },
+           {
+            "symbol": "zeta"
+           },
+           {
+            "op": "pow",
+            "args": [
+             {
+              "op": "add",
+              "args": [
+               {
+                "number": -1
+               },
+               {
+                "op": "pow",
+                "args": [
+                 {
+                  "symbol": "zeta"
+                 },
+                 {
+                  "number": 2
+                 }
+                ]
+               }
+              ]
+             },
+             {
+              "number": -0.5
+             }
+            ]
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "op": "exp",
+        "args": [
+         {
+          "op": "mul",
+          "args": [
+           {
+            "symbol": "t"
+           },
+           {
+            "symbol": "w"
+           },
+           {
+            "op": "add",
+            "args": [
+             {
+              "op": "pow",
+              "args": [
+               {
+                "op": "add",
+                "args": [
+                 {
+                  "number": -1
+                 },
+                 {
+                  "op": "pow",
+                  "args": [
+                   {
+                    "symbol": "zeta"
+                   },
+                   {
+                    "number": 2
+                   }
+                  ]
+                 }
+                ]
+               },
+               {
+                "number": 0.5
+               }
+              ]
+             },
+             {
+              "op": "mul",
+              "args": [
+               {
+                "number": -1
+               },
+               {
+                "symbol": "zeta"
+               }
+              ]
+             }
+            ]
+           }
+          ]
+         }
+        ]
+       }
+      ]
+     }
+    ]
+   },
+   "values": {
+    "t": 1.5,
+    "zeta": 2,
+    "w": 2,
+    "u": 1
+   },
+   "expected": 0.517775355990676
+  },
+  {
+   "name": "saturated oscillator state derivative",
+   "tree": {
+    "op": "add",
+    "args": [
+     {
+      "op": "mul",
+      "args": [
+       {
+        "symbol": "u"
+       },
+       {
+        "op": "pow",
+        "args": [
+         {
+          "symbol": "w"
+         },
+         {
+          "number": 2
+         }
+        ]
+       }
+      ]
+     },
+     {
+      "op": "mul",
+      "args": [
+       {
+        "number": -1
+       },
+       {
+        "op": "pow",
+        "args": [
+         {
+          "symbol": "w"
+         },
+         {
+          "number": 2
+         }
+        ]
+       },
+       {
+        "op": "min",
+        "args": [
+         {
+          "number": 1
+         },
+         {
+          "op": "max",
+          "args": [
+           {
+            "number": -1
+           },
+           {
+            "symbol": "y"
+           }
+          ]
+         }
+        ]
+       }
+      ]
+     },
+     {
+      "op": "mul",
+      "args": [
+       {
+        "number": -2
+       },
+       {
+        "symbol": "w"
+       },
+       {
+        "symbol": "zeta"
+       },
+       {
+        "derivative": "y",
+        "order": 1
+       }
+      ]
+     }
+    ]
+   },
+   "values": {
+    "y": 2,
+    "zeta": 0.5,
+    "w": 2,
+    "u": 1
+   },
+   "derivatives": [
+    {
+     "of": "y",
+     "order": 1,
+     "value": 0.5
+    }
+   ],
+   "expected": -1.0
+  }
+ ]
+}

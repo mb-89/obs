@@ -1,4 +1,34 @@
-"""Read-only portable figures and a deliberately bounded numeric expression sampler."""
+"""Read-only portable figures and a deliberately bounded numeric expression sampler.
+
+Reader: whoever changes the interim renderer's figures until obs#3 retires it. The core's
+equation figures (obs input-model, Equation figures) replace this equation plot; obs#3's parity
+check treats them as its replacement. The core specification no longer carries the plot's
+contract, so this docstring owns it, as it stood there (``kind: plot`` with ``fallback``, a
+vault-relative SVG):
+
+For an equation plot, `domain: [minimum, maximum]`, `samples` (2–2000), ordered `equations`,
+`traces`, and `layout` are authored in the fence. Source JSON binds named finite numbers
+or arrays.
+
+Equations are a bounded arithmetic expression language, not Python execution: numeric
+literals, names, `+ - * / **`, unary signs, and calls to `sqrt`, `exp`, `log`,
+`sf` (standard-normal survival), `sum`, `mean`, and `prod` only. Arrays broadcast against
+scalars; array pairs require identical length.
+
+`x` is the sampled coordinate. Each ordered equation binds one name; source names cannot be
+overwritten. Attributes, indexing,
+comprehensions, strings, keywords, arbitrary calls, and nonfinite results are errors.
+Plot traces name equations and a primary/secondary y axis, color, dash and label.
+
+Optional `at` coordinates (a numeric array or exported array name) sample the same equations
+for markers without duplicating artifact calculations. `mode`, `marker` and `legend` control
+their presentation.
+Layout declares titles, limits, linear/log axes and legend. No executable strings are
+passed to the browser. Print always uses the complete artifact-owned default SVG.
+
+An ordinary plot's producer writes `<name>.parameters.json` for its fence's equations, plus
+its SVG `fallback`.
+"""
 from __future__ import annotations
 
 import ast
