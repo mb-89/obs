@@ -6,18 +6,12 @@ accessed: 2026-11-06
 ---
 
 obs treats the HTML adapter's specification like any outside source: this note stands for it,
-and the build of obs's specification builds it with the adapter into the attached file.
+and the build of obs's specification builds it into the attached file with the command the
+adapter's package offers for it. The command reads the specification from the installed package,
+so this producer reads nothing outside obs's vault and the vault's source archive rebuilds it.
 
 ```cmd silent
-uv run python -m obs.capabilities --notes capabilities --output design_output/obs-html-specification.capabilities.json
-```
-
-```cmd silent
-uv run obs-document --source ../adapters/html/spec/manifest.md --document design_output/obs-html-specification.json --capability-reference design_output/obs-html-specification.capabilities.json --execute-commands
-```
-
-```cmd silent
-uv run obs-document --document design_output/obs-html-specification.json --capability-reference design_output/obs-html-specification.capabilities.json --adapter html --adapter-config ../adapters.json --destination design_output/obs-html-specification.html
+uv run obs-html --build-own-spec design_output/obs-html-specification.html
 ```
 
 ![obs-html specification](../../design_output/obs-html-specification.html)
