@@ -22,9 +22,12 @@ uv run obs-document --source spec/manifest.md --adapter html --destination <scra
 `--source` names the manifest note or the vault folder that holds it. A folder resolves to its
 note named by `input.manifestFilename` of the vault's project configuration
 ([[architecture#Project configuration]]), else of the core's configuration (`--config`), or by that
-key's default in `src/obs/config.schema.json` without either, the interim adapter's `manifest.md`. The
-filename is a setting rather than a fixed name because a vault keeps its manifest under the name
-its author chose, and `--config` already checks a given note against it. A folder without that
+key's default in `src/obs/config.schema.json` without either, the interim adapter's `manifest.md`.
+
+The filename is a setting rather than a fixed name because a vault keeps its manifest under the name
+its author chose, and `--config` already checks a given note against it.
+
+A folder without that
 note fails the call before the build, naming the folder, the filename, the setting and the remedy.
 
 A `--destination` inside the vault, the folder of the manifest note, fails the call before the
@@ -108,9 +111,15 @@ a call that hands it several would change that contract for every adapter.
 
 `--adapter-option NAME=VALUE`, repeatable, passes an option to the adapter without the core naming
 any adapter: the adapter declares each option it takes in the `options` of its `adapter.json`
-(`src/obs/adapter.schema.json`), and the core hands it over as declared. An option the adapter does
+(`src/obs/adapter.schema.json`), and the core hands it over as declared.
+
+An option the adapter does
 not declare fails the call before the build, naming the adapter's manifest, the option and the
-declared ones. A boolean option, the only kind so far, is `--NAME` on the adapter's command line
-when its value is `true` and left out when it is `false`. What the core's own options put into
+declared ones.
+
+A boolean option, the only kind so far, is `--NAME` on the adapter's command line
+when its value is `true` and left out when it is `false`.
+
+What the core's own options put into
 the Document, such as the vault's sources with `--embed-source`, reaches every adapter through the
 Document and is no adapter option.
