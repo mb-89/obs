@@ -9,7 +9,6 @@
 /src/.venv/
 **/__pycache__/
 *.py[cod]
-/test/browser/node_modules/
 
 # Worktree-local worker queues
 /.se/
@@ -17,5 +16,7 @@
 /src/obs/capability-reference.json
 # The diagram renderers, written by every build from their lockfile (hatch_build.py)
 /src/obs/vendor/diagrams/
-# From before the build packaged them; test/structure/test_node_modules.py asks to delete it
+# From before the build packaged them or the package was removed; test/structure/test_node_modules.py
+# asks to delete it
 /src/obs/diagrams/node_modules/
+/test/browser/node_modules/

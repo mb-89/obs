@@ -13,7 +13,6 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-      - run: npm --prefix test/browser ci
       - run: npm --prefix adapters/html/test/browser ci
       - run: uv run playwright install --with-deps chromium
       - run: uv run python test/suite.py
