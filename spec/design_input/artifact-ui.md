@@ -264,7 +264,7 @@ failures have their form in [[input-model#Chapter content]].
 - The initial interaction is zoom with reset and usable pan. Readers can inspect individual
   subplots without losing the overall composition; navigation must not silently synchronize
   unrelated axes or distort geometric aspect. Keep labels and controls usable at artifact width.
-- Ordinary plots, including those of the Node artifact, are authored through Markdown fences declaring
+- Ordinary plots are authored through Markdown fences declaring
   equations and plot details. Support legend-click trace visibility alongside zoom, pan and
   reset; hiding a trace must not delete its data. Complex geometry compositions may continue
   to come from artifact-owned scripts, using the same generic figure presentation layer.
@@ -289,7 +289,7 @@ failures have their form in [[input-model#Chapter content]].
 
 ## Reading shell
 
-- The Node artifact has one Appendix chapter. Its direct children are the handwritten appendices
+- An artifact with appendices has one Appendix chapter. Its direct children are the handwritten appendices
   first, followed by generated open points, glossary and references. There is no intermediate
   generated-appendices chapter or additional glossary navigation level. Its open-point rows
   represent the canonical marked paragraphs rather than a second authored register.
@@ -466,7 +466,7 @@ sandbox or popup restrictions prevent opening it, show the card inline in the HT
 as the fallback, with an explicit retry/open control and an honest explanation.
 
 Do not silently claim simultaneous visibility, force OS window arrangements, embed
-an arbitrary corporate site, inject into foreign tabs or require extensions/installations.
+an arbitrary external site, inject into foreign tabs or require extensions/installations.
 Browser size hints use packaged cfg/schema defaults, not duplicated constants.
 
 Exactly one floating window exists per artifact (decided 29 Oct 2026, see
@@ -819,7 +819,7 @@ separate from artifact presentation.
   Organization is authored only in manifest metadata and is not repeated in the metadata table.
 - Retain the subject-image row and takeaway/derived-overview improvements. Do not import
   yellow placeholders, blue template instructions, approval/export dashboards, glossary-loading
-  notices or the surrounding Catalog application interface into the artifact.
+  notices or the surrounding host application's interface into the artifact.
 - Use a shared page frame with reserved running-header/footer areas, document/chapter
   identification and Page X of Y, including the cover in the count. Contents page numbers
   derive from final PDF layout. Hierarchical section labels remain deferred; preserve authored titles.
@@ -1188,7 +1188,7 @@ separate from artifact presentation.
 
   Generic reader-facing controls and messages call the artifact HTML, not a report.
   Where its semantic name is useful, derive it from the authored document type;
-  never hardcode Trace matrix into the framework. Internal API names and genuine
+  never hardcode an application's document type into the framework. Internal API names and genuine
   authored uses of "report" are not renamed by this presentation rule.
 - The second section contains a square Add comment icon button, the query input, and the
   comment list, with no persistent comment-operation status line.
@@ -1239,8 +1239,20 @@ separate from artifact presentation.
 - Saving uses the File System Access API when available and downloads a commented copy
   otherwise.
 - Search and Filter use the same query runtime. All chapter frontmatter fields participate in
-  bare and field-specific queries. That runtime owns the artifact's browser port
-  of the filter language implemented by `quack_v5/src/tui/draw/filter.go`.
+  bare and field-specific queries. That runtime owns the artifact's filter language.
+
+  Terms separated by whitespace must all match. `AND`, `OR` and `NOT`, in any letter case,
+  combine them, `NOT` binding tightest and `OR` loosest; parentheses group them.
+
+  A bare term searches a chapter's whole text and `field: value` one field; a leading `-`
+  negates either (`-draft`, `-status: open`). Field names and quoting follow
+  [[input-model#Markdown body and frontmatter]].
+
+  A value is a word, a quoted string or a `/regular expression/`. A word matches as a
+  substring, and `*` in it matches any run of characters.
+
+  An unclosed quote, expression or parenthesis, or a field without a value, reads as still
+  being typed rather than as an error.
 - A field clause selects by the one rule set ([[capabilities/bases#Comparisons]]): it resolves
   a note property and tests its text as [[capabilities/queries#Conditions]] does. Words,
   wildcards and regular expressions ignore case; a `c` after a regular expression
@@ -1364,7 +1376,7 @@ separate from artifact presentation.
   detached cells, plus referenced and owner note
   content for detail panels), never from the currently materialized DOM. A table hit is its
   own result, listed in document order after its chapter's prose hit.
-- The global Filter, table-local filters and domain view switches (such as Trace levels)
+- The global Filter, table-local filters and domain view switches (such as a level switch)
   apply to the full row population before pagination: page counts and `n of m items`
   reflect the filtered set and every retained row stays reachable through the pager.
 

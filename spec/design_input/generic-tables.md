@@ -367,7 +367,7 @@ Counts are not Bases filters: they use the record-metric conditions owned by
   direction while active. Other sort directives order rows inside groups. Nested group levels and
   source-tree descendants keep their hierarchy during these operations.
 - Filtering, grouping, and sorting compose in this order: base query, table-local filter, group tree,
-  sibling sort. This matches the independent query/group/sort interaction model used by Trace Graph.
+  sibling sort.
 
 ## Columns and cells
 
