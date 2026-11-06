@@ -36,6 +36,7 @@ from obs.input import (
     schema_error,
     validate_base_definition,
     validate_command,
+    declared_style,
     validate_cover_metadata,
     validate_count_query,
     validate_note_profile,
@@ -168,6 +169,7 @@ def build_document(
         raise VaultError("Manifest title must be a non-empty string.")
     try:
         validate_cover_metadata(metadata, manifest_path)
+        style = declared_style(metadata, manifest_path)
     except InputError as error:
         raise VaultError(str(error)) from error
     if configuration is not None and manifest_path.name != configuration.manifest_filename:
@@ -294,6 +296,7 @@ def build_document(
         "diagnostics": [{"level": "warning", "message": message} for message in vault.warnings],
         "capabilities": sorted(capabilities),
         "cssSnippets": snippets,
+        **({"style": style} if style is not None else {}),
     }
 
 
@@ -540,7 +543,7 @@ def _validate_note(path: Path, vault: _Vault) -> None:
     vault.validated.add(path)
     metadata = vault.notes[path][0] if path in vault.notes else read_note(path).metadata
     try:
-        validate_note_profile(metadata, path)
+        validate_note_profile(metadata, path, manifest=path == vault.manifest)
         if metadata.get("kind") == "quantity":
             validate_quantity(metadata, path)
         if "query" in metadata:
