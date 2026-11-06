@@ -136,6 +136,11 @@ definitions alike. Keeping the same fact in two places is an anti-pattern (user,
   (pytest-timeout), a measured multiple of the tier's slowest test, which `test/bounds.py` owns
   with its measurement; a test past it fails, naming itself and its timeout.
 
+  The adapter's page pools launch their browsers with an explicit timeout. Where a pool's
+  browser dies while a test holds one of its pages, that test fails, "browser crashed", naming
+  the engine; where a test past its timeout held one, the pool ends that browser. Either way, the
+  next test gets a fresh browser.
+
   `test/suite.py` caps the whole run: at its cap it stops each part still running and names the
   part and the tests it was running.
 - No test reaches the network. Each part's `test/network_guard.py` fails a test that opens a
