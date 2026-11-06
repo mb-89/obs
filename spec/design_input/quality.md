@@ -97,8 +97,10 @@ definitions alike. Keeping the same fact in two places is an anti-pattern (user,
 - A browser test opens what shared fixtures give it: a leased page, and an artifact built once (by
   a fixture through `built_once`, or by the adapter's `test/artifacts.py`); several read-only
   checks of one artifact share one page load. It neither builds an artifact nor starts
-  Playwright or a browser itself; the adapter's `test/structure/test_quality.py` refuses one
-  that does.
+  Playwright or a browser itself. It adds no init script, since in the preview's srcdoc frames
+  one can run after the artifact's own scripts, and reads the artifact's timings from the
+  artifact's own performance marks. The adapter's `test/structure/test_quality.py` refuses a
+  test that does otherwise.
 - An input many tests read, such as obs's spec Document, a fixture artifact or the parity
   builds, is built once per run by `built_once` in the part's `conftest.py` and shared by every
   worker; the tests only read it.
