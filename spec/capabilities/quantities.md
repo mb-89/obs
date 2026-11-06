@@ -49,3 +49,15 @@ invalid included one fails the build with a message that names the note, the fie
 ```text
 Quantity note vault/load.md: value must be a finite number, not '12 kN'; write the bare number and put the unit in unit.
 ```
+
+## Document node
+
+An included quantity note gets a `quantities` node with its frontmatter as `metadata` and its
+`quantity`; the same `quantity` is on the note's record, so an adapter that renders a link to the
+note finds it there. A `quantity` holds the display `unit` as authored (empty for a plain number),
+its `dimension`, the nonzero exponent of each base dimension (`{length: 1, time: -1}` for
+`km/h`, `{}` for a plain number or `%`), and, with a `value`, that value and `siValue`, the value
+in SI base units (`value: 2, unit: km` has `siValue: 2000`). A `range` adds `siRange`, both
+bounds in SI base units. A count query's quantity has no value: the count is evaluated live. An
+adapter converts between units from `siValue` and `dimension` alone, without a unit library of
+its own; `document.schema.json` (`$defs/quantity`) owns the shape.

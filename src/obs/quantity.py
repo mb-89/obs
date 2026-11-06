@@ -22,3 +22,28 @@ def parse_unit(unit: str) -> pint.Unit:
         return _registry().parse_units(unit)
     except (pint.PintError, ValueError, TypeError, AttributeError, SyntaxError) as error:
         raise UnitError(f"{unit!r} is not a known unit ({str(error).rstrip('.')})") from error
+
+
+def _si(value: float, unit: str) -> float:
+    """``value`` in ``unit`` as a value in SI base units, to 15 significant digits."""
+    converted = _registry().Quantity(value, parse_unit(unit)).to_base_units().magnitude
+    return float(f"{converted:.15g}")
+
+
+def dimension(unit: str) -> dict[str, int | float]:
+    """A unit's dimension: each base dimension's nonzero exponent, such as {"length": 1}."""
+    return {name.strip("[]"): int(power) if float(power).is_integer() else float(power)
+            for name, power in sorted(parse_unit(unit).dimensionality.items()) if power}
+
+
+def document_quantity(metadata: dict[str, object]) -> dict[str, object]:
+    """A validated quantity note's Document quantity; document.schema.json ($defs/quantity)."""
+    unit = str(metadata.get("unit", ""))
+    quantity: dict[str, object] = {"unit": unit, "dimension": dimension(unit)}
+    if "value" in metadata:
+        quantity["value"] = metadata["value"]
+        quantity["siValue"] = _si(metadata["value"], unit)
+    if "range" in metadata:
+        quantity["range"] = list(metadata["range"])
+        quantity["siRange"] = [_si(bound, unit) for bound in metadata["range"]]
+    return quantity

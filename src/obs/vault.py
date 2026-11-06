@@ -39,6 +39,7 @@ from obs.input import (
     validate_quantity,
 )
 from obs.note import IGNORED, Note, VaultError, lines, parser, read_note
+from obs.quantity import document_quantity
 from obs.producers import ProducerError, run_producers
 from obs.selection import (
     Record, base_selects, conditions_select, member_order, note_marks, paragraph_marks,
@@ -232,6 +233,8 @@ def build_document(
     for path, (fields, _) in vault.notes.items():
         record = vault.notes_by_id[vault.identities[path]][1]
         record["fieldNodes"] = _field_nodes(fields, "", context_of(path, fields))
+        if path in vault.validated and fields.get("kind") == "quantity":
+            record["quantity"] = document_quantity(fields)
     vault.reached.clear()
     for attrs, target in vault.links:  # Only an included note is a chapter a link can name.
         attrs["chapter"] = HOME if target == manifest_path else (
@@ -612,7 +615,7 @@ def _frontmatter_nodes(metadata: dict[str, object], context: _Context) -> list[d
     if "obs" in metadata:
         add("profiles", {"profile": _json_value(metadata["obs"])})
     if metadata.get("kind") == "quantity":
-        add("quantities", {"metadata": _json_value(metadata)})
+        add("quantities", {"metadata": _json_value(metadata), "quantity": document_quantity(metadata)})
     if "query" in metadata:
         query = _json_value(metadata["query"])
         add("queries", {"query": query})
