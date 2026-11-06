@@ -20,8 +20,8 @@ import yaml
 
 from obs.commands import CommandError, run_command
 from obs.config import (
-    DEFAULT_COMMAND_TIMEOUT_SECONDS, DEFAULT_CSS_SNIPPET_FOLDER, DEFAULT_FIGURE_LABELS, CoreConfig,
-    CoreConfigError, load_core_config,
+    DEFAULT_COMMAND_TIMEOUT_SECONDS, DEFAULT_CSS_SNIPPET_FOLDER, DEFAULT_FIGURE_LABELS, DEFAULT_MANIFEST_FILENAME,
+    CoreConfig, CoreConfigError, load_core_config,
 )
 from obs.figure import FIGURE_KINDS, FIGURE_SCHEMA_PATH, FigureContentError, FigureContext
 from obs.input import (
@@ -132,6 +132,25 @@ class _Vault:
                 ):
                     self.files.setdefault(path.name.casefold(), []).append(path)
         return self.files.get(name.casefold(), [])
+
+
+def manifest_note(source: Path, configuration_path: Path | None = None) -> Path:
+    """The manifest note ``source`` names: a note as given, a vault folder its
+    ``input.manifestFilename`` note (cli.md, One-call build)."""
+    if not source.is_dir():
+        return source
+    try:
+        filename = (load_core_config(configuration_path).manifest_filename if configuration_path is not None
+                    else DEFAULT_MANIFEST_FILENAME)
+    except CoreConfigError as error:
+        raise VaultError(str(error)) from error
+    note = source / filename
+    if not note.is_file():
+        owner = f"--config {configuration_path}" if configuration_path is not None else "src/obs/config.schema.json"
+        raise VaultError(
+            f"--source {source}: the vault folder holds no manifest note {filename} (input.manifestFilename, "
+            f"{owner}). Add {filename} to the folder, or name the manifest note itself with --source.")
+    return note
 
 
 def build_document(
