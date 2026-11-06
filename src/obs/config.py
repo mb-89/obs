@@ -14,6 +14,8 @@ DEFAULT_COMMAND_TIMEOUT_SECONDS: int = (
     _SCHEMA["properties"]["execution"]["properties"]["commandTimeoutSeconds"]["default"]
 )
 """The cmd fence timeout of a build without core configuration; the schema owns the value."""
+DEFAULT_MANIFEST_FILENAME: str = _SCHEMA["properties"]["input"]["properties"]["manifestFilename"]["default"]
+"""The manifest note of a vault folder where core configuration names none; the schema owns the value."""
 DEFAULT_CSS_SNIPPET_FOLDER: str = _SCHEMA["properties"]["input"]["properties"]["cssSnippetFolder"]["default"]
 """The vault's CSS snippet folder where core configuration names none; the schema owns the value."""
 DEFAULT_FIGURE_LABELS: tuple[str, ...] = tuple(
