@@ -648,11 +648,8 @@ input[data-property-single-line]:focus {
     --top-band-bless: 0;
     --top-band-send: 0;
     --top-band-notices: 0;
-    --top-band-screens: 0;
-    /* Home, the chevron and the menu, the pill and the four verdict keys, Send, the notice icons
-       and the position of screens (screens.css). */
-    --top-band-squares: calc(3 + var(--top-band-bless) + var(--top-band-send) + var(--top-band-notices)
-        + var(--top-band-screens));
+    /* Home, the chevron and the menu, the pill and the four verdict keys, Send and the notice icons. */
+    --top-band-squares: calc(3 + var(--top-band-bless) + var(--top-band-send) + var(--top-band-notices));
     --top-control-size: min(var(--top-control-full), (100cqw - var(--top-band-crumbs)
         - (var(--top-band-squares) - 1) * var(--top-band-gap)) / var(--top-band-squares));
     align-items: center;
@@ -2022,10 +2019,17 @@ math {
     flex: none;
 }
 
+/* The verdicts' semantic colours are the review's (artifact-ui.md, Bless verdicts): Bless and every
+   accepted state its acceptance colour, Decline its rejection colour; Ask keeps its own. */
 .bless-pill[data-bless-state="bless"],
 .bless-pill[data-bless-state="recorded"] {
     background: var(--color-success-soft);
     border-color: var(--color-success);
+}
+
+.bless-pill[data-bless-state="decline"] {
+    background: var(--color-failure-soft);
+    border-color: var(--color-failure);
 }
 
 .bless-keys {
@@ -2051,6 +2055,19 @@ math {
 .bless-key[aria-pressed="true"] {
     background: var(--color-accent-soft);
     border-color: var(--color-accent);
+}
+
+/* Pressed, Bless and Decline are the review's pressed accept and reject keys (.review-action). */
+.bless-key[data-bless-key="bless"][aria-pressed="true"] {
+    background: var(--color-success);
+    border-color: var(--color-success);
+    color: var(--color-surface);
+}
+
+.bless-key[data-bless-key="decline"][aria-pressed="true"] {
+    background: var(--color-failure);
+    border-color: var(--color-failure);
+    color: var(--color-surface);
 }
 
 .bless-send {
