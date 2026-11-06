@@ -41,8 +41,8 @@ definitions alike. Keeping the same fact in two places is an anti-pattern (user,
 - Each runtime has one selection resolver, and every count, distinct value and drill-down
   reads a note's property through it, never through a lookup of its own, so all of them follow
   [[capabilities/bases#Comparisons]]. The core's is `obs.selection.note_value` (with the
-  note's marks for a query condition, `obs.selection.conditions_select`); an adapter's
-  specification names its runtime's.
+  note's marks for a query condition, `obs.selection.conditions_select`); the browser's is
+  `obsQuery.propertyTexts`, which the adapter's specification that ships it owns.
 
 ## Change locality
 
