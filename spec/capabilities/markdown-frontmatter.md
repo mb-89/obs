@@ -31,6 +31,8 @@ Markdown, one `field` node each, in frontmatter order.
 path, a list item by its index (`product.name`, `authors.0`). Marks, links, wikilinks, images
 and TeX math in a value arrive as the same inline nodes as in
 [[capabilities/markdown#Document nodes|chapter text]]; numbers, booleans and dates stay data only.
+A bare `http(s)` URL in a value arrives as link text (`attrs.link`), as Obsidian shows it;
+punctuation that ends a sentence after it stays text. Chapter text keeps a bare URL as text.
 
 Every note's record carries the same `field` nodes as `fieldNodes`
 ([[capabilities/bases#Note records]]), the manifest's included, whether or not the note is in
