@@ -510,10 +510,9 @@ The tabs:
 - **Checklist:** the fence's checklist items, each with its answer, passed or failed, and the
   letters of the options it fails; its badge counts the failed items. Without items the tab is
   disabled.
-- **Sensitivity:** the worlds in which another option wins, which the reader rules (below);
-  flagged where the choice depends on the weights, where a world is ruled "could happen", or
-  where the fence's `chosen` option is not the winner.
-- **Pareto:** its place only, disabled until it has content.
+- **Sensitivity:** how far a weight must move before another option wins, as a grid
+  ([[#Sensitivity]]).
+- **Pareto:** which options no other beats on every criterion, as a chart ([[#Pareto]]).
 
 The figure says each name once, in the options list and a letter's popover alike: where the
 short name's words are the label's, all of them or a run of them ("Two lines" of "Keep two
@@ -531,7 +530,8 @@ accessible name ("Checklist, 1 failed"). A tab without anything to show has no b
 
 In a decision figure each tab of `TABS` (`pugh-figure.js`) names its own `badge`, a function of
 the decision that returns a count, a flag with its reason, or nothing; `tabBadge` draws it.
-The Checklist count and the Sensitivity flag use it, and a later tab sets its badge the same way.
+The Checklist count and the Sensitivity and Pareto flags use it, and a later tab sets its badge
+the same way.
 
 #### The decision matrix
 
@@ -571,15 +571,36 @@ with no radio row, and Reset is disabled.
 
 #### Sensitivity
 
-Its top line is "B wins unless …" with the closest world in which another option wins, or "No
-change of weights makes another option win". Where the fence's `chosen` option is not the
-winner, the next line says so, with the world in which it wins.
+Decided by the user, 6 Nov 2026 (work issue `feature/decision-sensitivity-pareto-views-20261106`):
+what if is a grid a decision maker reads at a glance, not prose. Every number is the engine's
+(ctrl's `pugh.js`, its sensitivity), which the figure only lays out.
 
-Then, for each other option that may win, the smallest change of one weight that makes it win
-("A wins if Speed weighs below 0.5 instead of 2"), and the smallest change of all weights
-together, which weights from what to what. There is no band: the reader rules each world "could
-happen" or "nonsense", and a world that could happen asks for a tripwire, a one-line sign to
-watch for.
+- **The top line:** a bar of the winner's share of the engine's random weight draws, each weight
+  within ±`step` of its own (1 by default), "B · Artifact wins 100.0 % of draws", with a mark at
+  the engine's hold share (`holdShare`, 75 % by default).
+- **The grid:** one row per criterion, its name and current weight on one line, and one column
+  per other option that fits, headed by its letter.
+- **A cell:** the weight at which that option ties the winner if only this weight moves, "3 → 7",
+  with a small bar from the current weight to the tie weight, on one scale per row. A dash where
+  no weight of 0 or more makes it tie.
+
+The cell holding the smallest move of an option is the engine's tie point for it (`tie`). A cell
+is within reach, and marked so, where its tie lies within ±`step` of the current weight and above
+0, the engine's `reasonable`.
+
+- **All weights together:** a last row with, per option, the engine's smallest change of all
+  weights that makes it tie (`minChange`), as a share of the weights' size, a bar and a
+  percentage; the weights it moves are the cell's tooltip.
+- **Below the grid:** where the fence's `chosen` option is not the winner, a line says so and
+  its column is marked; an option that does not fit is named with its reasons.
+
+There is no band: the reader rules each option's column "could happen" or "nonsense". Tapping a
+cell of a column, or its head, opens the column's ruling keys under the grid. A column that
+could happen asks for a tripwire, a one-line sign to watch for; its head shows the ruling.
+
+The flag shows where a cell is within reach, or the winner's share is under the engine's hold
+share; and, as before, where an option is ruled "could happen" or the fence's `chosen` option is
+not the winner.
 
 The changed weights and marks, the rulings and the tripwires are reader state, kept per figure
 anchor while the artifact is open, and readable by the page as `obsPugh.readerState()`, by figure
@@ -592,6 +613,24 @@ where weights or marks changed, the caption ends with the note *View changed by 
 
 Inside its frame the view keeps to the prose around the figure, clear of the chapter controls. A
 page layout draws a decision figure when it places it, so its page holds the whole view.
+
+#### Pareto
+
+Decided by the user, 6 Nov 2026 (work issue `feature/decision-sensitivity-pareto-views-20261106`):
+the tab shows which options are not beaten on every criterion by another.
+
+The chart is the engine's own plot (`plotSvg`, which every decision deck ships already), with
+no second chart library: one line per option that fits, over the criteria, each criterion an
+axis of its mark from −− to ++, the datum's marks S. Decided by the dispatcher, 6 Nov 2026, as a
+change to the work issue: not the equation figure's plot, whose figure ships Plotly.
+
+Each line ends in its letters, the criteria are numbered under the chart, the winner's line is
+bold (the engine's "option" role), a dominated option's dashed and grey ("other"), and the
+rest plain ("front"); a dominated winner is bold and dashed.
+
+One sentence under it: "Not dominated: B, C. Dominated: A (by B)." An option is dominated where
+another that fits is at least as good on every criterion and better on one. The flag shows where
+the winner is dominated.
 
 #### Decision figures on a phone
 
@@ -612,6 +651,10 @@ on tap. The radio row follows the same pattern, "None of the above" after its na
 A cell takes up to 2.5 rem and gives way to 1.7 rem before its line wraps: five options fit
 beside the stepper in the narrowest figure, at a 360 px phone, and more wrap to a further line.
 Nothing in the figure scrolls sideways.
+
+Below the same width the Sensitivity grid is one block per option: its letter as the block's
+head, then one line per criterion (its name, current weight, tie and bar), then all weights
+together. The Pareto chart takes the figure's width.
 
 In the rows only the letter fits, and the letter is a control. Hovering it, focusing it or
 tapping it shows the option's letter and short name, its label where that says more and its
