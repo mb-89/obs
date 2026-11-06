@@ -32,3 +32,21 @@ is the block id of the `figures` node in `chapter` that carries it
 ([[input-model#Figure captions and references]]). A block id that no figure in the target note
 carries is a build error that names the note, the link and this page; so is a block id two
 figures of one note carry. A link to a missing note stays the missing-note warning.
+
+## Links inside a figure
+
+A link inside a figure is a link like any other. The core reads every link in a figure's SVG:
+an `svg` figure, an SVG `image`, and the SVG it draws for a `mermaid` or `plantuml` figure.
+
+It reads each `a` element's `href` or `xlink:href` that names no URL scheme and no fragment of
+the drawing, and wikilink text (`[[note]]`, `[[note#heading]]`, `[[note|label]]`) within one
+text run. Mermaid's `click <node> href "note"` and PlantUML's `[[note]]` draw such `a` elements;
+Mermaid's strict security level keeps them.
+
+Each link resolves by the prose rule ([[input-model#Remaining chapter content]]) and includes
+the note it reaches. It warns or fails as a prose link does, naming the note, the figure (its
+line and fence) and the target.
+
+Each distinct link is one `wikilinks` node, a child of the figure's body node, in SVG order.
+Its `svg` attribute holds the link exactly as the SVG does, the `href` value or the wikilink
+text with its brackets, by which an adapter finds where it links in the drawing.

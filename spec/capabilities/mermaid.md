@@ -22,6 +22,9 @@ renderers installed, is an input error that names the note, its line and the rem
 own message, or the command that installs the renderers
 ([[input-model#Remaining chapter content]], Figure input direction).
 
+A `click <node> href "note"` line links a node to a note like a prose link
+([[capabilities/wikilinks#Links inside a figure]]).
+
 ## Authoring example
 
 ````markdown
