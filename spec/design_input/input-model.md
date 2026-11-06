@@ -50,8 +50,8 @@ like any other outside specification.
 Every key the core reads lives in the core's namespace
 `obs`, and the core validates every key there: a Base's and a view's `obs.records`, a view's
 `obs.members` ([[#Base files and members]]), a card's `obs.metricsFrom` and a metric's `obs.projection`
-([[capabilities/cards-metrics#Fields]]), and a note's `obs.document`
-([[capabilities/profiles]]).
+([[capabilities/cards-metrics#Fields]]), a note's `obs.document`
+([[capabilities/profiles]]) and a chapter's `obs.bless` ([[#Bless requests]]).
 
 An adapter's options live in its own namespace, `obs` followed
 by its name in camelCase ([[#Adapter extensions]]); the core
@@ -1575,6 +1575,45 @@ Counts are not Bases filters: they use the record-metric conditions owned by
 - Glossary notes declare `kind: glossary`, a nonempty `term`, and a nonempty inline
   Markdown `definition` in frontmatter. Their definitions and aliases feed the canonical record,
   and glossary tables link terms to their source note.
+
+## Bless requests
+
+Decided by the user, 6 Nov 2026 (work issue `feature/bless-verdicts-20261106`): a chapter can ask
+its reader to bless it, and a manifest of such chapters is a deck the reader walks, giving a
+verdict on each. A decision reaches the person this way, as an artifact obs builds.
+
+A chapter note's property `obs.bless: pending` asks for a bless. Without it the chapter is a
+record and asks nothing. `pending` is the one value; `note-profile.schema.json` refuses another
+with the field path `obs.bless`.
+
+The Document's chapter carries the request as `bless`, with the chapter's `version`: the
+SHA-256, in hex, of the note's source and of every vault file it embeds (an embedded note, image
+or Base, a figure's `source` file). Each counts as its vault path, its length and its bytes, the
+note first, then the rest by vault path.
+
+An edited chapter, or one whose embed changed, asks again; a remote image is no vault file and
+does not count.
+
+### Answers
+
+A reader's verdicts come back as one answers file, a JSON object whose `verdicts` list holds one
+verdict per chapter. `src/obs/answers.schema.json` owns its fields, once, for the adapter that
+writes it and the core that reads it:
+
+- `chapter` and `version`: the chapter's id and the version it was answered at.
+- `verdict`: `bless`, `decline`, `ask` or `pick` (another option than the decision's winner).
+- `comment`: the reader's comment, which `decline`, `ask` and `pick` need.
+- `pick`: with `pick`, the decision figure's anchor (`figure`) and the picked option's letter.
+- `figures`: by figure anchor, the reader's changes to a decision figure, as its reader state
+  holds them (weights, marks, rulings with their tripwires), and the `winner` they give.
+
+`obs-document --answers <file>` builds the Document with the answers in it, so the answered
+artifact is the decision record ([[cli#Answers]]). A verdict whose version is the chapter's is its
+`answer`: the chapter shows it read-only and asks nothing. A verdict at another version is
+`outdated`: the chapter asks again and shows the old answer as outdated.
+
+A verdict for a chapter that does not ask, a second verdict for one chapter, or a file the schema
+refuses is an input error naming the answers file and the field path (`verdicts[0].chapter`).
 
 ## Command-derived content
 

@@ -14,7 +14,7 @@ from referencing import Registry, Resource
 from obs.adapter import (ADAPTER_OPTIONS_OWNER, AdapterError, VaultFile, adapter_manifest_path, load_adapter,
                          option_arguments)
 from obs.discriminator import discriminating_validator
-from obs.input import InputError, schema_error
+from obs.input import InputError, input_error, schema_error
 from obs.output import write_output
 from obs.sources import SourceError, source_archive, validate_source_archive
 from obs.vault import VaultError, build_document as _build_document, manifest_note
@@ -22,6 +22,8 @@ from obs.vault import VaultError, build_document as _build_document, manifest_no
 
 DOCUMENT_SCHEMA_PATH = Path(__file__).with_name("document.schema.json")
 FIGURE_SCHEMA_PATH = Path(__file__).with_name("figure.schema.json")
+ANSWERS_SCHEMA_PATH = Path(__file__).with_name("answers.schema.json")
+ANSWERS_OWNER = "input-model#Answers"
 PACKAGED_CAPABILITY_REFERENCE = Path(__file__).with_name("capability-reference.json")
 """The capability reference the package ships, written from spec/capabilities by every build
 (hatch_build.py); obs-document reads it unless --capability-reference names another."""
@@ -39,7 +41,7 @@ class DocumentError(ValueError):
 def build_document(
     manifest_path: Path, reference: dict[str, object], configuration_path: Path | None = None,
     execute_commands: bool = False, embed_source: bool = False, delivery: Sequence[str] = (),
-    option_files: Sequence[str] = (),
+    option_files: Sequence[str] = (), answers: Path | None = None,
 ) -> dict[str, object]:
     """Parse a vault into a schema-valid neutral Document.
 
@@ -47,6 +49,7 @@ def build_document(
     ``embed_source`` discloses the vault's source files; see architecture, Source archive.
     ``delivery`` are the call's adapter arguments the archive's build record names before the core's;
     ``option_files`` the vault-relative files its vault-file options name, which the archive holds.
+    ``answers`` is a reader's answers file, whose verdicts the chapters that ask carry (input-model#Answers).
     """
     try:
         known = {item["id"] for item in reference["capabilities"]}
@@ -56,10 +59,49 @@ def build_document(
             document["sourceArchive"] = source_archive(manifest_path.resolve().parent, document["assets"],
                                                         document["cssSnippets"], arguments, document.get("style"),
                                                         option_files)
+        if answers is not None:
+            apply_answers(document, read_answers(answers), answers)
         validate_document(document, reference)
     except (SourceError, VaultError) as error:
         raise DocumentError(str(error)) from error
     return document
+
+
+def read_answers(path: Path) -> list[dict[str, object]]:
+    """The verdicts of an answers file the schema accepts (input-model#Answers)."""
+    try:
+        answers = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as error:
+        raise InputError(f"{path}: top level: cannot be read as JSON ({error}). Pass the answers file a "
+                         f"served artifact's reader sent; see {ANSWERS_OWNER}.") from error
+    schema = json.loads(ANSWERS_SCHEMA_PATH.read_text(encoding="utf-8"))
+    error = schema_error(list(Draft202012Validator(schema).iter_errors(answers)), path, ANSWERS_OWNER)
+    if error:
+        raise error
+    return answers["verdicts"]
+
+
+def apply_answers(document: dict[str, object], verdicts: list[dict[str, object]], path: Path) -> None:
+    """Put each verdict on the chapter that asks: its answer at the chapter's version, else outdated."""
+    asking = {chapter["id"]: chapter for chapter in _all_chapters(document["chapters"]) if "bless" in chapter}
+    answered: dict[str, int] = {}
+    for index, verdict in enumerate(verdicts):
+        field, chapter_id = f"verdicts[{index}].chapter", verdict["chapter"]
+        if chapter_id not in asking:
+            raise input_error(path, field, f"names {chapter_id!r}, which asks for no bless in this Document",
+                              f"Drop the verdict, or ask with obs.bless: pending in that note; see {ANSWERS_OWNER}")
+        if chapter_id in answered:
+            raise input_error(path, field, f"answers {chapter_id!r} a second time, after verdicts[{answered[chapter_id]}]",
+                              f"Keep one verdict per chapter; see {ANSWERS_OWNER}")
+        answered[chapter_id] = index
+        request = asking[chapter_id]["bless"]
+        request["answer" if verdict["version"] == request["version"] else "outdated"] = verdict
+
+
+def _all_chapters(chapters: list[dict[str, object]]):
+    for chapter in chapters:
+        yield chapter
+        yield from _all_chapters(chapter["children"])
 
 
 def read_capability_reference(path: Path) -> dict[str, object]:
@@ -79,9 +121,10 @@ def read_capability_reference(path: Path) -> dict[str, object]:
 def validate_document(document: dict[str, object], reference: dict[str, object]) -> None:
     schema = json.loads(DOCUMENT_SCHEMA_PATH.read_text(encoding="utf-8"))
     figure_schema = json.loads(FIGURE_SCHEMA_PATH.read_text(encoding="utf-8"))
-    registry = Registry().with_resource(
-        FIGURE_SCHEMA_PATH.name, Resource.from_contents(figure_schema),
-    )
+    registry = Registry().with_resources([
+        (FIGURE_SCHEMA_PATH.name, Resource.from_contents(figure_schema)),
+        (ANSWERS_SCHEMA_PATH.name, Resource.from_contents(json.loads(ANSWERS_SCHEMA_PATH.read_text(encoding="utf-8")))),
+    ])
     try:
         errors = list(discriminating_validator(schema)(schema, registry=registry).iter_errors(document))
     except ValueError as error:
@@ -271,6 +314,10 @@ def build_parser() -> argparse.ArgumentParser:
                              "its adapter.json) and exit with its exit code; it prints where to open it.")
     parser.add_argument("--wait", action="store_true",
                         help="With --serve: the server exits after the reader's first answers, printing them.")
+    parser.add_argument("--answers", type=Path,
+                        help="With --source: a reader's answers file (what --serve --wait prints and the served "
+                             "artifact's server writes); the chapters that ask carry their verdicts, so the artifact "
+                             "is the decision record.")
     parser.add_argument("--adapter-option", action="append", default=[], metavar="NAME=VALUE",
                         help="Pass an option the adapter declares in its adapter.json (options); "
                              "repeatable. A boolean option takes true or false; a vault-file option ID=PATH, "
@@ -303,6 +350,9 @@ def main(argv: Sequence[str] | None = None) -> int:
                                 "or build an artifact with --adapter and --destination.")
         if not options.source and not options.adapter:
             raise DocumentError("--adapter is required when --source is not supplied.")
+        if options.answers and not options.source:
+            raise DocumentError("--answers is only used with --source: the answers go into the Document built from "
+                                "the manifest. Build it with --source.")
         if options.adapter_option and not options.adapter:
             raise DocumentError("--adapter-option is only used with --adapter.")
         if options.wait and not options.serve:
@@ -396,7 +446,7 @@ def _build(options: argparse.Namespace, source: Path, destination: Path | None, 
     for option in options.adapter_option:  # The record names the vault file by its vault path only.
         delivery += ["--adapter-option", recorded.get(option, option)]
     document = build_document(source, reference, options.config, options.execute_commands, options.embed_source,
-                              delivery, files)
+                              delivery, files, options.answers)
     for diagnostic in document["diagnostics"]:
         if diagnostic["level"] == "warning":
             print(f"obs-document: warning: {diagnostic['message']}", file=sys.stderr)
