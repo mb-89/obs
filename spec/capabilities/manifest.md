@@ -16,6 +16,9 @@ The manifest is a note like any other: to keep queries and Bases from selecting 
 itself ignored ([[capabilities/markdown-frontmatter#Ignored notes]]). Selection has no special
 case for it.
 
+A list line inside an Obsidian `%%` comment is hidden: it is no chapter, and the list continues
+([[input-model#Chapter content]]).
+
 ## Authoring example
 
 ```markdown
