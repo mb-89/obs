@@ -16,7 +16,9 @@ ranges. Variables are quantity notes ([[capabilities/quantities]]) or carry thei
 range and unit.
 
 The core parses and checks the equations, solves them where it can, and puts everything a live
-plot needs into the Document as expression trees. A curve plots at every value inside its
+plot needs into the Document as expression trees.
+
+A curve plots at every value inside its
 variables' ranges, special ones included: where the exact solution is undefined at a value (the
 oscillator below at critical damping, ζ = 1), the core gives its limit there, or has the reader's
 page solve that curve numerically. [[input-model#Equation figures]] owns the fence, the range rule

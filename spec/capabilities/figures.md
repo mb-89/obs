@@ -13,10 +13,14 @@ capability:
 Every figure is one generic figure of a kind: `image`, `svg`, `sankey`, `plot` (a stored-data
 FigureDescriptor, [[capabilities/figure-descriptor]]), `equations` (symbolic equations plotted
 live, [[capabilities/equation-figures]]), `mermaid` ([[capabilities/mermaid]]) or `plantuml`
-([[capabilities/plantuml]]). The fence carries what every kind shares,
+([[capabilities/plantuml]]).
+
+The fence carries what every kind shares,
 `caption` and `alt`, and the kind's content: inline under `content`, or from `source`, a file
 relative to the note inside the vault, exactly one of the two. A `^name` line directly after the
-fence is the figure's block id. The core emits one `figures` node per fence; its one child is
+fence is the figure's block id.
+
+The core emits one `figures` node per fence; its one child is
 the kind's body ([[input-model#Remaining chapter content]], Figure input direction).
 
 ## Authoring example

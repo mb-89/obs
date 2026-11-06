@@ -40,7 +40,9 @@ lives here or in its own repository is decided when it comes.
 An adapter folder is a member of the root uv workspace. It keeps its own `pyproject.toml`,
 package, tests, browser tests, `spec/` and `adapter.json`, and depends on the core through a
 workspace path dependency, so a core change and its adapter change land in one commit and
-there is no pin between them. The root `adapters.json` registers each adapter by the path of
+there is no pin between them.
+
+The root `adapters.json` registers each adapter by the path of
 its `adapter.json`. Each part tests only itself; `uv run python test/suite.py` runs every
 part's suite in its own pytest process.
 
@@ -50,6 +52,7 @@ The core already provides the neutral Document contract, vault and asset resolut
 capability-reference validation, adapter dispatch, and figure-descriptor validation.
 Attachment metadata extraction extends that core boundary: it reads supported XML
 metadata bytes without output-format or host dependencies and returns a display date.
+
 It prefers a valid embedded exported or last-changed instant and otherwise uses the
 caller-supplied modification instant. Unsupported input and invalid instants have no
 date rather than a guessed value. Adapters decide where a resolved date appears.
@@ -58,8 +61,9 @@ date rather than a guessed value. Adapters decide where a resolved date appears.
 
 The core-to-adapter vocabulary is the versioned JSON Document and its JSON Schema.
 The Document carries the capability identifiers it uses and references the versioned
-JSON capability reference for their definitions and dependencies. Its schema and the
-adapter-manifest schema are the executable owners of the exchanged shape.
+JSON capability reference for their definitions and dependencies.
+
+Its schema and the adapter-manifest schema are the executable owners of the exchanged shape.
 Its `records` are owned by [[capabilities/bases#Note records|Note records]].
 Its `manifest.path` is the manifest note's vault-relative path, so an adapter's message about the
 manifest names that note, as one about a chapter names the chapter's note.
@@ -82,14 +86,17 @@ command line ([[cli#Adapter options]]). The core never names an adapter or one o
 The one standard argument is `--vault-root ROOT`, which every adapter accepts. Where the core built
 the Document from a manifest, ROOT is the manifest's folder as the user gave it (`spec` for
 `--source spec/manifest.md`), and the adapter names each vault-relative path in its messages below
-it, so they read `spec/manifest.md: …`. ROOT is for messages only: the Document stays
+it, so they read `spec/manifest.md: …`.
+
+ROOT is for messages only: the Document stays
 machine-independent and never carries it, and neither does the artifact. Without the argument, on
 a direct adapter call on a Document, messages name paths relative to the vault.
 
 An adapter writes each warning to stderr, one per line, in the error form of
 [[input-model#Chapter content|contract failures]] after `Warning: `:
-`Warning: <note path>: <field path>: <what is wrong>. <remedy>.`, its note path below ROOT. A
-warning does not fail the build: the adapter still writes the artifact and exits with 0. The core
+`Warning: <note path>: <field path>: <what is wrong>. <remedy>.`, its note path below ROOT.
+
+A warning does not fail the build: the adapter still writes the artifact and exits with 0. The core
 shows these lines on success, each after the adapter's name ([[cli#One-call build]]); on failure,
 a nonzero exit, the adapter's stderr is the detail of the core's failure message.
 
@@ -135,17 +142,22 @@ without one fails naming the remedy.
 
 A source archive discloses the vault's source data, so the Document carries it only when the
 build asks for it: `obs-document --source <manifest> --embed-source` adds the Document's
-`sourceArchive`, the vault's source files, each with its vault-relative `path`. An adapter that
-offers a source archive packages these files, embeds them and attaches them to a PDF from the
+`sourceArchive`, the vault's source files, each with its vault-relative `path`.
+
+An adapter that offers a source archive packages these files, embeds them and attaches them to a PDF from the
 Document alone; one that offers none ignores them. Without the option the Document has no
 `sourceArchive`, and nothing in it says what the vault holds beyond what the chapters use.
 
 The files are the vault's explicit directory snapshot: every file below the manifest's folder,
-scripts and data outside the chapters included, except hidden files and folders (a name that
-starts with a dot), installed dependency and generated folders (`__pycache__`, `node_modules`,
-`site-packages`, `__pypackages__`, `data_output`, `design_output`, `*.egg-info`, `*.dist-info`),
-Python environments (a folder holding `pyvenv.cfg`) and compiled files (`.pyc`, `.pyo`, `.exe`,
-`.dll`, `.so`, `.dylib`, `.o`, `.obj`, `.class`). The vault's [CSS snippets](#css-snippets) are
+scripts and data outside the chapters included, except
+
+- hidden files and folders (a name that starts with a dot),
+- installed dependency and generated folders (`__pycache__`, `node_modules`,
+  `site-packages`, `__pypackages__`, `data_output`, `design_output`, `*.egg-info`, `*.dist-info`),
+- Python environments (a folder holding `pyvenv.cfg`) and
+- compiled files (`.pyc`, `.pyo`, `.exe`, `.dll`, `.so`, `.dylib`, `.o`, `.obj`, `.class`).
+
+The vault's [CSS snippets](#css-snippets) are
 source files despite their hidden folder. A symlink fails the build, naming its path and the
 remedy, so the archive never reaches outside the vault. The core detects no secrets: the author
 inspects what the option discloses.
@@ -157,46 +169,63 @@ its bytes as base64 `data`.
 Carrying the files was chosen over carrying a finished ZIP or a reference the adapter may read:
 a ZIP would hold a second copy of every asset's bytes and fix a packaging an adapter may want
 otherwise (compression, a rebuild script, its own sources beside the vault's), and a reference ties
-the adapter to the source machine's vault, as an asset root would. The archive holds the vault
-only: it refers to the generator instead of copying it.
+the adapter to the source machine's vault, as an asset root would.
+
+The archive holds the vault only: it refers to the generator instead of copying it.
 
 The `sourceArchive.build` record says what rebuilds the artifact, since the adapter builds from
-the Document alone and the core is what knows it: the public `repository` (the `Repository` URL
-of obs's `pyproject.toml`), the `commit` of the checkout obs runs from (core and adapter come from
-this one repository), the package versions of every lockfile Git tracks there (`lockfiles`, by
-repository-relative path: `uv.lock` and each `package-lock.json`), and the `arguments` of the
-call that rebuild it, in the order `--adapter NAME`, `--destination` with the destination's file
-name only, each `--adapter-option`, `--execute-commands`, `--embed-source`, and the `style` the
-manifest declares, where it declares one ([Declared style](#declared-style)). The record names no
+the Document alone and the core is what knows it:
+
+- the public `repository` (the `Repository` URL of obs's `pyproject.toml`),
+- the `commit` of the checkout obs runs from (core and adapter come from this one repository),
+- the package versions of every lockfile Git tracks there (`lockfiles`, by
+  repository-relative path: `uv.lock` and each `package-lock.json`),
+- and the `arguments` of the call that rebuild it, in the order `--adapter NAME`,
+  `--destination` with the destination's file name only, each `--adapter-option`,
+  `--execute-commands`, `--embed-source`,
+- and the `style` the manifest declares, where it declares one ([Declared style](#declared-style)).
+
+The record names no
 path of the build machine: `--source` is the manifest the Document names, and `--document`,
 `--config`, `--adapter-config` and `--capability-reference` name files outside the vault, so they
-are left out. An obs that runs from no Git checkout cannot name its commit: `--embed-source` then
+are left out.
+
+An obs that runs from no Git checkout cannot name its commit: `--embed-source` then
 fails naming the folder and the remedy, to run obs from a clone of its repository. The working
-tree's uncommitted changes are not recorded. Reading the commit and lockfiles from the checkout
+tree's uncommitted changes are not recorded.
+
+Reading the commit and lockfiles from the checkout
 was chosen over package metadata, because only a checkout holds the lockfiles and the commit
 together.
 
 The archive holds the vault alone, so a vault rebuilds from it only when its command fences read
 nothing outside it: a fence names no path outside the vault root, neither an absolute one nor one
 that climbs above the root, and calls only installed programs, those of obs at the recorded
-commit included. What it needs from outside comes from such a program. The rule is the author's
+commit included.
+
+What it needs from outside comes from such a program. The rule is the author's
 to keep; the core does not refuse such a fence. `test/structure/test_command_fences_stay_in_vault.py`
 holds obs's own specification to it.
 
 ### CSS snippets
 
 An Obsidian vault keeps its CSS snippets in its snippet folder, `.obsidian/snippets` unless core
-configuration's `input.cssSnippetFolder` names another (`src/obs/config.schema.json`). The
-Document's `cssSnippets` carries every `.css` file directly in that folder, in name order, each
+configuration's `input.cssSnippetFolder` names another (`src/obs/config.schema.json`).
+
+The Document's `cssSnippets` carries every `.css` file directly in that folder, in name order, each
 with its `name` (the file name without `.css`), its vault-relative `path` and its `text`; a vault
 without the folder has none. A snippet that is not UTF-8 text, or that resolves outside the vault,
-fails the build naming its path. An adapter applies the snippets its own namespace declares, by
+fails the build naming its path.
+
+An adapter applies the snippets its own namespace declares, by
 name, from the Document alone; the core states nothing about how they style an artifact.
 
 Carrying every snippet was chosen over reading which ones a document declares: the declaration is
 a presentation choice in an adapter's namespace, which the core never reads
 ([[input-model#Core and adapter namespaces]]), and Obsidian's own list of enabled snippets is a
-per-device appearance setting, not part of the document. Snippets are small, so carrying the
+per-device appearance setting, not part of the document.
+
+Snippets are small, so carrying the
 undeclared ones costs little. The source archive carries the snippet files despite their hidden
 folder: they are inputs of the documents that declare them.
 
@@ -205,18 +234,23 @@ folder: they are inputs of the documents that declare them.
 A vault declares its style as a dependency in its manifest, in the core's namespace:
 `obs.style` is a style module pinned to a commit, with the keys of an se module (se's README,
 Modules): `url`, the public `https` clone URL of the module's repository, `ref`, the pin, a full
-40-hex commit SHA, and optionally `path`, the module's folder inside that repository. The
-Document's `style` carries that identity, `url`, `ref` and `path` as declared, and never the
+40-hex commit SHA, and optionally `path`, the module's folder inside that repository.
+
+The Document's `style` carries that identity, `url`, `ref` and `path` as declared, and never the
 module's files: an adapter that offers styles resolves and applies it; one that offers none
 ignores it. A manifest without `obs.style` gives a Document without `style`, and the adapter's
-default style applies. Only the manifest declares a style: `obs.style` in any other note is an
+default style applies.
+
+Only the manifest declares a style: `obs.style` in any other note is an
 input error naming the note and the field. A declaration that names no pin (a `ref` that is no
 full commit SHA, such as a branch name) or no public `https` URL cannot be resolved the same way
 by every build, so it fails the build naming the field, the declared style and the remedy.
 
 Since the manifest is a source file, the [source archive](#source-archive) carries the
 declaration, and a rebuild from the archive resolves the same pinned style without repeating an
-option. `sourceArchive.build.style` records the declared identity beside the generator, so the
+option.
+
+`sourceArchive.build.style` records the declared identity beside the generator, so the
 archived build configuration names every pinned input of the rebuild. A one-off style that a
 call passes to an adapter directly (an option the adapter's manifest does not declare to the
 core) never reaches the Document or the build record, so it does not apply to a rebuild.
@@ -236,12 +270,16 @@ per build, and splits its top-level keys in two:
 - The core's keys, those `src/obs/project.schema.json` declares (`$schema`, `schemaVersion`,
   `input` and `execution`). The core validates them and applies them over its configuration: each
   key the vault's file sets replaces the value of `--config`, or the schema default without
-  `--config`. A key or value the schema refuses fails the build naming the file, the field path and
+  `--config`.
+
+  A key or value the schema refuses fails the build naming the file, the field path and
   the schema's remedy. The vault's `input.manifestFilename` also names the note a vault folder
   given as `--source` resolves to ([[cli#One-call build]]).
 - Every other top-level key. The core reads none of them and carries them unread in the
   Document's `projectConfig`: `path`, the file's vault-relative path, and `settings`, those keys
-  with their values as written. An adapter applies the keys it knows over its own settings and
+  with their values as written.
+
+  An adapter applies the keys it knows over its own settings and
   refuses any other one, naming the file below the vault root, the field path and the remedy, so a
   key that neither the core nor the adapter knows fails the build. An adapter documents its keys
   and their precedence in its own specification.
@@ -253,7 +291,9 @@ file gives a Document without `projectConfig`.
 Carrying the settings in the Document was chosen over passing the file's path to the adapter as an
 option its manifest declares: a path ties the adapter to the source machine's vault, as an asset
 root would ([Asset bytes](#asset-bytes)), and the adapter would have to tell the core's keys from
-its own, while the core already reads the file. The file is a vault file, so the
+its own, while the core already reads the file.
+
+The file is a vault file, so the
 [source archive](#source-archive) holds it and a rebuild from the archive reads it again and applies
 it; `--config` lies outside the vault and the build record leaves it out, so a setting that must
 survive a rebuild belongs in the vault's file (worker decision, 6 Nov 2026, high confidence).
@@ -268,6 +308,7 @@ Command-fence execution is the core's ([Command output](#command-output)).
 Core configuration is restricted to source resolution and authorized command limits.
 Artifact, browser, and style settings remain adapter configuration; the core carries only a
 declared style's identity ([Declared style](#declared-style)).
+
 The core schema set includes base definitions, note profiles, project configuration,
 and the input/execution subset of cross-cutting configuration. Document construction
 validates every recognized fence and applicable frontmatter field with these contracts.
@@ -277,10 +318,13 @@ and optional `text`.
 
 Its fixed structural types are the Markdown blocks and inline marks every adapter renders,
 listed by `document.schema.json` (`structuralType`) and described in
-[[capabilities/markdown#Document nodes]]. Every other type is a capability identifier.
+[[capabilities/markdown#Document nodes]].
+
+Every other type is a capability identifier.
 An adapter never drops a node whose type it does not know: it shows the node's text plain and
 raises one warning per type ("limited function", not an error) that names the type, itself and
 the remedy, so a newer core's types degrade to text.
+
 For each recognized input capability, the core emits an in-place, schema-validated
 capability node containing only its authored data; it neither executes commands nor
 creates presentation output.
