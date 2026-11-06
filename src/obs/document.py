@@ -12,6 +12,7 @@ from jsonschema import Draft202012Validator
 from referencing import Registry, Resource
 
 from obs.adapter import AdapterError, adapter_manifest_path, load_adapter, option_arguments
+from obs.discriminator import discriminating_validator
 from obs.input import schema_error
 from obs.output import write_output
 from obs.vault import VaultError, build_document as _build_document
@@ -71,7 +72,7 @@ def validate_document(document: dict[str, object], reference: dict[str, object])
         FIGURE_SCHEMA_PATH.name, Resource.from_contents(figure_schema),
     )
     try:
-        errors = list(Draft202012Validator(schema, registry=registry).iter_errors(document))
+        errors = list(discriminating_validator(schema)(schema, registry=registry).iter_errors(document))
     except ValueError as error:
         raise DocumentError(f"Invalid Document: {error}") from error
     error = schema_error(errors, "Invalid Document", "src/obs/document.schema.json")

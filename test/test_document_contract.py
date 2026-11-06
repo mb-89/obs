@@ -1,14 +1,17 @@
 import json
+import re
 import subprocess
 import sys
 from pathlib import Path
 
-from jsonschema import ValidationError, validate
+from jsonschema import Draft202012Validator, ValidationError, validate
 import pytest
+from referencing import Registry, Resource
 
 from obs.adapter import AdapterError, load_adapter
 from obs.capabilities import build_capability_reference
-from obs.document import DocumentError, call_adapter, main, write_document
+from obs.discriminator import discriminating_validator
+from obs.document import STRUCTURAL_NODE_TYPES, DocumentError, call_adapter, main, write_document
 from obs.vault import build_document
 
 ROOT = Path(__file__).parents[1]
@@ -167,6 +170,102 @@ def test_document_refuses_a_block_node_inside_a_paragraph(tmp_path, block) -> No
 
     with pytest.raises(DocumentError, match=r"chapters\[0\]\.content\[0\]\.children\[1\]: .*"
                                             r"\(capabilities/markdown#Document nodes\)"):
+        write_document(document, tmp_path / "document.json", capability_reference())
+
+
+def _node(type_: str, attrs: dict[str, object] | None = None, children: list[object] | None = None,
+          **extra: object) -> dict[str, object]:
+    return {"type": type_, "attrs": attrs if attrs is not None else capability_node_attrs(type_),
+            "children": children if children is not None else capability_node_children(type_), **extra}
+
+
+_TEXT = {"type": "text", "attrs": {}, "children": [], "text": "Text."}
+_ONE_WRONG_NODE_PER_TYPE = [
+    *[(kind, _node(kind, {"extra": True}, [_TEXT]), ".attrs") for kind in
+      ["quote", "table", "table-row", "emphasis", "strong", "strikethrough"]],
+    ("paragraph", _node("paragraph", {}, [_TEXT, _node("section", {}, [])]), ".children[1]"),
+    ("rule", _node("rule", {}, [_TEXT]), ".children"),
+    ("table-cell", _node("table-cell", {}, [_TEXT]), ".attrs.header"),
+    ("list", _node("list", {"ordered": True}, []), ".attrs.tight"),
+    ("math", _node("math", {"display": False}, []), ".text"),
+    ("field", _node("field", {}, [_TEXT]), ".attrs.name"),
+    ("command-fences", _node("command-fences", {"source": "echo\n"}), ".attrs"),
+    ("figures", _node("figures", {"kind": "plot", "extra": True}), ".attrs.extra"),
+    ("attachments", _node("attachments", {"asset": "asset"}), ".attrs.label"),
+    ("chapter-inclusion", _node("chapter-inclusion", {"id": "Not An Id"}), ".attrs.id"),
+    ("callouts", _node("callouts", {"kind": "note"}), ".attrs.title"),
+    ("cards-metrics", _node("cards-metrics", children=[_node("paragraph", {}, [])]), ".children[0].type"),
+    ("property-editors", _node("property-editors", {"source": "", "spec": {}, "writes": []}), ".attrs.writes"),
+    ("markdown-frontmatter", _node("markdown-frontmatter", {}), ".attrs.metadata"),
+    ("references", _node("references", {}), ".attrs.metadata"),
+    ("quantities", _node("quantities", {"metadata": {}, "quantity": {"unit": ""}}), ".attrs.quantity.dimension"),
+    ("queries", _node("queries", {}), ".attrs.query"),
+    ("count-query", _node("count-query", {}), ".attrs.query"),
+    ("profiles", _node("profiles", {}), ".attrs.profile"),
+    ("wikilinks", _node("wikilinks", {"target": "chapter", "heading": "", "label": "chapter"}), ".attrs.chapter"),
+    ("embeds", _node("embeds", {"target": "chapter", "chapter": "chapter", "extra": True}), ".attrs.extra"),
+    ("registers", _node("registers", {**capability_node_attrs("registers"), "view": -1}), ".attrs.view"),
+    ("text", _node("text", {}, [], text="Text.", extra=True), ".extra"),
+    ("section", _node("section", {}, [_node("list", {"ordered": True}, [])]), ".children[0].attrs.tight"),
+]
+
+
+@pytest.mark.parametrize(("kind", "node", "path"), _ONE_WRONG_NODE_PER_TYPE,
+                         ids=[case[0] for case in _ONE_WRONG_NODE_PER_TYPE])
+def test_a_wrong_node_of_each_type_is_refused_at_its_field_path(tmp_path, kind, node, path) -> None:
+    """Pins each node type's refusal: its field path and the schema that owns the rule, wherever the
+    node sits (chapter content, nested children, a note record's fieldNodes)."""
+    document = document_fixture(sorted({kind, "manifest"} - STRUCTURAL_NODE_TYPES))
+    document["chapters"][0]["content"] = [node]
+    owner = r"; see src/obs/document\.schema\.json\.$"
+
+    with pytest.raises(DocumentError, match=rf"^Invalid Document: chapters\[0\]\.content\[0\]{re.escape(path)}: .*{owner}"):
+        write_document(document, tmp_path / "document.json", capability_reference())
+
+    document["chapters"][0]["content"] = [_node("list-item", {}, [node])]
+    with pytest.raises(DocumentError, match=rf"^Invalid Document: chapters\[0\]\.content\[0\]\.children\[0\]{re.escape(path)}: .*{owner}"):
+        write_document(document, tmp_path / "document.json", capability_reference())
+
+
+@pytest.mark.parametrize(("kind", "node", "path"), _ONE_WRONG_NODE_PER_TYPE,
+                         ids=[case[0] for case in _ONE_WRONG_NODE_PER_TYPE])
+def test_the_type_dispatch_finds_every_error_a_standard_validator_finds(kind, node, path) -> None:
+    """document.schema.json's discriminators only skip clauses that cannot apply: a standard
+    validator, which tries every clause, reports the very same errors."""
+    schema = json.loads((ROOT / "src" / "obs" / "document.schema.json").read_text(encoding="utf-8"))
+    figure = json.loads((ROOT / "src" / "obs" / "figure.schema.json").read_text(encoding="utf-8"))
+    registry = Registry().with_resource("figure.schema.json", Resource.from_contents(figure))
+    document = document_fixture()
+    document["chapters"][0]["content"] = [node, _node("paragraph", {}, [_TEXT, node])]
+
+    def errors(validator: type[Draft202012Validator]) -> list[tuple[object, ...]]:
+        found = validator(schema, registry=registry).iter_errors(document)
+        return sorted((list(error.absolute_path), list(error.absolute_schema_path), error.message) for error in found)
+
+    assert errors(discriminating_validator(schema)) == errors(Draft202012Validator)
+
+
+def test_a_discriminated_clause_must_be_keyed_by_its_property() -> None:
+    schema = {"discriminator": {"propertyName": "type"}, "allOf": [{"if": {"required": ["type"]}, "then": {}}]}
+
+    with pytest.raises(ValueError, match=r"^#/allOf/0/if: .*src/obs/discriminator\.py\.$"):
+        discriminating_validator(schema)
+
+
+def test_a_discriminated_branch_a_paragraph_rule_negates_must_be_keyed_by_its_property() -> None:
+    schema = {"$defs": {"block": {"discriminator": {"propertyName": "type"}, "anyOf": [{"required": ["type"]}]}},
+              "items": {"not": {"$ref": "#/$defs/block"}}}
+
+    with pytest.raises(ValueError, match=r"^#/\$defs/block/anyOf/0: .*src/obs/discriminator\.py\.$"):
+        discriminating_validator(schema)
+
+
+def test_a_wrong_field_node_on_a_note_record_is_refused_at_its_field_path(tmp_path) -> None:
+    document = document_fixture()
+    document["records"][0]["fieldNodes"][0]["attrs"] = {}
+
+    with pytest.raises(DocumentError, match=r"^Invalid Document: records\[0\]\.fieldNodes\[0\]\.attrs\.name: "
+                                            r".*; see src/obs/document\.schema\.json\.$"):
         write_document(document, tmp_path / "document.json", capability_reference())
 
 
