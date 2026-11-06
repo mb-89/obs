@@ -1,8 +1,8 @@
 """obs's spec references the HTML adapter's specification as an outside source.
 
-Owner: spec/appendix/references/obs-html-specification.md, whose silent cmd fences (producers,
-capabilities/command-fences) build adapters/html/spec/manifest.md with the adapter into the file
-the note attaches (capabilities/attachments). The References register selects every note with a
+Owner: spec/appendix/references/obs-html-specification.md, whose silent cmd fence (a producer,
+capabilities/command-fences) builds the adapter's packaged specification with
+`obs-html --build-own-spec` into the file the note attaches (capabilities/attachments). The References register selects every note with a
 `url` (spec/appendix/references.md).
 """
 import base64
