@@ -5,6 +5,15 @@
   "type": "object",
   "additionalProperties": false,
   "properties": {
-    "document": {"type": "boolean", "$comment": "input-model#Chapter content: false keeps a record-only note."}
+    "document": {"type": "boolean", "$comment": "input-model#Chapter content: false keeps a record-only note."},
+    "style": {
+      "$comment": "The manifest's style module pinned to a commit, with an se module's keys (architecture.md, Declared style); obs.input.declared_style checks url and ref first.",
+      "type": "object", "additionalProperties": false, "required": ["url", "ref"],
+      "properties": {
+        "url": {"type": "string", "pattern": "^https://[^\\s/@]+/\\S+$"},
+        "ref": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+        "path": {"type": "string", "pattern": "^(?!/)(?!.*(^|/)\\.\\.?(/|$))[^\\\\]+$"}
+      }
+    }
   }
 }
