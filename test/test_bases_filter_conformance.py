@@ -58,6 +58,25 @@ def test_unsupported_fence_filter_names_file_fence_and_expression(tmp_path, filt
     assert ('status.contains("x")' if location == "filters" else "kind > 1") in message
 
 
+@pytest.mark.parametrize("filters, view_filters, expression", [
+    ("filters: 'status.contains(\"x\")'\n", "", 'status.contains("x")'),
+    ("", "    filters:\n      or: ['kind == \"a\"', 'kind > 1']\n", "kind > 1"),
+])
+def test_the_core_names_the_note_fence_and_expression_of_an_unsupported_fence_filter(
+        tmp_path, filters, view_filters, expression):
+    from obs.document import DocumentError, build_document
+    from test_vault import capability_reference
+
+    valid = FENCE.format(filters="filters: 'kind == \"a\"'\n", view_filters="")
+    invalid = FENCE.format(filters=filters, view_filters=view_filters)
+    manifest = _vault(tmp_path, "# Chapter\n\n" + valid + invalid)
+    with pytest.raises(DocumentError) as error:
+        build_document(manifest, capability_reference())
+    message = str(error.value)
+    assert message.startswith(f"Unsupported Bases filter: {expression} (base fence 2 in chapter.md)"), message
+    assert message.endswith("use the Bases filter grammar of generic-tables."), message
+
+
 def test_inclusion_uses_the_grammar_for_indexed_and_literal_dotted_paths(tmp_path):
     (tmp_path / "indexed.md").write_text("---\nitems: [{name: first}, {name: second}]\n---\n# Indexed\n",
                                          encoding="utf-8")
@@ -106,12 +125,12 @@ def test_core_evaluator_rejects_unsupported_filters(filters):
         core_filter(filters)
 
 
-def test_core_and_interim_schemas_share_the_comparison_pattern():
-    def pattern(package: str) -> str:
-        schema = Path(__file__).parents[1] / "src" / package / "base.schema.json"
-        return json.loads(schema.read_text(encoding="utf-8"))["$defs"]["comparison"]["pattern"]
+def test_core_and_adapter_schemas_share_the_comparison_pattern():
+    def pattern(package: Path) -> str:
+        return json.loads((package / "base.schema.json").read_text(encoding="utf-8"))["$defs"]["comparison"]["pattern"]
 
-    assert pattern("obs") == pattern("obs_html_interim")
+    root = Path(__file__).parents[1]
+    assert pattern(root / "src" / "obs") == pattern(root / "adapters" / "html" / "src" / "obs_html")
 
 
 @pytest.mark.parametrize("package", ["core", "adapter"])

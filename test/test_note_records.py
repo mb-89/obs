@@ -3,9 +3,7 @@ from pathlib import Path
 import pytest
 import yaml
 
-from obs_html_interim.content import (
-    Chapter, base_note_value, collect_notes, compile_base_filter, read_chapter_content, read_manifest,
-)
+from obs.selection import compile_base_filter, note_value
 
 
 ROOT = Path(__file__).parents[1]
@@ -44,29 +42,32 @@ def test_spec_document_has_a_note_record_per_capability(spec_records, spec_docum
     assert bases["fields"]["capability"]["id"] == "bases"
 
 
-def test_base_filters_on_records_select_the_adapter_vault_collection(spec_records) -> None:
-    manifest = read_manifest(MANIFEST)
-    home = Chapter(0, "Home", "home", MANIFEST, "", "home")
-    home_document = read_chapter_content(home, manifest.metadata["subtitle"])
-    _, _, index = collect_notes(MANIFEST, manifest.chapters, home, home_document, manifest.metadata)
+def _frontmatter(path: Path) -> dict[str, object]:
+    text = path.read_text(encoding="utf-8")
+    if not text.startswith("---\n"):
+        return {}
+    return yaml.safe_load(text.split("\n---", 1)[0].removeprefix("---\n")) or {}
+
+
+def test_base_filters_on_records_select_what_they_select_on_the_notes_frontmatter(spec_records) -> None:
+    """Every authored base filter selects the same notes from the Document's records as from the
+    frontmatter of the notes they stand for, read from the vault."""
     vault = MANIFEST.resolve().parent
-    collected = {
-        path.relative_to(vault).as_posix(): metadata for path, metadata in index.metadata_by_path.items()
-    }
-    assert {record["path"] for record in spec_records} == set(collected)
+    frontmatter = {record["path"]: _frontmatter(vault / record["path"]) for record in spec_records}
     filters = _authored_base_filters()
     assert 'kind == "capability"' in filters
     for filters_ in filters:
         matches = compile_base_filter(filters_)
         from_records = {
             record["path"] for record in spec_records
-            if matches(lambda field, record=record: base_note_value(record["fields"], record["path"], field))
+            if matches(lambda field, record=record: note_value(record["fields"], record["path"], field))
         }
         from_vault = {
-            path for path, metadata in collected.items()
-            if matches(lambda field, path=path, metadata=metadata: base_note_value(metadata, path, field))
+            path for path, metadata in frontmatter.items()
+            if matches(lambda field, path=path, metadata=metadata: note_value(metadata, path, field))
         }
         assert from_records == from_vault, filters_
+        assert from_records or filters_ != 'kind == "capability"', filters_
 
 
 def test_note_outside_the_vault_is_refused_with_its_source_and_remedy(tmp_path) -> None:

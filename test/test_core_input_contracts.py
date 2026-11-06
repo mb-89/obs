@@ -22,7 +22,8 @@ from obs.input import (
 
 def test_core_input_contracts_validate_without_loading_adapter(tmp_path) -> None:
     result = subprocess.run(
-        [sys.executable, "-c", "import obs.input; import sys; raise SystemExit('obs_html_interim' in sys.modules)"],
+        [sys.executable, "-c", "import obs.input; import sys; "
+         "raise SystemExit(any(name.startswith('obs_html') for name in sys.modules))"],
         check=False,
     )
     assert result.returncode == 0
@@ -128,42 +129,27 @@ def _error_message(callback) -> str:
     return str(raised.value)
 
 
-def test_core_and_adapter_contract_errors_match_for_shared_inputs(tmp_path) -> None:
-    from obs_html_interim.cards import parse_card_spec as parse_adapter_cards
-    from obs_html_interim.cards import validate_count_query as validate_adapter_count_query
-    from obs_html_interim.commands import run_command
-    from obs_html_interim.content import _validate_note_profile, validate_base_definition as validate_adapter_base
-    from obs_html_interim.properties import property_editors
-    from markdown_it import MarkdownIt
+def _source_field_owner(message: str, source: str) -> tuple[str, str]:
+    """The field path and the owner reference of an input error that names its source."""
+    match = re.match(rf"^{re.escape(source)}: (?:[\w-]+ fence, )?([\w.\[\]]+): .*; see ([\w/-]+)\.$", message)
+    assert match, message
+    return match[1], match[2]
 
-    card = '{"version": 1, "cards": []}'
-    query = {"where": "invalid"}
-    base = {}
-    property_editor = "version: 1\nfield: title\n"
-    token = next(token for token in MarkdownIt().parse(f"```property-editor\n{property_editor}```\n")
-                 if token.type == "fence")
 
-    class Chapter:
-        source_path = tmp_path
-
-    assert _error_message(lambda: parse_card_spec(card, tmp_path)) == _error_message(
-        lambda: parse_adapter_cards(card, tmp_path)
-    )
-    assert _error_message(lambda: validate_count_query(query, tmp_path)) == _error_message(
-        lambda: validate_adapter_count_query(query, tmp_path)
-    )
-    assert _error_message(lambda: validate_base_definition(base, tmp_path)) == _error_message(
-        lambda: validate_adapter_base(base, tmp_path)
-    )
-    assert _error_message(lambda: validate_note_profile({"obs": {"document": "maybe"}}, tmp_path)) == _error_message(
-        lambda: _validate_note_profile({"document": "maybe"}, tmp_path)
-    ).replace("obsHtml.", "obs.")
-    assert _error_message(lambda: parse_property_editor(property_editor, tmp_path, {})) == _error_message(
-        lambda: property_editors([token], Chapter(), {})
-    )
-    assert _error_message(lambda: validate_command("")) == _error_message(
-        lambda: run_command("", tmp_path, 5)
-    )
+@pytest.mark.parametrize(("check", "field", "owner"), [
+    (lambda source: parse_card_spec('{"version": 1, "cards": []}', source), "cards", "capabilities/cards-metrics"),
+    (lambda source: validate_count_query({"where": "invalid"}, source), "query.where", "capabilities/queries"),
+    (lambda source: validate_base_definition({}, source), "views", "capabilities/bases"),
+    (lambda source: validate_note_profile({"obs": {"document": "maybe"}}, source), "obs.document",
+     "capabilities/profiles"),
+    (lambda source: parse_property_editor("version: 1\nfield: title\n", source, {}), "label",
+     "capabilities/property-editors"),
+], ids=["cards", "query", "base", "profile", "property-editor"])
+def test_a_shared_input_error_names_its_source_field_and_owner(tmp_path, check, field, owner) -> None:
+    """The errors the adapters once raised themselves for these inputs are the core's alone: each
+    names the note, the field path and the capability that owns the contract."""
+    assert _source_field_owner(_error_message(lambda: check(tmp_path)), str(tmp_path)) == (field, owner)
+    assert _error_message(lambda: validate_command("")).startswith("A cmd fence cannot be empty.")
 
 
 FULL_CARD_SPEC = {
@@ -192,39 +178,27 @@ FULL_CARD_SPEC = {
 
 
 def test_core_cards_contract_accepts_the_full_card_metric_contract() -> None:
-    from obs_html_interim.cards import parse_card_spec as parse_adapter_cards
-
-    text = json.dumps(FULL_CARD_SPEC)
-    interim = _interim_namespace(text)
-    assert parse_card_spec(text, "note.md") == FULL_CARD_SPEC
-    assert parse_adapter_cards(interim, "note.md") == json.loads(interim)
-
-
-def _interim_namespace(text: str) -> str:
-    """The same cards in the interim adapter's namespace, which it keeps reading (obs#3 deletes it)."""
-    return text.replace('"obs":', '"obsHtml":')
+    assert parse_card_spec(json.dumps(FULL_CARD_SPEC), "note.md") == FULL_CARD_SPEC
 
 
 @pytest.mark.parametrize(
-    "metric",
+    ("metric", "field"),
     [
-        {"secondary": "queries/closed"},
-        {"from": "queries/findings", "secondaryLink": "#closed"},
-        {"link": "https://example.test"},
-        {"tone": "loud"},
-        {"toneRules": [{"value": "primary", "when": "zero", "tone": "positive"}] * 9},
-        {"obs": {"projection": "Upper"}},
+        ({"secondary": "queries/closed"}, "from"),
+        ({"from": "queries/findings", "secondaryLink": "#closed"}, "secondary"),
+        ({"link": "https://example.test"}, "link"),
+        ({"tone": "loud"}, "tone"),
+        ({"toneRules": [{"value": "primary", "when": "zero", "tone": "positive"}] * 9}, "toneRules"),
+        ({"obs": {"projection": "Upper"}}, "obs.projection"),
     ],
 )
-def test_core_cards_contract_rejects_what_the_adapter_rejects(metric) -> None:
-    from obs_html_interim.cards import parse_card_spec as parse_adapter_cards
-
+def test_core_cards_contract_rejects_a_metric_outside_it(metric, field) -> None:
+    """Each metric the interim adapter refused, the core refuses, naming the metric's field."""
     text = json.dumps({"version": 1, "cards": [{
         "title": "Coverage", "body": "", "metrics": [{"label": "Open", "where": [], **metric}],
     }]})
-    assert _error_message(lambda: parse_card_spec(text, "note.md")) == _error_message(
-        lambda: parse_adapter_cards(_interim_namespace(text), "note.md")
-    ).replace(".obsHtml.", ".obs.")
+    assert _source_field_owner(_error_message(lambda: parse_card_spec(text, "note.md")), "note.md") == (
+        f"cards[0].metrics[0].{field}", "capabilities/cards-metrics")
 
 
 @pytest.mark.parametrize("field", ["link", "secondaryLink"])
