@@ -1237,8 +1237,15 @@ separate from artifact presentation.
 - Saving uses the File System Access API when available and downloads a commented copy
   otherwise.
 - Search and Filter use the same query runtime. All chapter frontmatter fields participate in
-  bare and field-specific queries. That runtime owns the artifact's browser port
-  of the filter language implemented by `quack_v5/src/tui/draw/filter.go`.
+  bare and field-specific queries. That runtime owns the artifact's filter language:
+  terms separated by whitespace must all match; `AND`, `OR` and `NOT`, in any letter case,
+  combine them, `NOT` binding tightest and `OR` loosest, and parentheses group them. A bare term
+  searches a chapter's whole text and `field: value` one field; a leading `-` negates either
+  (`-draft`, `-status: open`). A value is a word, a quoted string or a `/regular expression/`;
+  a word matches as a substring, and `*` in it matches any run of characters. Field names and
+  quoting follow [[input-model#Markdown body and frontmatter]]. An unclosed quote, expression
+  or parenthesis, or a field without a value, reads as still being typed rather than as an
+  error.
 - A field clause selects by the one rule set ([[capabilities/bases#Comparisons]]): it resolves
   a note property and tests its text as [[capabilities/queries#Conditions]] does. Words,
   wildcards and regular expressions ignore case; a `c` after a regular expression
