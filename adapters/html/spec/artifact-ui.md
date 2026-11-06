@@ -503,22 +503,28 @@ order and repeated after the eighth option.
 Decided by the user, 6 Nov 2026 (work issue `feat/decision-solutions-and-details-20261106`): a
 decision page reads top to bottom as a person thinks: the current situation, the problem, the
 potential solutions with the one to pick, then the details. In a chapter whose main content is a
-decision figure (its one figure at the top level is a decision figure), the page draws two second-level
-headings around it, which fold and stand in the chapter's contents as the note's own headings
-do (`render.py`, decision chapter); the note writes only its text before the fence:
+decision figure (its one figure at the top level is a decision figure), the page draws
+second-level headings around it, which fold and stand in the chapter's contents as the note's own
+headings do (`render.py`, decision chapter); the note writes only its text before the fence.
+Decided by the user, 6 Nov 2026 (work issue `feat/decision-success-and-winner-box-20261106`): the
+proposed winner is a sub-section of its own, so the page reads Current situation, The problem
+(the note's text), then:
 
-1. **Potential solutions**, after the note's text: the options list, the Y-statement and the
-   confirmation, in the figure's frame.
-2. **Details**, after it: the tabs, in the adapter's tab control (the look of a table's detail
+1. **Potential solutions**, after the note's text: the options list, in the figure's frame.
+2. **Proposed winner**, after it: one box drawn as the report's bottom-line-up-front box (the
+   `> [!important]` emphasis box, [[#Takeaways and orientation]]), holding the Y-statement and, under it, the
+   proposed option's success criterion, "Success criterion: ‹text›", where it has one.
+3. **Details**, after it: the tabs, in the adapter's tab control (the look of a table's detail
    tabs), Matrix shown at the start, then one tab for each of the chapter's sections after the
    figure ([[#Decision tabs from the chapter]]).
 
 A chapter with more than one decision figure has no such headings; each figure shows the same
-parts in the same order in its own frame.
+parts in the same order in its own frame, the box under its options list.
 
 **The options list:** one row per option. A row is its letter chip, its short name and an
-expander; expanding it shows the option's label where that says more, its `what` sentence and its
-wins and losses. The computed winner's row carries a "winner" mark; the fence's `chosen` option,
+expander; expanding it shows the option's label where that says more, its `what` sentence, its
+wins and losses, and its success criterion, "Success criterion: ‹text›", where the fence gives
+the option a `success` (obs input-model, Pugh decision figures). The computed winner's row carries a "winner" mark; the fence's `chosen` option,
 where it is another, a "chosen" mark.
 
 Where the chapter asks for a bless, each row carries a radio, and the list ends with a row "None
@@ -527,7 +533,10 @@ of the above" with one too. A radio is the band's pick state ([[#Bless verdicts]
 band shows it, a pick in the band checks the radio, and the checked radio chosen again clears the
 verdict to pending.
 
-**The Y-statement:** one sentence directly under the list, the decision bottom line up front:
+In every row, the None of the above row included, the radio, the expander's arrow, the letter
+chip and the short name sit on one vertical centre line, at phone width and on a desktop alike.
+
+**The Y-statement:** one sentence in the Proposed winner box, not bold, the decision bottom line up front:
 "In the context of ‹context›, facing ‹concern›, we decided for ‹option› and against ‹the
 others›, to achieve ‹gains›, accepting ‹losses›." ‹context› and ‹concern› are the fence's
 `context` and `concern`; without them the sentence starts at "We decided for", and without one
@@ -535,13 +544,30 @@ of them its clause is left out. ‹option› is the winner, or the reader's pick
 and the sentence follows a new pick at once; for None of the above it reads "we decided against
 all of …". ‹gains› are the criteria on which the option's weighted mark against the datum is
 highest, at most three; ‹losses› those where it is below the datum. A clause with nothing to name
-is left out.
+is left out. The box follows the pick as the sentence does: its success criterion is the picked
+option's, and None of the above has none.
 
-**The confirmation:** where the fence has `confirmation`, one line under the Y-statement,
-"Confirmation: ‹text›".
+A criterion's label spliced into the sentence starts lower-case ("to achieve places that hold the
+verdict"), unless it is an acronym or a code span. An acronym is a first word (up to the first
+space) of two or more characters with a capital and no lower-case letter: "CI checks" and "P99
+latency" keep their case, "A second line" does not. A code span is a label that starts with a
+backtick. Decided by the integrator's
+review of work issue `feat/decision-solutions-and-details-20261106`, carried into work issue
+`feat/decision-success-and-winner-box-20261106`.
 
 **Superseded:** where the fence has `supersededBy`, the chapter shows "Superseded by ‹ref›" at its
 top, under its heading. There are no status, date or decision-maker fields.
+
+Decided by the user, 6 Nov 2026 (work issue `feat/decision-success-and-winner-box-20261106`):
+every chart or table in Details whose meaning is not obvious opens with one plain line, the
+question it answers, so a reader who did not build it knows what it is for:
+
+- the matrix, table or rows: "How does each option compare with the datum, criterion by
+  criterion?";
+- the Sensitivity bar: "Does the winner still win when every weight shifts a little at random?";
+- the Sensitivity grid: "How far must each weight move before another option wins?".
+
+The Checklist is a list of questions already, and Pareto keeps its sentence.
 
 The tabs:
 
@@ -656,7 +682,7 @@ anchor while the artifact is open, and readable by the page as `obsPugh.readerSt
 anchor and with options by letter, with the winner they give, for whatever sends a reader's
 verdict ([[#Bless verdicts]]).
 
-Print and PDF show the options list with every option expanded, the Y-statement, the confirmation
+Print and PDF show the options list with every option expanded, the Proposed winner box
 and the Matrix tab as the reader left it, the weights and marks as text, and Wins and Losses as their texts;
 where weights or marks changed, the caption ends with the note *View changed by the reader.*
 
@@ -820,7 +846,7 @@ dispatcher, 6 Nov 2026 (work issue `fix/decision-figure-follow-ups-20261106`).
   neither invents a TOC path nor intercepts the Home link.
 - No table of contents, filter, toolbar, or navigation bar is open initially.
 - The top band is one row and holds every top control: Home, the breadcrumbs, the
-  frontmatter chevron, the position indicator and title of [[#Screens]], the bless controls
+  frontmatter chevron, the title of [[#Screens]], the bless controls
   ([[#Bless verdicts]]), the notice icons and the menu.
   The notice icons sit directly left of the menu.
   The bless controls sit directly left of them.
@@ -905,6 +931,12 @@ On such a chapter the top band shows, left of the notice icons:
   radios of the figure's options list do, and "None of the above", which needs a comment as Decline does and
   is sent as the pick's option `none`. There is no comment box in the page and no browser dialog.
 
+Decided by the user, 6 Nov 2026 (work issue `feat/decision-success-and-winner-box-20261106`):
+the verdicts take the review's semantic colours ([[#Dock menu]]). Bless and every accepted
+state in the deck, the pill, its square and the pressed key, use the review's acceptance colour
+(`color.success`), and Decline the review's rejection colour (`color.failure`): one token each,
+shared with the review. The Ask verdict keeps its own colour.
+
 A verdict is complete as a Bless, or as another verdict with its comment (and, for Pick, its
 letter); Enter confirms the comment and closes the entry. A verdict never walks: decided by the
 user, 6 Nov 2026 (work issue `feature/deck-shell-verdicts-20261106`), the reader moves on by
@@ -952,11 +984,13 @@ example deck (`spec/examples/bless-deck`) opens in screens by this rule.
 
 - **The walk:** swipe and the arrows move between screens ([[#Reading shell]]); the contents
   stay in the menu. Where touch is the input (`pointer: coarse`), the arrows are hidden and
-  swipe, the keys and the band's position walk; their gutter goes to the content, which keeps a
+  swipe and the keys walk; their gutter goes to the content, which keeps a
   text margin. Hidden, not moved into the band: on a phone the band has no square to spare, and
-  swipe already walks there. With a mouse, the arrows stay as they are. The top band shows the position on the chapters of the walk, "2 / 3", as
-  one of its squares, first at the band's end. The
+  swipe already walks there. With a mouse, the arrows stay as they are. The
   bottom of the screen stays free for content.
+- **No counter:** decided by the user, 6 Nov 2026 (work issue
+  `feat/decision-success-and-winner-box-20261106`): the band shows no "2 / 3" position, as a
+  document shows no chapter counter; a counter read as if every chapter were a question.
 - **Show as pages** switches to the paged view for the session; switching it off returns to
   screens.
 - **Printing** from screens prints each chapter from a new page, as the reader sees it: no
