@@ -764,15 +764,17 @@ there (its parser) and one body schema in `src/obs/document.schema.json` (`$defs
 A diagram becomes SVG when the core builds the Document, on the build machine and with no
 network: the core runs the diagram's library (Mermaid, or PlantUML's JavaScript build) in a
 local headless browser, the one the project's tests already use, and refuses every request
-the library makes. The libraries are pinned in `src/obs/diagrams/package-lock.json` and
-installed from it with `npm --prefix src/obs/diagrams ci`; the build never fetches them. The
+the library makes. The libraries are pinned in `src/obs/diagrams/package-lock.json`; every build
+of the core's package installs them from it and ships them as package data, which the core reads
+only through `importlib.resources` (`hatch_build.py`); a package build without npm, or whose
+`npm ci` fails, fails naming the lockfile and the remedy. Building a Document never fetches them. The
 figure's body holds the diagram's text as authored, for review, and the SVG, which every
 adapter shows as the figure's picture, so none needs a diagram library and print shows the
 same drawing. The same text gives the same SVG, whether inline or from a file. A diagram its
 library cannot read is an input error that names the note, the note's line the library names
 (for a `source` file: the fence's line and the file's line) and the library's own message; a
-build without the libraries installed, or without a browser, is an input error that names the
-note, the fence's line and the install command. No diagram is ever an empty figure.
+build without a browser, a program the package cannot carry, is an input error that names the
+note, the fence's line and the browser's install command. No diagram is ever an empty figure.
 
 Paths are relative to the note, confined to the vault, and files are read-only
 inputs. Rendering/checking never runs

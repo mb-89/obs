@@ -143,12 +143,3 @@ def test_a_syntax_error_in_a_source_file_names_the_note_the_fence_and_the_files_
 
     assert message.startswith(f"{tmp_path / 'chapter.md'}: line 3, figure fence 1, source, line 3: ")
     assert message.endswith("; see capabilities/mermaid.")
-
-
-def test_a_missing_renderer_names_the_install_command(figures, tmp_path, monkeypatch) -> None:
-    monkeypatch.setattr(diagram, "PACKAGE", tmp_path / "not-installed")
-    message = _error(tmp_path / "vault", "# Missing\n\n```plantuml\n@startuml\nMissing -> Renderer\n@enduml\n```\n")
-
-    assert message.startswith(f"{tmp_path / 'vault' / 'chapter.md'}: line 3, plantuml fence 1: ")
-    assert f"'npm --prefix {tmp_path / 'not-installed'} ci'" in message
-    assert message.endswith("; see capabilities/plantuml.")
