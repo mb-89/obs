@@ -85,3 +85,32 @@ content: {
 }
 ```
 ````
+
+## Rendered example
+
+This figure is rendered, not quoted: a `traces` descriptor with one series.
+
+```figure
+version: 1
+kind: plot
+caption: The squares y = x² of x = 0 to 4, one series drawn as lines with markers.
+alt: A curve rising from 0 at x = 0 to 16 at x = 4.
+content: {
+  "schemaVersion": 1,
+  "id": "squares",
+  "data": {"traces": [
+    {"x": [0, 1, 2, 3, 4], "y": [0, 1, 4, 9, 16], "label": "y = x²", "mode": "lines+markers"}
+  ]},
+  "panels": [{
+    "id": "squares",
+    "bounds": {"x": 0, "y": 0, "width": 720, "height": 320},
+    "grid": {"row": 0, "column": 0, "rowSpan": 1, "columnSpan": 1},
+    "axes": [
+      {"id": "x", "scale": "linear", "limits": {"minimum": 0, "maximum": 4}, "label": "x"},
+      {"id": "y", "scale": "linear", "limits": {"minimum": 0, "maximum": 16}, "label": "y = x²"}
+    ]
+  }],
+  "provenance": {"command": ["generate-figure"]}
+}
+```
+^squares

@@ -2,11 +2,12 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "type": "object",
   "additionalProperties": false,
-  "required": ["version", "kind", "source"],
+  "required": ["version", "kind"],
   "properties": {
     "version": {"const": 1},
     "kind": {"enum": ["plot", "svg", "sankey", "image"]},
     "source": {"type": "string", "minLength": 1},
+    "content": {"description": "A plot's FigureDescriptor, which the core's figure-descriptor capability owns.", "type": "object"},
     "sourceNote": {
       "type": "string",
       "pattern": "^(?!/)(?!.*(?:^|/)\\.\\.?(/|$))(?!.*\\.md$)[^\\\\:#?]+$"
@@ -87,16 +88,21 @@
     }
   },
   "allOf": [
+    {"oneOf": [{"required": ["source"]}, {"required": ["content"]}]},
+    {
+      "if": {"required": ["content"]},
+      "then": {"properties": {"kind": {"const": "plot"}}, "propertyNames": {"enum": ["version", "kind", "content", "caption", "alt"]}}
+    },
     {
       "if": {"required": ["countLabels"]},
       "then": {"properties": {"kind": {"const": "sankey"}}}
     },
     {
-      "if": {"properties": {"kind": {"enum": ["plot", "svg"]}}},
+      "if": {"properties": {"kind": {"enum": ["plot", "svg"]}}, "required": ["source"]},
       "then": {"required": ["fallback"]}
     },
     {
-      "if": {"properties": {"kind": {"const": "plot"}}},
+      "if": {"properties": {"kind": {"const": "plot"}}, "required": ["source"]},
       "then": {"required": ["domain", "samples", "equations", "traces"]}
     }
   ],

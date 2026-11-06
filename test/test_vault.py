@@ -7,6 +7,7 @@ import pytest
 
 from obs.capabilities import build_capability_reference
 from obs.document import STRUCTURAL_NODE_TYPES, DocumentError, build_document
+from obs.figure import FIGURE_KINDS
 
 
 ROOT = Path(__file__).parents[1]
@@ -682,7 +683,9 @@ def test_core_parses_the_spec_vault_as_neutral_document(tmp_path, spec_document)
     assert node_types(document, bodies=False) <= structural | references
     assert {"wikilinks", "bases", "command-fences", "marks"} <= types
     assert set(document["capabilities"]) <= references
-    assert set(document["capabilities"]) == types & references
+    # A figure kind's body carries its capability's contract (a plot's descriptor), named by the kind.
+    carried = {figure.capability for kind, figure in FIGURE_KINDS.items() if figure.capability and kind in types}
+    assert set(document["capabilities"]) == (types & references) | carried
     coverage = json.loads((ROOT / "spec" / "capabilities" / "coverage.json").read_text(
         encoding="utf-8",
     ))["sections"]
