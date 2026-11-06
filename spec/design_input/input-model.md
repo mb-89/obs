@@ -775,6 +775,9 @@ remedy. A kind's own options sit beside them in the fence. The kinds and their c
   content.
 - `equations`: symbolic equations, their variables and an initial plot ([[#Equation figures]]).
   `source` names a YAML or JSON file; inline `content` is the same mapping.
+- `pugh`: a Pugh decision matrix ([[#Pugh decision figures]]). `source` names a YAML or JSON
+  file; inline `content` is the same mapping. A plain ```` ```pugh ```` fence is a figure of that
+  kind without caption, alt or block id.
 
 An optional `caption` supplies visible figure prose; omission renders no caption or placeholder.
 
@@ -1197,6 +1200,38 @@ its own cap on the number of combinations and draws the plot.
 The shared test vectors, `test/fixtures/expression-vectors.json`, hold expression trees,
 variable values and expected results. The core checks them against SymPy; an adapter's live
 evaluator checks itself against the same file.
+
+#### Pugh decision figures
+
+Decided by the user, 6 Nov 2026 (work issue `feature/pugh-decision-figure-20261106`): decisions
+are Pugh matrices, written in Markdown and rendered by an adapter as one figure, a one-pager.
+obs provides the form; the design is the adapter's.
+
+A decision figure is a figure of kind `pugh`. A plain ```` ```pugh ```` fence, as Obsidian shows
+it, is one without caption, alt or block id, and its whole text is the matrix in YAML. A `figure`
+fence of `kind: pugh` holds the same matrix under `content`, or in a YAML or JSON `source` file.
+
+The matrix has the shape of the matrix file of ctrl's Pugh engine: ctrl's
+`design/output/pugh.md` (github.com/mb-89/ctrl), "The matrix file", owns it. obs adds three
+fields and leaves out two:
+
+- `chosen`, optional: the key of the option the author chose, which the figure checks.
+- On each option, `short`, a column label, and `what`, one sentence on what it is; both optional.
+- An option's `figures` and the matrix's `overrides` are refused as unknown fields: a figure is
+  the adapter's drawing, and the reader's changes are the adapter's reader state.
+
+The core checks the matrix against `$defs/pughMatrix` of `src/obs/document.schema.json`, then
+what no schema states: unique keys; every criterion a value, a mark or a gate names; values for
+measured criteria, marks for judged ones; a hard gate on a measured criterion; and the options
+`datum.prefer` and `chosen` name.
+
+A matrix it refuses is an input error in the one form: the note, the fence, the field path
+within it (`content.criteria[1].better`, `source.chosen`) and the remedy, naming
+[[capabilities/pugh-decisions]].
+
+The figure's body carries the checked matrix as data (`matrix`). The core decides nothing: an
+adapter runs ctrl's engine on it, in the reader's page, so a reader's change is decided again
+there.
 
 ### Markdown body and frontmatter
 
