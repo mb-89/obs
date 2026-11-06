@@ -154,7 +154,7 @@ def _schema() -> dict[str, object]:
 
 
 @cache
-def _validator(name: str) -> Draft202012Validator:
+def input_validator(name: str) -> Draft202012Validator:
     schema = _schema()
     return Draft202012Validator({"$ref": f"#/$defs/{name}", "$defs": schema["$defs"]})
 
@@ -172,7 +172,7 @@ def parse_card_spec(text: str, source_path: object, place: str = "cards fence") 
         for number, metric in enumerate(metrics if isinstance(metrics, list) else []):
             refuse_moved_keys(metric, "metric", source_path, f"cards[{index}].metrics[{number}]", place,
                               "capabilities/cards-metrics")
-    error = schema_error(list(_validator("cards").iter_errors(specification)), source_path,
+    error = schema_error(list(input_validator("cards").iter_errors(specification)), source_path,
                          "capabilities/cards-metrics", place=place)
     if error:
         raise error
@@ -180,7 +180,7 @@ def parse_card_spec(text: str, source_path: object, place: str = "cards fence") 
 
 
 def validate_count_query(query: object, source_path: object, field: str = "query") -> None:
-    error = schema_error(list(_validator("countQuery").iter_errors(query)), source_path,
+    error = schema_error(list(input_validator("countQuery").iter_errors(query)), source_path,
                          "capabilities/queries", field=field)
     if error:
         raise error
@@ -196,7 +196,7 @@ def parse_property_editor(
     except yaml.YAMLError as error:
         raise input_error(source_path, place, f"is not valid YAML: {error}",
                           "Write YAML; see capabilities/property-editors") from error
-    error = schema_error(list(_validator("propertyEditor").iter_errors(specification)), source_path,
+    error = schema_error(list(input_validator("propertyEditor").iter_errors(specification)), source_path,
                          "capabilities/property-editors", place=place)
     if error:
         raise error

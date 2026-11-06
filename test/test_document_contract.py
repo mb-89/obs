@@ -87,9 +87,16 @@ def capability_node_attrs(identifier: str) -> dict[str, object]:
         },
         "wikilinks": {"target": "chapter", "chapter": "chapter", "heading": "", "label": "chapter"},
         "embeds": {"target": "outside", "chapter": None},
-        "figure-descriptor": {"descriptor": figure_descriptor()},
+        "figures": {"kind": "plot"},
     }
     return attrs.get(identifier, {})
+
+
+def capability_node_children(identifier: str) -> list[dict[str, object]]:
+    """A figure's one child is its kind's body; every other fixture node has none."""
+    if identifier == "figures":
+        return [{"type": "plot", "attrs": {"descriptor": figure_descriptor()}, "children": []}]
+    return []
 
 
 def test_document_schema_validates_a_core_document() -> None:
@@ -172,19 +179,16 @@ def test_document_keeps_an_asset_embed_inside_a_paragraph(tmp_path) -> None:
     write_document(document, tmp_path / "document.json", capability_reference())
 
 
-def test_document_validates_figure_descriptor_at_the_figure_node(tmp_path) -> None:
-    document = document_fixture(["figure-descriptor"])
-    descriptor = figure_descriptor()
+def test_document_validates_figure_descriptor_at_the_plot_figure_s_body(tmp_path) -> None:
+    document = document_fixture(["figures"])
     document["chapters"][0]["content"] = [{
-        "type": "figure-descriptor",
-        "attrs": {"descriptor": descriptor},
-        "children": [],
+        "type": "figures", "attrs": {"kind": "plot"}, "children": capability_node_children("figures"),
     }]
 
     write_document(document, tmp_path / "document.json", capability_reference())
 
-    descriptor["panels"] = []
-    with pytest.raises(DocumentError, match="Invalid Document"):
+    document["chapters"][0]["content"][0]["children"][0]["attrs"]["descriptor"]["panels"] = []
+    with pytest.raises(DocumentError, match=r"figure body plot\.descriptor\.panels: .*figureBodies"):
         write_document(document, tmp_path / "invalid-document.json", capability_reference())
 
 
@@ -301,7 +305,7 @@ def test_document_accepts_one_node_for_each_input_capability(tmp_path) -> None:
         {
             "type": item["id"],
             "attrs": capability_node_attrs(item["id"]),
-            "children": [],
+            "children": capability_node_children(item["id"]),
             "text": item["id"],
         }
         for item in reference["capabilities"]
