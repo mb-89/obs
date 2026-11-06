@@ -59,10 +59,6 @@ class FigureContentError(ValueError):
         self.field, self.problem, self.remedy, self.line, self.reference = field, problem, remedy, line, reference
 
 
-Content = "bytes | object"
-"""A figure's content: the bytes of its ``source`` file, or its inline ``content`` value."""
-
-
 def _image(content: object, media_type: str | None) -> dict[str, object]:
     """An image: its file's bytes and media type, or inline SVG markup."""
     if isinstance(content, bytes):
