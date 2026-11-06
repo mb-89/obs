@@ -466,3 +466,50 @@ def test_document_and_capability_reference_writers_replace_their_output_atomical
     assert json.loads(document.read_text(encoding="utf-8"))["manifest"]["title"] == "Changed"
     assert document.stat().st_ino != written[document].st_ino, "document.json: rewritten in place, not replaced"
     assert sorted(path.name for path in tmp_path.iterdir()) == ["capabilities.json", "document.json"]
+
+
+def small_vault(folder: Path) -> Path:
+    vault = folder / "vault"
+    vault.mkdir()
+    (vault / "manifest.md").write_text("- [[chapter]]\n", encoding="utf-8")
+    (vault / "chapter.md").write_text("Content.\n", encoding="utf-8")
+    return vault / "manifest.md"
+
+
+@pytest.mark.parametrize("path", ["source and document", "one call", "source, document and adapter",
+                                  "document and adapter"])
+def test_each_build_validates_the_document_exactly_once(tmp_path, monkeypatch, path) -> None:
+    """One validation per build, before the Document is written or handed to the adapter."""
+    from obs import document as core
+
+    configuration = recording_adapter(tmp_path)
+    reference = write_reference(tmp_path / "capabilities.json")
+    kept = tmp_path / "kept.json"
+    if path == "document and adapter":
+        write_document(document_fixture(), kept, capability_reference())
+    calls = []
+    validate = core.validate_document
+    monkeypatch.setattr(core, "validate_document", lambda *given: (calls.append(1), validate(*given))[1])
+    source = ["--source", str(small_vault(tmp_path))] if path != "document and adapter" else []
+    document = ["--document", str(kept)] if path != "one call" else []
+    adapter = ["--adapter", "fixture", "--adapter-config", str(configuration),
+               "--destination", str(tmp_path / "out.json")] if "adapter" in path or path == "one call" else []
+
+    assert main([*source, *document, *adapter, "--capability-reference", str(reference)]) == 0
+
+    assert len(calls) == 1
+
+
+def test_an_invalid_document_is_refused_before_the_adapter_runs(tmp_path) -> None:
+    """The one validation names the field path and the schema that owns it; the adapter never starts."""
+    configuration = recording_adapter(tmp_path)
+    document = document_fixture()
+    document["chapters"][0]["id"] = "Not An Id"
+    path = tmp_path / "document.json"
+    path.write_text(json.dumps(document), encoding="utf-8")
+
+    with pytest.raises(SystemExit, match=r"chapters\[0\]\.id.*src/obs/document\.schema\.json"):
+        main(["--document", str(path), "--adapter", "fixture", "--adapter-config", str(configuration),
+              "--destination", str(tmp_path / "out.json")])
+
+    assert not (tmp_path / "out.json").exists()
