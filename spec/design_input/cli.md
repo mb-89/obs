@@ -49,7 +49,9 @@ it as a command, as the [[cli#One-call build|example above]] does.
 The capability reference is the core's own fact, so the core ships it as package data: every
 build of the package, editable ones included, writes `src/obs/capability-reference.json` from
 `spec/capabilities` (`hatch_build.py`), and `--capability-reference` names another reference only
-where one is wanted.
+where one is wanted. The build writes it as the core writes every output, atomically and only where
+it changed, because builds run while tests read it: a reader never finds a partial reference, and a
+build whose reference is current leaves it untouched.
 
 The file is generated beside the package that ships it rather than in
 `data/data_output`, because an editable install reads package data from the package folder; it is
