@@ -132,6 +132,9 @@ definitions alike. Keeping the same fact in two places is an anti-pattern (user,
 - A committed fixture Document (an adapter's `test/fixtures/documents`) is rebuilt from its vault
   by the current core in every run of the complete suite; a refused vault or a stale Document
   fails, naming the vault and the core's message or the first differing JSON path.
+- No test can hang the suite. Each test of the core and of every adapter has its tier's timeout
+  (pytest-timeout), a measured multiple of the tier's slowest test, which `test/bounds.py` owns
+  with its measurement; a test past it fails, naming itself and its timeout.
 - No test reaches the network. Each part's `test/network_guard.py` fails a test that opens a
   connection to anything but loopback, naming the test, the host and the remedy; a subprocess a
   test starts reads remote data from a fake too, as the parity gate's `obs-document` does.
