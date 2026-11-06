@@ -680,3 +680,41 @@ def test_a_failing_adapter_s_stderr_is_only_in_the_failure(tmp_path, monkeypatch
         main(["--source", "vault/manifest.md", "--adapter", "fixture", "--destination", "out.html"])
 
     assert _figure_style_warnings(capsys) == []
+
+
+# A fixture serve command: prints its arguments as JSON and exits with 3, as a server run ends.
+SERVING = "import json, sys; print(json.dumps(sys.argv[1:])); raise SystemExit(3)"
+
+
+def test_serve_starts_the_adapters_serve_command_on_the_built_artifact_and_returns_its_exit(
+        tmp_path, monkeypatch, capfd, shared_spec_build) -> None:
+    recording_adapter(tmp_path, serve=[sys.executable, "-c", SERVING])
+    monkeypatch.chdir(tmp_path)
+    destination = tmp_path / "spec.out"
+
+    assert main(["--source", str(SPEC_MANIFEST), "--adapter", "fixture", "--destination", str(destination),
+                 "--execute-commands", "--serve", "--wait"]) == 3
+
+    assert json.loads(destination.read_text(encoding="utf-8"))["manifest"] == "manifest.md"  # Built first.
+    assert json.loads(capfd.readouterr().out.strip().splitlines()[-1]) == [str(destination.resolve()), "--wait"]
+
+
+@pytest.mark.parametrize("arguments, declared, field", [
+    (["--serve"], {}, "--serve"),
+    (["--wait"], {"serve": ["serve"]}, "--wait"),
+    (["--serve", "--source", str(SPEC_MANIFEST), "--destination", "second.out"], {"serve": ["serve"]}, "--serve"),
+], ids=["adapter-without-serve", "wait-without-serve", "several-sources"])
+def test_serve_is_refused_before_the_build_naming_its_option(tmp_path, monkeypatch, arguments, declared, field,
+                                                            shared_spec_build) -> None:
+    recording_adapter(tmp_path, **declared)
+    monkeypatch.chdir(tmp_path)
+
+    with pytest.raises(SystemExit) as refused:
+        main(["--source", str(SPEC_MANIFEST), "--adapter", "fixture", "--destination", "spec.out", *arguments])
+
+    assert str(refused.value).startswith(f"obs-document: {field} ")
+    assert not (tmp_path / "spec.out").exists()
+
+
+def test_the_html_adapter_declares_its_serve_command() -> None:
+    assert load_adapter("html", ROOT / "adapters.json")["serve"] == ["uv", "run", "obs-html", "serve"]
