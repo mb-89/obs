@@ -91,6 +91,15 @@ def test_the_core_resolves_each_options_short_name_once_into_the_figure_body(tmp
     (lambda m: m["checklist"][0].pop("pass"), "content.checklist[0].pass"),
     (lambda m: m["criteria"][1].update(key="checklist"), "content.criteria[1].key"),
     (lambda m: m.update(checklistWeight=-1), "content.checklistWeight"),
+    (lambda m: m["candidates"][1].update(marks={"ops": {"mark": 3, "because": "Too good"}}), "content.candidates[1].marks.ops.mark"),
+    (lambda m: m["candidates"][1].update(marks={"ops": {"because": "No mark"}}), "content.candidates[1].marks.ops"),
+    (lambda m: m["candidates"][1].update(marks={"ops": {"mark": 1, "because": ""}}), "content.candidates[1].marks.ops.because"),
+    (lambda m: m["candidates"][1].update(marks={"ops": {"mark": 1, "why": "x"}}), "content.candidates[1].marks.ops"),
+    (lambda m: m.update(context=""), "content.context"),
+    (lambda m: m.update(concern=["a list"]), "content.concern"),
+    (lambda m: m.update(confirmation=""), "content.confirmation"),
+    (lambda m: m.update(supersededBy=12), "content.supersededBy"),
+    (lambda m: m.update(status="accepted"), "content.status"),
 ])
 def test_a_matrix_the_core_refuses_names_the_note_the_fence_the_field_and_the_owner(tmp_path, change, field) -> None:
     content = json.dumps(_changed(change))
@@ -124,3 +133,17 @@ def test_a_source_file_names_its_field_below_source(tmp_path) -> None:
     message = str(failure.value)
     assert message.startswith(f"{tmp_path / 'chapter.md'}: figure fence 1, source.chosen:"), message
     assert f"see {OWNER}." in message
+
+
+def test_a_mark_may_carry_its_reason_and_the_decision_its_context_concern_confirmation_and_successor(tmp_path) -> None:
+    """input-model, Pugh decision figures: a mark is a number, a rater list, or the mark with its
+    reason; context, concern, confirmation and supersededBy are optional text. The body carries them
+    as written; an adapter hands ctrl's engine the marks alone."""
+    matrix = _changed(lambda m: m.update(
+        context="a team of three running its own servers", concern="the queue's upkeep",
+        confirmation="The on-call log shows no queue incident for a quarter.", supersededBy="Decision 12"))
+    matrix["candidates"][1]["marks"] = {"ops": {"mark": [2, 1, 2], "because": "the vendor runs it"}}
+
+    plain, = _figures(_document(tmp_path, f"```pugh\n{yaml.safe_dump(matrix)}```\n"))
+
+    assert plain["children"][0]["attrs"]["matrix"] == matrix
