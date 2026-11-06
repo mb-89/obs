@@ -372,10 +372,15 @@ def validate_quantity(metadata: dict[str, object], source_path: object) -> None:
              "link the supporting note, such as source: \"[[drawing]]\"")
 
 
+@cache
+def _schema_validator(name: str) -> Draft202012Validator:
+    """The validator of the packaged schema ``name``, compiled once per process."""
+    return Draft202012Validator(json.loads(files("obs").joinpath(name).read_text(encoding="utf-8")))
+
+
 def _validate_schema(name: str, value: object, source_path: object, reference: str,
                      field: str = "", place: str = "") -> None:
-    schema = json.loads(files("obs").joinpath(name).read_text(encoding="utf-8"))
-    error = schema_error(list(Draft202012Validator(schema).iter_errors(value)), source_path,
+    error = schema_error(list(_schema_validator(name).iter_errors(value)), source_path,
                          reference, field=field, place=place)
     if error:
         raise error
@@ -470,6 +475,11 @@ COVER_METADATA_OWNER = "input-model#Cover metadata and history"
 
 
 @cache
+def _cover_metadata_validator() -> Draft202012Validator:
+    return Draft202012Validator(_cover_metadata_schema())
+
+
+@cache
 def _cover_metadata_schema() -> dict[str, object]:
     return json.loads(files("obs").joinpath("cover-metadata.schema.json").read_text(encoding="utf-8"))
 
@@ -502,7 +512,7 @@ def validate_cover_metadata(metadata: dict[str, object], source_path: object) ->
     """Check the manifest's cover metadata and history; see input-model#Cover metadata and history."""
     refuse_renamed_manifest_fields(metadata, source_path)
     cover = _assigned_cover(metadata)
-    error = schema_error(list(Draft202012Validator(_cover_metadata_schema()).iter_errors(cover)),
+    error = schema_error(list(_cover_metadata_validator().iter_errors(cover)),
                          source_path, COVER_METADATA_OWNER)
     if error:
         raise error

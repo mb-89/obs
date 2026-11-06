@@ -392,6 +392,10 @@ its type, and a `discriminator` there selects the rules of that type by lookup
 (`src/obs/discriminator.py`), so validation grows with the number of nodes, not with the number of
 node types; a standard JSON Schema validator ignores the keyword and refuses the same Documents.
 
+Each of the core's schemas is compiled into its validator once per process, by the module that
+owns it. The Document schema's local references are resolved when it is compiled, not once per
+node.
+
 The core validates Document identifiers against a supplied capability reference and
 requires an adapter to support each used capability's transitive dependencies before
 starting its process.
