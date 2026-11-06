@@ -792,8 +792,22 @@ executable owner of this shape; adapters choose their own rendering from it.
 
 #### Figure descriptor
 
-The FigureDescriptor has `schemaVersion: 1`, a stable `id`, an object-valued `data`
-payload, one or more panels, and provenance. A panel has a stable `id`, numeric
+The FigureDescriptor has `schemaVersion: 1`, a stable `id`, a `data` payload, one or more
+panels, and provenance.
+
+The `data` payload holds exactly one shape, and nothing else:
+
+- `traces`: 1 to 64 series, each drawn on a panel. A series has numeric `x` and `y` lists, an
+  optional `label` (shown in the legend), `panel` (a panel id; the first panel without it),
+  `mode` (`lines`, the default, `markers` or `lines+markers`) and six-digit hex `color`. Its x
+  and y lists have equal, nonzero length, and its panel has an x and a y axis.
+- `sankey`: a Sankey graph, the same graph a `sankey` figure carries (see the Figure input
+  direction), with an optional `countLabels` beside it.
+
+`src/obs/figure.schema.json` owns both shapes; the rules a schema cannot state (equal lengths,
+existing panels and nodes, advancing stages) are an adapter's check of what it draws.
+
+A panel has a stable `id`, numeric
 `bounds` (`x`, `y`, positive `width`, and positive `height`), and a non-negative
 `grid` row/column with positive spans.
 

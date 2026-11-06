@@ -24,7 +24,7 @@ caption: Measured response over time.
 content: {
   "schemaVersion": 1,
   "id": "comparison",
-  "data": {},
+  "data": {"traces": [{"x": [0, 1, 2], "y": [0, 1, 4]}]},
   "panels": [{
     "id": "overview",
     "bounds": {"x": 0, "y": 0, "width": 720, "height": 320},
