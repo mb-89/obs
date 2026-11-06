@@ -61,3 +61,10 @@ in SI base units (`value: 2, unit: km` has `siValue: 2000`). A `range` adds `siR
 bounds in SI base units. A count query's quantity has no value: the count is evaluated live. An
 adapter converts between units from `siValue` and `dimension` alone, without a unit library of
 its own; `document.schema.json` (`$defs/quantity`) owns the shape.
+
+## Arithmetic
+
+The core adds and subtracts quantities of one dimension across units (`obs.quantity`'s `add`
+and `subtract`): `2 m` plus `5 mm` is `2.005 m`, the result in the left quantity's unit.
+Combining quantities of different dimensions, a count without a value, or two temperatures in an
+offset unit such as `degC` fails with a message that names both notes and the remedy.

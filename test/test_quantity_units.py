@@ -121,3 +121,41 @@ def test_the_document_schema_requires_the_si_value_and_dimension_of_a_quantity(t
         validate_document(document, reference)
 
     assert "quantity" in str(raised.value) and "src/obs/document.schema.json" in str(raised.value)
+
+
+def _operand(source: str, fields: dict) -> tuple[str, dict]:
+    from obs.quantity import document_quantity
+    return source, document_quantity(fields)
+
+
+def test_quantities_of_one_dimension_add_and_subtract_across_units() -> None:
+    from obs.quantity import add, subtract
+    length, offset = _operand("vault/length.md", {"value": 2, "unit": "m"}), _operand(
+        "vault/offset.md", {"value": 5, "unit": "mm"})
+
+    assert add(length, offset) == {"value": 2.005, "unit": "m", "siValue": 2.005, "dimension": {"length": 1}}
+    assert subtract(offset, length) == {"value": -1995, "unit": "mm", "siValue": -1.995,
+                                        "dimension": {"length": 1}}
+
+
+@pytest.mark.parametrize("operation", ["add", "subtract"])
+def test_combining_different_dimensions_names_both_notes(operation) -> None:
+    import obs.quantity
+    from obs.input import InputError
+    length, duration = _operand("vault/length.md", {"value": 2, "unit": "m"}), _operand(
+        "vault/duration.md", {"value": 3, "unit": "s"})
+
+    with pytest.raises(InputError) as raised:
+        getattr(obs.quantity, operation)(length, duration)
+
+    assert str(raised.value).startswith("vault/length.md and vault/duration.md: unit: ")
+    assert str(raised.value).endswith("; see capabilities/quantities.")
+
+
+def test_a_count_without_a_value_cannot_be_combined() -> None:
+    from obs.quantity import add
+    from obs.input import InputError
+    with pytest.raises(InputError) as raised:
+        add(_operand("vault/count.md", {"query": {"where": []}}), _operand("vault/plain.md", {"value": 1}))
+
+    assert str(raised.value).startswith("vault/count.md and vault/plain.md: value: ")
