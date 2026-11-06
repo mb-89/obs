@@ -1,6 +1,6 @@
 """Fitted tables never scroll horizontally; small tables hide their pagination controls.
 
-Owner: spec/design_input/generic-tables.md (column sizing, pagination).
+Owner: adapters/html/spec/generic-tables.md (column sizing, pagination).
 """
 import os
 
