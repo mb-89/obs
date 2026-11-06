@@ -11,6 +11,9 @@ import builtins
 import importlib
 import inspect
 import json
+import os
+import subprocess
+import sys
 from pathlib import Path
 
 import pytest
@@ -105,6 +108,44 @@ def test_every_message_the_adapter_builds_is_raised_or_warned_through_the_format
     assert unsent == [], f"{path.name} lines {unsent}: raise the InputError or pass it to errors.warn"
 
 
+def _printed_warnings(tree: ast.Module) -> list[int]:
+    """The lines that print or write a warning themselves (a text starting ``Warning``), not through
+    errors.warn: a warning that bypasses the one form and the vault-root naming."""
+    lines = []
+    for call in ast.walk(tree):
+        if not (isinstance(call, ast.Call) and call.args):
+            continue
+        name = call.func.attr if isinstance(call.func, ast.Attribute) else getattr(call.func, "id", "")
+        if name not in {"print", "write", "warn"} or (name == "warn" and not isinstance(call.func, ast.Attribute)):
+            continue
+        text = call.args[0]
+        first = text.values[0] if isinstance(text, ast.JoinedStr) and text.values else text
+        if isinstance(first, ast.Constant) and isinstance(first.value, str) and \
+                first.value.lstrip().lower().startswith("warning"):
+            lines.append(call.lineno)
+    return lines
+
+
+@pytest.mark.parametrize("path", [path for path in MODULES if path.name != "errors.py"],
+                         ids=lambda path: path.relative_to(PACKAGE).as_posix())
+def test_every_warning_the_adapter_prints_goes_through_errors_warn(path: Path) -> None:
+    """A warning printed outside errors.py would bypass the one form and its vault-root naming."""
+    printed = _printed_warnings(ast.parse(path.read_text(encoding="utf-8")))
+    assert printed == [], f"{path.name} lines {printed}: pass an InputError to errors.warn instead"
+
+
+@pytest.mark.parametrize("source", [
+    'print(f"Warning: {note}: odd", file=sys.stderr)', 'sys.stderr.write("warning: odd\\n")',
+    'warnings.warn("Warning: odd")'])
+def test_the_warning_guard_refuses_a_warning_printed_outside_errors_py(source: str) -> None:
+    assert _printed_warnings(ast.parse(source)) == [1]
+
+
+def test_the_warning_guard_lets_errors_warn_and_other_output_pass() -> None:
+    assert _printed_warnings(ast.parse('errors.warn(InputError("a.md", "b", "c", "D"))\n'
+                                       'print(f"Generated {path}.")\nprint(f"Console error: {e}", file=sys.stderr)')) == []
+
+
 def test_every_adapter_error_class_is_an_input_error() -> None:
     for path in MODULES:
         name = ".".join(("obs_html", *path.relative_to(PACKAGE).with_suffix("").parts)).removesuffix(".__init__")
@@ -175,3 +216,45 @@ def test_the_vault_root_the_core_passes_prefixes_the_note_a_warning_names(tmp_pa
 
     warnings = [line for line in capsys.readouterr().err.splitlines() if line.startswith("Warning: ")]
     assert [line.split(": ")[1:3] for line in warnings] == [[f"{root}chapter.md", "figure.style"]]
+
+
+def test_a_one_call_build_prints_a_core_warning_once_by_the_core(tmp_path, core_root) -> None:
+    """The core owns the Document's diagnostics: through obs-document --adapter html, a core warning
+    reads ``obs-document: warning: ...`` once, and the adapter does not print it again."""
+    vault = tmp_path / "vault"
+    vault.mkdir()
+    (vault / "img.svg").write_text('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10"/>', encoding="utf-8")
+    (vault / "manifest.md").write_text("---\ntitle: Once\n---\n- [[chapter]]\n", encoding="utf-8")
+    (vault / "chapter.md").write_text("# Chapter\n\n```figure\nversion: 1\nkind: image\nsource: img.svg\n"
+                                      "caption: A drawing.\n```\n", encoding="utf-8")
+
+    completed = subprocess.run(
+        [sys.executable, "-m", "obs.document", "--source", str(vault / "manifest.md"), "--adapter", "html",
+         "--adapter-config", str(core_root / "adapters.json"), "--destination", str(tmp_path / "once.html")],
+        capture_output=True, text=True, env={**os.environ, "UV_OFFLINE": "1"}, check=False)
+
+    assert completed.returncode == 0, completed.stderr
+    printed = [line for line in completed.stderr.splitlines() if "chapter.md:3:" in line]
+    assert [line.split(": ")[0] for line in printed] == ["obs-document"], completed.stderr
+
+
+def _diagnosed_document(tmp_path: Path) -> Path:
+    """A Document whose core diagnostics hold one warning about ``chapter.md``."""
+    source = document("Doc", chapter("one", "One", paragraph("Text.")))
+    source["diagnostics"] = [{"level": "warning", "message": "chapter.md:3: figure without block id. Add ^name"}]
+    path = tmp_path / "document.json"
+    path.write_text(json.dumps(source), encoding="utf-8")
+    return path
+
+
+@pytest.mark.parametrize(("arguments", "printed"), [
+    ([], [["Warning", "Document of manifest.md", "diagnostics[0]"]]), (["--vault-root", "spec"], [])])
+def test_the_adapter_prints_the_document_diagnostics_only_when_run_directly(
+        tmp_path, capsys, arguments, printed) -> None:
+    """Run directly on a Document file, the adapter prints its diagnostics through errors.py, naming
+    the Document and the diagnostic's field path; called by the core (--vault-root), it leaves them
+    to the core, which printed them already."""
+    cli.main([str(_diagnosed_document(tmp_path)), "--check", *arguments])
+
+    lines = [line for line in capsys.readouterr().err.splitlines() if "chapter.md:3:" in line]
+    assert [line.split(": ")[:3] for line in lines] == printed
