@@ -26,6 +26,14 @@ filename is a setting rather than a fixed name because a vault keeps its manifes
 its author chose, and `--config` already checks a given note against it. A folder without that
 note fails the call before the build, naming the folder, the filename, the setting and the remedy.
 
+A `--destination` inside the vault, the folder of the manifest note, fails the call before the
+build, naming `--destination`, the vault and the remedy, and writes nothing, as the interim adapter
+refused its output there: an artifact written into its vault becomes a file of the vault it is
+built from, which the next build's `--embed-source` would archive. Both paths are compared
+resolved, so a symlink that leads into the vault counts as inside it, and the vault folder itself
+counts as inside. With [[cli#Several documents per call|several documents]], each `--destination`
+is checked against the vault of its own `--source`.
+
 The call has no default source or destination: a build names its `--source` and its `--destination`.
 The interim adapter built this repository's spec into a fixed file below `data/data_output` when
 given neither; a default in the core would hard-code one repository's layout and one adapter's output
