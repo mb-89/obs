@@ -5,6 +5,7 @@ import subprocess
 import sys
 import tempfile
 from contextlib import ExitStack
+from functools import cache
 from pathlib import Path
 from typing import Sequence
 
@@ -74,11 +75,16 @@ def read_answers(path: Path) -> list[dict[str, object]]:
     except (OSError, json.JSONDecodeError) as error:
         raise InputError(f"{path}: top level: cannot be read as JSON ({error}). Pass the answers file a "
                          f"served artifact's reader sent; see {ANSWERS_OWNER}.") from error
-    schema = json.loads(ANSWERS_SCHEMA_PATH.read_text(encoding="utf-8"))
-    error = schema_error(list(Draft202012Validator(schema).iter_errors(answers)), path, ANSWERS_OWNER)
+    error = schema_error(list(_answers_validator().iter_errors(answers)), path, ANSWERS_OWNER)
     if error:
         raise error
     return answers["verdicts"]
+
+
+@cache
+def _answers_validator() -> Draft202012Validator:
+    """answers.schema.json's validator, compiled once per process."""
+    return Draft202012Validator(json.loads(ANSWERS_SCHEMA_PATH.read_text(encoding="utf-8")))
 
 
 def apply_answers(document: dict[str, object], verdicts: list[dict[str, object]], path: Path) -> None:
@@ -118,15 +124,26 @@ def read_capability_reference(path: Path) -> dict[str, object]:
     return reference
 
 
-def validate_document(document: dict[str, object], reference: dict[str, object]) -> None:
+@cache
+def document_validators() -> tuple[Draft202012Validator, dict[str, Draft202012Validator]]:
+    """document.schema.json's validator and one per figure body kind ($defs/figureBodies), compiled
+    once per process, with figure.schema.json and answers.schema.json registered."""
     schema = json.loads(DOCUMENT_SCHEMA_PATH.read_text(encoding="utf-8"))
-    figure_schema = json.loads(FIGURE_SCHEMA_PATH.read_text(encoding="utf-8"))
     registry = Registry().with_resources([
-        (FIGURE_SCHEMA_PATH.name, Resource.from_contents(figure_schema)),
+        (FIGURE_SCHEMA_PATH.name, Resource.from_contents(json.loads(FIGURE_SCHEMA_PATH.read_text(encoding="utf-8")))),
         (ANSWERS_SCHEMA_PATH.name, Resource.from_contents(json.loads(ANSWERS_SCHEMA_PATH.read_text(encoding="utf-8")))),
     ])
+    bodies = {
+        kind: Draft202012Validator({**body, "$defs": schema["$defs"]}, registry=registry)
+        for kind, body in schema["$defs"]["figureBodies"].items()
+    }
+    return discriminating_validator(schema)(schema, registry=registry), bodies
+
+
+def validate_document(document: dict[str, object], reference: dict[str, object]) -> None:
     try:
-        errors = list(discriminating_validator(schema)(schema, registry=registry).iter_errors(document))
+        validator, bodies = document_validators()
+        errors = list(validator.iter_errors(document))
     except ValueError as error:
         raise DocumentError(f"Invalid Document: {error}") from error
     error = schema_error(errors, "Invalid Document", "src/obs/document.schema.json")
@@ -139,10 +156,6 @@ def validate_document(document: dict[str, object], reference: dict[str, object])
     unknown = sorted(set(document["capabilities"]) - known)
     if unknown:
         raise DocumentError(f"Document uses unknown capabilities: {', '.join(unknown)}.")
-    bodies = {
-        kind: Draft202012Validator({**body, "$defs": schema["$defs"]}, registry=registry)
-        for kind, body in schema["$defs"]["figureBodies"].items()
-    }
     _validate_node_capabilities(document["manifest"].get("abstract", []), known, bodies)
     for chapter in document["chapters"]:
         _validate_node_capabilities(chapter["content"], known, bodies)
