@@ -279,3 +279,45 @@ def test_a_failing_source_stops_the_call_naming_it_and_keeps_the_artifacts_built
 
     assert str(second) in str(refused.value.code)
     assert (tmp_path / "first.json").is_file() and not (tmp_path / "second.json").exists()
+
+
+# A vault folder as --source; see spec/design_input/cli.md, One-call build.
+def test_a_vault_folder_builds_from_its_manifest_note(tmp_path) -> None:
+    vault = two_vaults(tmp_path)[0].parent
+    configuration = recording_adapter(tmp_path)
+    destination = tmp_path / "out.json"
+
+    assert main(["--adapter", "fixture", "--adapter-config", str(configuration),
+                 "--source", str(vault), "--destination", str(destination)]) == 0
+
+    called = json.loads(destination.read_text(encoding="utf-8"))
+    assert called["manifest"] == "manifest.md"
+    assert called["arguments"][2:] == ["--vault-root", str(vault)]
+
+
+def test_core_configuration_names_the_manifest_note_of_a_vault_folder(tmp_path) -> None:
+    vault = two_vaults(tmp_path)[0].parent
+    (vault / "manifest.md").rename(vault / "index.md")
+    core = tmp_path / "core.json"
+    core.write_text(json.dumps({"input": {"manifestFilename": "index.md", "projectConfigFilename": "cfg.json"},
+                                "execution": {"commandTimeoutSeconds": 15}}), encoding="utf-8")
+    destination = tmp_path / "out.json"
+
+    assert main(["--adapter", "fixture", "--adapter-config", str(recording_adapter(tmp_path)),
+                 "--config", str(core), "--source", str(vault), "--destination", str(destination)]) == 0
+
+    assert json.loads(destination.read_text(encoding="utf-8"))["manifest"] == "index.md"
+
+
+def test_a_vault_folder_without_its_manifest_note_names_the_folder_and_the_setting(tmp_path) -> None:
+    vault = tmp_path / "empty"
+    vault.mkdir()
+
+    with pytest.raises(SystemExit) as refused:
+        main(["--adapter", "fixture", "--adapter-config", str(recording_adapter(tmp_path)),
+              "--source", str(vault), "--destination", str(tmp_path / "out.json")])
+
+    message = str(refused.value.code)
+    assert str(vault) in message and "manifest.md" in message
+    assert "input.manifestFilename" in message and "src/obs/config.schema.json" in message
+    assert not (tmp_path / "out.json").exists()
