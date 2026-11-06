@@ -186,8 +186,10 @@ def validate_count_query(query: object, source_path: object, field: str = "query
 
 
 def parse_property_editor(
-    text: str, source_path: object, place: str = "property-editor fence",
+    text: str, source_path: object, frontmatter: dict[str, object], place: str = "property-editor fence",
 ) -> dict[str, object]:
+    """A validated property-editor fence of the note whose ``frontmatter`` is given; its shape is
+    input.schema.json's (``propertyEditor``), its projection rules capabilities/property-editors'."""
     try:
         specification = yaml.safe_load(text)
     except yaml.YAMLError as error:
@@ -197,7 +199,55 @@ def parse_property_editor(
                          "capabilities/property-editors", place=place)
     if error:
         raise error
+    for branch, fields in (specification.get("projection") or {}).items():
+        for name, value in fields.items():
+            problem = _projection_problem(name, value, specification["field"], frontmatter)
+            if problem:
+                raise input_error(source_path, f"{place}, projection.{branch}.{name}", problem[0],
+                                  f"{problem[1]}; see capabilities/property-editors")
     return specification
+
+
+def _projection_problem(
+    name: str, value: object, edited: str, frontmatter: dict[str, object],
+) -> tuple[str, str] | None:
+    """What breaks a projection rule of capabilities/property-editors, and its remedy, or None."""
+    if name.lower() in _schema()["$defs"]["protectedField"]["enum"]:
+        return "is a protected field, which a projection never writes", "Project onto another field"
+    if name == edited:
+        return ("is the edited field, which a projection never writes",
+                "Remove it from the projection; the editor writes it")
+    if name not in frontmatter:
+        return "is no field of the note", f"Add '{name}' to the note's frontmatter or project onto an existing field"
+    projected, existing = _projection_kind(value), _projection_kind(frontmatter[name])
+    empty_list = "list" in (projected, existing) and all(
+        kind and kind.startswith("list") for kind in (projected, existing))
+    if projected is None or (projected != existing and not empty_list):
+        return (f"projects {_shown(value)}, but the note's {name} is {_shown(frontmatter[name])}, another type",
+                "Project a value of the field's type")
+    return None
+
+
+def _projection_kind(value: object) -> str | None:
+    """A value's projection type: a primitive, ``list`` (empty), ``list of`` one primitive, or None."""
+    if not isinstance(value, list):
+        return _primitive_kind(value)
+    kinds = {_primitive_kind(item) for item in value}
+    if not kinds:
+        return "list"
+    return f"list of {kinds.pop()}" if len(kinds) == 1 and None not in kinds else None
+
+
+def _primitive_kind(value: object) -> str | None:
+    if value is None:
+        return "empty"
+    if isinstance(value, bool):
+        return "true/false"
+    if isinstance(value, str):
+        return "text"
+    if isinstance(value, (int, float)):
+        return "number" if isfinite(value) else None
+    return None
 
 
 def validate_command(command: str) -> str:
