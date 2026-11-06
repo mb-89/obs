@@ -1,1 +1,2 @@
 src/obs_html_interim/vendor/plotly-basic.min.js:8  # Third-party bundled code contains independently used generic identifiers.
+test/test_obsidian_comments.py:70  # JSON-escaped newlines inside a Markdown comment assertion, not a UNC machine name.

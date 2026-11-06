@@ -7,7 +7,7 @@ from functools import cache, partial
 from dataclasses import dataclass, field, replace
 import mimetypes
 import json
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 import re
 from typing import Callable
 from urllib.parse import unquote, urlparse
@@ -25,6 +25,7 @@ from obs.config import (
 )
 from obs.figure import FigureDescriptorError, validate_figure_descriptor
 from obs.input import (
+    ADAPTER_NAMESPACE,
     InputError,
     input_error,
     parse_callout,
@@ -39,7 +40,8 @@ from obs.input import (
 )
 from obs.producers import ProducerError, run_producers
 from obs.selection import (
-    IGNORED, Record, base_selects, conditions_select, note_marks, paragraph_marks, view_selectors,
+    IGNORED, Record, base_selects, conditions_select, member_order, note_marks, paragraph_marks,
+    view_selectors,
 )
 
 
@@ -326,7 +328,7 @@ def _add_records(vault: _Vault, chapters: list[dict[str, object]], title: str) -
             }, note)
     manifest = vault.notes[vault.manifest][0]
     for key, value in manifest.items():
-        if key not in {"history", "obsHtml"}:
+        if key not in {"history", "obs"} and not ADAPTER_NAMESPACE.fullmatch(str(key)):
             add("documentMetadata", str(key), {"key": str(key), "value": _json_value(value)})
     history = manifest.get("history")
     for index, entry in enumerate(history if isinstance(history, list) else [], 1):
@@ -412,11 +414,11 @@ def _query_selection(query: object, source_path: Path, vault: _Vault, owners: tu
 
 def _card_selection(card: dict[str, object], source_path: Path, vault: _Vault) -> None:
     """Include the notes a card references and the records its metrics count and divide by."""
-    series = card.get("obsHtml", {}).get("metricsFrom")
+    series = card.get("obs", {}).get("metricsFrom")
     if series:
-        references = [("metricsFrom.sourceNote", series["sourceNote"])]
+        references = [("obs.metricsFrom.sourceNote", series["sourceNote"])]
         if "link" in series:
-            references.append(("metricsFrom.link.note", series["link"]["note"]))
+            references.append(("obs.metricsFrom.link.note", series["link"]["note"]))
         for field_name, identity in references:
             path = (vault.root / f"{identity}.md").resolve()
             if path not in vault.notes:
@@ -431,6 +433,34 @@ def _card_selection(card: dict[str, object], source_path: Path, vault: _Vault) -
         if "denominator" in metric:
             population = {key: metric[key] for key in ("from",) if key in metric}
             _query_selection({**population, "where": metric["denominator"]}, source_path, vault)
+
+
+def _validate_members(definition: dict[str, object], source_path: Path, vault: _Vault, place: str = "") -> None:
+    """Each view's obs.members names distinct Markdown notes of the vault by vault-relative path
+    (generic-tables); the schema has checked their shape."""
+    for index, view in enumerate(definition["views"]):
+        members = (view.get("obs") or {}).get("members", [])
+        seen: set[Path] = set()
+        for number, member in enumerate(members):
+            entry = member["path"]
+            relative = PurePosixPath(entry)
+            resolved = (vault.root / entry).resolve()
+            name = f"view {view.get('name')!r}" if view.get("name") is not None else f"view {index + 1}"
+            problem = (
+                f"{entry!r} of {name} is absolute or leaves the vault"
+                if relative.is_absolute() or re.match(r"[A-Za-z]:", entry) or ".." in relative.parts
+                or not resolved.is_relative_to(vault.root)
+                else f"{entry!r} of {name} is not a Markdown note path" if relative.suffix.lower() != ".md"
+                else f"{entry!r} of {name} names no note of the vault" if resolved not in vault.notes
+                else f"{entry!r} of {name} repeats an earlier member" if resolved in seen
+                else ""
+            )
+            if problem:
+                field = ", ".join(item for item in (place, f"views[{index}].obs.members[{number}].path") if item)
+                raise input_error(source_path, field, problem,
+                                  "Write the vault-relative path of a note, with .md, once per view, such as "
+                                  "items/a.md; see capabilities/bases")
+            seen.add(resolved)
 
 
 def _base_selection(definition: object, source_path: Path, vault: _Vault, place: str) -> None:
@@ -559,9 +589,7 @@ def _validate_note(path: Path, vault: _Vault) -> None:
     vault.validated.add(path)
     metadata = vault.notes[path][0] if path in vault.notes else _read_note(path)[0]
     try:
-        profile = metadata.get("obsHtml")
-        if profile is not None:
-            validate_note_profile(profile, path)
+        validate_note_profile(metadata, path)
         if metadata.get("kind") == "quantity":
             validate_quantity(metadata, path)
         if "query" in metadata:
@@ -646,8 +674,8 @@ def _frontmatter_nodes(metadata: dict[str, object], context: _Context) -> list[d
 
     if metadata and "markdown-frontmatter" in context.capability_ids:
         add("markdown-frontmatter", {"metadata": _json_value(metadata)}, _field_nodes(metadata, "", context))
-    if "obsHtml" in metadata:
-        add("profiles", {"profile": _json_value(metadata["obsHtml"])})
+    if "obs" in metadata:
+        add("profiles", {"profile": _json_value(metadata["obs"])})
     if metadata.get("kind") == "quantity":
         add("quantities", {"metadata": _json_value(metadata)})
     if "query" in metadata:
@@ -875,6 +903,7 @@ def _fence_node(token: Token, context: _Context) -> dict[str, object]:
                 raise input_error(source_path, place, f"is not valid YAML: {error}",
                                   "Write YAML; see capabilities/bases") from error
             validate_base_definition(specification, source_path, place)
+            _validate_members(specification, source_path, vault, place)
             _base_selection(specification, source_path, vault, place)
         elif language == "cards":
             specification = parse_card_spec(token.content, source_path, place)
@@ -1060,6 +1089,7 @@ def _semantic_text_nodes(text: str, context: _Context) -> list[dict[str, object]
                 ) from error
             try:
                 validate_base_definition(definition, resolved)
+                _validate_members(definition, resolved, vault)
             except InputError as error:
                 raise VaultError(
                     f"{error} {vault.relative(source_path)} embeds it as {target}."
@@ -1115,11 +1145,17 @@ def _register_attrs(
                 f"name one of: {', '.join(str(name) for name in names if name is not None)}."
             )
         view = names.index(heading)
-    rows = [
-        [record["id"] for record in vault.records
-         if selects(record, None if (owner := vault.note_of(record)) is None else owner[1])]
-        for selects in view_selectors(definition)
-    ]
+    rows = []
+    for selects, members in zip(view_selectors(definition), map(member_order, definition["views"])):
+        selected = [(record, None if (owner := vault.note_of(record)) is None else owner[1])
+                    for record in vault.records]
+        selected = [(record, note) for record, note in selected if selects(record, note)]
+        if members is not None:  # The members' order is the view's row order (generic-tables).
+            def position(pair: tuple[Record, Record | None]) -> int:
+                owner = pair[0] if pair[0]["type"] == "note" else pair[1]
+                return members.get(owner["path"], len(members)) if owner is not None else len(members)
+            selected.sort(key=position)
+        rows.append([record["id"] for record, _ in selected])
     return {
         "target": target, "heading": heading, "base": _json_value(definition), "view": view, "rows": rows,
     }

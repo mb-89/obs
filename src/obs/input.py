@@ -164,6 +164,13 @@ def parse_card_spec(text: str, source_path: object, place: str = "cards fence") 
     except yaml.YAMLError as error:
         raise input_error(source_path, place, f"is not valid YAML: {error}",
                           "Write JSON or YAML; see capabilities/cards-metrics") from error
+    cards = specification.get("cards") if isinstance(specification, dict) else None
+    for index, card in enumerate(cards if isinstance(cards, list) else []):
+        refuse_moved_keys(card, "card", source_path, f"cards[{index}]", place, "capabilities/cards-metrics")
+        metrics = card.get("metrics") if isinstance(card, dict) else None
+        for number, metric in enumerate(metrics if isinstance(metrics, list) else []):
+            refuse_moved_keys(metric, "metric", source_path, f"cards[{index}].metrics[{number}]", place,
+                              "capabilities/cards-metrics")
     error = schema_error(list(_validator("cards").iter_errors(specification)), source_path,
                          "capabilities/cards-metrics", place=place)
     if error:
@@ -265,10 +272,6 @@ def validate_quantity(metadata: dict[str, object], source_path: object) -> None:
              "link the supporting note, such as source: \"[[drawing]]\"")
 
 
-def validate_query(query: object, source_path: object, field: str = "query") -> None:
-    validate_count_query(query, source_path, field)
-
-
 def _validate_schema(name: str, value: object, source_path: object, reference: str,
                      field: str = "", place: str = "") -> None:
     schema = json.loads(files("obs").joinpath(name).read_text(encoding="utf-8"))
@@ -279,19 +282,59 @@ def _validate_schema(name: str, value: object, source_path: object, reference: s
 
 
 def validate_base_definition(definition: object, source_path: object, place: str = "") -> None:
-    profile = definition.get("obsHtml") if isinstance(definition, dict) else None
+    refuse_moved_keys(definition, "base", source_path, "", place, "capabilities/bases")
+    views = definition.get("views") if isinstance(definition, dict) else None
+    for index, view in enumerate(views if isinstance(views, list) else []):
+        refuse_moved_keys(view, "view", source_path, f"views[{index}]", place, "capabilities/bases")
+    profile = definition.get("obs") if isinstance(definition, dict) else None
     if isinstance(profile, dict) and "members" in profile:
-        raise input_error(source_path, ", ".join(item for item in (place, "obsHtml.members") if item),
+        raise input_error(source_path, ", ".join(item for item in (place, "obs.members") if item),
                           "belongs to a view, not to the Base",
-                          "Move it into the obsHtml of each view it narrows; see capabilities/bases")
+                          "Move it into the obs of each view it narrows; see capabilities/bases")
     _validate_schema("base.schema.json", definition, source_path, "capabilities/bases", place=place)
 
 
-def validate_note_profile(profile: object, source_path: object) -> None:
-    _validate_schema("note-profile.schema.json", profile, source_path, "capabilities/profiles",
-                     field="obsHtml")
-    if isinstance(profile, dict) and isinstance(profile.get("query"), dict):
-        validate_query(profile["query"], source_path, "obsHtml.query")
+def validate_note_profile(metadata: dict[str, object], source_path: object) -> None:
+    """Check a note's frontmatter profile: its obs mapping, and no key moved out of an adapter's."""
+    refuse_moved_keys(metadata, "note", source_path, "", "", "capabilities/profiles")
+    if "obs" in metadata:
+        _validate_schema("note-profile.schema.json", metadata["obs"], source_path, "capabilities/profiles",
+                         field="obs")
+
+
+MOVED_KEYS = {
+    "obsHtml": {
+        "base": {"records": "obs.records", "members": "views[].obs.members"},
+        "view": {"records": "obs.records", "members": "obs.members"},
+        "card": {"metricsFrom": "obs.metricsFrom"},
+        "metric": {"projection": "obs.projection"},
+        "note": {"document": "obs.document"},
+    },
+}
+"""Per adapter namespace and input contract, each key the core read there and its key under obs, the
+core's namespace, with the same meaning; the core reads neither the old key nor an adapter's
+namespace (input-model#Core and adapter namespaces)."""
+
+
+ADAPTER_NAMESPACE = re.compile(r"obs[A-Z][A-Za-z0-9]*")
+"""An adapter's namespace: obs and its name in camelCase (capabilities/trusted-actions), as
+base.schema.json's patternProperties; the core neither reads nor validates it."""
+
+
+def refuse_moved_keys(mapping: object, contract: str, source_path: object, field: str, place: str,
+                      reference: str) -> None:
+    """Refuse a key the core reads written under an adapter's namespace, naming its key under obs."""
+    if not isinstance(mapping, dict):
+        return
+    prefix = f"{field}." if field else ""
+    for namespace, contracts in MOVED_KEYS.items():
+        options = mapping.get(namespace)
+        moved = next((key for key in contracts[contract] if isinstance(options, dict) and key in options), None)
+        if moved is not None:
+            new = f"{prefix}{contracts[contract][moved]}"
+            raise input_error(source_path, ", ".join(item for item in (place, f"{prefix}{namespace}.{moved}") if item),
+                              f"the core reads this key as {new}, not in the adapter namespace {namespace}",
+                              f"Rename it to {new}; see {reference}")
 
 
 def validate_project_config(configuration: object, source_path: object) -> None:
