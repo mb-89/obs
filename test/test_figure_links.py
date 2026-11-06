@@ -4,7 +4,8 @@ PlantUML [[...]] link resolve like a prose link, include their note and warn or 
 Reader: whoever changes how the core reads a figure's links (capabilities/wikilinks, Links inside
 a figure; src/obs/svg_links.py).
 
-The vault is built once for the module, so its diagrams are drawn in one browser session.
+The vault is built once for the module, and the module runs on the worker of the diagram tests,
+so its diagrams are drawn in their browser session.
 """
 from pathlib import Path
 
@@ -41,6 +42,7 @@ class Alpha [[plantuml-target]]
 @enduml
 ```
 """
+pytestmark = pytest.mark.xdist_group("test/test_diagram_figures.py")
 NOTES = ("target", "other", "drawn", "mermaid-target", "plantuml-target")
 
 
