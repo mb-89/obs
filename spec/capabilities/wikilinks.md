@@ -20,18 +20,41 @@ See [[chapter#Details]].
 
 ## Document node
 
-A `wikilinks` node keeps the `target`, `heading` and `label` as authored and adds `chapter`: the
-id of the included chapter the target resolves to, or `null` when the note is outside the
-manifest. This holds wherever the node sits, in chapter content or in a field node of a note
-record ([[capabilities/bases#Note records]]). Adapters link by `chapter` and never derive it from `target`. The node's attributes
-are defined by `src/obs/document.schema.json`.
+A `wikilinks` node keeps the `target` and `heading` as authored, carries the `label` of
+[[#Link text]] and adds `chapter`: the id of the included chapter the target resolves to, or
+`null` when the note is outside the manifest. This holds wherever the node sits, in chapter content or in a field node of a note
+record ([[capabilities/bases#Note records]]).
+
+Adapters link by `chapter` and never derive it from `target`. The node's attributes are defined
+by `src/obs/document.schema.json`.
+
+A link names its own note by its heading alone: `[[#Heading]]` and `[[#^name]]` have an empty
+`target`, and `chapter` is the chapter they sit in.
 
 A block link (`[[#^name]]` within its note, `[[note#^name]]` across notes) targets a figure:
-`[[#^name]]` has an empty `target` and, unaliased, the `label` `#^name`; `figure`
-is the block id of the `figures` node in `chapter` that carries it
-([[input-model#Figure captions and references]]). A block id that no figure in the target note
-carries is a build error that names the note, the link and this page; so is a block id two
-figures of one note carry. A link to a missing note stays the missing-note warning.
+`figure` is the block id of the `figures` node in `chapter` that carries it
+([[input-model#Figure captions and references]]).
+
+A block id that no figure in the target note carries is a build error that names the note, the
+link and this page; so is a block id two figures of one note carry. A link to a missing note stays the missing-note warning.
+
+## Link text
+
+A link's `label` is the text an adapter shows, as Obsidian shows it (decided 6 Nov 2026). The
+core sets it by one rule, for a link in prose, in a field and inside a figure alike:
+
+- A link with `|label` shows that label.
+- An unaliased link to a heading or block of another note shows the note's title, ` > ` and the
+  heading as written: `[[command-fences#Authorization]]` shows `Command Fences > Authorization`.
+  The title is the note's chapter title, else its title as authored
+  ([[input-model#Reference notes and link text]]); for a missing note, the target as written.
+- An unaliased link to a heading or block of its own note (`[[#Authorization]]`, `[[#^name]]`)
+  shows the heading alone: `Authorization`, `^name`.
+- An unaliased link to a whole note keeps its target as written; the adapter shows it by the
+  note's kind ([[input-model#Reference notes and link text]]).
+
+An adapter that shows something other than the label for an unaliased link, such as a figure
+number, tells it from an aliased one by comparing the label with this rule.
 
 ## Links inside a figure
 
