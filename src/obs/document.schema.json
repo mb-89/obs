@@ -56,7 +56,8 @@
       "description": "The node types every adapter renders, whatever capabilities it declares: Markdown's own blocks and inline marks (capabilities/markdown) and frontmatter fields (capabilities/markdown-frontmatter).",
       "enum": [
         "document", "section", "paragraph", "text", "list", "list-item", "code", "quote",
-        "table", "table-row", "table-cell", "emphasis", "strong", "strikethrough", "math", "field", "rule"
+        "table", "table-row", "table-cell", "emphasis", "strong", "strikethrough", "math", "field", "rule",
+        "break"
       ]
     },
     "inlineNodes": {
@@ -100,8 +101,8 @@
           }}}}}
         },
         {
-          "description": "A thematic break: no attributes and no children.",
-          "if": {"properties": {"type": {"const": "rule"}}},
+          "description": "A thematic break, or a hard line break inside inline content (capabilities/markdown#Document nodes): no attributes and no children.",
+          "if": {"properties": {"type": {"enum": ["rule", "break"]}}},
           "then": {"properties": {"attrs": {"maxProperties": 0}, "children": {"maxItems": 0}}}
         },
         {
