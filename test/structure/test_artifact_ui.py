@@ -118,6 +118,8 @@ def test_only_used_features_ship_and_canaries_decide_or_stay_silent() -> None:
         "what was observed and the remedy,",
         "A canary that cannot decide raises nothing at load. The feature is tried on use, and an observed "
         "failure then shows the reason and remedy inline and raises the warning.",
+        "Where a failure cannot be observed even on use, there is no notice; the control's help text "
+        "names the remedy.",
         "No feature uses a browser dialog; its messages are inline.",
         "The registry and its entries are owned by obs-html's `features.py`; the list of abilities "
         "is not repeated here.",
