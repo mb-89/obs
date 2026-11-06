@@ -161,10 +161,7 @@ def register_rows(tmp_path_factory):
     document = build_document(manifest, reference)
     records = {record["id"]: record for record in document["records"]}
     [chapter] = [item for item in document["chapters"] if item["id"] == "registers"]
-    risks, glossary = [
-        node["attrs"] for block in chapter["content"] for node in block["children"]
-        if node["type"] == "registers"
-    ]
+    risks, glossary = [node["attrs"] for node in chapter["content"] if node["type"] == "registers"]
     def fields(identifier: str) -> dict[str, object]:
         return records[identifier]["fields"]
     core = {
