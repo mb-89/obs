@@ -99,3 +99,14 @@ def test_the_unit_system_is_stated_once_in_numeric_value_notes() -> None:
     assert "Numeric notes will carry a unit system" not in flat
     assert "nodes-numeric-system" not in flat
     assert "designed separately" not in section
+
+
+def test_the_null_chapter_rule_points_to_its_owner_wikilinks() -> None:
+    model = (ROOT / "spec" / "design_input" / "input-model.md").read_text(encoding="utf-8")
+    flat = " ".join(model.split())
+
+    assert "`null` remains only for a target that does not exist" not in flat, (
+        "input-model.md: point to [[capabilities/wikilinks#Document node]] instead of restating when "
+        "`attrs.chapter` is `null`"
+    )
+    assert "`null` follows [[capabilities/wikilinks#Document node]]" in flat
