@@ -104,7 +104,7 @@ def test_without_npm_the_install_names_the_lockfile_and_the_command(tmp_path, mo
 def test_setup_installs_the_node_packages_and_runs_no_part(monkeypatch, capsys) -> None:
     ticks = iter([0.0, 7.0])
     monkeypatch.setattr(suite, "install_node_packages", lambda packages: list(packages))
-    monkeypatch.setattr(suite, "run_part", lambda part, arguments: pytest.fail("a part ran"))
+    monkeypatch.setattr(suite, "run_part", lambda part, arguments, run_folder: pytest.fail("a part ran"))
 
     assert suite.main(["--setup"], clock=lambda: next(ticks)) == 0
 
@@ -132,7 +132,7 @@ def test_the_suite_installs_nothing_and_runs_its_parts_when_set_up(monkeypatch) 
     order = []
     monkeypatch.setattr(suite, "is_installed", lambda package: True)
     monkeypatch.setattr(suite, "install_node_packages", lambda packages: pytest.fail("installed"))
-    monkeypatch.setattr(suite, "run_part", lambda part, arguments: order.append("part") or (0, ""))
+    monkeypatch.setattr(suite, "run_part", lambda part, arguments, run_folder: order.append("part") or (0, ""))
 
     assert suite.main([]) == 0
     assert order == ["part"] * len(suite.PARTS)
@@ -142,7 +142,7 @@ def test_the_suite_without_setup_runs_no_part_and_names_the_setup_command(monkey
     stale = suite.NODE_PACKAGES[-1]
     monkeypatch.setattr(suite, "is_installed", lambda package: package != stale)
     monkeypatch.setattr(suite, "install_node_packages", lambda packages: pytest.fail("installed"))
-    monkeypatch.setattr(suite, "run_part", lambda part, arguments: pytest.fail("a part ran"))
+    monkeypatch.setattr(suite, "run_part", lambda part, arguments, run_folder: pytest.fail("a part ran"))
 
     assert suite.main([]) == 1
     error = capsys.readouterr().err
