@@ -11,7 +11,7 @@ term (user, 5 Nov 2026).
 
 - **Document**: the core's versioned JSON intermediate representation of one manifest. Its
   shape is owned by [[architecture#Document-adapter contract|the Document-adapter contract]].
-- **artifact**: what an adapter puts out from a Document, such as an HTML file and
+- **artifact**: what an adapter puts out from a Document, such as a web page and
   the PDF printed from it.
 - **note**: one Markdown file in a vault, with optional frontmatter, addressed by wikilinks.
 - **file**: any file on disk, whatever its role: a note, an attachment, a configuration or
