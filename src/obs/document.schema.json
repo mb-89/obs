@@ -288,6 +288,99 @@
       "plot": {
         "type": "object", "additionalProperties": false, "required": ["descriptor"],
         "properties": {"descriptor": {"$ref": "figure.schema.json"}}
+      },
+      "equations": {
+        "description": "An equation figure (capabilities/equation-figures; input-model, Equation figures): its equations, variables and unknowns, the solution or the system to solve numerically, and the initial plot. Every expression is a $defs/expression tree evaluated with SI values.",
+        "type": "object", "additionalProperties": false, "required": ["equations", "variables", "unknowns", "solution", "plot"],
+        "properties": {
+          "equations": {"type": "array", "minItems": 1, "items": {
+            "type": "object", "additionalProperties": false, "required": ["source", "lhs", "rhs"],
+            "properties": {"source": {"description": "The equation as authored.", "type": "string"}, "lhs": {"$ref": "#/$defs/expression"}, "rhs": {"$ref": "#/$defs/expression"}}
+          }},
+          "variables": {
+            "type": "object", "minProperties": 1, "propertyNames": {"type": "string", "pattern": "^[A-Za-z][A-Za-z0-9_]{0,39}$"},
+            "additionalProperties": {
+              "description": "A variable: its quantity, whose value is its default and whose range is where it can move (without a range it is fixed; an unknown may have no value); the quantity note it comes from; for a function, the variable it is a function of.",
+              "type": "object", "additionalProperties": false, "required": ["quantity"],
+              "properties": {"quantity": {"$ref": "#/$defs/quantity"}, "note": {"description": "The quantity note's vault-relative POSIX path.", "type": "string", "minLength": 1}, "of": {"type": "string", "pattern": "^[A-Za-z][A-Za-z0-9_]{0,39}$"}}
+            }
+          },
+          "unknowns": {"type": "array", "minItems": 1, "uniqueItems": true, "items": {"type": "string", "pattern": "^[A-Za-z][A-Za-z0-9_]{0,39}$"}},
+          "solution": {"oneOf": [
+            {
+              "description": "Explicit solutions: each branch gives every unknown as a tree of the other variables (and the independent variable).",
+              "type": "object", "additionalProperties": false, "required": ["method", "branches"],
+              "properties": {"method": {"const": "exact"}, "branches": {"type": "array", "minItems": 1, "items": {
+                "type": "object", "propertyNames": {"type": "string", "pattern": "^[A-Za-z][A-Za-z0-9_]{0,39}$"}, "minProperties": 1, "additionalProperties": {"$ref": "#/$defs/expression"}
+              }}}
+            },
+            {
+              "description": "Algebraic equations to solve numerically: residuals that vanish at the solution, and the SI starting guess of each unknown.",
+              "type": "object", "additionalProperties": false, "required": ["method", "residuals", "guess"],
+              "properties": {
+                "method": {"const": "algebraic"},
+                "residuals": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/expression"}},
+                "guess": {"type": "object", "propertyNames": {"type": "string", "pattern": "^[A-Za-z][A-Za-z0-9_]{0,39}$"}, "additionalProperties": {"type": "number"}}
+              }
+            },
+            {
+              "description": "A differential system in state form, to integrate numerically from start (SI) over the independent variable's range: the derivative of state[i] is derivatives[i], and initial[i] is state[i] at start (SI).",
+              "type": "object", "additionalProperties": false, "required": ["method", "independent", "start", "state", "derivatives", "initial"],
+              "properties": {
+                "method": {"const": "differential"}, "independent": {"type": "string", "pattern": "^[A-Za-z][A-Za-z0-9_]{0,39}$"}, "start": {"type": "number"},
+                "state": {"type": "array", "minItems": 1, "items": {
+                  "type": "object", "additionalProperties": false, "required": ["of", "order"],
+                  "properties": {"of": {"type": "string", "pattern": "^[A-Za-z][A-Za-z0-9_]{0,39}$"}, "order": {"type": "integer", "minimum": 0}}
+                }},
+                "derivatives": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/expression"}},
+                "initial": {"type": "array", "minItems": 1, "items": {"type": "number"}}
+              }
+            }
+          ]},
+          "plot": {
+            "description": "The initial plot: sweep is the variable swept over its range; x and each y are plotted expressions; family gives one curve per value (display unit and SI); parallelCoordinates lists its axes.",
+            "type": "object", "additionalProperties": false, "required": ["sweep", "x", "y"],
+            "properties": {
+              "sweep": {"type": "string", "pattern": "^[A-Za-z][A-Za-z0-9_]{0,39}$"},
+              "x": {"$ref": "#/$defs/plottedExpression"},
+              "y": {"type": "array", "minItems": 1, "items": {"allOf": [
+                {"$ref": "#/$defs/plottedExpression"}, {"required": ["axis"]}
+              ]}},
+              "family": {
+                "type": "object", "additionalProperties": false, "required": ["variable", "values", "siValues"],
+                "properties": {"variable": {"type": "string", "pattern": "^[A-Za-z][A-Za-z0-9_]{0,39}$"}, "values": {"type": "array", "minItems": 1, "items": {"type": "number"}}, "siValues": {"type": "array", "minItems": 1, "items": {"type": "number"}}}
+              },
+              "parallelCoordinates": {
+                "type": "object", "additionalProperties": false, "required": ["axes"],
+                "properties": {"axes": {"type": "array", "minItems": 2, "items": {"$ref": "#/$defs/plottedExpression"}}}
+              }
+            }
+          }
+        }
+      }
+    },
+    "expression": {
+      "description": "An expression tree (capabilities/equation-figures), never a string to execute: a dimensionless number, a variable (a function's value at the independent variable), a function's derivative of an order, the imaginary unit, or an operator applied to its arguments. It evaluates in complex arithmetic with principal branches; test/fixtures/expression-vectors.json holds shared vectors.",
+      "oneOf": [
+        {"type": "object", "additionalProperties": false, "required": ["number"], "properties": {"number": {"type": "number"}}},
+        {"type": "object", "additionalProperties": false, "required": ["symbol"], "properties": {"symbol": {"type": "string", "pattern": "^[A-Za-z][A-Za-z0-9_]{0,39}$"}}},
+        {"type": "object", "additionalProperties": false, "required": ["derivative", "order"], "properties": {"derivative": {"type": "string", "pattern": "^[A-Za-z][A-Za-z0-9_]{0,39}$"}, "order": {"type": "integer", "minimum": 1}}},
+        {"type": "object", "additionalProperties": false, "required": ["constant"], "properties": {"constant": {"const": "i"}}},
+        {
+          "type": "object", "additionalProperties": false, "required": ["op", "args"],
+          "properties": {
+            "op": {"enum": ["add", "mul", "pow", "exp", "log", "sin", "cos", "tan", "asin", "acos", "atan", "atan2", "sinh", "cosh", "tanh", "abs", "sign", "min", "max", "heaviside"]},
+            "args": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/expression"}}
+          }
+        }
+      ]
+    },
+    "plottedExpression": {
+      "description": "An expression of an equation figure's plot: as authored, its tree, its dimension (as $defs/quantity's), and for a y expression its axis.",
+      "type": "object", "additionalProperties": false, "required": ["source", "tree", "dimension"],
+      "properties": {
+        "source": {"type": "string", "minLength": 1}, "tree": {"$ref": "#/$defs/expression"},
+        "dimension": {"$ref": "#/$defs/quantity/properties/dimension"}, "axis": {"enum": ["primary", "secondary"]}
       }
     },
     "chapterReference": {

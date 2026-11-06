@@ -14,6 +14,7 @@ dependencies = [
     "playwright>=1.64.0",
     "pypdf>=6.21.2",
     "pyyaml>=6.0.3",
+    "sympy>=1.14.0",
 ]
 
 [project.scripts]
