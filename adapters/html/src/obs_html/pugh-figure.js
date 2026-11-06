@@ -48,7 +48,7 @@ globalThis.obsPugh = (() => {
   }
   function state(anchor, answered) {
     if (!states.has(anchor)) {
-      states.set(anchor, {weights: {}, marks: {}, rulings: {}, open: {}, tab: "matrix",
+      states.set(anchor, {weights: {}, marks: {}, rulings: {}, open: {}, tab: "matrix", column: null,
         ...(answered ? {...structuredClone({weights: {}, marks: {}, rulings: {}, ...answered}), locked: true} : {})});
       delete states.get(anchor).winner;
     }
@@ -125,23 +125,28 @@ globalThis.obsPugh = (() => {
     }
     return weights;
   }
-  /** One world in plain words: "A wins if Speed weighs below 0.5 instead of 2", and the all-weights change. */
-  function world(result, entry, name) {
-    const criterion = key => result.criteria.find(c => c.key === key)?.label ?? key;
-    let single;
-    if (!entry.tie) single = `No change of one weight makes ${name} win.`;
-    else if (entry.tie.now) single = `${name} ties the winner now; the tie-break decides.`;
-    else if (entry.tie.to <= 1e-9) single = `${name} draws level if ${criterion(entry.tie.criterion)} weighs 0 instead of `
-      + `${number(entry.tie.from)}.`;
-    else single = `${name} wins if ${criterion(entry.tie.criterion)} weighs ${entry.tie.to < entry.tie.from ? "below" : "above"} `
-      + `${number(entry.tie.to)} instead of ${number(entry.tie.from)}.`;
-    const weights = entry.minChange ? allWeights(result, entry.key) : null;
-    const moves = weights ? result.criteria.map((c, i) => [c, result.weights[i], weights[i]])
-      .filter(([, from, to]) => Math.abs(to - from) >= 0.005) : [];
-    const all = !weights ? "No change of all the weights together makes it win."
-      : !moves.length ? "The weights as they stand already tie it."
-        : `Or, all together: ${moves.map(([c, from, to]) => `${c.label} ${number(from)} → ${number(to)}`).join(", ")}.`;
-    return {single, all, closeness: entry.minChange ? entry.minChange.rel : Infinity};
+  /** The Sensitivity grid's columns (artifact-ui.md, Sensitivity): for each option the engine
+      weighs against the winner (its sensitivity's ``all``), in letter order, one cell per
+      criterion: the weight at which it ties the winner where only that weight moves, by the
+      engine's own step (pugh.md, Sensitivity), which keeps only the smallest move, its ``tie``.
+      ``to`` is null where no weight of 0 or more ties it; ``reach`` is the engine's
+      ``reasonable``: the move within ±step and the weight above 0. */
+  function sensitivityGrid(result, figureModel) {
+    const sensitivity = result.sensitivity;
+    if (!sensitivity) return [];
+    const winner = result.candidates.find(c => c.key === result.suggestion.key);
+    const total = candidate => result.criteria.reduce((sum, c, i) => sum + (candidate.marks[c.key] ?? 0) * result.weights[i],
+      candidate.offset ?? 0);
+    return sensitivity.all.map(entry => {
+      const other = result.candidates.find(c => c.key === entry.key), gap = total(winner) - total(other);
+      const cells = result.criteria.map((criterion, i) => {
+        const slope = (other.marks[criterion.key] ?? 0) - (winner.marks[criterion.key] ?? 0), from = result.weights[i];
+        const move = slope ? gap / slope : null;
+        return move === null || from + move < 0 ? {criterion, from, to: null, reach: false}
+          : {criterion, from, to: from + move, reach: Math.abs(move) <= sensitivity.step && from + move > 0};
+      });
+      return {entry, option: figureModel.byKey[entry.key], cells};
+    }).sort((a, b) => a.option.letter.localeCompare(b.option.letter));
   }
   function named(option) {
     return element("span", {className: "pugh-named"}, element("span", {className: "pugh-letter", textContent: option.letter}),
@@ -530,82 +535,281 @@ globalThis.obsPugh = (() => {
       return entry;
     }));
   }
-  /** Where the fence's chosen option is not the winner: why, in the form of a world, else null. */
-  function chosenWorld(spec, result, figureModel) {
+  /** Where the fence's chosen option is not the winner: the line that says so, else null. */
+  function chosenLine(spec, result, figureModel) {
     const chosen = spec.matrix.chosen && figureModel.byKey[spec.matrix.chosen];
     if (!chosen || !result.suggestion || chosen.key === result.suggestion.key) return null;
-    const entry = (result.sensitivity?.all ?? []).find(item => item.key === chosen.key);
     const candidate = result.candidates.find(c => c.key === chosen.key);
     const why = !candidate.fits ? `it does not fit (${candidate.whyNot}).`
-      : entry ? (({single, all}) => `${single} ${all}`)(world(result, entry, tag(chosen)))
+      : result.sensitivity?.all.some(entry => entry.key === chosen.key) ? `its column shows what would make it tie.`
         : "it may be ranked but not suggested.";
     return {option: chosen, why, line: `You chose ${tag(chosen)}, but ${tag(figureModel.byKey[result.suggestion.key])} wins: `};
   }
-  function sensitivityPanel(figure, spec, result, figureModel, view) {
-    const panel = element("div", {className: "pugh-whatif"});
+  /** A bar from ``from`` to ``to`` on a scale of 0 to ``most``, with a tick at ``from``. */
+  function bar(from, to, most, className) {
+    const share = value => `${(100 * Math.min(value, most) / (most || 1)).toFixed(2)}%`;
+    const track = element("span", {className: `pugh-bar ${className}`});
+    track.setAttribute("aria-hidden", "true");
+    const fill = element("span", {className: "pugh-bar-fill"});
+    fill.style.insetInlineStart = share(Math.min(from, to));
+    fill.style.inlineSize = share(Math.abs(to - from));
+    track.append(fill);
+    if (from > 0) {
+      const tick = element("span", {className: "pugh-bar-now"});
+      tick.style.insetInlineStart = share(from);
+      track.append(tick);
+    }
+    return track;
+  }
+  /** A cell's text: "3 → 7", or a dash. */
+  const tieText = cell => (cell.to === null ? "—" : `${number(cell.from)} → ${number(cell.to)}`);
+  /** The all-weights change of a column: the weights it moves, for the cell's tooltip. */
+  function allMoves(result, column) {
+    const weights = column.entry.minChange ? allWeights(result, column.entry.key) : null;
+    if (!weights) return "No change of all the weights together makes it tie.";
+    const moves = result.criteria.map((c, i) => [c, result.weights[i], weights[i]]).filter(([, from, to]) => Math.abs(to - from) >= 0.005);
+    return moves.length ? moves.map(([c, from, to]) => `${c.label} ${number(from)} → ${number(to)}`).join(", ")
+      : "The weights as they stand already tie it.";
+  }
+  /** The Sensitivity tab (artifact-ui.md, Sensitivity): the winner's share of the draws as a bar,
+      then the grid of tie weights, a criterion a row and an option a column, below ROWS_BELOW one
+      block per option; the all-weights row; the chosen line and the options that do not fit;
+      and the ruling keys of the column the reader tapped. */
+  function sensitivityPanel(figure, spec, result, figureModel, view, {print}) {
+    const panel = element("div", {className: "pugh-sensitivity"});
     if (!result.suggestion) return panel.append(element("p", {textContent: "No option fits."})), panel;
-    const winner = figureModel.byKey[result.suggestion.key];
-    const entries = result.sensitivity?.all ?? [];
-    const worlds = entries.map(entry => ({entry, option: figureModel.byKey[entry.key], said: world(result, entry, tag(figureModel.byKey[entry.key]))}));
-    const closest = worlds.filter(item => Number.isFinite(item.said.closeness)).sort((a, b) => a.said.closeness - b.said.closeness)[0];
-    const top = element("p", {className: "pugh-whatif-top"});
-    top.dataset.pughUnless = closest ? closest.option.letter : "";
-    if (closest) top.append(element("strong", {textContent: `${tag(winner)} wins unless: `}), `${closest.said.single} ${closest.said.all}`);
-    else top.append(element("strong", {textContent: "No change of weights makes another option win."}));
-    panel.append(top);
-    const chosen = chosenWorld(spec, result, figureModel);
+    const winner = figureModel.byKey[result.suggestion.key], sensitivity = result.sensitivity;
+    if (!sensitivity) return panel.append(element("p", {textContent: `${tag(winner)} is the only option to choose from.`})), panel;
+    const share = element("div", {className: "pugh-share"},
+      element("p", {}, element("strong", {textContent: `${tag(winner)} wins ${percent(sensitivity.share)} of draws`}),
+        ` (each weight within ±${number(sensitivity.step)}; it holds from ${percent(sensitivity.holdShare)})`),
+      (() => {
+        const track = bar(0, sensitivity.share, 1, `pugh-share-bar pugh-${sensitivity.verdict}`);
+        const hold = element("span", {className: "pugh-share-hold"});
+        hold.style.insetInlineStart = `${100 * sensitivity.holdShare}%`;
+        track.append(hold);
+        return track;
+      })());
+    share.dataset.pughShare = String(sensitivity.share);
+    panel.append(share);
+    const columns = sensitivityGrid(result, figureModel);
+    const ruled = letter => view.rulings[letter]?.ruling;
+    const open = letter => {
+      view.column = view.column === letter ? null : letter;
+      draw(figure, spec);
+      figure.querySelector(`[data-pugh-ruling-for="${letter}"] [data-pugh-ruling]`)?.focus();
+    };
+    const key = (column, content, data, label) => {
+      const control = element(print ? "span" : "button", print ? {className: "pugh-grid-key"} : {type: "button", className: "pugh-grid-key"}, ...content);
+      Object.assign(control.dataset, data);
+      if (!print) {
+        control.setAttribute("aria-label", label);
+        control.setAttribute("aria-expanded", String(view.column === column.option.letter));
+        control.addEventListener("click", () => open(column.option.letter));
+      }
+      return control;
+    };
+    const head = column => {
+      const said = ruled(column.option.letter);
+      return key(column, [element("span", {className: "pugh-letter", textContent: column.option.letter}),
+        spec.matrix.chosen === column.entry.key ? element("span", {className: "pugh-tag", textContent: "chosen"}) : null,
+        column.entry.tie?.now ? element("span", {className: "pugh-tag", textContent: "ties now"}) : null,
+        said ? element("span", {className: `pugh-tag pugh-ruled-${said}`, textContent: said === "could" ? "could happen" : "nonsense"}) : null]
+        .filter(Boolean), {pughColumn: column.option.letter}, `${tag(column.option)}: rule it`);
+    };
+    const tieCell = (column, cell, most) => {
+      const control = key(column, [element("span", {className: "pugh-tie-text", textContent: tieText(cell)}),
+        cell.to === null ? null : bar(cell.from, cell.to, most, "pugh-tie-bar"),
+        cell.reach ? element("span", {className: "pugh-reach", textContent: "within reach"}) : null].filter(Boolean),
+        {pughCell: `${column.option.letter}:${cell.criterion.key}`},
+        `${column.option.letter}, ${cell.criterion.label}: ${cell.to === null ? "no weight makes it tie"
+          : `ties at ${number(cell.to)} instead of ${number(cell.from)}`}${cell.reach ? ", within reach" : ""}; rule ${column.option.letter}`);
+      if (cell.to !== null) control.dataset.pughTie = String(cell.to);
+      if (cell.reach) control.dataset.pughReach = "";
+      return control;
+    };
+    const mostChange = Math.max(0, ...columns.map(column => column.entry.minChange?.rel ?? 0));
+    const allCell = column => {
+      const rel = column.entry.minChange?.rel ?? null;
+      const control = key(column, [element("span", {className: "pugh-tie-text", textContent: rel === null ? "—" : percent(rel)}),
+        rel === null ? null : bar(0, rel, mostChange, "pugh-tie-bar")].filter(Boolean),
+        {pughAll: column.option.letter}, `${column.option.letter}, all weights together: ${rel === null ? "no change makes it tie" : percent(rel)}; rule ${column.option.letter}`);
+      if (rel !== null) control.dataset.pughChange = String(rel);
+      control.title = allMoves(result, column);
+      return control;
+    };
+    const rowScale = index => Math.max(...columns.map(column => Math.max(column.cells[index].from, column.cells[index].to ?? 0)), 0) * 1.05;
+    const criterionName = (criterion, index) => [element("span", {className: "pugh-grid-criterion", textContent: criterion.label}),
+      element("span", {className: "pugh-grid-weight", textContent: ` · ${number(result.weights[index])}`})];
+    if (!print && narrow(figure)) {
+      const blocks = element("div", {className: "pugh-grid-blocks"});
+      blocks.dataset.pughGrid = "blocks";
+      for (const column of columns) {
+        const block = element("section", {className: "pugh-grid-block"}, head(column));
+        block.dataset.pughBlock = column.option.letter;
+        column.cells.forEach((cell, index) => block.append(element("div", {className: "pugh-grid-line"},
+          element("span", {className: "pugh-grid-name"}, ...criterionName(cell.criterion, index)), tieCell(column, cell, rowScale(index)))));
+        block.append(element("div", {className: "pugh-grid-line pugh-grid-all"},
+          element("span", {className: "pugh-grid-name", textContent: "All weights together"}), allCell(column)));
+        blocks.append(block);
+      }
+      panel.append(blocks);
+    } else {
+      const table = element("table", {className: "pugh-grid"});
+      table.dataset.pughGrid = "table";
+      table.append(element("thead", {}, element("tr", {}, element("th", {scope: "col", textContent: "Criterion · weight"}),
+        ...columns.map(column => element("th", {scope: "col"}, head(column))))));
+      const body = element("tbody");
+      result.criteria.forEach((criterion, index) => {
+        const row = element("tr", {}, element("th", {scope: "row"}, ...criterionName(criterion, index)));
+        for (const column of columns) row.append(element("td", {}, tieCell(column, column.cells[index], rowScale(index))));
+        body.append(row);
+      });
+      const all = element("tr", {className: "pugh-grid-all"}, element("th", {scope: "row", textContent: "All weights together"}));
+      for (const column of columns) all.append(element("td", {}, allCell(column)));
+      body.append(all);
+      table.append(body);
+      panel.append(element("div", {className: "pugh-grid-box"}, table));
+    }
+    const chosen = chosenLine(spec, result, figureModel);
     if (chosen) {
-      const line = element("p", {className: "pugh-whatif-chosen"}, element("strong", {textContent: chosen.line}), chosen.why);
+      const line = element("p", {className: "pugh-chosen"}, element("strong", {textContent: chosen.line}), chosen.why);
       line.dataset.pughChosen = chosen.option.letter;
       panel.append(line);
     }
-    const list = element("ul", {className: "pugh-worlds"});
-    for (const {option, said} of worlds) {
-      const ruling = view.rulings[option.letter] || {};
-      const item = element("li", {}, element("p", {}, `${said.single} ${said.all}`,
-        spec.matrix.chosen === option.key ? element("em", {textContent: " (the chosen option)"}) : null));
-      item.dataset.pughWorld = option.letter;
-      const keys = element("div", {className: "pugh-ruling"});
-      for (const [value, label] of [["could", "Could happen"], ["nonsense", "Nonsense"]]) {
-        const key = element("button", {type: "button", className: "filter-pill", textContent: label});
-        key.setAttribute("aria-pressed", String(ruling.ruling === value));
-        key.dataset.pughRuling = value;
-        key.disabled = Boolean(view.locked);
-        key.addEventListener("click", () => {
-          view.rulings[option.letter] = ruling.ruling === value ? {} : {...ruling, ruling: value};
-          draw(figure, spec);
-        });
-        keys.append(key);
-      }
-      item.append(keys);
-      if (ruling.ruling === "could") {
-        const tripwire = element("input", {type: "text", className: "pugh-tripwire", value: ruling.tripwire || "",
-          placeholder: "A sign to watch for"});
-        tripwire.setAttribute("aria-label", `Tripwire for ${option.letter}: a sign to watch for`);
-        tripwire.dataset.pughTripwire = option.letter;
-        tripwire.readOnly = Boolean(view.locked);
-        tripwire.addEventListener("change", () => {
-          view.rulings[option.letter] = {...view.rulings[option.letter], tripwire: tripwire.value.trim()};
-          draw(figure, spec);
-        });
-        item.append(tripwire);
-      }
-      list.append(item);
-    }
     for (const candidate of result.candidates.filter(c => !c.fits)) {
-      list.append(element("li", {}, element("p", {textContent: `${tag(figureModel.byKey[candidate.key])} does not fit: ${candidate.whyNot}.`})));
+      panel.append(element("p", {className: "pugh-out", textContent: `${tag(figureModel.byKey[candidate.key])} does not fit: ${candidate.whyNot}.`}));
     }
-    panel.append(list);
+    const column = columns.find(item => item.option.letter === view.column);
+    if (column && !print) panel.append(rulingKeys(figure, spec, view, column.option));
     return panel;
   }
-  /** The Sensitivity flag's reasons: the choice depends on the weights, a world the reader ruled
-      "could happen", the fence's chosen option is not the winner. */
+  /** An option's ruling keys, "could happen" (with its tripwire) or "nonsense", which stay in the
+      verdict's payload (readerState). */
+  function rulingKeys(figure, spec, view, option) {
+    const ruling = view.rulings[option.letter] || {};
+    const box = element("div", {className: "pugh-ruling"}, element("strong", {textContent: `${tag(option)} winning:`}));
+    box.dataset.pughRulingFor = option.letter;
+    for (const [value, label] of [["could", "Could happen"], ["nonsense", "Nonsense"]]) {
+      const key = element("button", {type: "button", className: "filter-pill", textContent: label});
+      key.setAttribute("aria-pressed", String(ruling.ruling === value));
+      key.dataset.pughRuling = value;
+      key.disabled = Boolean(view.locked);
+      key.addEventListener("click", () => {
+        view.rulings[option.letter] = ruling.ruling === value ? {} : {...ruling, ruling: value};
+        draw(figure, spec);
+        figure.querySelector(`[data-pugh-ruling-for="${option.letter}"] [data-pugh-ruling="${value}"]`)?.focus();
+      });
+      box.append(key);
+    }
+    if (ruling.ruling === "could") {
+      const tripwire = element("input", {type: "text", className: "pugh-tripwire", value: ruling.tripwire || "",
+        placeholder: "A sign to watch for"});
+      tripwire.setAttribute("aria-label", `Tripwire for ${option.letter}: a sign to watch for`);
+      tripwire.dataset.pughTripwire = option.letter;
+      tripwire.readOnly = Boolean(view.locked);
+      tripwire.addEventListener("change", () => {
+        view.rulings[option.letter] = {...view.rulings[option.letter], tripwire: tripwire.value.trim()};
+        draw(figure, spec);
+      });
+      box.append(tripwire);
+    }
+    return box;
+  }
+  /** The Sensitivity flag's reasons (artifact-ui.md, Sensitivity): a tie within reach, the winner's
+      share under the engine's hold share, an option ruled "could happen", the fence's chosen option
+      not the winner. */
   function sensitivityFlag({spec, result, figureModel, view}) {
-    const reasons = [];
-    if (result.sensitivity?.verdict === "depends") reasons.push("the choice depends on the weights");
-    if (Object.values(view.rulings).some(ruling => ruling.ruling === "could")) reasons.push("a world could happen");
-    if (chosenWorld(spec, result, figureModel)) reasons.push("the chosen option does not win");
+    const reasons = [], sensitivity = result.sensitivity;
+    if (sensitivity && (sensitivity.all.some(entry => entry.tie?.now)
+      || sensitivityGrid(result, figureModel).some(column => column.cells.some(cell => cell.reach)))) reasons.push("a tie within reach");
+    if (sensitivity && sensitivity.share < sensitivity.holdShare) reasons.push(`the winner wins under ${percent(sensitivity.holdShare)} of draws`);
+    if (Object.values(view.rulings).some(ruling => ruling.ruling === "could")) reasons.push("an option could win");
+    if (chosenLine(spec, result, figureModel)) reasons.push("the chosen option does not win");
     return reasons.length ? {flag: true, says: reasons.join("; ")} : null;
+  }
+  /** The options that fit, each with the letters of those that dominate it: at least as good on
+      every criterion and better on one, by their marks (artifact-ui.md, Pareto). */
+  function pareto(result, figureModel) {
+    const fitting = result.candidates.filter(c => c.fits);
+    const mark = (candidate, criterion) => candidate.marks[criterion.key] ?? 0;
+    const beats = (a, b) => result.criteria.every(c => mark(a, c) >= mark(b, c)) && result.criteria.some(c => mark(a, c) > mark(b, c));
+    const letter = candidate => figureModel.byKey[candidate.key].letter;
+    return fitting.map(candidate => ({candidate, letter: letter(candidate),
+      by: fitting.filter(other => beats(other, candidate)).map(letter).sort()}))
+      .sort((a, b) => a.letter.localeCompare(b.letter));
+  }
+  /** The Pareto tab (artifact-ui.md, Pareto): the engine's own plot (plotSvg), one series an option
+      that fits over the criteria, x a criterion's index and y its mark, and one reference series a
+      criterion, its axis from −2 to +2; the winner's role is "option", a dominated option's "other",
+      the rest "front". Each line ends in its letters; then the sentence. */
+  function paretoPanel(figure, result, figureModel) {
+    const panel = element("div", {className: "pugh-pareto"});
+    const front = pareto(result, figureModel), winner = result.suggestion?.key;
+    const criteria = result.criteria, last = Math.max(1, criteria.length - 1);
+    const series = front.map(({candidate, letter, by}) => ({role: candidate.key === winner ? "option" : by.length ? "other" : "front",
+      label: letter, x: criteria.map((_, index) => index), y: criteria.map(c => candidate.marks[c.key] ?? 0)}));
+    const axes = criteria.map((_, index) => ({role: "reference", x: [index, index], y: [-2, 2]}));
+    const width = Math.max(260, Math.round(figure.clientWidth || 600));
+    const holder = element("div", {className: "pugh-pareto-plot"});
+    holder.innerHTML = engine().plotSvg({title: "Each option's marks over the criteria", xRange: [0, last],
+      panels: [{yLabel: "", series: [...axes, ...series]}]}, {width, panelHeight: 150});
+    const svg = holder.querySelector("svg");
+    // Each line's letters, read back from the plot: a mark is where its point lies between the axis's −2 and +2.
+    const axis = [...svg.querySelectorAll("polyline.pl-reference")].map(line => line.getAttribute("points").split(" ").map(point => point.split(",").map(Number)));
+    const [[x0, low], [, high]] = axis[0];
+    const markAt = y => Math.round(-2 + 4 * (low - y) / (low - high));
+    const used = new Set(), ends = new Map();
+    for (const line of svg.querySelectorAll("polyline:not(.pl-reference)")) {
+      const points = line.getAttribute("points").split(" ").map(point => point.split(",").map(Number));
+      const marks = points.map(([, y]) => markAt(y)), role = [...line.classList].find(name => name !== "pl-s").slice(3);
+      const index = series.findIndex((item, at) => !used.has(at) && item.role === role && item.y.join() === marks.join());
+      used.add(index);
+      const {letter, by} = front[index];
+      line.dataset.pughLine = letter;
+      if (by.length) line.classList.add("pugh-dominated");
+      line.append(Object.assign(document.createElementNS(svg.namespaceURI, "title"), {textContent: tag(figureModel.byLetter[letter])}));
+      const [x, y] = points[points.length - 1], end = `${x},${y}`;
+      ends.set(end, [...(ends.get(end) || []), letter]);
+    }
+    for (const [end, letters] of ends) {
+      const [x, y] = end.split(",").map(Number);
+      const text = document.createElementNS(svg.namespaceURI, "text");
+      Object.assign(text, {textContent: letters.sort().join(", ")});
+      for (const [name, value] of Object.entries({x: x - 3, y: y - 4, "text-anchor": x > x0 ? "end" : "start", class: "pugh-pareto-letters"})) text.setAttribute(name, String(value));
+      svg.append(text);
+    }
+    // The criteria name the axes, in place of the engine's numbered x ticks.
+    const tickY = Number(svg.querySelector('text[text-anchor="middle"]')?.getAttribute("y") ?? 0);
+    svg.querySelectorAll('text[text-anchor="middle"]').forEach(tick => tick.remove());
+    axis.forEach(([[x]], index) => {
+      const text = document.createElementNS(svg.namespaceURI, "text");
+      text.textContent = String(index + 1);
+      for (const [name, value] of Object.entries({x, y: tickY, "text-anchor": "middle", class: "pugh-pareto-axis"})) text.setAttribute(name, String(value));
+      svg.append(text);
+    });
+    // The engine's numbered y ticks read as the marks they are.
+    svg.querySelectorAll('text[text-anchor="end"]').forEach(tick => {
+      const value = Number(tick.textContent.replace("−", "-"));
+      if (Number.isInteger(value) && value >= -2 && value <= 2) tick.textContent = symbol(value);
+    });
+    panel.append(holder, element("ul", {className: "pugh-pareto-criteria"},
+      ...criteria.map((criterion, index) => element("li", {textContent: `${index + 1} · ${criterion.label}`}))));
+    const kept = front.filter(item => !item.by.length).map(item => item.letter), beaten = front.filter(item => item.by.length);
+    const said = element("p", {textContent: `Not dominated: ${kept.join(", ") || "none"}.`
+      + (beaten.length ? ` Dominated: ${beaten.map(item => `${item.letter} (by ${item.by.join(", ")})`).join(", ")}.` : "")});
+    said.dataset.pughParetoSaid = "";
+    panel.append(said);
+    for (const candidate of result.candidates.filter(c => !c.fits)) {
+      panel.append(element("p", {className: "pugh-out", textContent: `${tag(figureModel.byKey[candidate.key])} does not fit: ${candidate.whyNot}.`}));
+    }
+    panel.dataset.pughPareto = beaten.map(item => item.letter).join(" ");
+    return panel;
+  }
+  /** The Pareto flag: the winner is dominated. */
+  function paretoFlag({result, figureModel}) {
+    const by = pareto(result, figureModel).find(item => item.candidate.key === result.suggestion?.key)?.by ?? [];
+    return by.length ? {flag: true, says: `the winner is dominated by ${by.join(", ")}`} : null;
   }
   /** The figure's tabs, in order, after which come the chapter's sections: each its key, label,
       panel, whether it is disabled and its badge, a function of the decision that returns a count
@@ -618,9 +822,10 @@ globalThis.obsPugh = (() => {
       disabled: ({figureModel}) => !figureModel.checklist.length,
       badge: ({figureModel}) => (figureModel.failed.length ? {count: figureModel.failed.length, says: `${figureModel.failed.length} failed`} : null)},
     {key: "sensitivity", label: "Sensitivity",
-      panel: ({figure, spec, result, figureModel, view}) => sensitivityPanel(figure, spec, result, figureModel, view),
+      panel: ({figure, spec, result, figureModel, view, print}) => sensitivityPanel(figure, spec, result, figureModel, view, {print}),
       badge: sensitivityFlag},
-    {key: "pareto", label: "Pareto", panel: () => null, disabled: () => true},
+    {key: "pareto", label: "Pareto", panel: ({figure, result, figureModel}) => paretoPanel(figure, result, figureModel),
+      badge: paretoFlag},
   ];
   /** A tab's badge in the adapter's tab control: a count or a flag after its label, said in the
       tab's accessible name; none where the badge says nothing. */
