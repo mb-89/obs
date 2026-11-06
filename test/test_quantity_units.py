@@ -33,3 +33,25 @@ def test_an_unknown_unit_names_the_note_the_unit_and_the_remedy(tmp_path, unit) 
     assert message.startswith(f"{tmp_path / 'load.md'}: unit: ")
     assert repr(unit) in message
     assert message.endswith("; see capabilities/quantities.")
+
+
+@pytest.mark.parametrize("fields", ["value: 2\nrange: [0, 5]", "value: 0\nrange: [0, 0]",
+                                    "value: -1.5\nunit: mm\nrange: [-2, 3.5]"])
+def test_a_quantity_may_carry_a_range_holding_its_value(tmp_path, fields) -> None:
+    build_document(_vault(tmp_path, fields), REFERENCE)
+
+
+@pytest.mark.parametrize(("fields", "field"), [
+    ("value: 7\nunit: mm\nrange: [0, 5]", "value"),
+    ("value: -1\nrange: [0, 5]", "value"),
+    ("value: 2\nrange: [5, 0]", "range"),
+    ("value: 2\nrange: [0]", "range"),
+    ("value: 2\nrange: [0, '5 mm']", "range"),
+    ("value: 2\nrange: [0, .inf]", "range"),
+    ("value: 2\nrange: {minimum: 0, maximum: 5}", "range"),
+])
+def test_a_range_that_excludes_the_value_or_is_malformed_fails(tmp_path, fields, field) -> None:
+    message = _failure(_vault(tmp_path, fields))
+
+    assert message.startswith(f"{tmp_path / 'load.md'}: {field}: ")
+    assert message.endswith("; see capabilities/quantities.")

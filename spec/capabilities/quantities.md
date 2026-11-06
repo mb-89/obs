@@ -35,6 +35,8 @@ source: "[[load-calculation]]"
   engineering unit with an optional prefix, or a product or quotient of them, such as `mm`,
   `kN`, `N*m`, `km/h`, `rpm` or `%`. Without `unit` the value is a plain number. An unknown
   unit fails the build naming the note, the unit and the remedy.
+- `range`, optional: `[minimum, maximum]`, two finite numbers in the note's unit with the
+  minimum first, the domain the quantity may take. A `value` lies inside it, bounds included.
 - `aliases`: exactly one variable-style alias (a letter, then up to 39 letters, digits or
   underscores), as a string or a one-item list. Authors reference the quantity as
   `[[alias]]`.
