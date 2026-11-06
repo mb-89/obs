@@ -186,8 +186,9 @@ def test_the_cores_session_start_sets_up_a_focused_run(monkeypatch) -> None:
     import conftest
 
     seen = []
-    monkeypatch.setattr(suite, "set_up_focused_run", lambda config: seen.append(config))
+    monkeypatch.setattr(suite, "set_up_focused_run", lambda config: seen.append(("set up", config)))
+    monkeypatch.setattr(suite, "record_workers", lambda config: seen.append(("workers", config)))
     config = SimpleNamespace()
     conftest.pytest_sessionstart(SimpleNamespace(config=config))
 
-    assert seen == [config]
+    assert seen == [("set up", config), ("workers", config)]
