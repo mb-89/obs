@@ -27,6 +27,7 @@ def pytest_collection_modifyitems(config, items):
     tiers.modify_items(config, items)
     bounds.mark(items)
     group_by_module(items)
+    suite.heaviest_first(suite.ROOT, items)
 
 
 def group_by_module(items) -> None:

@@ -51,16 +51,65 @@ def test_a_module_runs_on_one_worker_unless_a_test_names_its_own_group() -> None
 def test_each_part_writes_its_junit_report_into_the_directory_se_names(tmp_path) -> None:
     import suite
 
-    reports = {part: suite.part_command(part, ["--durations=10"], {"SE_TEST_REPORTS": str(tmp_path)})
+    run = tmp_path / "run"
+    reports = {part: suite.part_command(part, ["--durations=10"], {"SE_TEST_REPORTS": str(tmp_path)}, run)
                for part in suite.PARTS}
-    unnamed = suite.part_command(suite.ROOT, [], {})
+    unnamed = suite.part_command(suite.ROOT, [], {}, run)
 
     assert [argument for argument in reports[suite.ROOT] if argument.startswith("--junitxml=")] == [
         f"--junitxml={tmp_path / 'core.xml'}"]
     assert {argument for command in reports.values() for argument in command
             if argument.startswith("--junitxml=")} == {
         f"--junitxml={tmp_path / (suite.part_name(part).replace('/', '-') + '.xml')}" for part in suite.PARTS}
-    assert not [argument for argument in unnamed if argument.startswith("--junitxml")]
+    assert [argument for argument in unnamed if argument.startswith("--junitxml")] == [
+        f"--junitxml={run / 'core.xml'}"], "without se's directory, the report goes into the run's folder"
+
+
+def _junit(path, cases) -> None:
+    path.write_text("<testsuites><testsuite>" + "".join(
+        f'<testcase classname="test.x" name="{name}" time="{seconds}"/>' for name, seconds in cases)
+        + "</testsuite></testsuites>", encoding="utf-8")
+
+
+def test_the_suite_records_each_groups_test_time_from_a_parts_report(tmp_path, monkeypatch) -> None:
+    """A group's weight is its tests' time in the part's last report; a group the report does not
+    name keeps its earlier weight."""
+    monkeypatch.setattr(suite, "WEIGHTS", tmp_path / "weights")
+    report = tmp_path / "core.xml"
+    _junit(report, [("one@test/test_a.py", 1.0), ("two[x@y]@test/test_a.py", 2.5), ("three@own", 4.0)])
+    assert suite.record_weights(report) == {"test/test_a.py": 3.5, "own": 4.0}
+
+    _junit(report, [("one@test/test_a.py", 0.5), ("four", 9.0)])
+
+    assert suite.record_weights(report) == {"test/test_a.py": 0.5, "own": 4.0}
+    assert suite.record_weights(tmp_path / "missing.xml") == {}
+
+
+class _Grouped:
+    def __init__(self, nodeid, group):
+        self.nodeid = nodeid
+        self.mark = pytest.mark.xdist_group(group).mark
+
+    def get_closest_marker(self, name):
+        return self.mark if name == "xdist_group" else None
+
+
+def test_groups_are_dealt_heaviest_first_by_their_recorded_weights(tmp_path, monkeypatch) -> None:
+    """xdist deals the groups in the order the tests come; an unrecorded group comes first and a
+    part without a record keeps its order."""
+    monkeypatch.setattr(suite, "WEIGHTS", tmp_path)
+    items = [_Grouped("test/a.py::one", "test/a.py"), _Grouped("test/b.py::two", "test/b.py"),
+             _Grouped("test/a.py::three", "test/a.py"), _Grouped("test/new.py::four", "test/new.py"),
+             _Grouped("test/c.py::five", "own")]
+    unchanged = list(items)
+    suite.heaviest_first(suite.ROOT, items)
+    assert items == unchanged, "without a record the order stays"
+
+    (tmp_path / "core.json").write_text('{"test/a.py": 1.0, "test/b.py": 7.5, "own": 3.0}', encoding="utf-8")
+    suite.heaviest_first(suite.ROOT, items)
+
+    assert [item.nodeid for item in items] == ["test/new.py::four", "test/b.py::two", "test/c.py::five",
+                                               "test/a.py::one", "test/a.py::three"]
 
 
 def test_the_parts_run_side_by_side_and_any_failed_part_fails_the_suite(monkeypatch, capsys) -> None:
@@ -93,7 +142,7 @@ def test_a_part_past_the_suite_cap_is_stopped_naming_the_test_it_was_running(mon
             "str(os.getpid()) + '.txt'); record.parent.mkdir(exist_ok=True); "
             "record.write_text(os.getcwd() + '\\ntest/test_hangs.py::test_waits'); print('started', flush=True); "
             "threading.Event().wait()")
-    monkeypatch.setattr(suite, "part_command", lambda part, arguments, environment: [sys.executable, "-c", hang])
+    monkeypatch.setattr(suite, "part_command", lambda part, *_: [sys.executable, "-c", hang])
     monkeypatch.setattr(suite, "is_installed", lambda package: True)
     monkeypatch.setattr(suite, "CAP_SECONDS", 1)
 

@@ -17,11 +17,13 @@ test/spec_build.py built each kind there, fails where one kind was built twice, 
 folder at the end. Each test has its timeout (test/bounds.py); the whole run has a cap,
 CAP_SECONDS, at which a part still running is stopped, with every process it started, and the
 suite names the part and the tests it was running and fails. Arguments are passed on to every
-part's pytest, for example `--durations=20`. Where `SE_TEST_REPORTS` names a directory, each part writes its JUnit
-XML report there as `<part>.xml` (`core.xml`, `adapters-html.xml`), from which se's
-`work_tickets.py suite` names the slowest tests; each part's `conftest.py` names its worker
-count there as the `workers` testsuite property (record_workers), by which se divides the part's
-test time.
+part's pytest, for example `--durations=20`. Each part writes its JUnit XML report as `<part>.xml`
+(`core.xml`, `adapters-html.xml`): where `SE_TEST_REPORTS` names a directory, there, from which se's
+`work_tickets.py suite` names the slowest tests, otherwise in the run's folder. Each part's
+`conftest.py` names its worker count there as the `workers` testsuite property (record_workers),
+by which se divides the part's test time. From each report the suite records each xdist group's
+test time as the part's weights (WEIGHTS, record_weights); each part's `conftest.py` deals its
+groups heaviest first by them (heaviest_first), and keeps its own order where no record exists.
 
 The parts depend on Node packages: each part's `test/browser/package-lock.json`
 (today `adapters/html/test/browser` alone); the core's diagram renderers and the html
@@ -41,12 +43,16 @@ does, every package not installed from its current lockfile, under a lock shared
     uv run python test/suite.py
 """
 import hashlib
+import json
+import math
 import os
 import shutil
 import subprocess
 import sys
 import tempfile
 import time
+import xml.etree.ElementTree as ElementTree
+from collections import Counter
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 
@@ -75,13 +81,57 @@ def part_name(part: Path) -> str:
     return part.relative_to(ROOT).as_posix() if part != ROOT else "core"
 
 
-def part_command(part: Path, arguments: list[str], environment) -> list[str]:
-    """The pytest command of one part; it writes a JUnit report where the environment names a directory."""
-    command = [sys.executable, "-m", "pytest", "-q", *PARALLEL, *arguments]
-    if environment.get(REPORTS_VARIABLE):
-        report = Path(environment[REPORTS_VARIABLE]) / f"{part_name(part).replace('/', '-')}.xml"
-        command.append(f"--junitxml={report}")
-    return command
+def part_report(part: Path, environment, run_folder: Path) -> Path:
+    """One part's JUnit report: in the directory the environment names, otherwise in the run's folder."""
+    folder = Path(environment[REPORTS_VARIABLE]) if environment.get(REPORTS_VARIABLE) else run_folder
+    return folder / f"{part_name(part).replace('/', '-')}.xml"
+
+
+def part_command(part: Path, arguments: list[str], environment, run_folder: Path) -> list[str]:
+    """The pytest command of one part, which writes its JUnit report (part_report)."""
+    return [sys.executable, "-m", "pytest", "-q", *PARALLEL, *arguments,
+            f"--junitxml={part_report(part, environment, run_folder)}"]
+
+
+# Each part's weights, `<part>.json`: each xdist group's test time in seconds in the part's last
+# recorded run. Generated, so in data/data_output.
+WEIGHTS = ROOT / "data" / "data_output" / "test-weights"
+
+
+def record_weights(report: Path) -> dict[str, float]:
+    """Record each xdist group's test time in a part's JUnit report (a case's name ends in
+    ``@<group>``) as that group's weight, over its earlier one; the weights recorded."""
+    if not report.is_file():
+        return {}
+    measured = Counter()
+    for case in ElementTree.parse(report).iter("testcase"):
+        name = case.get("name", "")
+        if "@" in name:
+            measured[name.rsplit("@", 1)[1]] += float(case.get("time") or 0)
+    record = WEIGHTS / f"{report.stem}.json"
+    weights = {**(json.loads(record.read_text(encoding="utf-8")) if record.is_file() else {}),
+               **{group: round(seconds, 3) for group, seconds in measured.items()}}
+    WEIGHTS.mkdir(parents=True, exist_ok=True)
+    record.write_text(json.dumps(weights, indent=1, sort_keys=True) + "\n", encoding="utf-8")
+    return weights
+
+
+def heaviest_first(part: Path, items) -> None:
+    """From a part's ``pytest_collection_modifyitems``, after it named each test's xdist group:
+    order the tests by their group's recorded weight, heaviest first, since xdist deals the groups
+    in the order the tests come. A group without a weight comes first, in its order; without a
+    record of the part the order stays as it is."""
+    record = WEIGHTS / f"{part_name(part.resolve()).replace('/', '-')}.json"
+    if not record.is_file():
+        return
+    weights = json.loads(record.read_text(encoding="utf-8"))
+
+    def weight(item) -> float:
+        mark = item.get_closest_marker("xdist_group")
+        group = mark.args[0] if mark.args else mark.kwargs.get("name")
+        return weights.get(group, math.inf)
+
+    items.sort(key=lambda item: -weight(item))
 
 
 def lockfile_hash(package: Path) -> str:
@@ -159,7 +209,7 @@ def set_up_focused_run(config, packages: list[Path] | None = None, run=None) -> 
 def run_part(part: Path, arguments: list[str], run_folder: Path) -> tuple[int, str]:
     """Run one part's pytest; its exit code and its output, headed by its command. A part still
     running at the cap (CAP_SECONDS) is stopped, and its output ends naming the tests it ran then."""
-    command = part_command(part, arguments, os.environ)
+    command = part_command(part, arguments, os.environ, run_folder)
     process = subprocess.Popen(command, cwd=part, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
                                text=True, encoding="utf-8", errors="replace", start_new_session=os.name != "nt")
     head = f"== {part_name(part)}: {' '.join(command[1:])} in {part}\n"
@@ -174,6 +224,7 @@ def run_part(part: Path, arguments: list[str], run_folder: Path) -> tuple[int, s
         return 1, (f"{head}{output}test/suite.py: {part_name(part)} reached the suite's cap of {CAP_SECONDS} s "
                    f"(CAP_SECONDS) and was stopped while running {running}. Remedy: run that test alone in "
                    f"{part} with `uv run pytest <test>` and find what it waits for.\n")
+    record_weights(part_report(part, os.environ, run_folder))
     return process.returncode, head + output
 
 
