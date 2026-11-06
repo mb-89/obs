@@ -36,6 +36,12 @@ files with `![label](file)` or `![[file]]`, and only a build with the flag embed
 therefore yields a light edition and a self-contained evidence edition without editing Markdown,
 and a source archive rebuilds with the flag it was built with.
 
+`obs-html --embed-attachments` makes the same choice on a Document, which carries every marked
+file's bytes ([[architecture#Asset bytes]]): with it, the evidence edition, each marked attachment
+is a download of those bytes showing its name, type and size; without it, the light edition, the
+attachment shows its label and vault path and its bytes stay out of the HTML. The core's
+`obs-document --adapter html` passes no option and so builds the light edition.
+
 ## Several artifacts per call
 
 A caller that builds several artifacts passes repeated `--source`/`--output` pairs in one
