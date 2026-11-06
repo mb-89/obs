@@ -15,7 +15,9 @@
           "pattern": "^[^/\\\\]+\\.md$"
         },
         "projectConfigFilename": {
+          "description": "The vault's project configuration, a JSON file in the manifest's folder the core reads on every build (architecture.md, Project configuration); the default applies to a build without core configuration.",
           "type": "string",
+          "default": "cfg.json",
           "pattern": "^[^/\\\\]+\\.json$"
         },
         "cssSnippetFolder": {
