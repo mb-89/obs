@@ -1491,8 +1491,8 @@ record ids and unsupported filters. A grammar change updates this subsection, th
 pattern and that fixture together.
 
 Generation fails on an unsupported filter. The error names the source file, the base
-fence, and the filter text; it never treats the filter as matching
-nothing.
+fence, the field (`filters` or `views[<view>].filters`), the filter text and this
+subsection; it never treats the filter as matching nothing.
 
 A view's `obs.records` evaluates projected rows of one kind instead of canonical notes;
 the base's `obs.records` is the default for its views. A comparison on a bare
