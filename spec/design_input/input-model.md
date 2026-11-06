@@ -1212,18 +1212,25 @@ it, is one without caption, alt or block id, and its whole text is the matrix in
 fence of `kind: pugh` holds the same matrix under `content`, or in a YAML or JSON `source` file.
 
 The matrix has the shape of the matrix file of ctrl's Pugh engine: ctrl's
-`design/output/pugh.md` (github.com/mb-89/ctrl), "The matrix file", owns it. obs adds three
-fields and leaves out two:
+`design/output/pugh.md` (github.com/mb-89/ctrl), "The matrix file", owns it. Every option has a
+letter, A, B, C and on, in the order `candidates` lists them, at most 26 options. obs adds:
 
 - `chosen`, optional: the key of the option the author chose, which the figure checks.
-- On each option, `short`, a column label, and `what`, one sentence on what it is; both optional.
-- An option's `figures` and the matrix's `overrides` are refused as unknown fields: a figure is
-  the adapter's drawing, and the reader's changes are the adapter's reader state.
+- On each option, optional: `what`, one sentence on what it is; `wins` and `losses`, short texts
+  of its own gains and losses, which add nothing to the totals.
+- `checklist`, optional: items, each with `item` (the question), `answer` (one line), `pass`
+  (true or false) and, optional, `options`, the letters of the options the item fails.
+- `checklistWeight`, optional: the weight of the row the failed items make, 3 by default.
+
+An option's `figures` and the matrix's `overrides` are refused as unknown fields: a figure is
+the adapter's drawing, and the reader's changes are the adapter's reader state.
 
 The core checks the matrix against `$defs/pughMatrix` of `src/obs/document.schema.json`, then
 what no schema states: unique keys; every criterion a value, a mark or a gate names; values for
-measured criteria, marks for judged ones; a hard gate on a measured criterion; and the options
-`datum.prefer` and `chosen` name.
+measured criteria, marks for judged ones; and a hard gate on a measured criterion.
+
+It also checks the options `datum.prefer` and `chosen` name, the letters a checklist item names,
+and that no criterion is keyed `checklist`, the key of the row the failed items make.
 
 A matrix it refuses is an input error in the one form: the note, the fence, the field path
 within it (`content.criteria[1].better`, `source.chosen`) and the remedy, naming
