@@ -15,21 +15,24 @@ import urllib.request
 
 from jsonschema import Draft202012Validator
 from markdown_it.token import Token
+from referencing import Registry, Resource
 import yaml
 
 from obs.commands import CommandError, run_command
 from obs.config import (
     DEFAULT_COMMAND_TIMEOUT_SECONDS, CoreConfig, CoreConfigError, load_core_config,
 )
-from obs.figure import FigureDescriptorError, validate_figure_descriptor
+from obs.figure import FIGURE_KINDS, FIGURE_SCHEMA_PATH, FigureContentError
 from obs.input import (
     ADAPTER_NAMESPACE,
     InputError,
     input_error,
+    input_validator,
     parse_callout,
     parse_card_spec,
     parse_property_editor,
     property_editor_writes,
+    schema_error,
     validate_base_definition,
     validate_command,
     validate_cover_metadata,
@@ -39,6 +42,7 @@ from obs.input import (
     validate_quantity,
 )
 from obs.note import IGNORED, Note, VaultError, lines, parser, read_note
+from obs.quantity import document_quantity
 from obs.producers import ProducerError, run_producers
 from obs.selection import (
     Record, base_selects, conditions_select, member_order, note_marks, paragraph_marks,
@@ -232,6 +236,8 @@ def build_document(
     for path, (fields, _) in vault.notes.items():
         record = vault.notes_by_id[vault.identities[path]][1]
         record["fieldNodes"] = _field_nodes(fields, "", context_of(path, fields))
+        if path in vault.validated and fields.get("kind") == "quantity":
+            record["quantity"] = document_quantity(fields)
     vault.reached.clear()
     for attrs, target in vault.links:  # Only an included note is a chapter a link can name.
         attrs["chapter"] = HOME if target == manifest_path else (
@@ -612,7 +618,7 @@ def _frontmatter_nodes(metadata: dict[str, object], context: _Context) -> list[d
     if "obs" in metadata:
         add("profiles", {"profile": _json_value(metadata["obs"])})
     if metadata.get("kind") == "quantity":
-        add("quantities", {"metadata": _json_value(metadata)})
+        add("quantities", {"metadata": _json_value(metadata), "quantity": document_quantity(metadata)})
     if "query" in metadata:
         query = _json_value(metadata["query"])
         add("queries", {"query": query})
@@ -643,6 +649,10 @@ class _Context:
 def _nodes(source: str, context: _Context) -> list[dict[str, object]]:
     tokens = parser().parse(source)
     return _blocks(tokens, 0, len(tokens), context)
+
+
+_BLOCK_ID = re.compile(r"\^([A-Za-z0-9-]+)")
+"""A figure's block id line, directly after its fence; see input-model, Figure descriptor."""
 
 
 def _closing(tokens: list[Token], position: int) -> int:
@@ -690,8 +700,15 @@ def _blocks(
             })
             position = closing + 1
         elif token.type in {"fence", "code_block"}:
-            result.append(_fence_node(token, context))
+            node = _fence_node(token, context)
+            result.append(node)
             position += 1
+            block = _BLOCK_ID.fullmatch(tokens[position + 1].content) if (
+                node["type"] == "figures" and position + 2 < end and tokens[position].type == "paragraph_open"
+            ) else None
+            if block:
+                node["attrs"]["block"] = block[1]
+                position = _closing(tokens, position) + 1
         elif token.type == "blockquote_open":
             closing = _closing(tokens, position)
             result.append(_callout(tokens, position, closing, context) or {
@@ -816,7 +833,6 @@ def _fence_node(token: Token, context: _Context) -> dict[str, object]:
     info = token.info.strip().split() if token.type == "fence" else []
     language = info[0] if info else ""
     silent_command = info == ["cmd", "silent"]
-    figure_descriptor: dict[str, object] | None = None
     if language in {"base", "cards", "property-editor", "cmd", "figure"}:
         context.fences[language] = context.fences.get(language, 0) + 1
     place = f"{language} fence {context.fences.get(language, 0)}"
@@ -848,26 +864,16 @@ def _fence_node(token: Token, context: _Context) -> dict[str, object]:
                 raise input_error(source_path, place, "is empty", "Write the command to run or "
                                   "remove the fence; see capabilities/command-fences") from error
         elif language == "figure":
-            try:
-                figure_descriptor = json.loads(token.content)
-            except json.JSONDecodeError:
-                figure_descriptor = None
-            if figure_descriptor is not None:
-                if not isinstance(figure_descriptor, dict):
-                    raise input_error(source_path, place, "must hold a JSON object",
-                                      "Write the descriptor as one JSON object; "
-                                      "see capabilities/figure-descriptor")
-                validate_figure_descriptor(figure_descriptor, source_path, place)
-    except (InputError, FigureDescriptorError, yaml.YAMLError) as error:
+            figure = _figure(token.content, context, place)
+    except (InputError, yaml.YAMLError) as error:
         raise VaultError(str(error)) from error
     fence_type = {
         "base": "bases",
         "cmd": "command-fences",
         "cards": "cards-metrics",
         "property-editor": "property-editors",
+        "figure": "figures",
     }.get(language)
-    if language == "figure":
-        fence_type = "figure-descriptor" if figure_descriptor is not None else "figures"
     if fence_type is None or fence_type not in capability_ids:
         return {
             "type": "code", "attrs": {"language": language},
@@ -878,9 +884,12 @@ def _fence_node(token: Token, context: _Context) -> dict[str, object]:
         attrs["silent"] = True
     elif language == "cmd":
         attrs["output"] = _command_output(token.content, source_path, place, context.command_runner)
-    if language == "figure" and figure_descriptor is not None:
-        attrs = {"descriptor": figure_descriptor}
-    elif language in {"base", "figure"}:
+    if language == "figure":
+        context.capabilities.add(fence_type)
+        if FIGURE_KINDS[figure["attrs"]["kind"]].capability:
+            context.capabilities.add(FIGURE_KINDS[figure["attrs"]["kind"]].capability)
+        return figure
+    if language == "base":
         try:
             spec = yaml.safe_load(token.content)
         except yaml.YAMLError as error:
@@ -898,6 +907,84 @@ def _fence_node(token: Token, context: _Context) -> dict[str, object]:
         "type": fence_type, "attrs": attrs,
         "children": card_bodies if language == "cards" else [],
     }
+
+
+FIGURES = "capabilities/figures"
+"""The note that owns the figure fence; see input-model, Figure input direction."""
+
+
+def _figure(text: str, context: _Context, place: str) -> dict[str, object]:
+    """The one figures node of a figure fence, whatever its kind; its one child is the kind's body."""
+    source_path = context.source_path
+
+    def fail(field: str, problem: str, remedy: str) -> InputError:
+        reference = "" if "; see " in remedy else f"; see {FIGURES}"
+        return input_error(source_path, f"{place}, {field}", problem, remedy + reference)
+
+    try:
+        fence = yaml.safe_load(text)
+    except yaml.YAMLError as error:
+        raise input_error(source_path, place, f"is not valid YAML: {error}",
+                          f"Write a YAML mapping; see {FIGURES}") from error
+    error = schema_error(list(input_validator("figureFence").iter_errors(fence)), source_path, FIGURES,
+                         place=place)
+    if error:
+        raise error
+    fence = _json_value(fence)
+    kind = FIGURE_KINDS.get(fence["kind"])
+    if kind is None:
+        raise fail("kind", f"is {fence['kind']!r}, which is no figure kind",
+                   f"Use one of {', '.join(sorted(FIGURE_KINDS))}")
+    if ("source" in fence) == ("content" in fence):
+        raise fail("source", "and content are both given" if "source" in fence else "and content are both missing",
+                   "Give the figure's content inline under content or name its file in source, exactly one")
+    shared = {"version", "kind", "caption", "alt", "source", "content"}
+    options = {key: value for key, value in fence.items() if key not in shared}
+    try:
+        if "source" in fence:
+            path = _figure_file(fence["source"], context, fail)
+            body = kind.read(path.read_bytes(), mimetypes.guess_type(path.name)[0])
+        else:
+            body = kind.read(fence["content"], None)
+    except FigureContentError as error:
+        raise fail(error.field, error.problem, error.remedy) from error
+    body |= options
+    schema = json.loads(Path(__file__).with_name("document.schema.json").read_text(encoding="utf-8"))
+    validator = Draft202012Validator(
+        {**schema["$defs"]["figureBodies"][fence["kind"]], "$defs": schema["$defs"]},
+        registry=_figure_registry())
+    error = schema_error(list(validator.iter_errors(body)), source_path, FIGURES, place=place)
+    if error:
+        raise error
+    attrs: dict[str, object] = {"kind": fence["kind"]}
+    if "caption" in fence:
+        captions = fence["caption"] if isinstance(fence["caption"], list) else [fence["caption"]]
+        attrs["caption"] = [
+            {"type": "paragraph", "attrs": {},
+             "children": _inline_nodes(parser().parseInline(caption)[0], context)}
+            for caption in captions
+        ]
+    if "alt" in fence:
+        attrs["alt"] = fence["alt"]
+    return {"type": "figures", "attrs": attrs,
+            "children": [{"type": fence["kind"], "attrs": body, "children": []}]}
+
+
+@cache
+def _figure_registry() -> Registry:
+    return Registry().with_resource(
+        FIGURE_SCHEMA_PATH.name, Resource.from_contents(json.loads(FIGURE_SCHEMA_PATH.read_text(encoding="utf-8"))))
+
+
+def _figure_file(source: str, context: _Context, fail: Callable[..., InputError]) -> Path:
+    """The file a figure's source names: relative to its note, inside the vault."""
+    path = (context.source_path.parent / source).resolve()
+    if not path.is_relative_to(context.vault.root):
+        raise fail("source", f"is {source!r}, outside the vault", "Keep the file inside the vault")
+    if not path.is_file():
+        raise fail("source", f"is {source!r}, which does not exist",
+                   f"Add {source} next to the note or correct the path")
+    return path
 
 
 def _command_output(command: str, source_path: Path, place: str,

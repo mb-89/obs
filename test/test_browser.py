@@ -1552,8 +1552,9 @@ const path = require("node:path");
 const vm = require("node:vm");
 const root = path.join("src", "obs_html_interim");
 const context = vm.createContext({
-    document: {querySelector: selector => ({textContent: fs.readFileSync(
-        path.join(root, selector.includes("assets.schema.json") ? "assets.schema.json" : "base.schema.json"), "utf8",
+    document: {querySelector: selector => ({textContent: fs.readFileSync(selector === "#case-folding"
+        ? path.join("src", "obs", "case-folding.json")
+        : path.join(root, selector.includes("assets.schema.json") ? "assets.schema.json" : "base.schema.json"), "utf8",
     )})},
 });
 for (const file of [path.join("vendor", "js-yaml.min.js"), "base.js", "query.js"]) {

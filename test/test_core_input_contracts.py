@@ -182,7 +182,7 @@ FULL_CARD_SPEC = {
             "key": "open", "label": "Open", "where": [{"field": "status", "equals": "open"}],
             "from": "queries/findings", "secondary": "queries/closed", "distinct": "owner",
             "denominator": [{"field": "status", "exists": True}],
-            "link": "#findings?tableFilter=status%3Aopen", "secondaryLink": "#closed",
+            "link": "#findings", "secondaryLink": "#closed",
             "tone": "neutral",
             "toneRules": [{"value": "remaining", "when": "positive", "tone": "negative"}],
             "obs": {"projection": "review.current"},
@@ -225,6 +225,18 @@ def test_core_cards_contract_rejects_what_the_adapter_rejects(metric) -> None:
     assert _error_message(lambda: parse_card_spec(text, "note.md")) == _error_message(
         lambda: parse_adapter_cards(_interim_namespace(text), "note.md")
     ).replace(".obsHtml.", ".obs.")
+
+
+@pytest.mark.parametrize("field", ["link", "secondaryLink"])
+def test_a_hand_written_drill_down_filter_names_the_card_and_the_remedy(field) -> None:
+    """A metric's drill-down derives its table filter from its conditions (capabilities/cards-metrics);
+    a hand-written ?tableFilter= could contradict them, so the core refuses it."""
+    metric = {"label": "Open", "where": [{"field": "status", "equals": "open"}], "from": "queries/findings",
+              "secondary": "queries/closed", field: "#findings?tableFilter=status%3Aclosed"}
+    text = json.dumps({"version": 1, "cards": [{"title": "Coverage", "body": "", "metrics": [metric]}]})
+    message = _error_message(lambda: parse_card_spec(text, "note.md"))
+    assert message.startswith(f"note.md: cards fence, cards[0].metrics[0].{field}: ")
+    assert "Coverage" in message and message.endswith("see capabilities/cards-metrics.")
 
 
 def _schema_fields(schema: dict[str, object], prefix: str = "") -> list[str]:
@@ -365,8 +377,10 @@ INVALID_CONTRACTS = {
                     "cards fence 1, cards[0].metrics[0].tone", "capabilities/cards-metrics"),
     "property-editor fence": ("chapter.md", "```property-editor\nversion: 1\nfield: title\n```\n",
                               "property-editor fence 1, label", "capabilities/property-editors"),
-    "figure fence": ("chapter.md", '```figure\n{"schemaVersion": 1}\n```\n',
-                     "figure fence 1, id", "capabilities/figure-descriptor"),
+    "figure fence": ("chapter.md", '```figure\nversion: 1\nkind: plot\ncontent: {"schemaVersion": 1}\n```\n',
+                     "figure fence 1, content.id", "capabilities/figure-descriptor"),
+    "figure fence kind": ("chapter.md", "```figure\nversion: 1\n```\n", "figure fence 1, kind",
+                          "capabilities/figures"),
     "embedded base": ("x.base", "views:\n  - type: table\n", "views[0].order", "capabilities/bases"),
 }
 
@@ -470,8 +484,8 @@ def test_a_file_top_level_and_a_fence_place_name_where_the_failure_is() -> None:
          r"Write YAML; see capabilities/property-editors\.$"),
         ("```base\n{unclosed\n```\n", r"base fence 1: is not valid YAML: .*\. Write YAML; "
          r"see capabilities/bases\.$"),
-        ("```figure\n[1]\n```\n", r"figure fence 1: must hold a JSON object\. Write the descriptor as "
-         r"one JSON object; see capabilities/figure-descriptor\.$"),
+        ("```figure\n[1]\n```\n", r"figure fence 1: must be a mapping, not \[1\]\. Write a mapping; "
+         r"see capabilities/figures\.$"),
         ("```base\nviews: []\n```\n```base\nviews: 1\n```\n", r"base fence 2, views: must be a list"),
         ("```cmd\necho ok\n```\n```cmd\n\n```\n", r"cmd fence 2: is empty\. Write the command to run "
          r"or remove the fence; see capabilities/command-fences\.$"),

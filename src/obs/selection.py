@@ -30,19 +30,28 @@ def selectable(fields: dict[str, object]) -> bool:
     return fields.get(IGNORED) is not True
 
 
+@cache
+def _folds() -> dict[int, str]:
+    table = json.loads(files("obs").joinpath("case-folding.json").read_text(encoding="utf-8"))
+    return {int(code, 16): folded for code, folded in table["folds"].items()}
+
+
+def fold(text: str) -> str:
+    """A text's case folding, the one rule of ignoring case; see capabilities/bases#Comparisons."""
+    return text.translate(_folds())
+
+
 def _key(mapping: dict[object, object], name: str) -> object:
     """The key a property name matches, ignoring case; see capabilities/bases#Comparisons."""
     if name in mapping:
         return name
-    folded = name.lower()
-    return next((key for key in mapping if isinstance(key, str) and key.lower() == folded), None)
+    folded = fold(name)
+    return next((key for key in mapping if isinstance(key, str) and fold(key) == folded), None)
 
 
 def same_text(actual: str, expected: str, match_case: bool = False) -> bool:
     """Whether two texts are equal, ignoring case unless asked; see capabilities/bases#Comparisons."""
-    if match_case:
-        return actual == expected
-    return re.fullmatch(re.escape(expected), actual, re.IGNORECASE) is not None
+    return actual == expected if match_case else fold(actual) == fold(expected)
 
 
 def note_value(fields: dict[str, object], path: str, field: str) -> object:
@@ -259,11 +268,11 @@ def _condition_value(fields: dict[str, object], path: str, field: str, marks: Se
     value = _resolve(fields, path, field)
     if value is not _MISSING:
         return value
-    name = field.removeprefix("note.").lower()
+    name = fold(field.removeprefix("note."))
     if name == "mark":
         return list(dict.fromkeys(category for category, _ in marks)) or None
     if name.startswith("mark."):
-        return [identifier for category, identifier in marks if category.lower() == name[5:]] or None
+        return [identifier for category, identifier in marks if fold(category) == name[5:]] or None
     return None
 
 
