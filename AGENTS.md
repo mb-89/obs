@@ -46,8 +46,8 @@ the structure. Work inside an adapter folder also follows that folder's `AGENTS.
 
 ## Commands
 
-In a fresh checkout, first install the suite's Node test packages; focused test runs of the core
-and of an adapter need them too:
+A focused test run of the core or of an adapter installs the suite's Node test packages itself
+where they are missing or stale; the complete suite needs its setup first:
 
 ```powershell
 uv run python test/suite.py --setup

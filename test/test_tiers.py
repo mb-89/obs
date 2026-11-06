@@ -69,3 +69,36 @@ def test_a_test_reaches_the_interim_adapter_by_a_name_it_uses_or_its_command(fun
     sources = tiers._Sources(tiers.Path(__file__).parent)
 
     assert tiers.reaches_interim(_item("one", function), sources) is reaches
+
+
+def _decorated(function):
+    return function
+
+
+@_decorated
+def _decorated_helper():
+    return "OBS_HTML_TEST_NATIVE_BROWSER"
+
+
+@pytest.mark.unit
+def test_every_worker_parses_each_test_module_once_however_many_tests_it_holds(monkeypatch) -> None:
+    """Each xdist worker classifies every collected test; reading each function's source by
+    tokenizing it again cost every core worker about 2 s of its collection."""
+    read = []
+    monkeypatch.setattr(tiers.inspect, "getsource",
+                        lambda target, _read=tiers.inspect.getsource: read.append(target) or _read(target))
+    items = [*_items(), _item("decorated", _decorated_helper)]
+    tiers.modify_items(_config(), items)
+
+    assert read == [tiers.sys.modules[__name__]]
+    assert [item.nodeid.split("::")[1] for item in items] == ["interim_unit", "browser", "decorated"]
+
+
+@pytest.mark.unit
+def test_a_functions_source_is_what_inspect_reads_decorators_included() -> None:
+    import inspect
+
+    module = tiers._Sources(tiers.Path(__file__).parent).module(tiers.sys.modules[__name__])
+
+    assert module.source(_decorated_helper) == inspect.getsource(_decorated_helper)
+    assert module.source(_needs_only_a_browser) == inspect.getsource(_needs_only_a_browser)
