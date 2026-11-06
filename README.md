@@ -29,14 +29,8 @@ uv run pytest test/test_content.py -k paragraph
 uv run obs-html-interim --help
 ```
 
-Browser tests use the local DOM adapter:
-
-```powershell
-npm --prefix test/browser ci
-npm --prefix adapters/html/test/browser ci
-```
-
-The complete suite, the core's and every adapter's, runs in parallel with one command:
+The complete suite, the core's and every adapter's, runs in parallel with one command; it
+installs the Node test packages the browser tests use first (its docstring is its reference):
 
 ```powershell
 uv run python test/suite.py
