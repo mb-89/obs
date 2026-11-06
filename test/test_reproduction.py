@@ -420,7 +420,7 @@ def test_manifest_history_and_empty_cover_fields(tmp_path: Path) -> None:
     vault = vault_at(tmp_path)
     manifest = vault / "manifest.md"
     manifest.write_text(
-        '---\nproduct: {name: SE Harness, version: ""}\nsap number: ""\n'
+        '---\nproduct: {name: SE Harness, version: ""}\ndocument number: ""\n'
         'copyright: null\nconfidentiality: ""\nauthors: []\n'
         'history:\n  - {version: "00", date: 2026-10-01, author: Ada, change: Initial}\n'
         '  - {version: "01*", date: "", author: Lin, change: Working draft}\n'
@@ -433,7 +433,7 @@ def test_manifest_history_and_empty_cover_fields(tmp_path: Path) -> None:
     manifest.write_text(manifest.read_text(encoding="utf-8") + HISTORY_FENCE, encoding="utf-8")
     metadata = read_manifest(manifest).metadata
     assert metadata["product"] == {"name": "SE Harness"}
-    assert "sap number" not in metadata
+    assert "document number" not in metadata
     assert "authors" not in metadata
     assert metadata["history"][0]["date"] == "2026-10-01"
     assert "date" not in metadata["history"][1]
