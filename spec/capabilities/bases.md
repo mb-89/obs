@@ -38,14 +38,19 @@ Obsidian's [[obsidian-bases-syntax|Bases syntax]] is the reference for `==` and 
 this rule set differs, a good system comes before full compatibility, and the rule says so.
 
 - **Case:** text equals text when the two differ at most in letter case: `"Open"` equals
-  `"open"`. Each runtime's case-insensitive regular-expression matching pairs the letters.
+  `"open"`. Ignoring case means comparing case foldings by one Unicode rule, full case
+  folding (Unicode's `CaseFolding.txt`, statuses C and F, without the Turkic mappings), held
+  in one table, `src/obs/case-folding.json`, that every evaluator reads: `"Straße"` equals
+  `"STRASSE"`, `"ΟΔΟΣ"` equals `"οδος"` with or without its final sigma, `"İ"` equals an
+  `i` followed by U+0307 COMBINING DOT ABOVE but not `"i"`, and the dotless `"ı"` equals only
+  itself, never `"I"`.
 
   Obsidian compares text case-sensitively; this rule set does not, because a reader selects
   by meaning, not by spelling. A query condition asks for the exact case with its flag
   ([[capabilities/queries#Conditions]]); a Bases filter cannot, as Obsidian's syntax has no
   place for a flag.
 - **Property names:** a name matches a frontmatter key that differs at most in letter case,
-  at every dotted segment. A key spelled exactly the same wins, otherwise the note's first
+  folded by the same rule, at every dotted segment. A key spelled exactly the same wins, otherwise the note's first
   such key. The `note.` prefix and the `file.*` properties are written in lower case.
 
   Obsidian's reference does not say whether names ignore case; this rule set pairs names

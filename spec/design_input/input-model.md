@@ -89,8 +89,8 @@ selects the population for a percentage. Empty denominators display `-`. All sel
 compose with the artifact-wide filter, never table-local filters.
 
 An optional metric `link` is an internal fragment using the existing chapter/heading
-route syntax; a
-`tableFilter` query value applies the existing filter to the table named by a table-group
+route syntax; the adapter adds the drill-down filter derived from the metric's conditions
+([[capabilities/cards-metrics#Drill-downs]]) and applies it to the table named by a table-group
 anchor, or to the target chapter's first table when the link has no group anchor.
 Table-group anchors use the table's generated key and grouped property/value path.
 
@@ -675,10 +675,15 @@ Values from external systems or heavy analysis are computed offline and stay pla
 There is no hard border: analytic equations with numbers plugged in should run live, and
 work that is too heavy for the browser runs offline.
 
-Numeric notes will carry a unit system, so values of the same physical quantity convert
-between units and can be added or subtracted across units. Tolerance stack-up is a candidate
-to move live. The equation system itself is designed separately
-(`spec/backlog/nodes-numeric-system.md`).
+Quantities carry a unit system. A quantity's `unit` is a physical unit: an SI or common
+engineering unit, with prefixes and as products or quotients, which the core parses with one
+pinned unit library. A quantity may carry a `range`, its domain, which holds its value.
+
+In the Document every quantity carries its value, its display unit, its value in SI base units
+and its dimension, so an adapter converts between units without a unit library of its own.
+Values of one dimension convert between units and add or subtract across units; combining
+different dimensions is an input error naming both notes. [[capabilities/quantities]] owns the
+fields, the Document node and the arithmetic. Tolerance stack-up is a candidate to move live.
 
 ### Reference notes and link text
 
@@ -1382,8 +1387,9 @@ how its runtime commits an edit, is that adapter's; its specification is listed 
   `distinct` and `denominator` (see [Document home and abstract](#document-home-and-abstract)).
   A cards metric evaluates it directly; a quantity note's `query` uses the same form and is
   referenced from prose or by a metric's `from`/`secondary`. Both share one evaluator.
-- A count on Home is a `cards` fence in the manifest abstract. Its metric `link` may carry
-  `?tableFilter=` to drill into the table that lists the counted items.
+- A count on Home is a `cards` fence in the manifest abstract. Its metric `link` names the
+  table that lists the counted items; the drill-down filter derives from the metric's
+  conditions ([[capabilities/cards-metrics#Drill-downs]]).
 - Manifest `summaries` (Bases-filter counts over projected table rows) were removed
   (4 Nov 2026). The manifest rejects the key with a migration message; there is no fallback.
   For example, the spec counts open points with `where: [{field: mark.open_point, exists: true}]`
