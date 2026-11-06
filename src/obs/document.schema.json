@@ -282,7 +282,7 @@
       ]
     },
     "pughMatrix": {
-      "description": "A Pugh decision matrix (capabilities/pugh-decisions; input-model, Pugh decision figures): the shape of ctrl's matrix file (github.com/mb-89/ctrl, design/output/pugh.md, \"The matrix file\"), without its options' figures and its overrides, with the chosen option, each option's sentence, wins and losses, and a checklist. An option's letter is its place in candidates (A for the first). The core also checks what no schema states (src/obs/figure.py): unique keys, the criteria, options and letters a field names, values for measured and marks for judged criteria, and no criterion keyed checklist.",
+      "description": "A Pugh decision matrix (capabilities/pugh-decisions; input-model, Pugh decision figures): the shape of ctrl's matrix file (github.com/mb-89/ctrl, design/output/pugh.md, \"The matrix file\"), without its options' figures and its overrides, with the chosen option, each option's short name, sentence, wins and losses, and a checklist. An option's letter is its place in candidates (A for the first). The core also checks what no schema states (src/obs/figure.py): a short name of at most 5 words, unique keys, the criteria, options and letters a field names, values for measured and marks for judged criteria, and no criterion keyed checklist.",
       "type": "object", "additionalProperties": false, "required": ["criteria", "candidates"],
       "properties": {
         "title": {"type": "string", "minLength": 1},
@@ -302,6 +302,7 @@
           "type": "object", "additionalProperties": false, "required": ["key"],
           "properties": {
             "key": {"type": "string", "minLength": 1}, "label": {"type": "string", "minLength": 1},
+            "short": {"description": "The option's short name, at most 5 words (src/obs/figure.py checks the count), shown after its letter where there is room.", "type": "string", "minLength": 1},
             "what": {"description": "One sentence on what the option is.", "type": "string", "minLength": 1},
             "wins": {"description": "The option's own gains, unweighted: a short text or a list of them.", "$ref": "#/$defs/pughTexts"},
             "losses": {"description": "The option's own losses, unweighted: a short text or a list of them.", "$ref": "#/$defs/pughTexts"},

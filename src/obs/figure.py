@@ -169,6 +169,8 @@ def _diagram(kind: str) -> Callable[[object, "str | None"], dict[str, object]]:
 
 PUGH = "capabilities/pugh-decisions"
 """The note that owns the pugh kind's contract; see input-model, Pugh decision figures."""
+SHORT_WORDS = 5
+"""The most words an option's short name has (input-model, Pugh decision figures)."""
 
 
 @cache
@@ -209,6 +211,10 @@ def _pugh(content: object, _media_type: str | None) -> dict[str, object]:
                    "Give the criterion another key")
     named = ", ".join(criteria)
     for index, candidate in enumerate(matrix["candidates"]):
+        words = len(candidate.get("short", "").split())
+        if words > SHORT_WORDS:
+            raise fail(f"candidates[{index}].short", f"is {candidate['short']!r}, {words} words",
+                       f"Shorten it to at most {SHORT_WORDS} words, ideally one")
         for part, kind in (("values", "measured"), ("marks", "judged")):
             for key in candidate.get(part, {}):
                 at = f"candidates[{index}].{part}.{key}"
