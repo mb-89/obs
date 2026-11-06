@@ -47,10 +47,11 @@ its path without `.md`.
 - `cards[].obs.metricsFrom.tone`: the tone of every series metric, as a metric's `tone`.
 - `cards[].obs.metricsFrom.toneRules`: the tone rules of every series metric, as a
   metric's `toneRules`.
-- `cards[].obs.metricsFrom.link`: routes each series metric to a table filtered to its
-  label.
+- `cards[].obs.metricsFrom.link`: routes each series metric to its drill-down; see
+  [Drill-downs](#drill-downs).
 - `cards[].obs.metricsFrom.link.note`: the note (query reference) whose table it opens.
-- `cards[].obs.metricsFrom.link.groupProperty`: the property filtered to the label.
+- `cards[].obs.metricsFrom.link.groupProperty`: the property that holds an entry's label;
+  each series metric then selects the records of `where` whose property equals its label.
 - `cards[].metrics`: up to 64 metrics; a card without metrics is static.
 - `cards[].metrics[].key`: an optional stable identifier for the metric.
 - `cards[].metrics[].obs`: the core's namespace for a metric's fields.
@@ -79,7 +80,13 @@ its path without `.md`.
 A metric's drill-down shows exactly the rows its value counts, so it is derived, never
 written: an adapter filters the linked table by the metric's conditions, those of its `from`
 quantity's query chain followed by its `where`, and a `secondaryLink` by the `secondary`
-quantity's query chain. Each condition selects as [[capabilities/queries#Conditions]] says.
+quantity's query chain. A linked series metric's conditions are the series' `where` followed
+by an `equals` condition of `link.groupProperty` on its label; its count and its drill-down
+both select them. Each condition selects as [[capabilities/queries#Conditions]] says, so the
+label is compared by the one case folding. A metric with `obs.projection` counts the records as
+that projection shows them; its drill-down selects through the same projection, so while the
+projection is active the table shows the rows the value counts, not those its canonical
+fields would select.
 The core refuses a `link` or `secondaryLink` that writes its own `?tableFilter=`, naming the
 card and the field, because a hand-written filter can contradict the conditions it stands for.
 
