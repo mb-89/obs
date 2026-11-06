@@ -1594,6 +1594,9 @@ note first, then the rest by vault path.
 An edited chapter, or one whose embed changed, asks again; a remote image is no vault file and
 does not count.
 
+`spec/examples/bless-deck` is the example: a deck of two decision chapters, which the suite builds
+and walks (the html adapter's `test/test_bless_browser.py`).
+
 ### Answers
 
 A reader's verdicts come back as one answers file, a JSON object whose `verdicts` list holds one
