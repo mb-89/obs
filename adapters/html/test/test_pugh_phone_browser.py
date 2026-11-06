@@ -151,7 +151,7 @@ def test_a_link_to_a_section_in_a_tab_opens_the_tab_at_it_and_the_contents_lists
 
 
 @pytest.mark.parametrize("width", WIDTHS)
-def test_on_a_phone_tapping_a_letter_shows_the_options_label_and_sentence(phone_browser, deck, width):
+def test_on_a_phone_tapping_a_letter_shows_the_options_name_and_sentence(phone_browser, deck, width):
     page, errors = _open(phone_browser, deck, width, "three")
     head = page.locator(f'#{THREE} [data-pugh-mark="B:places"] [data-pugh-head]')
     about = f"#{THREE}--pugh-about-B"
@@ -169,7 +169,8 @@ def test_on_a_phone_tapping_a_letter_shows_the_options_label_and_sentence(phone_
     elsewhere = page.evaluate(f"{shown}('{about}')")
 
     assert opened and described == about[1:]
-    assert "B" in text and "Answered artifact" in text and "obs-document --answers builds the artifact" in text
+    # The label "Answered artifact" says no more than the short name "Artifact", so it is not shown.
+    assert "B · Artifact" in text and "Answered artifact" not in text and "obs-document --answers builds the artifact" in text
     assert box["x"] >= 0 and box["x"] + box["width"] <= viewport["width"]
     assert second is False and elsewhere is False
     assert page.evaluate("document.querySelectorAll('dialog[open]').length") == 0
@@ -294,4 +295,29 @@ def test_the_option_card_says_each_name_once(phone_browser, deck, anchor, labels
 
     assert [card["label"] for card in cards] == labels
     assert all(card["what"] for card in cards)
+    assert errors == []
+
+
+# The options list, read through the print projection that shows it, and each letter's popover
+# (artifact-ui.md, Decision figures): a label is said only where it adds words to the short name.
+SAID = """async anchor => {
+    const copy = document.getElementById(anchor).cloneNode(true), book = document.createElement('div');
+    book.append(copy);
+    await obsFigures.preparePrint(book);
+    const texts = nodes => [...nodes].map(node => node.textContent.trim());
+    return {list: texts(copy.querySelectorAll('.pugh-option-list dt')),
+            abouts: [...document.querySelectorAll(`#${anchor} .pugh-about`)].map(about => texts(about.children))};
+}"""
+
+
+def test_the_options_list_and_the_popover_say_each_name_once(phone_browser, deck):
+    page, errors = _open(phone_browser, deck, 390, "three")
+
+    said = page.evaluate(SAID, THREE)
+
+    assert said["list"] == ["A · Comment export", "B · Artifact", "C · Answers file alone"]
+    assert said["abouts"] == [
+        ["A · Comment export (the datum)", "A document-level comment in the comment export."],
+        ["B · Artifact (the winner)", "obs-document --answers builds the artifact with the answers in it."],
+        ["C · Answers file alone", "The answers.json the server writes."]]
     assert errors == []
