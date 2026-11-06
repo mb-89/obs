@@ -15,6 +15,7 @@ allowed in lowercase). A term is its words as `WORD` finds them, joined by one s
 `MAX_WORDS` words; `digest` lowercases for `DENIED`.
 """
 
+import functools
 import hashlib
 import re
 import subprocess
@@ -57,7 +58,9 @@ DENIED_EXACT = frozenset({
 })
 
 
+@functools.cache
 def _hash(phrase: str) -> str:
+    # Cached: most phrases recur, in a file's two passes and across files.
     return hashlib.sha256((SALT + phrase).encode()).hexdigest()
 
 
@@ -66,18 +69,20 @@ def digest(term: str, *, exact: bool = False) -> str:
     return _hash(phrase if exact else phrase.lower())
 
 
+def _phrases(words: list[str]):
+    """Every phrase of one to `MAX_WORDS` consecutive words, with the index of its first word."""
+    for count in range(1, MAX_WORDS + 1):
+        yield from enumerate(map(" ".join, zip(*(words[offset:] for offset in range(count)))))
+
+
 def denied_lines(text: str) -> list[int]:
     """The 1-based lines on which a denied term starts; terms may wrap across lines."""
     matches = list(WORD.finditer(text))
     words = [match.group(0) for match in matches]
-    lines = []
-    for start in range(len(words)):
-        for count in range(1, min(MAX_WORDS, len(words) - start) + 1):
-            phrase = " ".join(words[start:start + count])
-            if (_hash(phrase.lower()) in DENIED or _hash(phrase) in DENIED_EXACT):
-                lines.append(text.count("\n", 0, matches[start].start()) + 1)
-                break
-    return lines
+    starts = {start for start, phrase in _phrases([word.lower() for word in words])
+              if _hash(phrase) in DENIED}
+    starts |= {start for start, phrase in _phrases(words) if _hash(phrase) in DENIED_EXACT}
+    return sorted({text.count("\n", 0, matches[start].start()) + 1 for start in starts})
 
 
 def test_matching_ignores_case_and_wrapping_but_not_compounds(monkeypatch) -> None:
