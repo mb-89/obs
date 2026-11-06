@@ -86,3 +86,15 @@ def test_the_register_example_carries_its_companion_base_and_view(tmp_path: Path
     assert register["attrs"]["base"] == yaml.safe_load(next(iter(companions.values())))
     assert register["attrs"]["base"]["views"][register["attrs"]["view"]]["name"] == register["attrs"]["heading"]
     assert register["attrs"]["rows"] == [[]]
+
+
+def test_the_property_editor_projection_example_carries_its_projection(tmp_path: Path) -> None:
+    examples = [param.values for param in _examples()
+                if param.values[1] == "property-editors" and "projection:" in param.values[2]]
+    assert examples, "spec/capabilities/property-editors.md has no authoring example with a projection."
+    for index, (place, _, example, companions) in enumerate(examples):
+        (tmp_path / str(index)).mkdir()
+        document = _read(tmp_path / str(index), example, companions)
+        [editor] = [node for node in document["chapters"][0]["content"] if node["type"] == "property-editors"]
+        fence = FENCE.search(example)
+        assert editor["attrs"]["spec"]["projection"] == yaml.safe_load(fence["body"])["projection"], place
