@@ -185,7 +185,10 @@ def test_spec_document_leaves_no_link_to_an_existing_note_unresolved(spec_docume
     document = spec_document
 
     assert [attrs["target"] for attrs in _links(document) if attrs["chapter"] is None] == []
-    assert document["diagnostics"] == []
+    # The spec's long paragraphs are the long-paragraph lint's findings (input-model, Long
+    # paragraphs), not unresolved links; every other diagnostic still fails.
+    assert [diagnostic for diagnostic in document["diagnostics"]
+            if ": long paragraph (" not in diagnostic["message"]] == []
 
 
 INVALID_NOTES = {

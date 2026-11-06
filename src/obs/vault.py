@@ -20,7 +20,8 @@ import yaml
 
 from obs.commands import CommandError, run_command
 from obs.config import (
-    DEFAULT_COMMAND_TIMEOUT_SECONDS, DEFAULT_CSS_SNIPPET_FOLDER, DEFAULT_FIGURE_LABELS, DEFAULT_MANIFEST_FILENAME,
+    DEFAULT_COMMAND_TIMEOUT_SECONDS, DEFAULT_CSS_SNIPPET_FOLDER, DEFAULT_FIGURE_LABELS, DEFAULT_LONG_PARAGRAPHS,
+    DEFAULT_MANIFEST_FILENAME,
     CoreConfig, CoreConfigError, load_core_config,
 )
 from obs.figure import FIGURE_KINDS, FIGURE_SCHEMA_PATH, FigureContentError, FigureContext
@@ -46,6 +47,7 @@ from obs.input import (
 from obs.note import IGNORED, Note, VaultError, lines, parser, read_note
 from obs import svg_links
 from obs.figure_lint import figure_warnings
+from obs.paragraph_lint import paragraph_warnings
 from obs.quantity import document_quantity
 from obs.producers import ProducerError, run_producers
 from obs.sources import SourceError, css_snippets
@@ -107,6 +109,8 @@ class _Vault:
     notes_by_id: dict[str, tuple[Path, Record]] = field(default_factory=dict)
     figure_labels: tuple[str, ...] = DEFAULT_FIGURE_LABELS
     """The labels before a typed figure number, which the figure lint warns about."""
+    long_paragraphs: tuple[int, int] = DEFAULT_LONG_PARAGRAPHS
+    """The long-paragraph lint's warningLines and lineCharacters."""
     blocks: dict[Path, set[str]] = field(default_factory=dict)
     """Each parsed note's figure block ids (input-model, Figure captions and references)."""
     block_links: list[tuple[dict[str, object], Path, Path, str]] = field(default_factory=list)
@@ -213,6 +217,7 @@ def build_document(
     vault = _read_vault(manifest_path, metadata, body)
     if configuration is not None:
         vault.figure_labels = configuration.figure_labels
+        vault.long_paragraphs = configuration.long_paragraphs
     _validate_note(manifest_path, vault)
     chapters, abstract = _parse_manifest(manifest, manifest_path, vault_root, vault.identities)
     _add_records(vault, chapters, title)
@@ -711,11 +716,22 @@ class _Context:
 
 def _nodes(source: str, context: _Context) -> list[dict[str, object]]:
     tokens = parser().parse(source)
-    if context.first_line is not None:  # The note's own text: the figure lint names its lines.
-        note = context.vault.relative(context.source_path)
-        for line, message in figure_warnings(tokens, partial(_note_line, context), context.vault.figure_labels):
-            context.vault.warnings.append(f"{note}{'' if line is None else f':{line}'}: {message}")
-    return _blocks(tokens, 0, len(tokens), context)
+    if context.first_line is None:
+        return _blocks(tokens, 0, len(tokens), context)
+    # The note's own text: the lints name its lines.
+    note = context.vault.relative(context.source_path)
+    for line, message in figure_warnings(tokens, partial(_note_line, context), context.vault.figure_labels):
+        context.vault.warnings.append(f"{note}{'' if line is None else f':{line}'}: {message}")
+    linked = len(context.vault.links)
+    blocks = _blocks(tokens, 0, len(tokens), context)
+    labels = {(attrs["target"], attrs["heading"]): (
+        attrs["heading"] if not attrs["target"] else _shown_title(resolved, context.vault)
+        + (f" > {attrs['heading']}" if attrs["heading"] else ""))
+        for attrs, resolved in context.vault.links[linked:] if "heading" in attrs and resolved is not None}
+    for line, message in paragraph_warnings(tokens, partial(_note_line, context), labels,
+                                            *context.vault.long_paragraphs):
+        context.vault.warnings.append(f"{note}{'' if line is None else f':{line}'}: {message}")
+    return blocks
 
 
 _BLOCK_ID = re.compile(r"\^([A-Za-z0-9-]+)")
