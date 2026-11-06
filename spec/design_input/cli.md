@@ -120,6 +120,10 @@ declared ones.
 A boolean option is `--NAME` on the adapter's command line
 when its value is `true` and left out when it is `false`.
 
+An option is given once unless its declaration sets `repeats` to `true`. A second value for a
+single-valued option fails the call before the build, naming the option and both values as given,
+so a call never keeps one value silently.
+
 What the core's own options put into
 the Document, such as the vault's sources with `--embed-source`, reaches every adapter through the
 Document and is no adapter option.
