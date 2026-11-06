@@ -1627,7 +1627,8 @@ writes it and the core that reads it:
 - `chapter` and `version`: the chapter's id and the version it was answered at.
 - `verdict`: `bless`, `decline`, `ask` or `pick` (another option than the decision's winner).
 - `comment`: the reader's comment, which `decline`, `ask` and `pick` need.
-- `pick`: with `pick`, the decision figure's anchor (`figure`) and the picked option's letter.
+- `pick`: with `pick`, the decision figure's anchor (`figure`) and the picked option's letter,
+  or `none` where the reader picked none of the options (`option`).
 - `figures`: by figure anchor, the reader's changes to a decision figure, as its reader state
   holds them (weights, marks, rulings with their tripwires), and the `winner` they give.
 
