@@ -42,7 +42,11 @@ the structure. Work inside an adapter folder also follows that folder's `AGENTS.
 
 ## Commands
 
+In a fresh checkout, first install the suite's Node test packages; focused test runs of the core
+and of an adapter need them too:
+
 ```powershell
+uv run python test/suite.py --setup
 uv run obs-html-interim --help
 uv run obs-html --help
 uv run pytest
