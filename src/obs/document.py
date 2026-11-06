@@ -51,7 +51,7 @@ def build_document(
         if embed_source:
             arguments = [*delivery, *(["--execute-commands"] if execute_commands else []), "--embed-source"]
             document["sourceArchive"] = source_archive(manifest_path.resolve().parent, document["assets"],
-                                                        document["cssSnippets"], arguments)
+                                                        document["cssSnippets"], arguments, document.get("style"))
         validate_document(document, reference)
     except (SourceError, VaultError) as error:
         raise DocumentError(str(error)) from error
