@@ -83,7 +83,10 @@ quantity's query chain followed by its `where`, and a `secondaryLink` by the `se
 quantity's query chain. A linked series metric's conditions are the series' `where` followed
 by an `equals` condition of `link.groupProperty` on its label; its count and its drill-down
 both select them. Each condition selects as [[capabilities/queries#Conditions]] says, so the
-label is compared by the one case folding.
+label is compared by the one case folding. A metric with `obs.projection` counts the records as
+that projection shows them; its drill-down selects through the same projection, so while the
+projection is active the table shows the rows the value counts, not those its canonical
+fields would select.
 The core refuses a `link` or `secondaryLink` that writes its own `?tableFilter=`, naming the
 card and the field, because a hand-written filter can contradict the conditions it stands for.
 
