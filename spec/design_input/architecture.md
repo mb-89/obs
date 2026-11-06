@@ -86,6 +86,10 @@ it, so they read `spec/manifest.md: …`. ROOT is for messages only: the Documen
 machine-independent and never carries it, and neither does the artifact. Without the argument, on
 a direct adapter call on a Document, messages name paths relative to the vault.
 
+A call that builds several documents ([[cli#Several documents per call]]) starts the adapter once
+per document, each with its own Document, destination and vault root: the call shape stays one
+Document to one artifact for every adapter, and the core's start is what the call shares.
+
 ### Asset bytes
 
 The Document embeds the bytes of every vault file it references as an image or a
