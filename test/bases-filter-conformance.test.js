@@ -9,7 +9,10 @@ const vm = require("node:vm");
 
 const root = path.resolve(__dirname, "..");
 const schema = fs.readFileSync(path.join(root, "src", "obs_html_interim", "base.schema.json"), "utf8");
-globalThis.document = {querySelector: selector => selector === "#base-schema" ? {textContent: schema} : null};
+// The core's case-folding table, which the page embeds as #case-folding.
+const folding = fs.readFileSync(path.join(root, "src", "obs", "case-folding.json"), "utf8");
+const islands = {"#base-schema": schema, "#case-folding": folding};
+globalThis.document = {querySelector: selector => selector in islands ? {textContent: islands[selector]} : null};
 vm.runInThisContext(fs.readFileSync(path.join(root, "src", "obs_html_interim", "base.js"), "utf8"));
 vm.runInThisContext(fs.readFileSync(path.join(root, "src", "obs_html_interim", "query.js"), "utf8"));
 
