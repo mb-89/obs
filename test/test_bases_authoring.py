@@ -1,7 +1,7 @@
 """Authored Bases control tables: page size, query catalog, views, .base files and groups.
 
-Owner: spec/design_input/generic-tables.md; the manifest query profile is owned by
-spec/design_input/input-model.md (global query profile).
+Owner: adapters/html/spec/generic-tables.md; the manifest query profile is owned by
+adapters/html/spec/input-model.md (global query profile).
 """
 import json
 import os

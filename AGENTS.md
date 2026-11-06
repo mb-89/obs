@@ -53,4 +53,4 @@ uv run pytest
 `se.toml`, which se's `work_tickets.py suite` measures.
 
 To check what a built artifact shows without a browser script, print a chapter with
-`--print-chapter`; see [Printing a chapter](spec/design_input/cli.md#printing-a-chapter).
+`--print-chapter`; see [Printing a chapter](adapters/html/spec/cli.md#printing-a-chapter).

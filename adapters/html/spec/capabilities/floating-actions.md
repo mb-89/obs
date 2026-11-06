@@ -4,7 +4,7 @@ capability:
   id: floating-actions
   summary: Expose trusted actions from an authored floating-content view.
   authoring: Declare a supported action identifier in the trusted runtime mapping.
-  dependsOn: ["[[capabilities/trusted-actions]]", "[[capabilities/canonical-references]]"]
+  dependsOn: ["trusted-actions", "canonical-references"]
   source: "[[input-model#Trusted floating-content actions]]"
 ---
 

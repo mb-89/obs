@@ -1,5 +1,5 @@
 ---
-title: obs-html
+title: obs
 document type: Design specification
 subtitle: "![Obsidian](https://img.shields.io/badge/Obsidian-7C3AED?style=for-the-badge&logo=obsidian&logoColor=white) → ![HTML5](https://img.shields.io/badge/HTML5-E34F26?style=for-the-badge&logo=html5&logoColor=white)"
 product:
@@ -31,13 +31,9 @@ obsHtml:
     - [[capability-reference|Capability reference]]
 - [[design_input/architecture|Architecture]]
   - [[design_input/quality|Quality]]
-  - [[design_input/artifact-ui|Artifact UI]]
-    - [[design_input/generic-tables|Generic tables]]
-  - [[design_input/configuration|Configuration]]
   - [[design_input/cli|CLI]]
-  - [[design_input/semantic-assets|Semantic assets]]
-  - [[design_input/sharepoint-preview|SharePoint preview]]
 - [[appendix/appendix|Appendix]]
   - [[appendix/references|References]]
 
-This specification describes the converter's portable Markdown-to-HTML behavior.
+This specification describes obs: how an Obsidian-compatible Markdown vault becomes one JSON
+Document, and the contract under which any adapter renders that Document.

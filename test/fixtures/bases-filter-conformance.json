@@ -1,5 +1,5 @@
 {
-  "description": "Bases filter and query condition conformance; a record's marks are its #mark/<category>/<id> tags; owners: spec/design_input/generic-tables.md, Bases filter grammar; spec/capabilities/bases.md, Comparisons; spec/capabilities/queries.md, Conditions.",
+  "description": "Bases filter and query condition conformance; a record's marks are its #mark/<category>/<id> tags; owners: spec/design_input/input-model.md, Bases filter grammar; spec/capabilities/bases.md, Comparisons; spec/capabilities/queries.md, Conditions.",
   "records": [
     {
       "id": "a",

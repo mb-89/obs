@@ -242,6 +242,23 @@ def built_once(tmp_path_factory, name: str, build) -> Path:
 
 
 SPEC_MANIFEST = Path(__file__).parents[1] / "spec" / "manifest.md"
+# What the spec's producers write (spec/appendix/references/obs-html-specification.md builds the
+# HTML adapter's specification into it); a test that reads the spec without running them gets a
+# stand-in there.
+SPEC_PRODUCED = ("design_output/obs-html-specification.html",)
+
+
+@pytest.fixture
+def spec_vault(tmp_path) -> Path:
+    """A copy of the spec vault, without its generated design_output, holding a stand-in for each
+    file its producers write; its manifest is `<copy>/manifest.md`. A test that reads the spec
+    without running commands reads this copy, so it never depends on an earlier build."""
+    vault = tmp_path / "spec"
+    shutil.copytree(SPEC_MANIFEST.parent, vault, ignore=shutil.ignore_patterns("design_output"))
+    for produced in SPEC_PRODUCED:
+        (vault / produced).parent.mkdir(parents=True, exist_ok=True)
+        (vault / produced).write_text("<!doctype html>\n", encoding="utf-8")
+    return vault
 REMOTE_IMAGE = (b"<svg xmlns='http://www.w3.org/2000/svg'/>", "image/svg+xml")
 
 

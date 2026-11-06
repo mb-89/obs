@@ -8,7 +8,7 @@ def _flat(text: str) -> str:
 
 
 def test_sharepoint_preview_points_to_the_canary_rule_instead_of_restating_it() -> None:
-    note = _flat((ROOT / "spec" / "design_input" / "sharepoint-preview.md").read_text(encoding="utf-8"))
+    note = _flat((ROOT / "spec" / "sharepoint-preview.md").read_text(encoding="utf-8"))
 
     for restated in ("raise Limited functionality warnings",
                      "the registry that lists the browser capabilities the artifact depends on"):
