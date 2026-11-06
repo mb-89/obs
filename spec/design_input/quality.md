@@ -90,7 +90,14 @@ definitions alike. Keeping the same fact in two places is an anti-pattern (user,
   local interaction. Prefer extracting pure transformations only when they have a cohesive owner.
 - The complete suite (`test/suite.py`) runs its parts side by side and each part's tests in
   parallel worker processes, one per CPU (pytest-xdist). A module's tests share a worker, so its module fixtures are built
-  once per run; each worker starts one browser and gives every test fresh contexts in it.
+  once per run; each worker starts one browser and leases every test a page from its pool, made
+  blank between tests as a fresh context shows it. The adapter's browsers keep their frame rate
+  capped: uncapped, every frame wait draws as fast as the CPU allows, which the parallel suite
+  pays for in every other test.
+- A browser test opens what shared fixtures give it: a leased page, and an artifact built once (by
+  a fixture through `built_once`, or by the adapter's `test/artifacts.py`); several read-only
+  checks of one artifact share one page load. It neither builds an artifact nor starts
+  Playwright or a browser itself.
 - An input many tests read, such as obs's spec Document, a fixture artifact or the parity
   builds, is built once per run by `built_once` in the part's `conftest.py` and shared by every
   worker; the tests only read it.
