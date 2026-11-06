@@ -330,3 +330,28 @@ def test_document_rejects_unknown_capability_and_requires_dependency_closure(tmp
 
     with pytest.raises(AdapterError, match="does not support Document capabilities"):
         call_adapter("fixture", configuration, document, tmp_path / "output.txt", reference_path)
+
+
+def test_document_and_capability_reference_writers_replace_their_output_atomically(tmp_path) -> None:
+    """architecture, Safety boundaries: output is replaced atomically, and an unchanged output
+    stays untouched; two builds of one vault (a producer and its reader) never see a partial file."""
+    from obs.capabilities import main as capabilities_main
+
+    reference = capability_reference()
+    document = tmp_path / "document.json"
+    capabilities = tmp_path / "capabilities.json"
+    write_document(document_fixture(), document, reference)
+    capabilities_main(["--notes", str(ROOT / "spec" / "capabilities"), "--output", str(capabilities)])
+    written = {path: path.stat() for path in (document, capabilities)}
+
+    write_document(document_fixture(), document, reference)
+    capabilities_main(["--notes", str(ROOT / "spec" / "capabilities"), "--output", str(capabilities)])
+    for path, before in written.items():
+        assert path.stat().st_mtime_ns == before.st_mtime_ns, f"{path.name}: unchanged output was rewritten"
+
+    changed = document_fixture()
+    changed["manifest"]["title"] = "Changed"
+    write_document(changed, document, reference)
+    assert json.loads(document.read_text(encoding="utf-8"))["manifest"]["title"] == "Changed"
+    assert document.stat().st_ino != written[document].st_ino, "document.json: rewritten in place, not replaced"
+    assert sorted(path.name for path in tmp_path.iterdir()) == ["capabilities.json", "document.json"]

@@ -11,6 +11,7 @@ from referencing import Registry, Resource
 
 from obs.adapter import AdapterError, load_adapter
 from obs.input import schema_error
+from obs.output import write_output
 from obs.vault import VaultError, build_document as _build_document
 
 
@@ -104,8 +105,7 @@ def read_document(path: Path, reference: dict[str, object]) -> dict[str, object]
 
 def write_document(document: dict[str, object], path: Path, reference: dict[str, object]) -> None:
     validate_document(document, reference)
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(document, indent=2) + "\n", encoding="utf-8")
+    write_output(path, json.dumps(document, indent=2) + "\n")
 
 
 def call_adapter(adapter_name: str, configuration_path: Path, document_path: Path,

@@ -11,7 +11,7 @@ term (user, 5 Nov 2026).
 
 - **Document**: the core's versioned JSON intermediate representation of one manifest. Its
   shape is owned by [[architecture#Document-adapter contract|the Document-adapter contract]].
-- **artifact**: what an adapter puts out from a Document, such as obs-html's HTML file and
+- **artifact**: what an adapter puts out from a Document, such as an HTML file and
   the PDF printed from it.
 - **note**: one Markdown file in a vault, with optional frontmatter, addressed by wikilinks.
 - **file**: any file on disk, whatever its role: a note, an attachment, a configuration or
@@ -108,7 +108,7 @@ definitions alike. Keeping the same fact in two places is an anti-pattern (user,
   `test/structure/test_<note>.py`, one file per note, so changes to different notes touch
   different test files.
 - A bare `uv run pytest`, and so the complete suite, runs the unit and dom tiers and every
-  browser or e2e test that does not reach the interim adapter (`obs_html_interim`). The interim
+  browser or e2e test that does not reach the interim adapter. The interim
   adapter's browser and e2e tests run only with `uv run pytest --gate`: the adapter's parity gate
   compares the interim adapter, and the cutover removes them with it. `test/tiers.py` decides
   what reaches the interim adapter from the same source evidence as the tiers.
@@ -169,4 +169,5 @@ should be reduced first? Use measured timings rather than treating a passing tes
 This quality requirement applies across parsing, configuration, rendering, controls,
 documentation, and future frontmatter behavior.
 
-See [[architecture]] for current ownership boundaries and [[artifact-ui]] for UI intent.
+See [[architecture]] for current ownership boundaries; an adapter's specification owns its UI
+intent.
