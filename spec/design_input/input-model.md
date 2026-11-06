@@ -1240,6 +1240,13 @@ The figure's body carries the checked matrix as data (`matrix`). The core decide
 adapter runs ctrl's engine on it, in the reader's page, so a reader's change is decided again
 there.
 
+A chapter's `##` sections after its decision figure stay where the core puts every section: in
+the chapter's content, after the figure, in order. The core adds nothing to the figure for them.
+
+An adapter that shows them as the figure's tabs gathers them when it renders the chapter.
+Decided by the worker, 6 Nov 2026: the Document already carries the sections, so its schema
+does not change.
+
 ### Markdown body and frontmatter
 
 - Relative Markdown links and local images must stay within the source vault.

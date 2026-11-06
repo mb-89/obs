@@ -42,3 +42,7 @@ checklist:
 
 The options are lettered A, B, … in the order `candidates` lists them; a checklist item names
 the options it fails by letter.
+
+In a chapter whose main content is the decision, each `##` section after the fence becomes one
+more tab of the figure, named by its heading: `## The record` becomes a tab "The record", and its
+text no longer runs under the one-pager.
