@@ -1,5 +1,6 @@
-"""Block-id links to figures: the core resolves `[[#^name]]` and `[[note#^name]]` to the figure
-that carries the block id (input-model, Figure captions and references; capabilities/wikilinks).
+"""Block-id links to figures: the core resolves `[[#^name]]` and `[[note#^name]]`, and their
+Markdown forms `[](note.md#^name)` and `[label](note.md#^name)`, to the figure that carries the
+block id (input-model, Figure captions and references; capabilities/wikilinks).
 
 Reader: whoever changes how the core resolves links or figure block ids.
 """
@@ -70,6 +71,25 @@ def test_a_duplicate_block_id_in_one_note_names_the_note_the_figure_and_the_owne
     message = str(failure.value)
     assert message.startswith(f"{tmp_path / 'one.md'}: figure fence 2, block: "), message
     assert "see capabilities/figures." in message
+
+
+def test_a_markdown_block_link_targets_the_figure_like_the_wikilink_form(tmp_path) -> None:
+    document = build(tmp_path, "# One\n\n" + figure("a") + "See [](two.md#^b), [the *second*](two.md#^b) and [](#^a).\n",
+                     "# Two\n\n" + figure("b"))
+
+    [unlabelled, labelled, same] = links(document["chapters"][0]["content"])
+    assert unlabelled == {"target": "two.md", "chapter": "two", "heading": "^b", "label": "two.md", "figure": "b"}
+    assert labelled == {"target": "two.md", "chapter": "two", "heading": "^b", "label": "the second", "figure": "b"}
+    assert same == {"target": "", "chapter": "one", "heading": "^a", "label": "#^a", "figure": "a"}
+
+
+def test_a_markdown_block_link_to_an_unknown_block_id_fails_like_the_wikilink_form(tmp_path) -> None:
+    with pytest.raises(DocumentError) as failure:
+        build(tmp_path, "# One\n\n" + figure("a") + "See [](two.md#^missing).\n", "# Two\n\n" + figure("b"))
+
+    message = str(failure.value)
+    assert message.startswith(f"{tmp_path / 'one.md'}: link [](two.md#^missing): "), message
+    assert "see capabilities/wikilinks." in message
 
 
 def test_text_that_only_looks_like_a_link_stays_text(tmp_path) -> None:
