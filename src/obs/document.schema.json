@@ -274,7 +274,7 @@
         "note": {"description": "The id of the note record the row comes from; a chapter or glossary row's other properties resolve on its frontmatter and path.", "$ref": "#/$defs/id"},
         "fields": {"type": "object"},
         "fieldNodes": {
-          "description": "A note's frontmatter as parsed nodes: one field node per nonempty string value of fields, exactly as the children of its markdown-frontmatter node (capabilities/markdown-frontmatter#Document node); the core gives it to every note record. A row a note owns finds its values here, by the note's id.",
+          "description": "A note's frontmatter as parsed nodes: one field node per nonempty string value of fields, exactly as the children of its markdown-frontmatter node (capabilities/markdown-frontmatter#Document node); every note record carries it. A row a note owns finds its values here, by the note's id.",
           "type": "array", "items": {"allOf": [{"$ref": "#/$defs/node"}, {"properties": {"type": {"const": "field"}}}]}
         },
         "ignored": {"const": true, "description": "Present on an ignored note: queries and Bases never select it or a row it owns (markdown-frontmatter, Ignored notes)."}
@@ -283,7 +283,7 @@
         {
           "description": "A note: one vault note, its vault-relative POSIX path, its frontmatter as fields and as fieldNodes.",
           "if": {"properties": {"type": {"const": "note"}}},
-          "then": {"required": ["path"], "not": {"required": ["note"]}},
+          "then": {"required": ["path", "fieldNodes"], "not": {"required": ["note"]}},
           "else": {"not": {"anyOf": [{"required": ["path"]}, {"required": ["ignored"]}, {"required": ["fieldNodes"]}]}}
         },
         {
