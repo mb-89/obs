@@ -146,3 +146,18 @@ def test_a_bare_url_in_a_string_value_arrives_as_a_link_node(tmp_path, remote_im
     before, url, after = fields["capability.summary"]
     assert (before["text"], url["text"], after["text"]) == ("See ", "https://example.org/b?c=1&d=2", ".")
     assert links[url["attrs"]["link"]] == "https://example.org/b?c=1&d=2"
+
+
+def test_typed_values_stay_data_and_each_string_item_of_a_list_is_its_own_field_node(tmp_path, remote_images) -> None:
+    document = _record_document(_record_vault(
+        tmp_path, "  version: 2\n  stable: true\n  since: 2026-11-06\n  tags: [plain, '*marked*', 3]\n",
+    ), remote_images)
+
+    [record] = [item for item in document["records"] if item.get("path") == "cap.md"]
+    fields = _record_fields(document, "cap.md")
+    assert {key: record["fields"]["capability"][key] for key in ("version", "stable", "since")} == {
+        "version": 2, "stable": True, "since": "2026-11-06",
+    }
+    assert [name for name in fields if name.startswith("capability.")] == ["capability.tags.0", "capability.tags.1"]
+    assert fields["capability.tags.0"] == [{"type": "text", "attrs": {}, "children": [], "text": "plain"}]
+    assert [node["type"] for node in fields["capability.tags.1"]] == ["emphasis"]
