@@ -466,6 +466,50 @@ def test_each_view_selects_its_own_members(tmp_path) -> None:
     assert register["attrs"]["rows"] == [["a-point", "b-point"], ["c-point"], ["a-point", "b-point", "c-point"]]
 
 
+@pytest.mark.parametrize("entries", [
+    ["a-point.md", "missing.md"],
+    ["a-point.md", "a-point.md"],
+    ["a-point.md", "../outside.md"],
+    ["a-point.md", "/abs/a-point.md"],
+    ["a-point.md", "a-point"],
+])
+@pytest.mark.parametrize("embedded", [True, False])
+def test_a_bad_member_path_names_the_note_the_view_the_entry_and_the_remedy(tmp_path, entries, embedded) -> None:
+    """generic-tables: missing, duplicate, absolute or vault-escaping member paths are input errors."""
+    vault = register_vault(tmp_path, "![[x.base]]")
+    (tmp_path / "outside.md").write_text("Outside.\n", encoding="utf-8")
+    members = "".join(f"        - path: {entry}\n" for entry in entries)
+    base = ("views:\n  - type: table\n    name: All\n    order: [file.name]\n"
+            "  - type: table\n    name: Chosen\n    order: [file.name]\n    obs:\n      members:\n" + members)
+    if embedded:
+        (vault / "x.base").write_text(base, encoding="utf-8")
+    else:
+        (vault / "chapter.md").write_text(f"# Chapter\n\n```base\n{base}```\n", encoding="utf-8")
+
+    with pytest.raises(DocumentError) as raised:
+        build_document(vault / "manifest.md", capability_reference())
+
+    message = str(raised.value)
+    owner, place = (vault / "x.base", "") if embedded else (vault / "chapter.md", "base fence 1, ")
+    assert message.startswith(f"{owner}: {place}views[1].obs.members[1].path: "), message
+    assert "Chosen" in message and entries[1] in message
+    assert "; see capabilities/bases." in message
+
+
+def test_member_paths_that_resolve_to_vault_notes_build(tmp_path) -> None:
+    vault = register_vault(tmp_path, "![[x.base]]")
+    (vault / "sub").mkdir()
+    (vault / "sub" / "e-point.md").write_text("---\nkind: point\n---\n", encoding="utf-8")
+    (vault / "x.base").write_text(
+        "views:\n  - type: table\n    order: [file.name]\n    obs:\n      members:\n"
+        "        - path: sub/e-point.md\n        - path: a-point.md\n", encoding="utf-8",
+    )
+
+    [register] = _registers(build_document(vault / "manifest.md", capability_reference()))
+
+    assert sorted(register["attrs"]["rows"][0]) == ["a-point", "sub-e-point"]
+
+
 @pytest.mark.parametrize(("note", "text", "field"), [
     ("chapter.md", "# Chapter\n\n```base\nobs:\n  members:\n    - path: a-point.md\n"
      "views:\n  - type: table\n    order: [file.name]\n```\n", "base fence 1, obs.members"),

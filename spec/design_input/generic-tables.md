@@ -104,7 +104,9 @@ consume the same applied global Filter; a table's local query remains independen
 - A view may declare ordered `obs.members` entries containing a vault-relative note `path`
   and optional view-local `label`. This set intersects the ordinary Base query; its order is the
   initial row order, and its labels are projected as `obsHtml.label` without modifying canonical
-  note records. Missing, duplicate, absolute, or vault-escaping member paths are input errors.
+  note records. Missing, duplicate, absolute, or vault-escaping member paths, and paths that are
+  not Markdown notes, are input errors naming the note, the view, the entry
+  (`views[<view>].obs.members[<entry>].path`) and the remedy.
   Members belong to their view: each view selects its own members, and a Base-level
   `obs.members` is an input error naming the note; the remedy is to move it into the view.
 - Display labels for columns and grouped properties are presentation metadata over the

@@ -7,7 +7,7 @@ from functools import cache
 from dataclasses import dataclass, field, replace
 import mimetypes
 import json
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 import re
 from urllib.parse import unquote, urlparse
 import urllib.request
@@ -410,6 +410,34 @@ def _card_selection(card: dict[str, object], source_path: Path, vault: _Vault) -
             _query_selection({**population, "where": metric["denominator"]}, source_path, vault)
 
 
+def _validate_members(definition: dict[str, object], source_path: Path, vault: _Vault, place: str = "") -> None:
+    """Each view's obs.members names distinct Markdown notes of the vault by vault-relative path
+    (generic-tables); the schema has checked their shape."""
+    for index, view in enumerate(definition["views"]):
+        members = (view.get("obs") or {}).get("members", [])
+        seen: set[Path] = set()
+        for number, member in enumerate(members):
+            entry = member["path"]
+            relative = PurePosixPath(entry)
+            resolved = (vault.root / entry).resolve()
+            name = f"view {view.get('name')!r}" if view.get("name") is not None else f"view {index + 1}"
+            problem = (
+                f"{entry!r} of {name} is absolute or leaves the vault"
+                if relative.is_absolute() or re.match(r"[A-Za-z]:", entry) or ".." in relative.parts
+                or not resolved.is_relative_to(vault.root)
+                else f"{entry!r} of {name} is not a Markdown note path" if relative.suffix.lower() != ".md"
+                else f"{entry!r} of {name} names no note of the vault" if resolved not in vault.notes
+                else f"{entry!r} of {name} repeats an earlier member" if resolved in seen
+                else ""
+            )
+            if problem:
+                field = ", ".join(item for item in (place, f"views[{index}].obs.members[{number}].path") if item)
+                raise input_error(source_path, field, problem,
+                                  "Write the vault-relative path of a note, with .md, once per view, such as "
+                                  "items/a.md; see capabilities/bases")
+            seen.add(resolved)
+
+
 def _base_selection(definition: object, source_path: Path, vault: _Vault, place: str) -> None:
     """Include the notes a Base definition selects and the notes of the rows it selects."""
     if not isinstance(definition, dict):
@@ -754,6 +782,7 @@ def _fence_node(token: Token, context: _Context) -> dict[str, object]:
                 raise input_error(source_path, place, f"is not valid YAML: {error}",
                                   "Write YAML; see capabilities/bases") from error
             validate_base_definition(specification, source_path, place)
+            _validate_members(specification, source_path, vault, place)
             _base_selection(specification, source_path, vault, place)
         elif language == "cards":
             specification = parse_card_spec(token.content, source_path, place)
@@ -920,6 +949,7 @@ def _semantic_text_nodes(text: str, context: _Context) -> list[dict[str, object]
                 ) from error
             try:
                 validate_base_definition(definition, resolved)
+                _validate_members(definition, resolved, vault)
             except InputError as error:
                 raise VaultError(
                     f"{error} {vault.relative(source_path)} embeds it as {target}."
