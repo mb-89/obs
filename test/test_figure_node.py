@@ -44,6 +44,8 @@ CURVE = {
     "variables": {"x": {"default": 0, "range": [0, 1]}, "a": {"default": 2}, "y": {}},
     "plot": {"x": "x", "y": "y"},
 }
+DECISION = {"criteria": [{"key": "cost", "weight": 1, "better": "lower"}],
+            "candidates": [{"key": "now", "values": {"cost": 2}}, {"key": "new", "values": {"cost": 1}}]}
 FLOW = "graph LR\n  A --> B\n"
 SEQUENCE = "@startuml\nA -> B\n@enduml\n"
 KINDS = {
@@ -55,6 +57,7 @@ KINDS = {
     "equations": ("curve.json", json.dumps(CURVE), json.dumps(CURVE), ""),
     "mermaid": ("flow.mmd", FLOW, json.dumps(FLOW), ""),
     "plantuml": ("sequence.puml", SEQUENCE, json.dumps(SEQUENCE), ""),
+    "pugh": ("decision.json", json.dumps(DECISION), json.dumps(DECISION), ""),
 }
 
 
@@ -114,6 +117,7 @@ def test_each_kind_carries_its_content_in_its_one_child(tmp_path) -> None:
     assert bodies["sankey"] == {"graph": GRAPH, "countLabels": {"unit": "items"}}
     assert bodies["plot"] == {"descriptor": DESCRIPTOR}
     assert [bodies["mermaid"]["source"], bodies["plantuml"]["source"]] == [FLOW, SEQUENCE]
+    assert bodies["pugh"] == {"matrix": DECISION}
     assert bodies["equations"]["solution"]["branches"] == [
         {"y": {"op": "mul", "args": [{"symbol": "a"}, {"symbol": "x"}]}}]
 
