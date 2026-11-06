@@ -99,3 +99,21 @@ def test_the_unit_system_is_stated_once_in_numeric_value_notes() -> None:
     assert "Numeric notes will carry a unit system" not in flat
     assert "nodes-numeric-system" not in flat
     assert "designed separately" not in section
+
+
+def test_the_core_spec_names_every_figure_kind_and_carries_no_plot_evaluator_of_its_own() -> None:
+    """The equations kind replaced the interim's equation plot, whose bounded arithmetic language
+    and sampling the core never had (input-model, Equation figures); the interim's own module
+    documents it until obs#3."""
+    from obs.figure import FIGURE_KINDS
+
+    model = (ROOT / "spec" / "design_input" / "input-model.md").read_text(encoding="utf-8")
+    direction = model.split("#### Figure input direction", 1)[1].split("\n#### ", 1)[0]
+    figures = (ROOT / "spec" / "capabilities" / "figures.md").read_text(encoding="utf-8")
+    core_spec = "\n".join(path.read_text(encoding="utf-8") for path in (ROOT / "spec").rglob("*.md")
+                          if "design_output" not in path.parts)
+
+    for kind in FIGURE_KINDS:
+        assert f"`{kind}`" in direction and f"`{kind}`" in figures, kind
+    for evaluator in ("`samples`", "`traces`", "bounded arithmetic expression language", "parameters.json"):
+        assert evaluator not in core_spec, evaluator
