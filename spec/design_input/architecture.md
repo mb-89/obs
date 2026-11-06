@@ -270,12 +270,16 @@ per build, and splits its top-level keys in two:
 - The core's keys, those `src/obs/project.schema.json` declares (`$schema`, `schemaVersion`,
   `input` and `execution`). The core validates them and applies them over its configuration: each
   key the vault's file sets replaces the value of `--config`, or the schema default without
-  `--config`. A key or value the schema refuses fails the build naming the file, the field path and
+  `--config`.
+
+  A key or value the schema refuses fails the build naming the file, the field path and
   the schema's remedy. The vault's `input.manifestFilename` also names the note a vault folder
   given as `--source` resolves to ([[cli#One-call build]]).
 - Every other top-level key. The core reads none of them and carries them unread in the
   Document's `projectConfig`: `path`, the file's vault-relative path, and `settings`, those keys
-  with their values as written. An adapter applies the keys it knows over its own settings and
+  with their values as written.
+
+  An adapter applies the keys it knows over its own settings and
   refuses any other one, naming the file below the vault root, the field path and the remedy, so a
   key that neither the core nor the adapter knows fails the build. An adapter documents its keys
   and their precedence in its own specification.
@@ -287,7 +291,9 @@ file gives a Document without `projectConfig`.
 Carrying the settings in the Document was chosen over passing the file's path to the adapter as an
 option its manifest declares: a path ties the adapter to the source machine's vault, as an asset
 root would ([Asset bytes](#asset-bytes)), and the adapter would have to tell the core's keys from
-its own, while the core already reads the file. The file is a vault file, so the
+its own, while the core already reads the file.
+
+The file is a vault file, so the
 [source archive](#source-archive) holds it and a rebuild from the archive reads it again and applies
 it; `--config` lies outside the vault and the build record leaves it out, so a setting that must
 survive a rebuild belongs in the vault's file (worker decision, 6 Nov 2026, high confidence).
