@@ -1,65 +1,65 @@
+"""The spec's manifest note, spec/manifest.md, as the core reads it into obs's spec Document.
+
+Reader: whoever changes the spec's manifest or its chapters.
+"""
 from pathlib import Path
 
 import yaml
 
-from obs_html_interim.content import (
-    Chapter,
-    collect_notes,
-    read_chapter_content,
-    read_manifest,
-    render_chapter,
-)
-
 ROOT = Path(__file__).parents[2]
+MANIFEST = ROOT / "spec" / "manifest.md"
 
 
-def test_spec_manifest_is_a_nested_list_of_existing_links() -> None:
-    manifest_path = ROOT / "spec" / "manifest.md"
-    manifest = read_manifest(manifest_path)
-    previous_depth = 0
-
-    assert manifest.chapters
-    assert manifest.metadata["title"] == "obs"
-    assert manifest.abstract.strip()
-    for index, chapter in enumerate(manifest.chapters):
-        depth = chapter.depth
-        assert depth == 0 if index == 0 else depth <= previous_depth + 1
-        previous_depth = depth
-        assert chapter.source_path.is_file()
+def _chapters(items: list[dict]):
+    for chapter in items:
+        yield chapter
+        yield from _chapters(chapter["children"])
 
 
-def test_spec_manifest_reaches_every_design_input_note() -> None:
-    manifest_path = ROOT / "spec" / "manifest.md"
-    manifest = read_manifest(manifest_path)
-    design_inputs = set((ROOT / "spec" / "design_input").glob("*.md"))
-
-    assert design_inputs <= {chapter.source_path for chapter in manifest.chapters}
+def _nodes(nodes: list[dict]):
+    for node in nodes:
+        yield node
+        yield from _nodes(node.get("children", []))
 
 
-def test_every_spec_wiki_link_resolves(spec_vault) -> None:
-    # It renders without running commands (see the rendering fences' stand-in below), so it reads
-    # the spec vault's copy with stand-ins for what the producers write (test/conftest.py).
-    manifest_path = spec_vault / "manifest.md"
-    manifest = read_manifest(manifest_path)
-    home = Chapter(0, "Home", "home", manifest_path, "", "home")
-    home_document = read_chapter_content(home, manifest.metadata["subtitle"])
-    notes, documents, reference_index = collect_notes(
-        manifest_path, manifest.chapters, home, home_document, manifest.metadata,
-    )
-
-    for note in notes:
-        render_chapter(
-            note, notes, manifest_path.parent, document=documents.get(note.source_path),
-            command_runner=lambda _command: "", reference_index=reference_index,
-        )
+def _chapter_paths(document: dict) -> dict[str, str]:
+    """Each chapter's id and the vault path of the note it comes from (its note record)."""
+    paths = {record["id"]: record.get("path") for record in document["records"]}
+    return {chapter["id"]: paths.get(chapter["id"]) for chapter in _chapters(document["chapters"])}
 
 
-def test_spec_manifest_declares_generic_paged_presentation() -> None:
-    manifest_path = ROOT / "spec" / "manifest.md"
-    manifest = read_manifest(manifest_path)
-    frontmatter = yaml.safe_load(manifest_path.read_text(encoding="utf-8").split("---", 2)[1])
+def test_spec_manifest_is_a_nested_list_of_existing_links(spec_document) -> None:
+    manifest = spec_document["manifest"]
 
-    assert manifest.metadata["obsHtml"] == {
+    assert spec_document["chapters"]
+    assert manifest["title"] == "obs"
+    assert [node for node in manifest["abstract"] if node["type"] != "markdown-frontmatter"]
+    paths = _chapter_paths(spec_document)
+    assert all(path and (ROOT / "spec" / path).is_file() for path in paths.values()), paths
+
+
+def test_spec_manifest_reaches_every_design_input_note(spec_document) -> None:
+    design_inputs = {f"design_input/{path.name}" for path in (ROOT / "spec" / "design_input").glob("*.md")}
+
+    assert design_inputs <= set(_chapter_paths(spec_document).values())
+
+
+def test_every_spec_wiki_link_resolves(spec_document) -> None:
+    unresolved = [
+        (chapter["id"], node["attrs"]["target"])
+        for chapter in _chapters(spec_document["chapters"])
+        for node in _nodes(chapter["content"])
+        if node["type"] == "wikilinks" and not node["attrs"].get("chapter")
+    ]
+
+    assert unresolved == []
+    assert spec_document["diagnostics"] == []
+
+
+def test_spec_manifest_declares_generic_paged_presentation(spec_document) -> None:
+    frontmatter = yaml.safe_load(MANIFEST.read_text(encoding="utf-8").split("---", 2)[1])
+
+    assert spec_document["manifest"]["metadata"]["obsHtml"] == {
         "layout": "paged",
         "pages": [
             {"page": "cover"},
@@ -67,35 +67,24 @@ def test_spec_manifest_declares_generic_paged_presentation() -> None:
             {"page": "contents", "title": "Contents"},
         ],
     }
-    assert manifest.presentation["layout"] == "paged"
-    assert manifest.presentation["pages"] == [
-        {"page": "cover"},
-        {"page": "abstract", "title": "Abstract"},
-        {"page": "contents", "title": "Contents"},
-    ]
     assert frontmatter["product"] == {"name": "", "version": ""}
     for field in (
         "organization", "template", "document number", "authors", "reviewers", "approvers",
         "copyright", "confidentiality", "legal entity",
     ):
         assert frontmatter[field] == ""
-        assert field not in manifest.metadata
-    assert "product" not in manifest.metadata
 
 
-def test_dogfood_subtitle_owns_hosted_logos_not_abstract() -> None:
-    manifest_path = ROOT / "spec" / "manifest.md"
-    manifest = read_manifest(manifest_path)
-    home = Chapter(0, "Home", "home", manifest_path, "", "home")
-    document = read_chapter_content(home, manifest.metadata["subtitle"])
-    rendered = render_chapter(home, manifest.chapters, manifest_path.parent, document=document)
+def test_dogfood_subtitle_owns_hosted_logos_not_abstract(spec_document) -> None:
+    """The subtitle holds the two hosted badges, Obsidian then HTML5 with an arrow between; the
+    abstract holds neither."""
+    [record] = [record for record in spec_document["records"] if record.get("path") == "manifest.md"]
+    subtitle = {node["attrs"]["name"]: node["children"] for node in record["fieldNodes"]}["subtitle"]
+    assets = {asset["id"]: asset["href"] for asset in spec_document["assets"]}
 
-    assert '<img src="https://img.shields.io/badge/Obsidian-' in rendered
-    assert 'alt="Obsidian"' in rendered
-    assert '<img src="https://img.shields.io/badge/HTML5-' in rendered
-    assert 'alt="HTML5"' in rendered
-    assert rendered.index('alt="Obsidian"') < rendered.index("→") < rendered.index('alt="HTML5"')
-    assert "This artifact describes" not in rendered
-    assert "img.shields.io" not in manifest.abstract
-    assert "data:image" not in rendered
-    assert '<p class="media-strip">' in rendered
+    assert [node["type"] for node in subtitle] == ["attachments", "text", "attachments"]
+    assert [node["attrs"]["label"] for node in subtitle[::2]] == ["Obsidian", "HTML5"]
+    assert subtitle[1]["text"].strip() == "→"
+    assert all(assets[node["attrs"]["asset"]].startswith("https://img.shields.io/badge/") for node in subtitle[::2])
+    abstract = [node for node in spec_document["manifest"]["abstract"] if node["type"] != "markdown-frontmatter"]
+    assert "img.shields.io" not in str(abstract)

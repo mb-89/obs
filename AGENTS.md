@@ -3,7 +3,9 @@
 ## Working order
 
 1. Read `spec/design_input` and update the relevant design note before behavior changes.
-2. Keep cross-cutting values in `src/obs_html_interim/cfg.json` with matching schema constraints.
+2. Keep cross-cutting values in the configuration that owns them, the core's
+   `src/obs/config.schema.json` or the HTML adapter's `adapters/html/src/obs_html/cfg.json`,
+   with matching schema constraints.
 3. Implement the smallest behavior consistent with the approved design.
 4. Add a regression test first, run the affected tests, and exercise the affected CLI path.
 5. Follow the knowledge-ownership and change-locality rules in
@@ -51,7 +53,7 @@ where they are missing or stale; the complete suite needs its setup first:
 
 ```powershell
 uv run python test/suite.py --setup
-uv run obs-html-interim --help
+uv run obs-document --help
 uv run obs-html --help
 uv run pytest
 ```

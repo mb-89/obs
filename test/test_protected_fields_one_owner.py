@@ -13,8 +13,8 @@ from obs.input import protected_fields
 ROOT = Path(__file__).resolve().parents[1]
 
 OWNER = "src/obs/input.schema.json"
-# The interim adapter keeps its own list until obs#3 deletes the interim.
-EXCEPTIONS = {"src/obs_html_interim/property-editor.schema.json"}
+# Files that may restate the list, with why; today none does.
+EXCEPTIONS: set[str] = set()
 PROTOTYPE = {"__proto__", "constructor", "prototype"}
 QUOTED = re.compile(r"""["']([^"'\s]+)["']""")
 

@@ -4,10 +4,8 @@ Tiers (highest wins): external > e2e > browser > dom > unit. A test gets the tie
 most expensive dependency found in its own source, the test-module helpers and constants it
 references, and its test-module fixtures. An explicit ``@pytest.mark.<tier>`` always wins.
 
-A bare ``pytest`` runs the default tiers and every browser or e2e test that does not reach the
-interim adapter; ``pytest --gate`` adds the interim adapter's browser and e2e tests. A test
-reaches the interim adapter when the same source names its package or command, or uses a name
-imported from it.
+A bare ``pytest`` runs every tier except external, which runs only when selected with
+``-m external``; a test named by its node id runs whatever its tier.
 """
 import ast
 import inspect
@@ -21,10 +19,7 @@ from pathlib import Path
 import pytest
 
 TIERS = ("unit", "dom", "browser", "e2e", "external")
-DEFAULT_TIERS = {"unit", "dom"}
 STRICT_VARIABLE = "OBS_HTML_STRICT"
-INTERIM_PACKAGE = "obs_html_interim"
-INTERIM_EVIDENCE = re.compile(r"obs_html_interim|obs-html-interim")
 EVIDENCE = {
     "external": re.compile(r"OBS_HTML_TEST_AUTHORED_ARTIFACT|OBS_HTML_ARTIFACT_DATA_PROOF|OBS_HTML_TEST_IMPORTED_SNAPSHOT"),
     "e2e": re.compile(r"REFERENCE_EVIDENCE_WORKTREE|REFERENCE_LEVEL_TEST_ROOT|reproduce\.py|[\"']powershell[\"']"),
@@ -121,7 +116,7 @@ def _names(code) -> set[str]:
 
 
 class _Evidence:
-    """What a test depends on inside the test package: its source text and the modules it uses."""
+    """What a test depends on inside the test package: its source text."""
 
     def __init__(self, item, sources: _Sources):
         self.functions: set = set()
@@ -135,16 +130,6 @@ class _Evidence:
         for marker in item.iter_markers("skipif"):
             parts.extend(str(argument) for argument in (*marker.args, *marker.kwargs.values()))
         self.text = "\n".join(parts)
-
-    def modules(self) -> set[str]:
-        found = set()
-        for function in self.functions:
-            for name in _names(function.__code__):
-                value = function.__globals__.get(name)
-                module = value.__name__ if isinstance(value, types.ModuleType) else getattr(value, "__module__", None)
-                if isinstance(module, str):
-                    found.add(module)
-        return found
 
 
 def classify(item, sources: _Sources, evidence: _Evidence | None = None) -> str:
@@ -160,12 +145,6 @@ def classify(item, sources: _Sources, evidence: _Evidence | None = None) -> str:
     return "unit"
 
 
-def reaches_interim(item, sources: _Sources, evidence: _Evidence | None = None) -> bool:
-    evidence = evidence or _Evidence(item, sources)
-    return bool(INTERIM_EVIDENCE.search(evidence.text)) or any(
-        module == INTERIM_PACKAGE or module.startswith(f"{INTERIM_PACKAGE}.") for module in evidence.modules())
-
-
 def _explicitly_named(config) -> set[str]:
     return {argument.replace("\\", "/") for argument in config.args if "::" in argument}
 
@@ -173,23 +152,17 @@ def _explicitly_named(config) -> set[str]:
 def modify_items(config, items) -> None:
     sources = _Sources(Path(__file__).parent)
     tiers = {}
-    interim = set()
     for item in items:
-        evidence = _Evidence(item, sources)
-        tier = classify(item, sources, evidence)
+        tier = classify(item, sources)
         tiers[item.nodeid] = tier
         item.add_marker(tier)
-        if tier not in DEFAULT_TIERS and reaches_interim(item, sources, evidence):
-            interim.add(item.nodeid)
     config.stash[_TIER_KEY] = tiers
     if config.option.markexpr:
         return
-    wanted = set(TIERS) - {"external"}
-    bare = not config.getoption("gate") and config.args_source == pytest.Config.ArgsSource.TESTPATHS
     named = _explicitly_named(config)
     keep, drop = [], []
     for item in items:
-        chosen = (tiers[item.nodeid] in wanted and not (bare and item.nodeid in interim)
+        chosen = (tiers[item.nodeid] != "external"
                   or any(item.nodeid.startswith(name) for name in named))
         (keep if chosen else drop).append(item)
     if drop:
@@ -247,8 +220,7 @@ def terminal_summary(terminalreporter, config) -> None:
     write("selected tiers: " + (", ".join(f"{tier} {count}" for tier, count in ran.items()) or "none"))
     if deselected:
         write("deselected tiers: " + ", ".join(f"{tier} {deselected[tier]}" for tier in TIERS if deselected[tier])
-              + "  (the interim adapter's browser/e2e tests: `pytest --gate`; external needs hand-supplied "
-              "inputs: `-m external`)")
+              + "  (external needs hand-supplied inputs: `-m external`)")
     skips = config.stash.get(_SKIPS_KEY, [])
     mode = "on: skips fail" if strict() else "off: set OBS_HTML_STRICT=1 to make them fail"
     write(f"environment skips: {len(skips)} (strict mode {mode})")

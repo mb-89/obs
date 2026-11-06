@@ -7,7 +7,6 @@ import yaml
 
 from obs.capabilities import build_capability_reference
 from obs.figure import FIGURE_KINDS, validate_figure_descriptor
-from obs_html_interim.content import Chapter, collect_notes, read_chapter_content, read_manifest
 
 
 ROOT = Path(__file__).parents[1]
@@ -67,17 +66,16 @@ def test_capability_notes_own_their_authored_contract() -> None:
     } <= identifiers
 
 
-def test_specification_registers_capabilities_as_an_authored_base(spec_vault) -> None:
-    manifest_path = spec_vault / "manifest.md"
-    manifest = read_manifest(manifest_path)
-    home = Chapter(0, "Home", "home", manifest_path, "", "home")
-    home_document = read_chapter_content(home, manifest.metadata["subtitle"])
-    notes, documents, _ = collect_notes(
-        manifest_path, manifest.chapters, home, home_document, manifest.metadata,
-    )
+def test_specification_registers_capabilities_as_an_authored_base(spec_document) -> None:
+    """The spec's capability reference chapter holds one Bases table of every capability note, and
+    the Document carries a record of kind capability for each of them."""
+    def chapters(items):
+        for chapter in items:
+            yield chapter
+            yield from chapters(chapter["children"])
 
-    reference = next(note for note in notes if note.slug == "capability-reference")
-    definition = documents[reference.source_path].tables[0].definition
+    reference = next(chapter for chapter in chapters(spec_document["chapters"]) if chapter["id"] == "capability-reference")
+    [definition] = [node["attrs"]["spec"] for node in reference["content"] if node["type"] == "bases"]
 
     assert definition["filters"] == 'kind == "capability"'
     assert definition["views"] == [{
@@ -86,8 +84,9 @@ def test_specification_registers_capabilities_as_an_authored_base(spec_vault) ->
         "order": ["capability.id", "capability.summary", "capability.authoring", "capability.dependsOn"],
     }]
     assert {
-        note.source_path.stem for note in notes
-        if documents[note.source_path].frontmatter.get("kind") == "capability"
+        Path(record["path"]).stem for record in spec_document["records"]
+        if record["type"] == "note" and record["path"].startswith("capabilities/")
+        and record["fields"].get("kind") == "capability"
     } == {
         path.stem for path in CAPABILITIES.glob("*.md")
         if _frontmatter(path).get("kind") == "capability"

@@ -116,13 +116,13 @@ definitions alike. Keeping the same fact in two places is an anti-pattern (user,
   one can run after the artifact's own scripts, and reads the artifact's timings from the
   artifact's own performance marks. The adapter's `test/structure/test_quality.py` refuses a
   test that does otherwise.
-- An input many tests read, such as a fixture artifact or the parity builds, is built once per
+- An input many tests read, such as a fixture artifact or the spec artifact, is built once per
   run by `built_once` in the part's `conftest.py` and shared by every worker; the tests only read
   it.
 - obs's spec is built once per run of the complete suite and shared by the core and every
-  adapter: `test/spec_build.py` builds its Document, and the interim reference's artifact, in a
-  folder `test/suite.py` makes for the run, named by a hash of the build's inputs, and counts
-  each build there; the suite fails where one was built twice.
+  adapter: `test/spec_build.py` builds its Document in a folder `test/suite.py` makes for the
+  run, named by a hash of the build's inputs, and counts each build there; the suite fails where
+  one was built twice.
 
   A test that needs another build
   of the spec copies the vault and builds only that variant; the core's
@@ -158,12 +158,8 @@ definitions alike. Keeping the same fact in two places is an anti-pattern (user,
 - Structure tests, which check what a spec note owns and where it points, live in
   `test/structure/test_<note>.py`, one file per note, so changes to different notes touch
   different test files.
-- A bare `uv run pytest`, and so the complete suite, runs the unit and dom tiers and every
-  browser or e2e test that does not reach the interim adapter.
-
-  The interim adapter's browser and e2e tests run only with `uv run pytest --gate`: the adapter's parity gate
-  compares the interim adapter, and the cutover removes them with it. `test/tiers.py` decides
-  what reaches the interim adapter from the same source evidence as the tiers.
+- A bare `uv run pytest`, and so the complete suite, runs every tier except external, which
+  needs inputs from outside the repository and runs only when selected with `-m external`.
 - The browser tier needs `OBS_HTML_TEST_NATIVE_BROWSER`
   set to the absolute path of a Chromium or Chrome executable (for example `/usr/bin/chromium`
   or `C:\Program Files\Google\Chrome\Application\chrome.exe`). Playwright's own browser

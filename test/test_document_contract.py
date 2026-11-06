@@ -389,7 +389,7 @@ def test_document_core_import_has_no_renderer_or_browser_dependencies() -> None:
     result = subprocess.run(
         [sys.executable, "-c",
          "import sys; import obs; "
-         "print(','.join(name for name in sys.modules if name.startswith('obs_html_interim')))"],
+         "print(','.join(name for name in sys.modules if name.split('.')[0] in {'obs_html', 'playwright'}))"],
         check=True,
         capture_output=True,
         text=True,

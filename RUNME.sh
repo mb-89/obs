@@ -49,4 +49,4 @@ if ! command -v uv >/dev/null 2>&1; then
 fi
 
 cd "$ROOT"
-uv run obs-html-interim "$@"
+uv run obs-document "$@"
