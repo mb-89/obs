@@ -321,3 +321,34 @@ def test_a_vault_folder_without_its_manifest_note_names_the_folder_and_the_setti
     assert str(vault) in message and "manifest.md" in message
     assert "input.manifestFilename" in message and "src/obs/config.schema.json" in message
     assert not (tmp_path / "out.json").exists()
+
+
+# A destination inside the vault; see spec/design_input/cli.md, One-call build.
+@pytest.mark.parametrize("inside", ["out/a.html", ".", "linked/a.html"])
+def test_a_destination_inside_the_vault_fails_before_the_build_naming_the_vault(tmp_path, inside) -> None:
+    vault = two_vaults(tmp_path)[0].parent
+    (vault / "chapter.md").unlink()  # A build would fail on the missing note; the refusal comes first.
+    (tmp_path / "linked").symlink_to(vault, target_is_directory=True)
+    destination = vault / inside if inside != "linked/a.html" else tmp_path / inside
+
+    with pytest.raises(SystemExit) as refused:
+        main(["--adapter", "fixture", "--adapter-config", str(recording_adapter(tmp_path)),
+              "--source", str(vault), "--destination", str(destination)])
+
+    message = str(refused.value.code)
+    assert "--destination" in message and str(vault.resolve()) in message
+    assert "spec/design_input/cli.md" in message
+    assert sorted(path.name for path in vault.iterdir()) == ["manifest.md"]
+
+
+def test_each_destination_is_checked_against_its_own_source_s_vault(tmp_path) -> None:
+    first, second = two_vaults(tmp_path)
+    configuration = recording_adapter(tmp_path)
+
+    with pytest.raises(SystemExit) as refused:
+        main(["--adapter", "fixture", "--adapter-config", str(configuration),
+              "--source", str(first), "--destination", str(second.parent / "first.json"),
+              "--source", str(second), "--destination", str(second.parent / "second.json")])
+
+    assert f"--source {second}: --destination" in str(refused.value.code)
+    assert (second.parent / "first.json").is_file() and not (second.parent / "second.json").exists()
