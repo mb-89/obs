@@ -10,15 +10,20 @@ they are ignored and never edited; `[tool.uv] cache-keys` in pyproject.toml make
 - `src/obs/capability-reference.json`, from the capability notes in `spec/capabilities`, with the
   generator `obs.capabilities` and its coverage data; obs-document reads it when no
   `--capability-reference` is given. test/test_capabilities.py fails when the shipped file is stale.
-- `src/obs/vendor/diagrams/`, the diagram renderers that `obs.diagram.RENDERERS` names, installed
-  with `npm ci` from `src/obs/diagrams/package-lock.json`, each npm package with its licence
+- `src/obs/vendor/diagrams/`, the diagram renderers that `obs.diagram.RENDERERS` names, unpacked
+  from the tarballs `src/obs/diagrams/package-lock.json` pins (only those packages' own, checked
+  against its integrity; not their dependencies), each npm package with its licence
   (spec/design_input/input-model.md, Figure input direction).
 """
+import base64
+import hashlib
+import io
 import json
 import os
 import shutil
 import subprocess
 import sys
+import tarfile
 import tempfile
 from pathlib import Path
 
@@ -49,20 +54,54 @@ def _source_module(root: Path, name: str):
         sys.path.remove(str(root / "src"))
 
 
-def npm_ci(package: Path, work: Path, run=subprocess.run) -> Path:
-    """Install the npm package folder ``package`` from its lockfile into ``work``; its node_modules."""
+def _lockfile_packages(lockfile: Path) -> dict:
+    """The lockfile's ``packages``: each installed package by its path, with its version and integrity."""
+    return json.loads(lockfile.read_text(encoding="utf-8"))["packages"]
+
+
+def pinned_files(package: Path, files: list[str], work: Path, run=subprocess.run) -> Path:
+    """Unpack ``files``, paths below node_modules, from the tarballs of the npm packages they belong
+    to, at the versions the lockfile of ``package`` pins, into ``work``; the node_modules folder.
+
+    Only those packages' own tarballs are fetched (one ``npm pack``, from npm's cache where it has
+    them), not their dependencies, and each is checked against the lockfile's integrity."""
     lockfile = package / "package-lock.json"
     remedy = f"install Node.js and check that npm reaches its registry, then build again; {lockfile} pins it"
+    pinned = _lockfile_packages(lockfile)
+    names = sorted({_npm_package(file) for file in files})
+    for name in names:
+        if f"node_modules/{name}" not in pinned:
+            raise BuildError(lockfile, f"packages.node_modules/{name}", "the lockfile pins no such package",
+                             f"add {name} to {package / 'package.json'} and run npm install there")
     npm = shutil.which("npm")
     if npm is None:
-        raise BuildError(lockfile, "npm ci", "npm is not on PATH", remedy)
-    for name in ("package.json", "package-lock.json"):
-        shutil.copy2(package / name, work / name)
-    result = run([npm, "ci", "--ignore-scripts", "--prefer-offline", "--no-audit", "--no-fund"], cwd=work,
-                 stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, encoding="utf-8", errors="replace")
+        raise BuildError(lockfile, "npm pack", "npm is not on PATH", remedy)
+    tarballs = work / "tarballs"
+    tarballs.mkdir()
+    result = run([npm, "pack", "--json", "--prefer-offline", "--pack-destination", str(tarballs),
+                  *(f"{name}@{pinned[f'node_modules/{name}']['version']}" for name in names)], cwd=work,
+                 stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, encoding="utf-8", errors="replace")
     if result.returncode:
-        raise BuildError(lockfile, "npm ci", f"failed (exit code {result.returncode}):\n{result.stdout}", remedy)
-    return work / "node_modules"
+        raise BuildError(lockfile, "npm pack", f"failed (exit code {result.returncode}):\n{result.stderr}{result.stdout}",
+                         remedy)
+    installed = work / "node_modules"
+    for name, packed in zip(names, json.loads(result.stdout)):
+        tarball = (tarballs / packed["filename"]).read_bytes()
+        integrity = pinned[f"node_modules/{name}"]["integrity"]
+        if f"sha512-{base64.b64encode(hashlib.sha512(tarball).digest()).decode()}" != integrity:
+            raise BuildError(lockfile, f"packages.node_modules/{name}.integrity",
+                             f"the tarball npm fetched, {packed['filename']}, is not the one the lockfile pins",
+                             "clear npm's cache with `npm cache clean --force`, then build again")
+        with tarfile.open(fileobj=io.BytesIO(tarball), mode="r:gz") as archive:
+            members = {member.name.removeprefix("package/"): member for member in archive.getmembers()
+                       if member.isfile()}
+            for file in files:
+                member = members.get(file.removeprefix(f"{name}/")) if _npm_package(file) == name else None
+                if member is not None:
+                    target = installed / file
+                    target.parent.mkdir(parents=True, exist_ok=True)
+                    target.write_bytes(archive.extractfile(member).read())
+    return installed
 
 
 def _npm_package(file: str) -> str:
@@ -87,10 +126,10 @@ def build_diagrams(root: Path, run=subprocess.run) -> list[str]:
     folder = root / VENDOR
     files = diagram_files(root)
     with tempfile.TemporaryDirectory(prefix="obs-build-") as work:
-        installed = npm_ci(root / DIAGRAMS, Path(work), run)
+        installed = pinned_files(root / DIAGRAMS, files, Path(work), run)
         for file in files:
             if not (installed / file).is_file():
-                raise BuildError(root / DIAGRAMS / "package-lock.json", file, "npm ci installed no such file",
+                raise BuildError(root / DIAGRAMS / "package-lock.json", file, "its pinned tarball holds no such file",
                                  "pin a version that has it, or change obs.diagram.RENDERERS to its new path")
         for file in files:
             target = folder / file
