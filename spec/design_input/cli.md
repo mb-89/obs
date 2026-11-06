@@ -11,19 +11,24 @@ This command fence derives the artifact's reference from the running CLI.
 See [[input-model]] for source semantics, [[artifact-ui]] for presentation requirements,
 and [[configuration]] for configuration ownership.
 
-## Command fences through the core
+## One-call build
 
-A build through the core authorizes command fences once, on the core. It reads the capability
-reference, which the first command writes from the capability notes:
+One `obs-document` call builds an artifact from a vault:
 
 ```sh
-uv run python -m obs.capabilities --notes spec/capabilities --output <scratch>/capabilities.json
-uv run obs-document --source spec/manifest.md --document <scratch>/spec.json \
-  --capability-reference <scratch>/capabilities.json --execute-commands \
-  --adapter html --adapter-config adapters.json --destination <scratch>/spec.html
+uv run obs-document --source spec/manifest.md --adapter html --destination <scratch>/spec.html --execute-commands
 ```
 
-`--execute-commands` makes the core run the vault's command fences from the vault root and put
+The capability reference is the core's own fact, so the core ships it as package data: every
+build of the package, editable ones included, writes `src/obs/capability-reference.json` from
+`spec/capabilities` (`hatch_build.py`), and `--capability-reference` names another reference only
+where one is wanted. The file is generated beside the package that ships it rather than in
+`data/data_output`, because an editable install reads package data from the package folder; it is
+ignored like every generated file. uv builds the package again when a capability note changes, and
+a test fails when the shipped reference is stale against the notes.
+
+A build through the core authorizes command fences once, on the core: `--execute-commands` makes
+the core run the vault's command fences from the vault root and put
 their captured output into the Document; without it, a command fence fails the build naming its
 note and the flag ([[capabilities/command-fences#Authorization]]).
 

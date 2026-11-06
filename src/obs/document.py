@@ -16,6 +16,9 @@ from obs.vault import VaultError, build_document as _build_document
 
 DOCUMENT_SCHEMA_PATH = Path(__file__).with_name("document.schema.json")
 FIGURE_SCHEMA_PATH = Path(__file__).with_name("figure.schema.json")
+PACKAGED_CAPABILITY_REFERENCE = Path(__file__).with_name("capability-reference.json")
+"""The capability reference the package ships, written from spec/capabilities by every build
+(hatch_build.py); obs-document reads it unless --capability-reference names another."""
 CONTRACT_VERSION = 1
 STRUCTURAL_NODE_TYPES = frozenset(
     json.loads(DOCUMENT_SCHEMA_PATH.read_text(encoding="utf-8"))["$defs"]["structuralType"]["enum"],
@@ -169,8 +172,9 @@ def build_parser() -> argparse.ArgumentParser:
                              "first; without this a cmd fence fails the build.")
     parser.add_argument("--adapter", help="Configured adapter name.")
     parser.add_argument("--adapter-config", type=Path, help="Adapter configuration JSON.")
-    parser.add_argument("--capability-reference", type=Path, required=True,
-                        help="Capability reference JSON.")
+    parser.add_argument("--capability-reference", type=Path, default=PACKAGED_CAPABILITY_REFERENCE,
+                        help="Capability reference JSON (default: the one this package ships, "
+                             "generated from spec/capabilities when it was built).")
     parser.add_argument("--destination", type=Path, help="Adapter output destination.")
     return parser
 
