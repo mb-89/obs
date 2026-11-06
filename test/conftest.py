@@ -1,14 +1,13 @@
 import json
 import os
-import re
 import shutil
 from pathlib import Path
 
 import pytest
-from filelock import FileLock
 
 import browser_pool
 import network_guard
+import spec_build
 import suite
 import tiers
 
@@ -228,25 +227,6 @@ def remote_images(monkeypatch):
     return served, fetched
 
 
-def built_once(tmp_path_factory, name: str, build) -> Path:
-    """The folder ``build(folder)`` fills, built once per run and shared by every xdist worker.
-
-    Workers' temporary folders sit side by side in the run's folder; the first worker to ask
-    builds there under a lock and the others wait for it and read what it built.
-    """
-    root = tmp_path_factory.getbasetemp()
-    if os.environ.get("PYTEST_XDIST_WORKER"):
-        root = root.parent
-    folder = root / name
-    with FileLock(f"{folder}.lock"):
-        if not (folder / ".built").is_file():
-            shutil.rmtree(folder, ignore_errors=True)
-            folder.mkdir()
-            build(folder)
-            (folder / ".built").touch()
-    return folder
-
-
 SPEC_MANIFEST = Path(__file__).parents[1] / "spec" / "manifest.md"
 # What the spec's producers write (spec/appendix/references/obs-html-specification.md builds the
 # HTML adapter's specification into it); a test that reads the spec without running them gets a
@@ -265,39 +245,12 @@ def spec_vault(tmp_path) -> Path:
         (vault / produced).parent.mkdir(parents=True, exist_ok=True)
         (vault / produced).write_text("<!doctype html>\n", encoding="utf-8")
     return vault
-REMOTE_IMAGE = (b"<svg xmlns='http://www.w3.org/2000/svg'/>", "image/svg+xml")
 
 
 @pytest.fixture(scope="session")
 def spec_document_file(tmp_path_factory) -> Path:
-    """obs's spec as the core's Document JSON, built once per run.
-
-    The remote images its manifest shows are served as a small SVG; any other URL is
-    unreachable, as in every test. Its cmd fences are authorized, and a stand-in echoes each
-    command as its output instead of starting it.
-    """
-    def build(folder: Path) -> None:
-        from obs import vault
-        from obs.capabilities import build_capability_reference
-        from obs.document import build_document
-
-        capabilities = SPEC_MANIFEST.parent / "capabilities"
-        served = dict.fromkeys(re.findall(r"!\[[^\]]*\]\((https://[^)]+)\)",
-                                          SPEC_MANIFEST.read_text(encoding="utf-8")), REMOTE_IMAGE)
-
-        def fetch(url: str) -> tuple[bytes, str | None]:
-            if url not in served:
-                raise UnreachableNetwork(f"no network in tests for {url}")
-            return served[url]
-
-        with pytest.MonkeyPatch.context() as patch:
-            patch.setattr(vault, "fetch_remote", fetch)
-            patch.setattr(vault, "run_command", lambda command, cwd, timeout_seconds: f"{command}\n")
-            document = build_document(SPEC_MANIFEST, build_capability_reference(
-                capabilities, capabilities / "coverage.json"), execute_commands=True)
-        (folder / "spec.json").write_text(json.dumps(document), encoding="utf-8")
-
-    return built_once(tmp_path_factory, "spec-document", build) / "spec.json"
+    """obs's spec as the core's Document JSON: the run's one shared build (test/spec_build.py)."""
+    return spec_build.built(spec_build.base(tmp_path_factory), "document") / spec_build.DOCUMENT
 
 
 @pytest.fixture

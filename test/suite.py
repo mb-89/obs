@@ -13,7 +13,10 @@ per CPU (pytest-xdist, `-n auto --dist loadgroup`: a module's tests share a work
 in collection order, so a part can start its longest tests first). The parts run side by side,
 so a short part fills the CPUs a long part leaves idle while it builds its inputs; each part's
 output is printed when it ends. Every part runs to its end even when another fails; the exit
-code is non-zero when any part failed. Arguments are passed on to every part's pytest, for
+code is non-zero when any part failed. The parts share one build of obs's spec: the suite makes a
+folder for the run, names it in `OBS_SPEC_BUILD` for every part, prints how often
+test/spec_build.py built each kind there, fails where one kind was built twice, and removes the
+folder at the end. Arguments are passed on to every part's pytest, for
 example `--durations=20`. Where `SE_TEST_REPORTS` names a directory, each part writes its JUnit
 XML report there as `<part>.xml` (`core.xml`, `adapters-html.xml`), from which se's
 `work_tickets.py suite` names the slowest tests.
@@ -169,15 +172,31 @@ def main(arguments: list[str], clock=time.monotonic) -> int:
     names = [part_name(part) for part in PARTS]
     print(f"test/suite.py: running {', '.join(names)} side by side; each part's output follows "
           "when it ends.", flush=True)
+    import spec_build  # Only here: an adapter's conftest.py loads this module without test/ on its path.
+
     failed = []
-    with ThreadPoolExecutor(len(PARTS)) as pool:
-        running = {pool.submit(run_part, part, arguments): part for part in PARTS}
-        for finished in as_completed(running):
-            code, output = finished.result()
-            print(output, end="" if output.endswith("\n") else "\n", flush=True)
-            if code:
-                failed.append(part_name(running[finished]))
+    with tempfile.TemporaryDirectory(prefix="obs-spec-build-") as shared:
+        os.environ[spec_build.RUN_FOLDER] = shared  # Each part, and each of its workers, inherits it.
+        try:
+            with ThreadPoolExecutor(len(PARTS)) as pool:
+                running = {pool.submit(run_part, part, arguments): part for part in PARTS}
+                for finished in as_completed(running):
+                    code, output = finished.result()
+                    print(output, end="" if output.endswith("\n") else "\n", flush=True)
+                    if code:
+                        failed.append(part_name(running[finished]))
+        finally:
+            del os.environ[spec_build.RUN_FOLDER]
+        builds = spec_build.counts(Path(shared))
     print(f"test/suite.py: parts took {clock() - started:.1f} s.")
+    built = ", ".join(f"{kind} {builds[kind]}" for kind in spec_build.BUILDS)
+    print(f"test/suite.py: obs's spec was built this run (test/spec_build.py): {built}.")
+    if any(count > 1 for count in builds.values()):
+        print(f"test/suite.py: obs's spec was built more than once this run ({built}); test/spec_build.py "
+              "builds each kind once per run. Remedy: find the build whose inputs changed during the run "
+              "(test/spec_build.py, INPUTS) and keep it from writing outside the vault's design_output.",
+              file=sys.stderr)
+        return 1
     if failed:
         failed.sort(key=names.index)
         print(f"test/suite.py: failed parts: {', '.join(failed)}. Remedy: rerun `uv run pytest` in each "
