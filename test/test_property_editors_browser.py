@@ -7,6 +7,10 @@ import yaml
 from obs_html_interim.content import parse_manifest
 from obs_html_interim.renderer import render_artifact
 from test_reader_controls import reader_browser  # noqa: F401
+from obs_html_interim.properties import _schema as _editor_schema
+
+# The interim's own list (its property-editor.schema.json), until obs#3 deletes the interim.
+PROTECTED = sorted(_editor_schema()[2])
 
 
 def test_native_canonical_projection_rejects_protected_fields_and_home_atomically(tmp_path):
@@ -15,10 +19,7 @@ def test_native_canonical_projection_rejects_protected_fields_and_home_atomicall
         pytest.skip("Set OBS_HTML_TEST_NATIVE_BROWSER for native projection checks.")
     from playwright.sync_api import sync_playwright
 
-    protected = [
-        "title", "kind", "aliases", "term", "definition",
-        "__proto__", "constructor", "prototype", "Title", "KiNd",
-    ]
+    protected = [*PROTECTED, "Title", "KiNd"]
     (tmp_path / "manifest.md").write_text("- [[one]]\n- [[two]]\n", encoding="utf-8")
     for slug in ("one", "two"):
         frontmatter = {field: "Original" for field in protected}
