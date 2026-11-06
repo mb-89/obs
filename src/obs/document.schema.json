@@ -218,8 +218,10 @@
           "then": {"properties": {"attrs": {
             "type": "object", "additionalProperties": false, "required": ["target", "chapter", "heading", "label"],
             "properties": {
-              "target": {"type": "string", "minLength": 1}, "chapter": {"$ref": "#/$defs/chapterReference"},
-              "heading": {"type": "string"}, "label": {"type": "string", "minLength": 1}
+              "target": {"description": "The note as written; empty for a block link within its own note ([[#^name]]).", "type": "string"},
+              "chapter": {"$ref": "#/$defs/chapterReference"},
+              "heading": {"type": "string"}, "label": {"type": "string", "minLength": 1},
+              "figure": {"description": "A block link's target: the block id, without its ^, of the figures node in chapter that carries it (capabilities/wikilinks).", "type": "string", "pattern": "^[A-Za-z0-9-]+$"}
             }
           }}}
         },

@@ -55,9 +55,10 @@ def _document(tmp_path: Path, chapter: str, files: dict[str, str] | None = None)
     return build_document(tmp_path / "manifest.md", capability_reference())
 
 
-def _fence(kind: str, content: str, options: str = "", caption: str = "A [[target]] caption") -> str:
+def _fence(kind: str, content: str, options: str = "", caption: str = "A [[target]] caption",
+           block: str = "figure") -> str:
     return (f"```figure\nversion: 1\nkind: {kind}\ncaption: {json.dumps(caption)}\nalt: Alt text\n"
-            f"{options}{content}\n```\n^{kind}-figure\n")
+            f"{options}{content}\n```\n^{kind}-{block}\n")
 
 
 def _figures(document: dict) -> list[dict]:
@@ -70,12 +71,13 @@ def test_inline_and_external_content_give_the_same_node(tmp_path, kind) -> None:
     (tmp_path / "target.md").write_text("# Target\n", encoding="utf-8")
     document = _document(
         tmp_path, "# Chapter\n\n" + _fence(kind, f"source: {name}", options) + "\n"
-        + _fence(kind, f"content: {inline}", options), {name: text},
+        + _fence(kind, f"content: {inline}", options, block="inline"), {name: text},
     )
 
     external, inline_node = _figures(document)
 
-    assert external == inline_node
+    assert inline_node["attrs"].pop("block") == f"{kind}-inline"  # One note's block ids are distinct.
+    assert {**external, "attrs": {key: value for key, value in external["attrs"].items() if key != "block"}} == inline_node
     assert external["attrs"]["kind"] == kind
     assert external["attrs"]["alt"] == "Alt text"
     assert external["attrs"]["block"] == f"{kind}-figure"
