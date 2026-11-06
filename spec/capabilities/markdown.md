@@ -50,7 +50,7 @@ whitespace is dropped; an embed alone in its paragraph replaces it. The block no
 Markdown's blocks (`section`, `paragraph`, `list`, `list-item`, `quote`, `table`, `table-row`,
 `table-cell`, `rule`), `registers`, a note's `embeds` (an embed that names no asset; an embedded
 file stays inline), `figure-descriptor`, `cards-metrics` and `callouts`; `document.schema.json`
-holds the list (`blockNode`). Display
+holds the list (`blockNode`) and refuses a Document that puts one inside a paragraph. Display
 math on its own line arrives as a block `math` node; `$$x$$` inside a line stays inline.
 
 A `list` says whether it is numbered (`attrs.ordered`) and whether it was authored tight

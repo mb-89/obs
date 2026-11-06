@@ -66,6 +66,14 @@
           "then": {"properties": {"attrs": {"maxProperties": 0}}}
         },
         {
+          "description": "A paragraph: its children are inline nodes, never a block node (capabilities/markdown#Document nodes).",
+          "if": {"properties": {"type": {"const": "paragraph"}}},
+          "then": {"properties": {"children": {"items": {"not": {
+            "description": "Place the block node beside the paragraph, never inside it (capabilities/markdown#Document nodes)",
+            "$ref": "#/$defs/blockNode"
+          }}}}}
+        },
+        {
           "description": "A thematic break: no attributes and no children.",
           "if": {"properties": {"type": {"const": "rule"}}},
           "then": {"properties": {"attrs": {"maxProperties": 0}, "children": {"maxItems": 0}}}
