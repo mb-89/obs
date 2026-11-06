@@ -8,7 +8,8 @@ they are ignored and never edited; `[tool.uv] cache-keys` in pyproject.toml make
 `uv run` build again when an input changes.
 
 - `src/obs/capability-reference.json`, from the capability notes in `spec/capabilities`, with the
-  generator `obs.capabilities` and its coverage data; obs-document reads it when no
+  generator `obs.capabilities` and its coverage data, written by `obs.output.write_output`
+  (atomic, and only where it changed); obs-document reads it when no
   `--capability-reference` is given. test/test_capabilities.py fails when the shipped file is stale.
 - `src/obs/vendor/diagrams/`, the diagram renderers that `obs.diagram.RENDERERS` names, unpacked
   from the tarballs `src/obs/diagrams/package-lock.json` pins (only those packages' own, checked
@@ -155,6 +156,10 @@ class PackageDataHook(BuildHookInterface):
         root = Path(self.root)
         capabilities = _source_module(root, "obs.capabilities")
         reference = capabilities.build_capability_reference(root / NOTES, root / NOTES / "coverage.json")
-        (root / CAPABILITY_REFERENCE).write_text(json.dumps(reference, indent=2) + "\n", encoding="utf-8")
+        # The core's own output writer: atomic, and silent where the reference is current, so a
+        # build during a test run (the html part's wheels, an editable rebuild) never shows a
+        # reader a partial file.
+        _source_module(root, "obs.output").write_output(root / CAPABILITY_REFERENCE,
+                                                        json.dumps(reference, indent=2) + "\n")
         build_data["artifacts"].append(CAPABILITY_REFERENCE.as_posix())
         build_data["artifacts"].extend(build_diagrams(root))
