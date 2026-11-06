@@ -47,7 +47,7 @@
       "anyOf": [
         {"properties": {"type": {"enum": [
           "section", "paragraph", "list", "list-item", "quote", "table", "table-row", "table-cell", "rule",
-          "registers", "figure-descriptor", "cards-metrics", "callouts"
+          "registers", "figures", "cards-metrics", "callouts"
         ]}}},
         {"properties": {"type": {"const": "embeds"}, "attrs": {"not": {"required": ["asset"]}}}}
       ]
@@ -121,17 +121,21 @@
           }}}
         },
         {
-          "if": {"properties": {"type": {"const": "figure-descriptor"}}},
-          "then": {
-            "properties": {
-              "attrs": {
-                "type": "object",
-                "additionalProperties": false,
-                "required": ["descriptor"],
-                "properties": {"descriptor": {"$ref": "figure.schema.json"}}
+          "description": "A figure of any kind (capabilities/figures): what every kind shares; its one child is the kind's body, whose type is the kind and whose attrs $defs/figureBodies owns per kind (obs.document checks it; src/obs/figure.py's FIGURE_KINDS reads each kind's content).",
+          "if": {"properties": {"type": {"const": "figures"}}},
+          "then": {"properties": {
+            "attrs": {
+              "type": "object", "additionalProperties": false, "required": ["kind"],
+              "properties": {
+                "kind": {"$ref": "#/$defs/id"},
+                "caption": {"description": "Paragraph nodes, parsed like note content.", "type": "array", "minItems": 1,
+                            "items": {"properties": {"type": {"const": "paragraph"}}}},
+                "alt": {"type": "string"},
+                "block": {"description": "The figure's Obsidian block id, without its ^.", "type": "string", "pattern": "^[A-Za-z0-9-]+$"}
               }
-            }
-          }
+            },
+            "children": {"minItems": 1, "maxItems": 1}
+          }}
         },
         {
           "if": {"properties": {"type": {"const": "attachments"}}},
@@ -235,6 +239,48 @@
           }}}
         }
       ]
+    },
+    "figureBodies": {
+      "image": {
+        "type": "object", "additionalProperties": false, "required": ["mediaType", "data"],
+        "properties": {
+          "mediaType": {"type": "string", "pattern": "^image/"},
+          "data": {"description": "The image's bytes, base64-encoded (RFC 4648, padded).", "type": "string", "contentEncoding": "base64", "pattern": "^[A-Za-z0-9+/]*={0,2}$"}
+        }
+      },
+      "svg": {
+        "type": "object", "additionalProperties": false, "required": ["svg"],
+        "properties": {
+          "svg": {"description": "The exact SVG drawing's markup.", "type": "string", "minLength": 1},
+          "panels": {
+            "type": "array", "minItems": 1, "maxItems": 64,
+            "items": {
+              "type": "object", "additionalProperties": false, "required": ["id", "title", "box"],
+              "properties": {
+                "id": {"type": "string", "minLength": 1}, "title": {"type": "string"},
+                "box": {"description": "x, y, width and height in viewBox units.", "type": "array", "minItems": 4, "maxItems": 4, "items": {"type": "number"}}
+              }
+            }
+          }
+        }
+      },
+      "sankey": {
+        "type": "object", "additionalProperties": false, "required": ["graph"],
+        "properties": {
+          "graph": {"description": "The Sankey graph (input-model, Figure input direction); an adapter checks the shape it draws.", "type": "object"},
+          "countLabels": {
+            "type": "object", "additionalProperties": false, "minProperties": 1,
+            "properties": {
+              "unit": {"type": "string", "pattern": "^\\S(.*\\S)?$", "maxLength": 64},
+              "unique": {"type": "string", "pattern": "^\\S(.*\\S)?$", "maxLength": 64}
+            }
+          }
+        }
+      },
+      "plot": {
+        "type": "object", "additionalProperties": false, "required": ["descriptor"],
+        "properties": {"descriptor": {"$ref": "figure.schema.json"}}
+      }
     },
     "chapterReference": {
       "description": "The id of the included chapter a note link resolves to, home for the manifest, or null when the target does not exist.",
