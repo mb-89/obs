@@ -30,6 +30,10 @@
         "properties": {"level": {"enum": ["error", "warning", "info"]}, "message": {"type": "string", "minLength": 1}}
       }
     },
+    "style": {
+      "description": "The identity of the style module the manifest's obs.style declares, as declared, never its files; an adapter that offers styles resolves and applies it (architecture.md, Declared style).",
+      "$ref": "#/$defs/styleIdentity"
+    },
     "cssSnippets": {
       "description": "The vault's CSS snippets, every .css file of its snippet folder in name order (architecture.md, CSS snippets).",
       "type": "array", "items": {"$ref": "#/$defs/cssSnippet"}
@@ -299,13 +303,7 @@
         "type": "object", "additionalProperties": false, "required": ["graph"],
         "properties": {
           "graph": {"description": "The Sankey graph (input-model, Figure input direction); an adapter checks the shape it draws.", "type": "object"},
-          "countLabels": {
-            "type": "object", "additionalProperties": false, "minProperties": 1,
-            "properties": {
-              "unit": {"type": "string", "pattern": "^\\S(.*\\S)?$", "maxLength": 64},
-              "unique": {"type": "string", "pattern": "^\\S(.*\\S)?$", "maxLength": 64}
-            }
-          }
+          "countLabels": {"$ref": "figure.schema.json#/$defs/countLabels"}
         }
       },
       "plot": {
@@ -505,14 +503,24 @@
         "text": {"type": "string"}
       }
     },
+    "styleIdentity": {
+      "description": "A style module pinned to a commit: its public https clone URL, the full commit SHA and optionally its folder in that repository (architecture.md, Declared style).",
+      "type": "object", "additionalProperties": false, "required": ["url", "ref"],
+      "properties": {
+        "url": {"type": "string", "pattern": "^https://[^\\s/@]+/\\S+$"},
+        "ref": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+        "path": {"type": "string", "minLength": 1}
+      }
+    },
     "sourceBuild": {
-      "description": "What rebuilds the artifact: obs's public repository, the commit of the checkout obs ran from, the package versions of every lockfile Git tracks there by repository-relative path, and the obs-document arguments of the call without the build machine's paths (architecture.md, Source archive).",
+      "description": "What rebuilds the artifact: obs's public repository, the commit of the checkout obs ran from, the package versions of every lockfile Git tracks there by repository-relative path, the obs-document arguments of the call without the build machine's paths and the declared style (architecture.md, Source archive).",
       "type": "object", "additionalProperties": false, "required": ["repository", "commit", "lockfiles", "arguments"],
       "properties": {
         "repository": {"type": "string", "minLength": 1},
         "commit": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
         "lockfiles": {"type": "object", "additionalProperties": {"type": "object", "additionalProperties": {"type": "string"}}},
-        "arguments": {"type": "array", "items": {"type": "string"}, "contains": {"const": "--embed-source"}}
+        "arguments": {"type": "array", "items": {"type": "string"}, "contains": {"const": "--embed-source"}},
+        "style": {"$ref": "#/$defs/styleIdentity", "description": "The style the manifest declares, which a rebuild resolves again (architecture.md, Declared style)."}
       }
     },
     "sourceFile": {
