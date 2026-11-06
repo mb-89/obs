@@ -280,6 +280,16 @@
       "plot": {
         "type": "object", "additionalProperties": false, "required": ["descriptor"],
         "properties": {"descriptor": {"$ref": "figure.schema.json"}}
+      },
+      "mermaid": {"$ref": "#/$defs/diagramBody"},
+      "plantuml": {"$ref": "#/$defs/diagramBody"}
+    },
+    "diagramBody": {
+      "description": "A diagram figure: its text as authored, kept for review, and the SVG the core drew from it at build time (input-model, Figure input direction), so no adapter needs the diagram's library.",
+      "type": "object", "additionalProperties": false, "required": ["source", "svg"],
+      "properties": {
+        "source": {"description": "The diagram's text in its language.", "type": "string", "minLength": 1},
+        "svg": {"description": "The drawing's SVG markup.", "type": "string", "minLength": 1}
       }
     },
     "chapterReference": {

@@ -216,7 +216,7 @@ def build_document(
     for chapter in chapters:
         parse_chapter(chapter)
     _metadata_links(metadata, manifest_path, vault)
-    manifest_context = context_of(manifest_path, metadata)
+    manifest_context = replace(context_of(manifest_path, metadata), first_line=body[:abstract].count("\n"))
     abstract_nodes = _nodes(body[abstract:], manifest_context)
     manifest_nodes = _frontmatter_nodes(metadata, manifest_context)
     unlisted: list[dict[str, object]] = []
@@ -641,6 +641,9 @@ class _Context:
     fences: dict[str, int] = field(default_factory=dict)
     field_path: str = ""
     frontmatter: dict[str, object] = field(default_factory=dict)
+    first_line: int | None = 0
+    """The note body's 0-based line the parsed text starts on, or None where the text is not
+    the note's own (a card body), for messages that name a note line."""
 
 
 def _nodes(source: str, context: _Context) -> list[dict[str, object]]:
@@ -830,7 +833,10 @@ def _fence_node(token: Token, context: _Context) -> dict[str, object]:
     info = token.info.strip().split() if token.type == "fence" else []
     language = info[0] if info else ""
     silent_command = info == ["cmd", "silent"]
-    if language in {"base", "cards", "property-editor", "cmd", "figure"}:
+    diagram = FIGURE_KINDS[language] if language in FIGURE_KINDS and FIGURE_KINDS[language].fence else None
+    if diagram is not None and not {"figures", diagram.capability} <= capability_ids:
+        diagram = None
+    if language in {"base", "cards", "property-editor", "cmd", "figure"} or diagram:
         context.fences[language] = context.fences.get(language, 0) + 1
     place = f"{language} fence {context.fences.get(language, 0)}"
     try:
@@ -846,7 +852,7 @@ def _fence_node(token: Token, context: _Context) -> dict[str, object]:
         elif language == "cards":
             specification = parse_card_spec(token.content, source_path, place)
             card_bodies = []
-            body_context = replace(context, capabilities=set(), fences={})
+            body_context = replace(context, capabilities=set(), fences={}, first_line=None)
             for card in specification["cards"]:
                 _card_selection(card, source_path, vault)
                 card_bodies.append({
@@ -861,7 +867,10 @@ def _fence_node(token: Token, context: _Context) -> dict[str, object]:
                 raise input_error(source_path, place, "is empty", "Write the command to run or "
                                   "remove the fence; see capabilities/command-fences") from error
         elif language == "figure":
-            figure = _figure(token.content, context, place)
+            figure = _figure(_figure_fence(token.content, context, place), context, place, token.map[0])
+        elif diagram:
+            figure = _figure({"version": 1, "kind": language, "content": token.content}, context, place,
+                             token.map[0], plain=True)
     except (InputError, yaml.YAMLError) as error:
         raise VaultError(str(error)) from error
     fence_type = {
@@ -870,7 +879,7 @@ def _fence_node(token: Token, context: _Context) -> dict[str, object]:
         "cards": "cards-metrics",
         "property-editor": "property-editors",
         "figure": "figures",
-    }.get(language)
+    }.get(language, "figures" if diagram else None)
     if fence_type is None or fence_type not in capability_ids:
         return {
             "type": "code", "attrs": {"language": language},
@@ -881,7 +890,7 @@ def _fence_node(token: Token, context: _Context) -> dict[str, object]:
         attrs["silent"] = True
     elif language == "cmd":
         attrs["output"] = _command_output(token.content, source_path, place, context.command_runner)
-    if language == "figure":
+    if language == "figure" or diagram:
         context.capabilities.add(fence_type)
         if FIGURE_KINDS[figure["attrs"]["kind"]].capability:
             context.capabilities.add(FIGURE_KINDS[figure["attrs"]["kind"]].capability)
@@ -910,24 +919,52 @@ FIGURES = "capabilities/figures"
 """The note that owns the figure fence; see input-model, Figure input direction."""
 
 
-def _figure(text: str, context: _Context, place: str) -> dict[str, object]:
-    """The one figures node of a figure fence, whatever its kind; its one child is the kind's body."""
-    source_path = context.source_path
-
-    def fail(field: str, problem: str, remedy: str) -> InputError:
-        reference = "" if "; see " in remedy else f"; see {FIGURES}"
-        return input_error(source_path, f"{place}, {field}", problem, remedy + reference)
-
+def _figure_fence(text: str, context: _Context, place: str) -> dict[str, object]:
+    """A figure fence's mapping, checked against the fence's schema."""
     try:
         fence = yaml.safe_load(text)
     except yaml.YAMLError as error:
-        raise input_error(source_path, place, f"is not valid YAML: {error}",
+        raise input_error(context.source_path, place, f"is not valid YAML: {error}",
                           f"Write a YAML mapping; see {FIGURES}") from error
-    error = schema_error(list(input_validator("figureFence").iter_errors(fence)), source_path, FIGURES,
+    error = schema_error(list(input_validator("figureFence").iter_errors(fence)), context.source_path, FIGURES,
                          place=place)
     if error:
         raise error
+    content = yaml.compose(text).value
     fence = _json_value(fence)
+    for key, value in content:
+        if key.value == "content" and isinstance(fence.get("content"), str):
+            # The fence text's line, from 0, before content line 1: a block scalar's text starts below its key.
+            fence["_content_line"] = value.start_mark.line + (0 if value.style in {"|", ">"} else -1)
+    return fence
+
+
+def _figure(fence: dict[str, object], context: _Context, place: str, opener: int,
+            plain: bool = False) -> dict[str, object]:
+    """The one figures node of a figure fence, or of a plain fence of a diagram kind (``plain``,
+    whose whole text is the content), whatever its kind; its one child is the kind's body.
+    ``opener`` is the note body line, from 0, of the fence's opening line."""
+    source_path = context.source_path
+    # The fence line a content line k (from 1) is on, counted from the opening line.
+    content_offset = 0 if plain else 1 + fence.pop("_content_line", 0)
+
+    def fail(field: str, problem: str, remedy: str, reference: str = FIGURES) -> InputError:
+        reference = "" if "; see " in remedy else f"; see {reference}"
+        return input_error(source_path, f"{place}, {field}", problem, remedy + reference)
+
+    def located(error: FigureContentError) -> InputError:
+        """A diagram's error: the note line of the content line it names, else of the fence."""
+        where = place if plain else f"{place}, {error.field}"
+        offset = 0
+        if error.line is not None and error.field == "source":
+            where += f", line {error.line}"
+        elif error.line is not None:
+            offset = content_offset + error.line
+        note_line = _note_line(context, opener + offset)
+        if note_line is not None:
+            where = f"line {note_line}, {where}"
+        return input_error(source_path, where, error.problem, f"{error.remedy}; see {error.reference}")
+
     kind = FIGURE_KINDS.get(fence["kind"])
     if kind is None:
         raise fail("kind", f"is {fence['kind']!r}, which is no figure kind",
@@ -944,7 +981,7 @@ def _figure(text: str, context: _Context, place: str) -> dict[str, object]:
         else:
             body = kind.read(fence["content"], None)
     except FigureContentError as error:
-        raise fail(error.field, error.problem, error.remedy) from error
+        raise (located(error) if error.reference else fail(error.field, error.problem, error.remedy)) from error
     body |= options
     schema = json.loads(Path(__file__).with_name("document.schema.json").read_text(encoding="utf-8"))
     validator = Draft202012Validator(
@@ -971,6 +1008,14 @@ def _figure(text: str, context: _Context, place: str) -> dict[str, object]:
 def _figure_registry() -> Registry:
     return Registry().with_resource(
         FIGURE_SCHEMA_PATH.name, Resource.from_contents(json.loads(FIGURE_SCHEMA_PATH.read_text(encoding="utf-8"))))
+
+
+def _note_line(context: _Context, body_line: int) -> int | None:
+    """The note's source line of the parsed text's 0-based ``body_line``, where it is the note's own."""
+    if context.first_line is None:
+        return None
+    lines = read_note(context.source_path).lines
+    return lines[min(context.first_line + body_line, len(lines) - 1)] if lines else None
 
 
 def _figure_file(source: str, context: _Context, fail: Callable[..., InputError]) -> Path:

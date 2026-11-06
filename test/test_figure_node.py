@@ -34,12 +34,16 @@ DESCRIPTOR = {
     }],
     "provenance": {"command": ["measure"]},
 }
+FLOW = "graph LR\n  A --> B\n"
+SEQUENCE = "@startuml\nA -> B\n@enduml\n"
 KINDS = {
     # kind: (file name, file text, inline content as YAML, kind options)
     "image": ("drawing.svg", SVG, json.dumps(SVG), ""),
     "svg": ("panels.svg", SVG, json.dumps(SVG), "panels: [{id: all, title: All, box: [0, 0, 10, 10]}]\n"),
     "sankey": ("flow.json", json.dumps(GRAPH), json.dumps(GRAPH), "countLabels: {unit: items}\n"),
     "plot": ("response.json", json.dumps(DESCRIPTOR), json.dumps(DESCRIPTOR), ""),
+    "mermaid": ("flow.mmd", FLOW, json.dumps(FLOW), ""),
+    "plantuml": ("sequence.puml", SEQUENCE, json.dumps(SEQUENCE), ""),
 }
 
 
@@ -96,6 +100,7 @@ def test_each_kind_carries_its_content_in_its_one_child(tmp_path) -> None:
     assert bodies["svg"] == {"svg": SVG, "panels": [{"id": "all", "title": "All", "box": [0, 0, 10, 10]}]}
     assert bodies["sankey"] == {"graph": GRAPH, "countLabels": {"unit": "items"}}
     assert bodies["plot"] == {"descriptor": DESCRIPTOR}
+    assert [bodies["mermaid"]["source"], bodies["plantuml"]["source"]] == [FLOW, SEQUENCE]
 
 
 def test_the_kind_registry_and_the_body_schemas_name_the_same_kinds() -> None:

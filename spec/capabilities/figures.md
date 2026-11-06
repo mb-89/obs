@@ -10,8 +10,9 @@ capability:
 
 ## What it does
 
-Every figure is one generic figure of a kind: `image`, `svg`, `sankey` or `plot` (a stored-data
-FigureDescriptor, [[capabilities/figure-descriptor]]). The fence carries what every kind shares,
+Every figure is one generic figure of a kind: `image`, `svg`, `sankey`, `plot` (a stored-data
+FigureDescriptor, [[capabilities/figure-descriptor]]), `mermaid` ([[capabilities/mermaid]]) or
+`plantuml` ([[capabilities/plantuml]]). The fence carries what every kind shares,
 `caption` and `alt`, and the kind's content: inline under `content`, or from `source`, a file
 relative to the note inside the vault, exactly one of the two. A `^name` line directly after the
 fence is the figure's block id. The core emits one `figures` node per fence; its one child is
