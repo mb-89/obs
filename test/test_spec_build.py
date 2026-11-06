@@ -4,6 +4,7 @@ Owner: test/spec_build.py (the build, its inputs and its count) and test/suite.p
 folder, and the check at the run's end); quality.md, Testing boundaries, owns the rule.
 """
 import os
+import threading
 from pathlib import Path
 
 import pytest
@@ -149,3 +150,77 @@ def test_the_suite_fails_where_any_kind_was_built_twice(tmp_path, monkeypatch, c
 
     assert code == 1
     assert f"{kind} 2" in capsys.readouterr().err
+
+
+class Config:
+    """A part's pytest config as ``spec_build.start`` reads it: a worker's has ``workerinput``."""
+
+    def __init__(self, worker: bool = False):
+        if worker:
+            self.workerinput = {"workerid": "gw0"}
+
+
+def test_the_controller_starts_the_runs_build_before_its_workers_and_it_is_counted_once(
+        counted_builds, tmp_path, monkeypatch) -> None:
+    """In a run of the complete suite the core's controller starts the Document build in the
+    background; a worker that asks while it builds waits on the same lock and reads that build."""
+    calls, _inputs = counted_builds
+    run = tmp_path / "run"
+    run.mkdir()
+    monkeypatch.setenv(spec_build.RUN_FOLDER, str(run))
+    building, release = threading.Event(), threading.Event()
+
+    def build(folder: Path) -> None:
+        building.set()
+        release.wait(10)
+        calls.append(folder)
+        (folder / "spec.json").write_text("{}", encoding="utf-8")
+
+    monkeypatch.setitem(spec_build.BUILDS, "document", build)
+    started = spec_build.start(Config())
+    assert started is not None and building.wait(10), "the controller started no build"
+    asked = []
+    worker = threading.Thread(target=lambda: asked.append(spec_build.built(run, "document")))
+    worker.start()
+    release.set()
+    spec_build.finish()
+    worker.join(10)
+
+    assert not started.is_alive() and len(calls) == 1
+    assert asked == [run / f"document-{spec_build.inputs_key()}"]
+    assert spec_build.counts(run) == {"document": 1}
+
+
+@pytest.mark.parametrize("worker, run_folder", [(True, True), (False, False)], ids=["worker", "focused-run"])
+def test_a_worker_and_a_focused_run_start_no_build(counted_builds, tmp_path, monkeypatch, worker, run_folder) -> None:
+    """A worker leaves the start to its controller; a focused run builds only where a test asks."""
+    calls, _inputs = counted_builds
+    if run_folder:
+        monkeypatch.setenv(spec_build.RUN_FOLDER, str(tmp_path))
+    else:
+        monkeypatch.delenv(spec_build.RUN_FOLDER, raising=False)
+
+    assert spec_build.start(Config(worker)) is None
+    spec_build.finish()
+    assert calls == [] and spec_build.counts(tmp_path) == {}
+
+
+def test_a_failed_early_build_is_not_counted_and_the_test_that_needs_it_reports_it(
+        counted_builds, tmp_path, monkeypatch) -> None:
+    """The background build keeps its error; the test that needs the build builds it again and
+    fails with the build's own message, so a failure is reported where it matters, once."""
+    _calls, _inputs = counted_builds
+    run = tmp_path / "run"
+    run.mkdir()
+    monkeypatch.setenv(spec_build.RUN_FOLDER, str(run))
+
+    def build(folder: Path) -> None:
+        raise spec_build.SpecBuildError("test/spec_build.py: building failed: the step's output")
+
+    monkeypatch.setitem(spec_build.BUILDS, "document", build)
+    spec_build.start(Config())
+    spec_build.finish()
+
+    assert spec_build.counts(run) == {}
+    with pytest.raises(spec_build.SpecBuildError, match="test/spec_build.py"):
+        spec_build.built(run, "document")
