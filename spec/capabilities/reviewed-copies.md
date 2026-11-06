@@ -9,3 +9,10 @@ capability:
 ---
 
 The register presents the owning metadata as the capability reference.
+
+## Core part
+
+A reviewed copy edits canonical notes only through the property-editor contract the core
+validates ([[capabilities/property-editors]], [[input-model#Reviewed copy]]). How an adapter saves
+a reviewed copy, with its review comments, decisions and reader state, is that adapter's; its
+specification is listed in [[appendix/references|References]].
