@@ -104,16 +104,35 @@ def test_the_suite_records_each_passed_tests_tier_and_time_per_run(tmp_path, mon
                            ("hung", "unit", 30.0, "failure"), ("skip", "dom", 0.0, "skipped"),
                            ("untiered", None, 2.0, None)])
 
-    assert suite.record_durations(report, keep=2) == [
-        {"test.x::one@g": ["unit", 1.5], "test.x::two": ["browser", 6.25]}]
+    assert suite.record_durations(report, keep=2) == {"test.x::one@g": ["unit", 1.5], "test.x::two": ["browser", 6.25]}
     _tiered_junit(report, [("one@g", "unit", 2.0, None)])
     suite.record_durations(report, keep=2)
     _tiered_junit(report, [("one@g", "unit", 3.0, None)])
 
-    assert suite.record_durations(report, keep=2) == [{"test.x::one@g": ["unit", 2.0]},
-                                                      {"test.x::one@g": ["unit", 3.0]}]
+    assert suite.record_durations(report, keep=2) == {"test.x::one@g": ["unit", 3.0]}
     assert suite.recorded_runs() == [[{"test.x::one@g": ["unit", 2.0]}, {"test.x::one@g": ["unit", 3.0]}]]
-    assert suite.record_durations(tmp_path / "missing.xml", keep=2) == []
+    assert suite.record_durations(tmp_path / "missing.xml", keep=2) == {}
+    assert suite.recorded_runs() == [[{"test.x::one@g": ["unit", 2.0]}, {"test.x::one@g": ["unit", 3.0]}]]
+
+
+def test_a_part_whose_test_ran_over_its_tiers_cap_fails_naming_it(tmp_path, monkeypatch) -> None:
+    """A record-derived bound may not grow past its cap (test/bounds.py, CAP_FACTOR): the part fails."""
+    import sys
+
+    import bounds
+
+    monkeypatch.setattr(suite, "WEIGHTS", tmp_path / "weights")
+    report = tmp_path / "core.xml"
+    cap = bounds.CAP_FACTOR * bounds.COMMITTED["unit"]
+    _tiered_junit(report, [("slow", "unit", cap + 1, None), ("fine", "unit", cap - 1, None)])
+    monkeypatch.setattr(suite, "part_command", lambda *_: [sys.executable, "-c", "pass"])
+    monkeypatch.setattr(suite, "part_report", lambda *_: report)
+
+    code, output = suite.run_part(suite.ROOT, [], tmp_path)
+
+    assert code == 1
+    assert f"test/bounds.py: test.x::slow took {cap + 1} s, over the unit tier's cap of {cap} s" in output
+    assert "test.x::fine" not in output
 
 
 def test_without_records_no_runs_are_recorded(tmp_path, monkeypatch) -> None:

@@ -25,7 +25,7 @@ by which se divides the part's test time. From each report the suite records eac
 test time as the part's weights (WEIGHTS, record_weights); each part's `conftest.py` deals its
 groups heaviest first by them (heaviest_first), and keeps its own order where no record exists.
 Beside them it records each passed test's tier and time per run (record_durations), from which
-test/bounds.py derives each tier's timeout.
+test/bounds.py derives each tier's timeout; a part whose test ran past its tier's cap fails.
 
 The parts depend on Node packages: each part's `test/browser/package-lock.json`
 (today `adapters/html/test/browser` alone); the core's diagram renderers and the html
@@ -118,17 +118,17 @@ def record_weights(report: Path) -> dict[str, float]:
     return weights
 
 
-def record_durations(report: Path, keep: int) -> list[dict[str, list]]:
+def record_durations(report: Path, keep: int) -> dict[str, list]:
     """Append to a part's recorded runs, `<part>.runs.json` beside its weights, each passed test's
     tier (the case's property that test/bounds.py's ``mark`` writes, TIER_PROPERTY) and time in its
-    JUnit report, keyed by the case, and keep the last ``keep`` runs; the runs recorded. A failed
-    or skipped test is no measurement."""
+    JUnit report, keyed by the case, and keep the last ``keep`` runs; the run recorded, none where
+    the part wrote no report. A failed or skipped test is no measurement."""
     import bounds  # Only here: an adapter's conftest.py loads this module without test/ on its path.
 
     record = WEIGHTS / f"{report.stem}.runs.json"
-    runs = json.loads(record.read_text(encoding="utf-8")) if record.is_file() else []
     if not report.is_file():
-        return runs
+        return {}
+    runs = json.loads(record.read_text(encoding="utf-8")) if record.is_file() else []
     run = {}
     for case in ElementTree.parse(report).iter("testcase"):
         tier = next((prop.get("value") for prop in case.iter("property")
@@ -138,7 +138,7 @@ def record_durations(report: Path, keep: int) -> list[dict[str, list]]:
     runs = [*runs, run][-keep:]
     WEIGHTS.mkdir(parents=True, exist_ok=True)
     record.write_text(json.dumps(runs, indent=0, sort_keys=True) + "\n", encoding="utf-8")
-    return runs
+    return run
 
 
 def recorded_runs() -> list[list[dict[str, list]]]:
@@ -238,7 +238,8 @@ def set_up_focused_run(config, packages: list[Path] | None = None, run=None) -> 
 
 def run_part(part: Path, arguments: list[str], run_folder: Path) -> tuple[int, str]:
     """Run one part's pytest; its exit code and its output, headed by its command. A part still
-    running at the cap (CAP_SECONDS) is stopped, and its output ends naming the tests it ran then."""
+    running at the cap (CAP_SECONDS) is stopped, and its output ends naming the tests it ran then.
+    A part whose recorded test ran past its tier's cap (test/bounds.py, over_cap) fails, naming it."""
     import bounds  # Only here: an adapter's conftest.py loads this module without test/ on its path.
 
     command = part_command(part, arguments, os.environ, run_folder)
@@ -255,8 +256,9 @@ def run_part(part: Path, arguments: list[str], run_folder: Path) -> tuple[int, s
                    f"(CAP_SECONDS) and was stopped while running {running}. Remedy: run that test alone in "
                    f"{part} with `uv run pytest <test>` and find what it waits for.\n")
     record_weights(part_report(part, os.environ, run_folder))
-    record_durations(part_report(part, os.environ, run_folder), keep=bounds.RUNS)
-    return process.returncode, head + output
+    run = record_durations(part_report(part, os.environ, run_folder), keep=bounds.RUNS)
+    capped = bounds.over_cap(run, bounds.COMMITTED, bounds.CAP_FACTOR)
+    return (1 if capped else process.returncode), head + output + "".join(f"{message}\n" for message in capped)
 
 
 def stop(process: subprocess.Popen) -> None:
