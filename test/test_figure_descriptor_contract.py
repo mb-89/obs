@@ -142,7 +142,7 @@ def test_figure_descriptor_core_has_no_rendering_or_browser_dependencies() -> No
     result = subprocess.run(
         [sys.executable, "-c",
          "import sys; import obs.figure; "
-         "print(','.join(name for name in sys.modules if name.startswith('obs_html_interim')))"],
+         "print(','.join(name for name in sys.modules if name.split('.')[0] in {'obs_html', 'playwright'}))"],
         check=True,
         capture_output=True,
         text=True,

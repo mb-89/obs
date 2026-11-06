@@ -79,3 +79,20 @@ def test_every_build_prints_the_warnings(tmp_path, capsys) -> None:
     assert main(["--source", str(tmp_path / "manifest.md"), "--document", str(tmp_path / "out.json")]) == 0
 
     assert "one.md:3: " in capsys.readouterr().err
+
+
+def test_the_core_configuration_names_the_labels_a_typed_number_uses(tmp_path) -> None:
+    """input.figureReferences.labels of the core's configuration are the words a typed figure
+    number starts with: with only "Figure", "Bild 1" is prose; by default it is a typed number."""
+    import json
+
+    body = figure("a") + "Bild 1 rises after 2 seconds.\n"
+    assert [message.split(": ", 1)[0] for message in warnings(tmp_path, body)] == ["one.md:14"]
+    configuration = tmp_path.parent / f"{tmp_path.name}-core.json"
+    configuration.write_text(json.dumps({
+        "input": {"manifestFilename": "manifest.md", "projectConfigFilename": "project.json",
+                  "figureReferences": {"labels": ["Figure"]}},
+        "execution": {"commandTimeoutSeconds": 15},
+    }), encoding="utf-8")
+    document = build_document(tmp_path / "manifest.md", capability_reference(), configuration)
+    assert document["diagnostics"] == []
