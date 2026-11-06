@@ -59,7 +59,7 @@ def test_core_input_contracts_reject_invalid_data_only_inputs(tmp_path) -> None:
         parse_card_spec('{"version": 1, "cards": []}', note)
     with pytest.raises(InputError, match=rf"^{re.escape(str(note))}: property-editor fence, label: "
                                          r"is missing\. Add label; see capabilities/property-editors\.$"):
-        parse_property_editor("version: 1\nfield: title\n", note)
+        parse_property_editor("version: 1\nfield: title\n", note, {})
     with pytest.raises(CoreConfigError, match=r"^Invalid core configuration: "):
         load_core_config(tmp_path / "missing.json")
 
@@ -97,7 +97,7 @@ def test_core_contracts_reject_invalid_input(name, value, tmp_path) -> None:
     validators = {
         "cards": lambda: parse_card_spec(value, tmp_path),
         "query": lambda: validate_count_query(value, tmp_path),
-        "property": lambda: parse_property_editor(value, tmp_path),
+        "property": lambda: parse_property_editor(value, tmp_path, {}),
         "base": lambda: validate_base_definition(value, tmp_path),
         "profile": lambda: validate_note_profile(value, tmp_path),
         "project": lambda: validate_project_config(value, tmp_path),
@@ -158,7 +158,7 @@ def test_core_and_adapter_contract_errors_match_for_shared_inputs(tmp_path) -> N
     assert _error_message(lambda: validate_note_profile({"obs": {"document": "maybe"}}, tmp_path)) == _error_message(
         lambda: _validate_note_profile({"document": "maybe"}, tmp_path)
     ).replace("obsHtml.", "obs.")
-    assert _error_message(lambda: parse_property_editor(property_editor, tmp_path)) == _error_message(
+    assert _error_message(lambda: parse_property_editor(property_editor, tmp_path, {})) == _error_message(
         lambda: property_editors([token], Chapter(), {})
     )
     assert _error_message(lambda: validate_command("")) == _error_message(

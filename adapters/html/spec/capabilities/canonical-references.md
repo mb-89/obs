@@ -4,7 +4,7 @@ capability:
   id: canonical-references
   summary: Present canonical references through declared detail views.
   authoring: Declare reference fields in the supported table presentation mapping.
-  dependsOn: ["[[capabilities/references]]", "[[capabilities/bases]]"]
+  dependsOn: ["references", "bases"]
   source: "[[input-model#Canonical reference presentation]]"
 ---
 

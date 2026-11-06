@@ -21,7 +21,7 @@ selects. The notes a query in an included note selects are included in the Docum
 
 A query's `where` holds conditions that a note must all meet. A condition names a property
 the way a Bases filter does and resolves it by the same rules
-([[generic-tables#Bases filter grammar]], [[capabilities/bases#Comparisons]]), then tests its
+([[input-model#Bases filter grammar]], [[capabilities/bases#Comparisons]]), then tests its
 text:
 
 - `equals` holds text. It matches when the property's value, or an item of its list, has
@@ -40,7 +40,7 @@ text:
   query needs to count.
 
   No other derived field is a property: a title, a slug, the text or a reader alias
-  ([[artifact-ui]]) selects nothing in a condition. A `distinct` count and a Sankey node's
+  an adapter shows selects nothing in a condition. A `distinct` count and a Sankey node's
   `unique` read their property the same way.
 
 Empty conditions (`where: []`) have nothing to fail, so a query without them
