@@ -13,7 +13,9 @@
 
 This repository must remain publishable. The shared
 [Public safety](../se/AGENTS.md#public-safety) policy from `se` applies. Install its local Git
-hooks with `setup.ps1 -Repo <repository>` and run its `public_check.py` before sharing changes.
+hooks with `setup.ps1 -Repo <repository>`. Push only with se's `work_tickets.py push`, which runs
+the public check first, as `public_check` in `se.toml` sets; se's
+[Project settings](../se/README.md#project-settings) own that setting.
 Do not copy the shared process guidance into this repository.
 
 ## Invariants
