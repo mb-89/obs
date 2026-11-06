@@ -792,8 +792,11 @@ there (its parser) and one body schema in `src/obs/document.schema.json` (`$defs
 
 A diagram becomes SVG when the core builds the Document, on the build machine and with no
 network: the core runs the diagram's library (Mermaid, or PlantUML's JavaScript build) in a
-local headless browser, the one the project's tests already use, and refuses every request
-the library makes.
+local headless browser and refuses every request the library makes.
+
+That browser is Playwright's headless shell, the one the adapter's browser tests use, where the
+installed Playwright starts it, else an installed Chrome, Edge or Chromium: the shell draws the
+same SVG for less CPU (`_launch` in `src/obs/diagram.py` names what was measured).
 
 The libraries are pinned in `src/obs/diagrams/package-lock.json`. Every build
 of the core's package unpacks the files it serves from the tarballs the lockfile pins (only
