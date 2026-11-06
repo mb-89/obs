@@ -4,9 +4,46 @@ from pathlib import Path
 
 import pytest
 
+from obs.input import InputError, input_error
+
+VARIABLE = "OBS_HTML_TEST_NATIVE_BROWSER"
+
+
+def launch(browser_type, executable: str):
+    """Launch the native browser; a browser that does not start names the variable and the remedy."""
+    from playwright.sync_api import Error
+
+    try:
+        return browser_type.launch(executable_path=executable)
+    except Error as error:
+        message = input_error(
+            "test/test_authored_artifact_browser.py", f"{VARIABLE}={executable!r}",
+            "the browser does not launch",
+            f"Remedy: set {VARIABLE} to the absolute path of a Chromium or Chrome executable that "
+            "starts, or unset it to skip; see quality#Testing boundaries")
+        raise InputError(f"{message}\n{str(error).strip()}") from error
+
+
+class _RefusingChromium:
+    def launch(self, **_options):
+        from playwright.sync_api import Error
+
+        raise Error("BrowserType.launch: Executable doesn't exist at /missing/chromium")
+
+
+@pytest.mark.unit
+def test_a_browser_that_does_not_launch_names_the_variable_the_owner_and_the_remedy():
+    with pytest.raises(InputError) as raised:
+        launch(_RefusingChromium(), "/missing/chromium")
+
+    message = str(raised.value)
+    assert message.startswith(f"test/test_authored_artifact_browser.py: {VARIABLE}='/missing/chromium': ")
+    assert "see quality#Testing boundaries" in message
+    assert message.endswith("BrowserType.launch: Executable doesn't exist at /missing/chromium")
+
 
 def test_authored_artifact_all_chapters_modes_and_pdf(tmp_path):
-    executable = os.environ.get("OBS_HTML_TEST_NATIVE_BROWSER")
+    executable = os.environ.get(VARIABLE)
     authored = os.environ.get("OBS_HTML_TEST_AUTHORED_ARTIFACT")
     if not executable or not authored:
         pytest.skip("Set OBS_HTML_TEST_NATIVE_BROWSER and OBS_HTML_TEST_AUTHORED_ARTIFACT.")
@@ -14,7 +51,7 @@ def test_authored_artifact_all_chapters_modes_and_pdf(tmp_path):
     from pypdf import PdfReader
 
     with sync_playwright() as playwright:
-        browser = playwright.chromium.launch(executable_path=executable)
+        browser = launch(playwright.chromium, executable)
         page = browser.new_page()
         errors = []
         page.on("pageerror", lambda error: errors.append(str(error)))
