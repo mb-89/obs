@@ -349,8 +349,10 @@
     "figureBodies": {
       "pugh": {
         "description": "A Pugh decision figure (capabilities/pugh-decisions): the matrix as data, which an adapter decides.",
-        "type": "object", "additionalProperties": false, "required": ["matrix"],
-        "properties": {"matrix": {"$ref": "#/$defs/pughMatrix"}}
+        "type": "object", "additionalProperties": false, "required": ["matrix", "shortNames"],
+        "properties": {"matrix": {"$ref": "#/$defs/pughMatrix"},
+          "shortNames": {"description": "Each option's short name, in the order of candidates, as the core resolved it (input-model, Pugh decision figures): its short, else its label where that has at most 5 words, else null and its letter stands alone.",
+            "type": "array", "minItems": 1, "maxItems": 26, "items": {"type": ["string", "null"], "minLength": 1}}}
       },
       "image": {
         "type": "object", "additionalProperties": false, "required": ["mediaType", "data"],
