@@ -337,7 +337,7 @@ def test_core_emits_data_only_nodes_for_additional_input_capabilities(tmp_path) 
     assert emitted[-2]["attrs"]["descriptor"]["id"] == "comparison"
     assert emitted[-1]["attrs"] == {
         "source": "version: 1\nfield: source\nlabel: Source\n",
-        "spec": {"version": 1, "field": "source", "label": "Source"},
+        "spec": {"version": 1, "field": "source", "label": "Source"}, "writes": ["source"],
     }
     assert {
         "attachments", "cards-metrics", "count-query", "figure-descriptor",
