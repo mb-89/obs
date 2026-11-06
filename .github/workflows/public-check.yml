@@ -1,0 +1,68 @@
+# se's public check gates every push to main, the owner's direct pushes included (AGENTS.md
+# "Public safety"). The check is se's scripts/public_check.py; obs keeps no copy of it. Make the
+# job `gate` (shown as "public-check / gate") a required status check of main.
+name: public-check
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  gate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Clone se at the pin
+        env:
+          SE: ${{ runner.temp }}/se
+        run: |
+          # se.toml's [modules.se] version range, resolved as se's scripts/se_modules.py resolves
+          # it: the newest vMAJOR.MINOR.PATCH tag the range admits. se_modules is loaded from the
+          # commit se.lock holds, and the check then runs at the resolved tag.
+          git clone --quiet --no-checkout --filter=blob:none https://github.com/mb-89/SE.git "$SE"
+          locked=$(python3 -c 'import tomllib; print(tomllib.load(open("se.lock", "rb"))["modules"]["se"]["ref"])')
+          git -C "$SE" checkout --quiet "$locked"
+          tag=$(python3 - "$SE" <<'PY'
+          import sys, tomllib
+          from pathlib import Path
+          se = Path(sys.argv[1])
+          sys.path.insert(0, str(se / "scripts"))
+          import se_modules
+          pin = tomllib.loads(Path("se.toml").read_text(encoding="utf-8"))["modules"]["se"]["version"]
+          bounds = se_modules.version_bounds("se", pin)
+          tags = se_modules.tagged_versions(se)
+          print(tags[max(v for v in tags if se_modules.matches(v, bounds))])
+          PY
+          )
+          git -C "$SE" checkout --quiet "$tag"
+          echo "public-check: se $tag, the newest release se.toml's [modules.se] range admits"
+      - name: Gate the pushed commits
+        env:
+          SE: ${{ runner.temp }}/se
+          BEFORE: ${{ github.event.before }}
+          AFTER: ${{ github.sha }}
+          BRANCH: ${{ github.ref_name }}
+        run: |
+          # The pushed commits: those after the branch's old tip. Where that tip is unknown (a new
+          # branch, whose before is all zeros, or a force push whose old tip is gone), those no
+          # other branch holds; a rewritten main is so gated whole.
+          if git cat-file -e "$BEFORE^{commit}" 2>/dev/null; then
+            range="$BEFORE..$AFTER"
+          else
+            others=$(git for-each-ref --format='%(refname)' refs/remotes/origin |
+              grep -vx -e "refs/remotes/origin/$BRANCH" -e refs/remotes/origin/HEAD | tr '\n' ' ')
+            range="$AFTER --not $others"
+          fi
+          echo "public-check: gating $range, the commits pushed to $BRANCH"
+          if ! python3 "$SE/scripts/public_check.py" --repo . --range "$range"; then
+            echo "::error::public-check (se's scripts/public_check.py, AGENTS.md 'Public safety') refused this push to $BRANCH: amend each named commit as its line says (for a Co-authored-by line, without the line, and turn off the editor's co-author setting, se's README 'Install'), then push again"
+            exit 1
+          fi
