@@ -246,6 +246,7 @@ def build_document(
         "schemaVersion": 1,
         "manifest": {
             "title": title,
+            "path": vault.relative(manifest_path),
             "metadata": _json_value(metadata),
             "abstract": manifest_nodes,
         },
