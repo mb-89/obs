@@ -84,3 +84,18 @@ def test_the_input_model_leaves_what_counts_as_a_change_to_the_adapter() -> None
     for restatement in ("Persisted reader-state changes do", "changed-HTML state", "as changed.",
                         "or an artifact change", "column or width changes"):
         assert restatement not in input_model
+
+
+UNIT_SYSTEM = "Quantities carry a unit system"
+
+
+def test_the_unit_system_is_stated_once_in_numeric_value_notes() -> None:
+    model = (ROOT / "spec" / "design_input" / "input-model.md").read_text(encoding="utf-8")
+    section = " ".join(model.split("### Numeric-value notes", 1)[1].split("\n### ", 1)[0].split())
+    flat = " ".join(model.split())
+
+    assert UNIT_SYSTEM in section and flat.count(UNIT_SYSTEM) == 1
+    assert "[[capabilities/quantities]]" in section
+    assert "Numeric notes will carry a unit system" not in flat
+    assert "nodes-numeric-system" not in flat
+    assert "designed separately" not in section
