@@ -27,6 +27,10 @@ The core runs command fences while it builds the Document, and only when the bui
 producers (`cmd silent`) first, in path and source order, before the vault is read for
 conversion, then each other fence where it appears.
 
+A fence inside an Obsidian `%%` comment is commented out and never runs, a producer included:
+producers read their notes through the core's one note reader ([[input-model#Chapter content]]).
+A failing fence names its note and its line in the source file.
+
 A timeout (`execution.commandTimeoutSeconds` of the core configuration; its schema,
 `src/obs/config.schema.json`, owns the default) or a nonzero exit fails the build, and no
 Document is written.

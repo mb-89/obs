@@ -33,3 +33,22 @@ field: explanation
 label: Review explanation
 ```
 ````
+
+With a static projection: `blank` holds the fields to write when the edited text is blank,
+`nonblank` the fields to write otherwise. Each names other fields of the note with a text,
+number, true/false or empty value, or a list of them.
+
+````markdown
+---
+explanation: Original
+status: explained
+---
+```property-editor
+version: 1
+field: explanation
+label: Review explanation
+projection:
+  blank: {status: finding}
+  nonblank: {status: explained}
+```
+````

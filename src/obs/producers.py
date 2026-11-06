@@ -4,9 +4,8 @@ from __future__ import annotations
 import subprocess
 from pathlib import Path
 
-from markdown_it import MarkdownIt
-
 from obs.input import InputError, validate_command
+from obs.note import parser, read_note
 
 
 class ProducerError(ValueError):
@@ -14,7 +13,11 @@ class ProducerError(ValueError):
 
 
 def run_producers(vault_root: Path, authorized: bool, timeout_seconds: int) -> int:
-    """Run every ``cmd silent`` fence in deterministic vault and source order."""
+    """Run every ``cmd silent`` fence in deterministic vault and source order.
+
+    Notes are read through the core's one reader, so a producer inside an Obsidian comment never
+    runs and a failure names the source file's line.
+    """
     if not authorized:
         return 0
     vault_root = vault_root.resolve()
@@ -22,15 +25,11 @@ def run_producers(vault_root: Path, authorized: bool, timeout_seconds: int) -> i
     for path in sorted(vault_root.rglob("*.md"), key=lambda item: item.relative_to(vault_root).as_posix()):
         if any(part.startswith(".") for part in path.relative_to(vault_root).parts) or not path.is_file():
             continue
-        try:
-            tokens = MarkdownIt().parse(path.read_text(encoding="utf-8-sig"))
-        except OSError as error:
-            raise ProducerError(f"Cannot read producer source {path}: {error}") from error
-        for token in tokens:
+        note = read_note(path)
+        for token in parser().parse(note.body):
             if token.type != "fence" or token.info.strip().split() != ["cmd", "silent"]:
                 continue
-            line = token.map[0] + 1 if token.map else 1
-            producers.append((path, line, token.content.strip()))
+            producers.append((path, note.source_line(token.map[0]), token.content.strip()))
     for path, line, command in producers:
         _run(command, vault_root, timeout_seconds, path.relative_to(vault_root), line)
     return len(producers)
