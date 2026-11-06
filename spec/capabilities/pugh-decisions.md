@@ -28,7 +28,6 @@ title: Which message queue
 chosen: managed
 context: a team of three running its own servers
 concern: the queue's upkeep
-confirmation: The on-call log shows no queue incident for a quarter.
 criteria:
   - {key: latency, label: p99 latency (ms), weight: 3, better: lower}
   - {key: ops, label: Ease of operation, weight: 2, better: higher, kind: judged}
@@ -36,7 +35,8 @@ candidates:
   - {key: current, label: Current queue, what: The queue we run today., values: {latency: 12},
      wins: Nothing to migrate.}
   - {key: managed, label: Managed queue, short: Managed, what: A hosted queue we rent., values: {latency: 14},
-     marks: {ops: {mark: [2, 1, 2], because: the vendor runs it}}, wins: No servers to run., losses: A bill every month.}
+     marks: {ops: {mark: [2, 1, 2], because: the vendor runs it}}, wins: No servers to run., losses: A bill every month.,
+     success: The on-call log shows no queue incident for a quarter.}
 datum: {prefer: [current]}
 checklist:
   - {item: "Can we leave it within a month?", answer: Not the managed one., pass: false, options: [B]}
@@ -47,7 +47,9 @@ The options are lettered A, B, … in the order `candidates` lists them; a check
 the options it fails by letter. An option's `short` name, at most 5 words, follows its letter
 where there is room ("B · Managed").
 
-In a chapter whose main content is the decision, the adapter shows the figure under two
-headings of its own, Potential solutions and Details, after the note's text. Each `##` section
+An option's `success` is its success criterion, one line on what marks it successful once done.
+
+In a chapter whose main content is the decision, the adapter shows the figure under three
+headings of its own, Potential solutions, Proposed winner and Details, after the note's text. Each `##` section
 after the fence becomes one more tab under Details, named by its heading: `## The record` becomes
 a tab "The record", and its text no longer runs under the one-pager.

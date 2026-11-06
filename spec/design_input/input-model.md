@@ -1240,10 +1240,16 @@ date or decision-maker fields:
   ctrl's engine decides, so an adapter hands the engine the mark without the reason.
 - `context` and `concern`, optional: one phrase each, the situation and the concern the decision
   answers, for the decision's one-sentence summary (a Y-statement).
-- `confirmation`, optional: one line on how we will know the decision holds, for example the
-  check that enforces it.
 - `supersededBy`, optional: the decision that replaces this one, as the text that names it (a
   note's title or a decision's number); an adapter says so at the chapter's top.
+
+Decided by the user, 6 Nov 2026 (work issue `feat/decision-success-and-winner-box-20261106`):
+every option says what success means for it, so the decision-level `confirmation` is gone, with
+no alias:
+
+- On each option, optional: `success`, one line on what marks that option successful once done,
+  its success criterion. An adapter shows it with the option and with the proposed winner; the
+  engine never sees it.
 
 An option's `figures` and the matrix's `overrides` are refused as unknown fields: a figure is
 the adapter's drawing, and the reader's changes are the adapter's reader state.

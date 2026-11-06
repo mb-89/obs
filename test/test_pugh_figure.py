@@ -97,7 +97,8 @@ def test_the_core_resolves_each_options_short_name_once_into_the_figure_body(tmp
     (lambda m: m["candidates"][1].update(marks={"ops": {"mark": 1, "why": "x"}}), "content.candidates[1].marks.ops"),
     (lambda m: m.update(context=""), "content.context"),
     (lambda m: m.update(concern=["a list"]), "content.concern"),
-    (lambda m: m.update(confirmation=""), "content.confirmation"),
+    (lambda m: m.update(confirmation="The check holds."), "content.confirmation"),
+    (lambda m: m["candidates"][1].update(success=""), "content.candidates[1].success"),
     (lambda m: m.update(supersededBy=12), "content.supersededBy"),
     (lambda m: m.update(status="accepted"), "content.status"),
 ])
@@ -135,13 +136,13 @@ def test_a_source_file_names_its_field_below_source(tmp_path) -> None:
     assert f"see {OWNER}." in message
 
 
-def test_a_mark_may_carry_its_reason_and_the_decision_its_context_concern_confirmation_and_successor(tmp_path) -> None:
+def test_a_mark_may_carry_its_reason_the_decision_its_context_concern_and_successor_and_an_option_its_success(tmp_path) -> None:
     """input-model, Pugh decision figures: a mark is a number, a rater list, or the mark with its
-    reason; context, concern, confirmation and supersededBy are optional text. The body carries them
-    as written; an adapter hands ctrl's engine the marks alone."""
+    reason; context, concern and supersededBy are optional text, and so is an option's success. The
+    body carries them as written; an adapter hands ctrl's engine the marks alone."""
     matrix = _changed(lambda m: m.update(
-        context="a team of three running its own servers", concern="the queue's upkeep",
-        confirmation="The on-call log shows no queue incident for a quarter.", supersededBy="Decision 12"))
+        context="a team of three running its own servers", concern="the queue's upkeep", supersededBy="Decision 12"))
+    matrix["candidates"][1]["success"] = "The on-call log shows no queue incident for a quarter."
     matrix["candidates"][1]["marks"] = {"ops": {"mark": [2, 1, 2], "because": "the vendor runs it"}}
 
     plain, = _figures(_document(tmp_path, f"```pugh\n{yaml.safe_dump(matrix)}```\n"))
