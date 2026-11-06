@@ -120,6 +120,36 @@ source machine's vault, which embedding assets avoids ([Asset bytes](#asset-byte
 An adapter therefore has no command options: it renders the node's `output`, and a node
 without one fails naming the remedy.
 
+### Source archive
+
+A source archive discloses the vault's source data, so the Document carries it only when the
+build asks for it: `obs-document --source <manifest> --embed-source` adds the Document's
+`sourceArchive`, the vault's source files, each with its vault-relative `path`. An adapter that
+offers a source archive packages these files, embeds them and attaches them to a PDF from the
+Document alone; one that offers none ignores them. Without the option the Document has no
+`sourceArchive`, and nothing in it says what the vault holds beyond what the chapters use.
+
+The files are the vault's explicit directory snapshot: every file below the manifest's folder,
+scripts and data outside the chapters included, except hidden files and folders (a name that
+starts with a dot), installed dependency and generated folders (`__pycache__`, `node_modules`,
+`site-packages`, `__pypackages__`, `data_output`, `design_output`, `*.egg-info`, `*.dist-info`),
+Python environments (a folder holding `pyvenv.cfg`) and compiled files (`.pyc`, `.pyo`, `.exe`,
+`.dll`, `.so`, `.dylib`, `.o`, `.obj`, `.class`). The vault's [CSS snippets](#css-snippets) are
+source files despite their hidden folder. A symlink fails the build, naming its path and the
+remedy, so the archive never reaches outside the vault. The core detects no secrets: the author
+inspects what the option discloses.
+
+A file the Document already holds as an asset carries that asset's `id` instead of its bytes, so
+the Document holds each file's bytes once ([Asset bytes](#asset-bytes)); every other file carries
+its bytes as base64 `data`.
+
+Carrying the files was chosen over carrying a finished ZIP or a reference the adapter may read:
+a ZIP would hold a second copy of every asset's bytes and fix a packaging an adapter may want
+otherwise (compression, a rebuild script, its own sources beside the vault's), and a reference ties
+the adapter to the source machine's vault, as an asset root would. The archive holds the vault
+only: what rebuilds an artifact beyond the vault (the core's and the adapter's sources, their
+settings) is the adapter's to add.
+
 ## Input contracts
 
 The core owns data-only input contracts for command fences, callouts, cards, editable
