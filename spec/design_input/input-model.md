@@ -809,7 +809,8 @@ The `data` payload holds exactly one shape, and nothing else:
   direction), with an optional `countLabels` beside it.
 
 `src/obs/figure.schema.json` owns both shapes; the rules a schema cannot state (equal lengths,
-existing panels and nodes, advancing stages) are an adapter's check of what it draws.
+existing panels and nodes, advancing stages) are an adapter's check of what it draws, except that
+the core refuses a Sankey link to a node its graph does not have (the Figure input direction).
 
 A panel has a stable `id`, numeric
 `bounds` (`x`, `y`, positive `width`, and positive `height`), and a non-negative
@@ -928,7 +929,12 @@ The author places, captions, numbers and references the figure only through the 
 the
 generator and project adapters add nothing. Panel boxes are in SVG viewBox units.
 
-For `sankey`, the graph (its source JSON or inline `content`) has `version: 1`, `nodes`, and `links`. Each node has a unique
+For `sankey`, the graph (its source JSON or inline `content`) has `version: 1`, `nodes`, and `links`.
+The core checks every graph at build time, a `sankey` figure's and a `plot` descriptor's
+`data.sankey`, static or a dynamic projection: against `figure.schema.json` `$defs/sankeyGraph`,
+which the Document's `sankey` figure body references, and then, in code, that each link's `source`
+and `target` names a node of the graph, a cross-reference no schema states. An adapter checks the
+other rules below as it draws. Each node has a unique
 nonempty `id`, display `label`, and integer `stage` from 0 through 15; each link names existing
 `source` and `target` node ids and a finite positive `value`.
 
