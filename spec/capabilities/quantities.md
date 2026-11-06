@@ -31,7 +31,10 @@ source: "[[load-calculation]]"
 - `kind: quantity` makes the note a quantity.
 - Exactly one of `value`, a finite number without its unit, or `query`, a count query
   `{where, from?, distinct?}` ([[capabilities/count-query]]).
-- `unit`, optional: the display unit, a non-empty string.
+- `unit`, optional: the display unit, a physical unit the core parses: an SI or common
+  engineering unit with an optional prefix, or a product or quotient of them, such as `mm`,
+  `kN`, `N*m`, `km/h`, `rpm` or `%`. Without `unit` the value is a plain number. An unknown
+  unit fails the build naming the note, the unit and the remedy.
 - `aliases`: exactly one variable-style alias (a letter, then up to 39 letters, digits or
   underscores), as a string or a one-item list. Authors reference the quantity as
   `[[alias]]`.
