@@ -7,10 +7,10 @@ from pathlib import Path
 from typing import Sequence
 
 from jsonschema import Draft202012Validator
-from jsonschema.exceptions import ValidationError
 from referencing import Registry, Resource
 
 from obs.adapter import AdapterError, load_adapter
+from obs.input import schema_error
 from obs.vault import VaultError, build_document as _build_document
 
 
@@ -65,9 +65,12 @@ def validate_document(document: dict[str, object], reference: dict[str, object])
         FIGURE_SCHEMA_PATH.name, Resource.from_contents(figure_schema),
     )
     try:
-        Draft202012Validator(schema, registry=registry).validate(document)
-    except (ValidationError, ValueError) as error:
+        errors = list(Draft202012Validator(schema, registry=registry).iter_errors(document))
+    except ValueError as error:
         raise DocumentError(f"Invalid Document: {error}") from error
+    error = schema_error(errors, "Invalid Document", "src/obs/document.schema.json")
+    if error:
+        raise DocumentError(str(error)) from None
     known = {item["id"] for item in reference["capabilities"]}
     unknown = sorted(set(document["capabilities"]) - known)
     if unknown:
