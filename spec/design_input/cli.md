@@ -26,6 +26,12 @@ filename is a setting rather than a fixed name because a vault keeps its manifes
 its author chose, and `--config` already checks a given note against it. A folder without that
 note fails the call before the build, naming the folder, the filename, the setting and the remedy.
 
+The call has no default source or destination: a build names its `--source` and its `--destination`.
+The interim adapter built this repository's spec into a fixed file below `data/data_output` when
+given neither; a default in the core would hard-code one repository's layout and one adapter's output
+type into a core that serves any vault and any adapter. A project that wants a fixed build keeps
+it as a command, as the [[cli#One-call build|example above]] does.
+
 The capability reference is the core's own fact, so the core ships it as package data: every
 build of the package, editable ones included, writes `src/obs/capability-reference.json` from
 `spec/capabilities` (`hatch_build.py`), and `--capability-reference` names another reference only
