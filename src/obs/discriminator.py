@@ -8,6 +8,10 @@ instance's P, and checks an array's ``items: {not: {$ref: <a discriminated anyOf
 its items' P values, descending only into an item whose P keys a branch. Every other clause cannot
 apply to that instance, so both validators refuse the same instances with the same errors. See
 document.schema.json ($defs/node and $defs/blockNode).
+
+A local ``$ref`` (``#/...``) is resolved once, when the validator class is made, instead of once per
+instance it checks; it still descends with the same schema path. Its target depends on no scope:
+a schema with an ``$id`` or ``$dynamicRef`` below its root is refused.
 """
 from collections.abc import Iterator
 
@@ -21,7 +25,15 @@ def discriminating_validator(schema: dict[str, object]) -> type[Draft202012Valid
     """A Draft 2020-12 validator class for ``schema`` that evaluates its discriminators by lookup."""
     clauses: dict[int, tuple[str, dict[object, list[int]]]] = {}
     negations: dict[int, tuple[str, frozenset[object]]] = {}
-    _collect(schema, schema, "#", clauses, negations)
+    references: dict[int, object] = {}
+    _collect(schema, schema, "#", clauses, negations, references)
+
+    def ref(validator, reference, instance, owner) -> Iterator[ValidationError]:
+        target = references.get(id(owner))
+        if target is None:
+            yield from STANDARD["$ref"](validator, reference, instance, owner)
+            return
+        yield from validator.descend(instance, target)
 
     def all_of(validator, subschemas, instance, owner) -> Iterator[ValidationError]:
         keyed = clauses.get(id(owner))
@@ -43,7 +55,7 @@ def discriminating_validator(schema: dict[str, object]) -> type[Draft202012Valid
             if value is None or value in keys:
                 yield from validator.descend(item, subschema, path=index)
 
-    return validators.extend(Draft202012Validator, {"allOf": all_of, "items": items})
+    return validators.extend(Draft202012Validator, {"$ref": ref, "allOf": all_of, "items": items})
 
 
 def _value(instance: object, keyed: tuple[str, object] | None) -> str | None:
@@ -56,13 +68,24 @@ def _value(instance: object, keyed: tuple[str, object] | None) -> str | None:
 
 def _collect(root: dict[str, object], node: object, pointer: str,
              clauses: dict[int, tuple[str, dict[object, list[int]]]],
-             negations: dict[int, tuple[str, frozenset[object]]]) -> None:
+             negations: dict[int, tuple[str, frozenset[object]]], references: dict[int, object]) -> None:
     if isinstance(node, list):
         for index, item in enumerate(node):
-            _collect(root, item, f"{pointer}/{index}", clauses, negations)
+            _collect(root, item, f"{pointer}/{index}", clauses, negations, references)
         return
     if not isinstance(node, dict):
         return
+    scoped = [key for key in ("$id", "$dynamicRef") if isinstance(node.get(key), str) and node is not root]
+    if scoped:
+        raise ValueError(f"{pointer}: {scoped[0]} below the root changes what a local $ref names; keep the "
+                         f"schema one resource. See {OWNER}.")
+    reference = node.get("$ref")
+    if isinstance(reference, str) and reference.startswith("#/"):
+        try:
+            references[id(node)] = _resolve(root, reference)
+        except (KeyError, IndexError, TypeError) as error:
+            raise ValueError(f"{pointer}: $ref {reference} names nothing in the schema; point it at an "
+                             f"existing definition. See {OWNER}.") from error
     if "discriminator" in node and "allOf" in node:
         name = node["discriminator"]["propertyName"]
         table: dict[object, list[int]] = {}
@@ -82,7 +105,7 @@ def _collect(root: dict[str, object], node: object, pointer: str,
                              for value in _keys(branch, name, f"{negated['$ref']}/anyOf/{index}"))
             negations[id(node)] = (name, keys)
     for key, value in node.items():
-        _collect(root, value, f"{pointer}/{key}", clauses, negations)
+        _collect(root, value, f"{pointer}/{key}", clauses, negations, references)
 
 
 def _keys(keyed: object, name: str, pointer: str) -> list[object]:
@@ -99,5 +122,6 @@ def _keys(keyed: object, name: str, pointer: str) -> list[object]:
 def _resolve(root: dict[str, object], reference: str) -> dict[str, object]:
     target: object = root
     for part in reference[2:].split("/"):
-        target = target[part.replace("~1", "/").replace("~0", "~")]
+        part = part.replace("~1", "/").replace("~0", "~")
+        target = target[int(part) if isinstance(target, list) else part]
     return target

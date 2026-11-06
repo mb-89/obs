@@ -1125,11 +1125,7 @@ def _figure(fence: dict[str, object], context: _Context, place: str, opener: int
     except FigureContentError as error:
         raise (located(error) if error.reference else fail(error.field, error.problem, error.remedy)) from error
     body |= options
-    schema = json.loads(Path(__file__).with_name("document.schema.json").read_text(encoding="utf-8"))
-    validator = Draft202012Validator(
-        {**schema["$defs"]["figureBodies"][fence["kind"]], "$defs": schema["$defs"]},
-        registry=_figure_registry())
-    error = schema_error(list(validator.iter_errors(body)), source_path, FIGURES, place=place)
+    error = schema_error(list(_figure_body(fence["kind"]).iter_errors(body)), source_path, FIGURES, place=place)
     if error:
         raise error
     svg = svg_links.figure_svg(body)
@@ -1147,6 +1143,14 @@ def _figure(fence: dict[str, object], context: _Context, place: str, opener: int
         attrs["alt"] = fence["alt"]
     return {"type": "figures", "attrs": attrs,
             "children": [{"type": fence["kind"], "attrs": body, "children": links}]}
+
+
+@cache
+def _figure_body(kind: str) -> Draft202012Validator:
+    """The validator of a figure kind's body, document.schema.json ($defs/figureBodies), compiled once."""
+    schema = json.loads(Path(__file__).with_name("document.schema.json").read_text(encoding="utf-8"))
+    return Draft202012Validator({**schema["$defs"]["figureBodies"][kind], "$defs": schema["$defs"]},
+                                registry=_figure_registry())
 
 
 @cache

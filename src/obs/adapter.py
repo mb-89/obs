@@ -2,9 +2,11 @@
 import json
 import re
 from dataclasses import dataclass
+from functools import cache
 from pathlib import Path
 
-from jsonschema import validate
+from jsonschema import Draft202012Validator
+from jsonschema.exceptions import best_match
 
 from obs.input import input_error
 
@@ -36,13 +38,22 @@ def load_adapter(name: str, configuration_path: Path) -> dict[str, object]:
     manifest_path = adapter_manifest_path(name, configuration_path)
     try:
         manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
-        schema = json.loads(ADAPTER_SCHEMA_PATH.read_text(encoding="utf-8"))
-        validate(manifest, schema)
+        error = best_match(_manifest_validator().iter_errors(manifest))
+        if error is not None:
+            raise error
     except (OSError, json.JSONDecodeError, ValueError) as error:
         raise AdapterError(f"Invalid adapter manifest {manifest_path}: {error}") from error
     if manifest["name"] != name:
         raise AdapterError(f"Adapter manifest {manifest_path} declares {manifest['name']!r}, not {name!r}.")
     return manifest
+
+
+@cache
+def _manifest_validator() -> Draft202012Validator:
+    """adapter.schema.json's validator, checked against its meta-schema and compiled once per process."""
+    schema = json.loads(ADAPTER_SCHEMA_PATH.read_text(encoding="utf-8"))
+    Draft202012Validator.check_schema(schema)
+    return Draft202012Validator(schema)
 
 
 @dataclass(frozen=True)
