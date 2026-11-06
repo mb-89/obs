@@ -6,14 +6,12 @@ from pathlib import Path
 import pytest
 
 import bounds
-import browser_pool
 import network_guard
 import spec_build
 import suite
 import tiers
 
 
-_close_browser_pool = browser_pool.install()
 network_guard.install()
 
 
@@ -57,35 +55,12 @@ def pytest_terminal_summary(terminalreporter, exitstatus, config):
 
 
 def pytest_sessionfinish(session, exitstatus):
-    _close_browser_pool()
     tiers.worker_finish(session.config)
 
 
 @pytest.hookimpl(optionalhook=True)
 def pytest_testnodedown(node, error):
     tiers.node_down(node.config, node)
-
-
-@pytest.fixture(autouse=True)
-def native_artifact_readiness(monkeypatch):
-    """The native navigation adapter includes the artifact's async startup boundary."""
-    if not os.environ.get("OBS_HTML_TEST_NATIVE_BROWSER"):
-        return
-    from playwright.sync_api import Page
-
-    def ready(navigate):
-        def wrapped(page, *args, **kwargs):
-            response = navigate(page, *args, **kwargs)
-            if page.evaluate("Boolean(globalThis.obsHtmlReady)"):
-                page.wait_for_function(
-                    "['ready', 'error'].includes(document.documentElement.dataset.artifactStatus)",
-                )
-            return response
-
-        return wrapped
-
-    monkeypatch.setattr(Page, "goto", ready(Page.goto))
-    monkeypatch.setattr(Page, "reload", ready(Page.reload))
 
 
 class UnreachableNetwork(OSError):

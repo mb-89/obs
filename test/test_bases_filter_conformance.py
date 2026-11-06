@@ -24,12 +24,12 @@ def _vault(tmp_path: Path, chapter: str, manifest_frontmatter: str = "") -> Path
 FENCE = "```base\n{filters}views:\n  - type: table\n    order: [kind]\n{view_filters}```\n\n"
 
 
-@pytest.mark.parametrize("filters, view_filters, expression", [
-    ("filters: 'status.contains(\"x\")'\n", "", 'status.contains("x")'),
-    ("", "    filters:\n      or: ['kind == \"a\"', 'kind > 1']\n", "kind > 1"),
+@pytest.mark.parametrize("filters, view_filters, field, expression", [
+    ("filters: 'status.contains(\"x\")'\n", "", "filters", 'status.contains("x")'),
+    ("", "    filters:\n      or: ['kind == \"a\"', 'kind > 1']\n", "views[0].filters", "kind > 1"),
 ])
-def test_the_core_names_the_note_fence_and_expression_of_an_unsupported_fence_filter(
-        tmp_path, filters, view_filters, expression):
+def test_the_core_names_the_note_fence_field_and_expression_of_an_unsupported_fence_filter(
+        tmp_path, filters, view_filters, field, expression):
     from obs.document import DocumentError, build_document
     from test_vault import capability_reference
 
@@ -39,8 +39,9 @@ def test_the_core_names_the_note_fence_and_expression_of_an_unsupported_fence_fi
     with pytest.raises(DocumentError) as error:
         build_document(manifest, capability_reference())
     message = str(error.value)
-    assert message.startswith(f"Unsupported Bases filter: {expression} (base fence 2 in chapter.md)"), message
-    assert message.endswith("use the Bases filter grammar of generic-tables."), message
+    assert message.startswith(f"{tmp_path / 'chapter.md'}: base fence 2, {field}: "), message
+    assert expression in message, message
+    assert message.endswith("; see input-model#Bases filter grammar."), message
 
 
 @pytest.mark.parametrize("case", FIXTURE["cases"], ids=lambda case: json.dumps(case["filter"]))
