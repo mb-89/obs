@@ -74,6 +74,7 @@ def test_the_parts_run_side_by_side_and_any_failed_part_fails_the_suite(monkeypa
         return (1 if part == suite.ROOT else 0), f"== {suite.part_name(part)} {arguments}\n"
 
     monkeypatch.setattr(suite, "run_part", run_part)
+    monkeypatch.setattr(suite, "install_node_packages", lambda packages: [])
 
     assert suite.main(["-x"]) == 1
     output = capsys.readouterr()
