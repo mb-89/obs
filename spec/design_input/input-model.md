@@ -1230,6 +1230,21 @@ letter, A, B, C and on, in the order `candidates` lists them, at most 26 options
   (true or false) and, optional, `options`, the letters of the options the item fails.
 - `checklistWeight`, optional: the weight of the row the failed items make, 3 by default.
 
+Decided by the user, 6 Nov 2026 (work issue `feat/decision-solutions-and-details-20261106`): a
+decision takes up the ADR's shape where it helps the reader, as optional fields, with no status,
+date or decision-maker fields:
+
+- A mark with its reason: on an option's `marks`, a criterion's mark is a mark (a number, or a
+  rater list), as before, or `{mark: <mark>, because: <text>}`, the mark and the reason for it.
+  An adapter shows the reason as an argument for or against the option; the mark alone is what
+  ctrl's engine decides, so an adapter hands the engine the mark without the reason.
+- `context` and `concern`, optional: one phrase each, the situation and the concern the decision
+  answers, for the decision's one-sentence summary (a Y-statement).
+- `confirmation`, optional: one line on how we will know the decision holds, for example the
+  check that enforces it.
+- `supersededBy`, optional: the decision that replaces this one, as the text that names it (a
+  note's title or a decision's number); an adapter says so at the chapter's top.
+
 An option's `figures` and the matrix's `overrides` are refused as unknown fields: a figure is
 the adapter's drawing, and the reader's changes are the adapter's reader state.
 
