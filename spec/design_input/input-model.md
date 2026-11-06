@@ -612,6 +612,9 @@ Never execute embedded files automatically.
 The manifest optionally supplies nonempty plain-text `document type`, `organization`, `template`,
 `document number`, `copyright`, `confidentiality`, and `legal entity` fields.
 
+The field names name no application or vendor. The removed `sap number` is an input error
+naming the manifest, the old field and `document number`; there is no compatibility layer.
+
 Optional `product` is a mapping containing
 `name` and optionally `version`, both nonempty strings.
 

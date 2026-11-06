@@ -29,6 +29,7 @@ from obs.input import (
     parse_callout,
     parse_card_spec,
     parse_property_editor,
+    refuse_renamed_manifest_fields,
     validate_base_definition,
     validate_command,
     validate_count_query,
@@ -148,6 +149,10 @@ def build_document(
     title = metadata.get("title", manifest_path.stem.replace("-", " ").title())
     if not isinstance(title, str) or not title.strip():
         raise VaultError("Manifest title must be a non-empty string.")
+    try:
+        refuse_renamed_manifest_fields(metadata, manifest_path)
+    except InputError as error:
+        raise VaultError(str(error)) from error
     if configuration is not None and manifest_path.name != configuration.manifest_filename:
         raise VaultError(
             f"Manifest filename does not match core configuration: {manifest_path.name}"
