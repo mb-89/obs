@@ -939,6 +939,8 @@ Core and adapter, 6 Nov 2026:
 - The adapter numbers the figures, shows the number, renders a reference as the figure's label
   and number and merges adjacent references; the error for an unlabelled reference to an
   unnumbered figure is the adapter's, since only it knows numbers.
+- A hard line break (the Document's `break` node) ends a group of adjacent references, as
+  in the interim adapter; a soft line break is whitespace.
 
 Confirmed defaults, same date:
 

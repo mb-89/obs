@@ -11,9 +11,10 @@ from typing import Sequence
 from jsonschema import Draft202012Validator
 from referencing import Registry, Resource
 
-from obs.adapter import AdapterError, adapter_manifest_path, load_adapter, option_arguments
+from obs.adapter import (ADAPTER_OPTIONS_OWNER, AdapterError, VaultFile, adapter_manifest_path, load_adapter,
+                         option_arguments)
 from obs.discriminator import discriminating_validator
-from obs.input import schema_error
+from obs.input import InputError, schema_error
 from obs.output import write_output
 from obs.sources import SourceError, source_archive, validate_source_archive
 from obs.vault import VaultError, build_document as _build_document, manifest_note
@@ -38,12 +39,14 @@ class DocumentError(ValueError):
 def build_document(
     manifest_path: Path, reference: dict[str, object], configuration_path: Path | None = None,
     execute_commands: bool = False, embed_source: bool = False, delivery: Sequence[str] = (),
+    option_files: Sequence[str] = (),
 ) -> dict[str, object]:
     """Parse a vault into a schema-valid neutral Document.
 
     ``execute_commands`` authorizes running the vault's cmd fences; see capabilities/command-fences.
     ``embed_source`` discloses the vault's source files; see architecture, Source archive.
-    ``delivery`` are the call's adapter arguments the archive's build record names before the core's.
+    ``delivery`` are the call's adapter arguments the archive's build record names before the core's;
+    ``option_files`` the vault-relative files its vault-file options name, which the archive holds.
     """
     try:
         known = {item["id"] for item in reference["capabilities"]}
@@ -51,7 +54,8 @@ def build_document(
         if embed_source:
             arguments = [*delivery, *(["--execute-commands"] if execute_commands else []), "--embed-source"]
             document["sourceArchive"] = source_archive(manifest_path.resolve().parent, document["assets"],
-                                                        document["cssSnippets"], arguments, document.get("style"))
+                                                        document["cssSnippets"], arguments, document.get("style"),
+                                                        option_files)
         validate_document(document, reference)
     except (SourceError, VaultError) as error:
         raise DocumentError(str(error)) from error
@@ -264,7 +268,8 @@ def build_parser() -> argparse.ArgumentParser:
                         help="Adapter output destination; once per --source.")
     parser.add_argument("--adapter-option", action="append", default=[], metavar="NAME=VALUE",
                         help="Pass an option the adapter declares in its adapter.json (options); "
-                             "repeatable. A boolean option takes true or false.")
+                             "repeatable. A boolean option takes true or false; a vault-file option ID=PATH, "
+                             "PATH a file of the vault.")
     return parser
 
 
@@ -300,6 +305,11 @@ def main(argv: Sequence[str] | None = None) -> int:
             adapter, arguments = _adapter(options.adapter, options.adapter_config, options.adapter_option)
         reference = read_capability_reference(options.capability_reference)
         if not options.source:
+            vault_file = next((item for item in arguments if isinstance(item, VaultFile)), None)
+            if vault_file is not None:
+                raise DocumentError(f"--adapter-option {vault_file.option!r}: names a file of the vault, and "
+                                    f"--document has none. Build from the manifest with --source; see "
+                                    f"{ADAPTER_OPTIONS_OWNER}.")
             _deliver(adapter, arguments, options.adapter_config, read_document(options.document, reference),
                      options.document, options.destination, reference)
             return 0
@@ -311,7 +321,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                 _build(options, source, destination, reference, adapter, arguments, f"--source {source}: ")
             except (AdapterError, DocumentError) as error:
                 raise DocumentError(f"--source {source}: {error}") from error
-    except (AdapterError, DocumentError) as error:
+    except (AdapterError, DocumentError, InputError) as error:
         raise SystemExit(f"obs-document: {error}") from error
     return 0
 
@@ -330,7 +340,7 @@ def _check_several(options: argparse.Namespace, sources: list[Path], destination
 
 
 def _build(options: argparse.Namespace, source: Path, destination: Path | None, reference: dict[str, object],
-           adapter: dict[str, object] | None, arguments: list[str], label: str = "") -> None:
+           adapter: dict[str, object] | None, given: list[str | VaultFile], label: str = "") -> None:
     """Build the Document of ``source`` and, with an ``adapter``, its artifact at ``destination``;
     ``label`` leads each adapter warning (cli.md, Several documents per call)."""
     try:
@@ -343,10 +353,19 @@ def _build(options: argparse.Namespace, source: Path, destination: Path | None, 
                             f"a file of the vault it is built from (spec/design_input/cli.md, One-call build). "
                             f"Name a --destination outside {vault}.")
     delivery = ["--adapter", options.adapter, "--destination", destination.name] if adapter is not None else []
-    for option in options.adapter_option:
-        delivery += ["--adapter-option", option]
+    arguments, files, recorded = [], [], {}
+    for item in given:  # A vault-file option resolves inside this source's vault (cli.md, Adapter options).
+        if isinstance(item, VaultFile):
+            passed, path = item.resolved(vault)
+            arguments += passed
+            files.append(path)
+            recorded[item.option] = f"{item.name}={item.id}={path}"
+        else:
+            arguments.append(item)
+    for option in options.adapter_option:  # The record names the vault file by its vault path only.
+        delivery += ["--adapter-option", recorded.get(option, option)]
     document = build_document(source, reference, options.config, options.execute_commands, options.embed_source,
-                              delivery)
+                              delivery, files)
     for diagnostic in document["diagnostics"]:
         if diagnostic["level"] == "warning":
             print(f"obs-document: warning: {diagnostic['message']}", file=sys.stderr)
