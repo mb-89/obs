@@ -3,7 +3,11 @@ archive; see architecture "CSS snippets" and "Source archive"."""
 from __future__ import annotations
 
 import base64
+import json
 import os
+import subprocess
+import tomllib
+from collections.abc import Sequence
 from pathlib import Path
 
 
@@ -36,10 +40,17 @@ def css_snippets(vault_root: Path, folder: str) -> list[dict[str, str]]:
     return snippets
 
 
-def source_archive(vault_root: Path, assets: list[dict[str, object]],
-                   snippets: list[dict[str, str]]) -> dict[str, object]:
+PACKAGE = Path(__file__).resolve().parent
+"""The running obs package, whose checkout names the commit that rebuilds an artifact."""
+LOCKFILES = ("*uv.lock", "*package-lock.json")
+"""The Git pathspecs of the lockfiles whose versions the archive records."""
+
+
+def source_archive(vault_root: Path, assets: list[dict[str, object]], snippets: list[dict[str, str]],
+                   arguments: Sequence[str]) -> dict[str, object]:
     """The Document's ``sourceArchive``: each source file below ``vault_root`` and each CSS snippet
-    file, with its bytes or with the id of the asset that already holds them."""
+    file, with its bytes or with the id of the asset that already holds them, and the ``build``
+    record of the running obs and the call's ``arguments`` that rebuild the artifact."""
     held = {asset["path"]: asset["id"] for asset in assets if "path" in asset}
     files = []
     paths = _source_paths(vault_root) + [vault_root / snippet["path"] for snippet in snippets]
@@ -49,7 +60,39 @@ def source_archive(vault_root: Path, assets: list[dict[str, object]],
             files.append({"path": relative, "asset": held[relative]})
         else:
             files.append({"path": relative, "data": base64.b64encode(path.read_bytes()).decode("ascii")})
-    return {"files": files}
+    return {"files": files, "build": {**generator(PACKAGE), "arguments": list(arguments)}}
+
+
+def generator(package: Path) -> dict[str, object]:
+    """The public repository, commit and lockfile versions of the Git checkout holding ``package``."""
+    checkout = Path(_git(package, "rev-parse", "--show-toplevel"))
+    commit = _git(checkout, "rev-parse", "HEAD")
+    project = tomllib.loads((checkout / "pyproject.toml").read_text(encoding="utf-8"))["project"]
+    lockfiles = {}
+    for name in sorted(filter(None, _git(checkout, "ls-files", "-z", "--", *LOCKFILES).split("\0"))):
+        text = (checkout / name).read_text(encoding="utf-8")
+        if name.endswith("uv.lock"):
+            lockfiles[name] = {item["name"]: item["version"] for item in tomllib.loads(text).get("package", [])
+                               if "version" in item}
+        else:
+            lockfiles[name] = {path.removeprefix("node_modules/"): item["version"]
+                               for path, item in json.loads(text).get("packages", {}).items()
+                               if path and "version" in item}
+    return {"repository": project["urls"]["Repository"], "commit": commit, "lockfiles": lockfiles}
+
+
+def _git(folder: Path, *arguments: str) -> str:
+    try:
+        result = subprocess.run(["git", "-C", str(folder), *arguments], capture_output=True, text=True,
+                                encoding="utf-8")
+    except FileNotFoundError as error:
+        raise SourceError(f"obs-document --embed-source: git is not installed, so obs in {folder} cannot name "
+                          f"the commit that rebuilds the artifact. Install git; see {OWNER}.") from error
+    if result.returncode:
+        raise SourceError(f"obs-document --embed-source: obs runs from {folder}, which is no Git checkout, so it "
+                          f"cannot name the commit that rebuilds the artifact ({result.stderr.strip()}). Run obs "
+                          f"from a clone of its repository (uv run in the clone); see {OWNER}.")
+    return result.stdout.strip("\n")
 
 
 def _source_paths(vault_root: Path) -> list[Path]:

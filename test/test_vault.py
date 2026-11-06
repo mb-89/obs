@@ -165,7 +165,7 @@ def test_core_places_recognized_capabilities_in_content_nodes(tmp_path) -> None:
     assert content[5]["children"][1] == {
         "type": "marks", "attrs": {"category": "risk", "id": "watch"}, "children": [],
     }
-    assert content[6]["attrs"] == {"kind": "warning", "title": "Be careful"}
+    assert content[6]["attrs"] == {"kind": "warning", "title": [_text("Be careful")]}
     assert content[6]["children"] == [{
         "type": "paragraph", "attrs": {},
         "children": [{"type": "text", "attrs": {}, "children": [], "text": "Callout body."}],
@@ -215,7 +215,7 @@ def test_a_callout_body_arrives_as_parsed_nodes_like_chapter_content(tmp_path) -
         encoding="utf-8",
     )))
     [callout] = [node for node in document["chapters"][0]["content"] if node["type"] == "callouts"]
-    assert callout["attrs"] == {"kind": "warning", "title": "Check the limits"}
+    assert callout["attrs"] == {"kind": "warning", "title": [_text("Check the limits")]}
     paragraph, listing, nested = callout["children"]
     assert paragraph == {"type": "paragraph", "attrs": {}, "children": [
         {"type": "text", "attrs": {}, "children": [], "text": "Read "},
@@ -234,7 +234,7 @@ def test_a_callout_body_arrives_as_parsed_nodes_like_chapter_content(tmp_path) -
     assert listing["children"][0]["children"][0]["children"][1] == {
         "type": "code", "attrs": {}, "children": [], "text": "one",
     }
-    assert nested == {"type": "callouts", "attrs": {"kind": "note", "title": "Inner"}, "children": [
+    assert nested == {"type": "callouts", "attrs": {"kind": "note", "title": [_text("Inner")]}, "children": [
         {"type": "paragraph", "attrs": {}, "children": [
             {"type": "text", "attrs": {}, "children": [], "text": "Nested body."},
         ]},
@@ -273,7 +273,8 @@ def test_a_card_body_arrives_as_parsed_nodes_with_its_capability_fences(tmp_path
     assert node["attrs"]["spec"] == cards
     first, second = node["children"]
     assert first["type"] == second["type"] == "document"
-    assert first["attrs"] == second["attrs"] == {}
+    assert first["attrs"] == {"title": [_text("First")], "labels": []}
+    assert second["attrs"] == {"title": [_text("Second")], "labels": []}
     assert [child["type"] for child in first["children"]] == [
         "paragraph", "bases", "command-fences", "figures", "cards-metrics", "property-editors",
     ]
@@ -295,7 +296,7 @@ def test_a_card_body_arrives_as_parsed_nodes_with_its_capability_fences(tmp_path
 def test_a_cards_document_node_holds_only_card_body_documents() -> None:
     schema = json.loads((ROOT / "src" / "obs" / "document.schema.json").read_text(encoding="utf-8"))
     node_schema = {"$defs": schema["$defs"], "$ref": "#/$defs/node"}
-    body = {"type": "document", "attrs": {}, "children": []}
+    body = {"type": "document", "attrs": {"title": [], "labels": []}, "children": []}
     node = {"type": "cards-metrics", "attrs": {"source": "", "spec": {}}, "children": [body]}
     validate(node, node_schema)
     with pytest.raises(ValidationError):
@@ -305,7 +306,7 @@ def test_a_cards_document_node_holds_only_card_body_documents() -> None:
 def test_a_callout_document_node_has_only_kind_and_title_attrs() -> None:
     schema = json.loads((ROOT / "src" / "obs" / "document.schema.json").read_text(encoding="utf-8"))
     node_schema = {"$defs": schema["$defs"], "$ref": "#/$defs/node"}
-    node = {"type": "callouts", "attrs": {"kind": "warning", "title": ""}, "children": []}
+    node = {"type": "callouts", "attrs": {"kind": "warning", "title": []}, "children": []}
     validate(node, node_schema)
     with pytest.raises(ValidationError):
         validate({**node, "attrs": {"kind": "warning"}}, node_schema)
@@ -722,14 +723,14 @@ def test_a_callout_nested_under_a_list_item_is_a_callout_of_that_item(tmp_path) 
     first, second = listing["children"]
     assert [child["type"] for child in first["children"]] == ["paragraph", "callouts", "code"]
     assert first["children"][1] == {
-        "type": "callouts", "attrs": {"kind": "warning", "title": "Risk"}, "children": [
+        "type": "callouts", "attrs": {"kind": "warning", "title": [_text("Risk")]}, "children": [
             {"type": "paragraph", "attrs": {}, "children": [
                 {"type": "text", "attrs": {}, "children": [], "text": "Body."},
             ]},
         ],
     }
     assert second["children"] == [{
-        "type": "callouts", "attrs": {"kind": "note", "title": "Note"}, "children": [
+        "type": "callouts", "attrs": {"kind": "note", "title": [_text("Note")]}, "children": [
             {"type": "paragraph", "attrs": {}, "children": [
                 {"type": "text", "attrs": {}, "children": [], "text": "Marked item."},
             ]},
@@ -926,11 +927,11 @@ def test_an_untitled_callout_is_titled_by_its_capitalized_keyword(tmp_path) -> N
     assert [
         node["attrs"] for node in document["chapters"][0]["content"] if node["type"] == "callouts"
     ] == [
-        {"kind": "note", "title": "Note"},
-        {"kind": "question", "title": "Faq"},
-        {"kind": "warning", "title": "Authored"},
-        {"kind": "important", "title": ""},
-        {"kind": "tip", "title": "Tip"},
+        {"kind": "note", "title": [_text("Note")]},
+        {"kind": "question", "title": [_text("Faq")]},
+        {"kind": "warning", "title": [_text("Authored")]},
+        {"kind": "important", "title": []},
+        {"kind": "tip", "title": [_text("Tip")]},
     ]
 
 
