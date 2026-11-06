@@ -36,7 +36,7 @@ from obs.input import (
     validate_project_config,
     validate_quantity,
 )
-from obs.note import IGNORED, VaultError, parser, read_note
+from obs.note import IGNORED, Note, VaultError, lines, parser, read_note
 from obs.producers import ProducerError, run_producers
 from obs.selection import (
     Record, base_selects, conditions_select, member_order, note_marks, paragraph_marks,
@@ -164,7 +164,7 @@ def build_document(
                 raise VaultError(str(error)) from error
     vault = _read_vault(manifest_path, metadata, body)
     _validate_note(manifest_path, vault)
-    chapters, abstract = _parse_manifest(body, manifest_path, vault_root, vault.identities)
+    chapters, abstract = _parse_manifest(manifest, manifest_path, vault_root, vault.identities)
     _add_records(vault, chapters, title)
     links: list[dict[str, str]] = []
     assets: list[dict[str, str]] = []
@@ -498,45 +498,70 @@ def _validate_note(path: Path, vault: _Vault) -> None:
 
 
 def _parse_manifest(
-    body: str, manifest_path: Path, vault_root: Path, identities: dict[Path, str],
+    manifest: Note, manifest_path: Path, vault_root: Path, identities: dict[Path, str],
 ) -> tuple[list[dict[str, object]], int]:
-    lines = body.splitlines(keepends=True)
+    body = manifest.body
+    body_lines = lines(body)
     chapters: list[dict[str, object]] = []
     parents: list[dict[str, object]] = []
     seen: set[Path] = set()
     abstract_start = 0
     found = False
-    for index, line in enumerate(lines):
+
+    def entry_error(index: int, problem: str, remedy: str) -> str:
+        """A manifest entry's error, naming its source line; see capabilities/manifest."""
+        line = manifest.source_line(index)
+        return f"{manifest_path}: line {line}: manifest entry {problem}; {remedy}."
+
+    for index, line in enumerate(body_lines):
         if not line.strip():
             if found:
-                abstract_start = sum(len(item) for item in lines[:index + 1])
+                abstract_start = sum(len(item) for item in body_lines[:index + 1])
                 break
             continue
         match = _MANIFEST_ITEM.fullmatch(line.rstrip("\r\n"))
         if match is None:
             if not found:
                 return [], 0
-            abstract_start = sum(len(item) for item in lines[:index])
+            abstract_start = sum(len(item) for item in body_lines[:index])
             break
         found = True
         depth = len(match["indent"]) // 2
         if len(match["indent"]) % 2:
-            raise VaultError(f"Manifest line {index + 1} must use two-space indentation.")
+            raise VaultError(entry_error(
+                index, "must use two-space indentation",
+                "indent each nesting level by two spaces",
+            ))
         if depth > len(parents):
-            raise VaultError(f"Manifest line {index + 1} skips a nesting level.")
+            raise VaultError(entry_error(
+                index, "skips a nesting level",
+                "nest the entry one level below the entry above it",
+            ))
         target = match["target"].strip()
         relative = Path(target)
         if relative.is_absolute() or ".." in relative.parts:
-            raise VaultError(f"Manifest line {index + 1} escapes the vault.")
+            raise VaultError(entry_error(
+                index, "escapes the vault",
+                "link to a note inside the vault",
+            ))
         if not relative.suffix:
             relative = relative.with_suffix(".md")
         if relative.suffix.lower() != ".md":
-            raise VaultError(f"Manifest line {index + 1} must link to a Markdown note.")
+            raise VaultError(entry_error(
+                index, "must link to a Markdown note",
+                "link to a .md note",
+            ))
         path = (vault_root / relative).resolve()
         if not path.is_relative_to(vault_root) or path == manifest_path or not path.is_file():
-            raise VaultError(f"Manifest target does not resolve: {target}")
+            raise VaultError(entry_error(
+                index, f"links to {target}, which does not resolve",
+                "link to an existing note of the vault other than the manifest",
+            ))
         if path in seen:
-            raise VaultError(f"Manifest target is duplicated: {target}")
+            raise VaultError(entry_error(
+                index, f"links to {target} a second time",
+                "list each note once",
+            ))
         seen.add(path)
         if path not in identities:
             identities[path] = _unique_identifier(
@@ -550,7 +575,10 @@ def _parse_manifest(
             "_path": path,
         }
         if not chapter["title"]:
-            raise VaultError(f"Manifest line {index + 1} has an empty chapter title.")
+            raise VaultError(entry_error(
+                index, "has an empty chapter title",
+                "write a label after the | or remove the |",
+            ))
         if depth == 0:
             chapters.append(chapter)
         else:
