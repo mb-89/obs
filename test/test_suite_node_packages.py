@@ -5,6 +5,7 @@ reaches the network."""
 import hashlib
 import subprocess
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 
@@ -158,3 +159,39 @@ def test_se_runs_the_setup_command_before_the_suite() -> None:
 
     tests = tomllib.loads((suite.ROOT / "se.toml").read_text(encoding="utf-8"))["tests"]
     assert tests["setup"] == ["uv", "run", "python", "test/suite.py", "--setup"]
+
+
+def test_a_focused_run_installs_the_packages_not_installed_from_their_lockfiles(tmp_path) -> None:
+    fresh, stale = _package(tmp_path, "fresh"), _package(tmp_path, "stale")
+    suite.install_node_packages([fresh], run=FakeNpm())
+    npm = FakeNpm()
+
+    assert suite.set_up_focused_run(SimpleNamespace(), [fresh, stale], run=npm) == [stale]
+    assert [cwd for _, cwd in npm.calls] == [stale]
+
+
+def test_an_xdist_worker_leaves_the_setup_to_its_controller(tmp_path) -> None:
+    npm = FakeNpm()
+
+    assert suite.set_up_focused_run(SimpleNamespace(workerinput={}), [_package(tmp_path, "core")], run=npm) == []
+    assert npm.calls == []
+
+
+def test_a_focused_run_whose_install_fails_stops_naming_the_lockfile(tmp_path) -> None:
+    package = _package(tmp_path, "core")
+
+    with pytest.raises(pytest.exit.Exception) as stopped:
+        suite.set_up_focused_run(SimpleNamespace(), [package], run=FakeNpm(returncode=1))
+
+    assert str(package / "package-lock.json") in str(stopped.value)
+
+
+def test_the_cores_session_start_sets_up_a_focused_run(monkeypatch) -> None:
+    import conftest
+
+    seen = []
+    monkeypatch.setattr(suite, "set_up_focused_run", lambda config: seen.append(config))
+    config = SimpleNamespace()
+    conftest.pytest_sessionstart(SimpleNamespace(config=config))
+
+    assert seen == [config]
