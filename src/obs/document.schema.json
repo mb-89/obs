@@ -42,8 +42,9 @@
       ]
     },
     "blockNode": {
-      "description": "A block node: never a paragraph's child, always its sibling (capabilities/markdown#Document nodes). An embed is a block node unless it names an asset.",
+      "description": "A block node: never a paragraph's child, always its sibling (capabilities/markdown#Document nodes). An embed is a block node unless it names an asset. Each branch is keyed by type, so a paragraph's children are checked by their types (src/obs/discriminator.py).",
       "required": ["type"],
+      "discriminator": {"propertyName": "type"},
       "anyOf": [
         {"properties": {"type": {"enum": [
           "section", "paragraph", "list", "list-item", "quote", "table", "table-row", "table-cell", "rule",
