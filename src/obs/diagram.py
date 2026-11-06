@@ -235,6 +235,17 @@ def _installed(kind: str) -> None:
                            "is missing)", f"Install the diagram renderers with '{install_command()}'")
 
 
+XLINK = "http://www.w3.org/1999/xlink"
+
+
+def _declare_xlink(svg: str) -> str:
+    """The SVG with the xlink prefix declared on its root where it uses the prefix undeclared, as
+    Mermaid's markup of a ``click`` link does (an ``xlink:href`` it serializes as HTML)."""
+    if "xlink:" not in svg or "xmlns:xlink" in svg or not svg.startswith("<svg"):
+        return svg
+    return f'<svg xmlns:xlink="{XLINK}"{svg[4:]}'
+
+
 @cache
 def render(kind: str, text: str) -> str:
     """The SVG markup of the diagram ``text`` of ``kind`` (a key of ``RENDERERS``)."""
@@ -255,6 +266,7 @@ def render(kind: str, text: str) -> str:
     error = renderer.drawn_error(svg)
     if error is not None:
         raise error
+    svg = _declare_xlink(svg)
     try:
         root = ElementTree.fromstring(svg)
     except ElementTree.ParseError:
