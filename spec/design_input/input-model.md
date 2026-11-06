@@ -433,8 +433,8 @@ Generation time remains separate from document revision dates.
   contract.
 
   One formatter in the core turns every schema validation failure, of
-  frontmatter, fences, `.base` files and project configuration, into this message; the
-  interim adapter uses it too, so no JSON Schema library text reaches the person (the
+  frontmatter, fences, `.base` files and project configuration, into this message, so no
+  JSON Schema library text reaches the person (the
   person's rule that every error names its origin and, where possible, a remedy; decided
   5 Nov 2026).
 
@@ -940,7 +940,7 @@ Core and adapter, 6 Nov 2026:
   and number and merges adjacent references; the error for an unlabelled reference to an
   unnumbered figure is the adapter's, since only it knows numbers.
 - A hard line break (the Document's `break` node) ends a group of adjacent references, as
-  in the interim adapter; a soft line break is whitespace.
+  it did in the interim adapter; a soft line break is whitespace.
 
 Confirmed defaults, same date:
 
@@ -950,8 +950,8 @@ Confirmed defaults, same date:
 - The Sankey option keeps the name `countLabels`: it says what it configures, the words shown
   with record counts, and renaming would only move every author's fence without new meaning.
 
-For `svg`, the fence's optional `panels` list (the interim reference renderer reads it from a
-source JSON with `version: 1`) declares per panel `id`, `title`,
+For `svg`, the fence's optional `panels` list (the interim adapter read it from a source JSON
+with `version: 1`) declares per panel `id`, `title`,
 and `box: [x, y, width, height]` in SVG viewBox coordinates.
 
 Optional grid/span/aspect/axis
