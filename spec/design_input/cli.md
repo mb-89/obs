@@ -83,13 +83,30 @@ failure the adapter's stderr is the detail of the one failure message, as before
 written twice. The adapter's stdout is not shown.
 
 `--serve` serves the artifact after the build, without the core naming any adapter: it runs the
-`serve` command the adapter declares in its `adapter.json` with the artifact's path, and `--wait`
-after it, and exits with that command's exit code. The server's output reaches the person as it
-comes, since it says where to open the artifact and, with `--wait`, returns the reader's answers.
+`serve` command the adapter declares in its `adapter.json` with the artifact's path, then `--wait`
+and `--timeout S` where the call has them, and exits with that command's exit code.
+
+The server's output reaches the person as it comes, since it says where to open the artifact and,
+with `--wait`, returns the reader's answers.
 
 An adapter that declares no `serve` command fails the call before the build, naming its manifest;
-so do `--wait` without `--serve` and `--serve` with several `--source`. The adapter's own
-documentation owns what its server does.
+so do `--wait` without `--serve`, `--timeout` without `--wait` and `--serve` with several
+`--source`. The adapter's own documentation owns what its server does.
+
+## Answers
+
+`--answers <file>` builds the Document with a reader's answers in it, the answers file a served
+artifact's reader sent (`--serve --wait` prints it, and the adapter's server writes it beside the
+artifact). [[input-model#Answers]] owns its fields and what each answer does to its chapter:
+
+```sh
+uv run obs-document --source deck/manifest.md --adapter html --destination deck.html --serve --wait
+uv run obs-document --source deck/manifest.md --adapter html --destination record.html --answers answers.json
+```
+
+The second artifact is the decision record. `--answers` is used only with `--source`, and an
+answers file the core refuses fails the build before the adapter runs, naming the file and the
+field path.
 
 ## Several documents per call
 

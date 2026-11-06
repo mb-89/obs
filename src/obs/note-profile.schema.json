@@ -6,6 +6,7 @@
   "additionalProperties": false,
   "properties": {
     "document": {"type": "boolean", "$comment": "input-model#Chapter content: false keeps a record-only note."},
+    "bless": {"const": "pending", "$comment": "input-model#Bless requests: the chapter asks its reader for a verdict."},
     "style": {
       "$comment": "The manifest's style module pinned to a commit, with an se module's keys (architecture.md, Declared style); obs.input.declared_style checks url and ref first.",
       "type": "object", "additionalProperties": false, "required": ["url", "ref"],

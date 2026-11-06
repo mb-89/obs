@@ -9,6 +9,8 @@ authored_content = [
 ]
 identity = "mb <mb>"
 public_check = true
+release = "workflow"
+version = "1.1.0"
 
 [tests]
 # The complete suite, its setup and its time budget; test/suite.py's docstring says what each runs.
@@ -16,3 +18,7 @@ setup = ["uv", "run", "python", "test/suite.py", "--setup"]
 command = ["uv", "run", "python", "test/suite.py", "--durations=10"]
 target_seconds = 60
 limit_seconds = 120
+
+[modules.se]
+url = "https://github.com/mb-89/SE.git"
+version = "^1.0"
