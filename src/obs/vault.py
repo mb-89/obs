@@ -233,8 +233,9 @@ def build_document(
         record = vault.notes_by_id[vault.identities[path]][1]
         record["fieldNodes"] = _field_nodes(fields, "", context_of(path))
     vault.reached.clear()
-    for attrs, target in vault.links:
-        attrs["chapter"] = HOME if target == manifest_path else vault.identities.get(target)
+    for attrs, target in vault.links:  # Only an included note is a chapter a link can name.
+        attrs["chapter"] = HOME if target == manifest_path else (
+            vault.identities.get(target) if target in included else None)
     if "manifest" in (capability_ids or set()):
         manifest_nodes.append({"type": "manifest", "attrs": {}, "children": []})
         capabilities.add("manifest")
