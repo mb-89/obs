@@ -652,7 +652,7 @@ def _document_heading(
     '<span class="cover-template">' + value(metadata.get("template", "")) + '</span>'
     '<span class="cover-organization">' + value(metadata.get("organization", "")) + '</span>'
   )
-  facts = [(key.title(), metadata[key]) for key in (*COVER_PEOPLE_FIELDS, "sap number", "legal entity")
+  facts = [(key.title(), metadata[key]) for key in (*COVER_PEOPLE_FIELDS, "document number", "legal entity")
            if key in metadata]
   facts_html = "".join(f"<dt>{escape(key)}</dt><dd>{value(item)}</dd>" for key, item in facts)
   legal = "".join(f'<p class="cover-{key}">{value(metadata[key])}</p>'
