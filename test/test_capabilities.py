@@ -111,14 +111,15 @@ def test_capability_reference_is_schema_valid_and_covers_the_input_model() -> No
     }
 
 
-def test_figure_descriptor_capability_example_is_schema_valid() -> None:
+def test_figure_descriptor_capability_examples_show_each_data_shape_schema_valid() -> None:
     note = (CAPABILITIES / "figure-descriptor.md").read_text(encoding="utf-8")
-    example = re.search(r"```figure\n(.*?)\n```", note, flags=re.DOTALL)
+    fences = [yaml.safe_load(body) for body in re.findall(r"```figure\n(.*?)\n```", note, flags=re.DOTALL)]
 
-    assert example is not None
-    fence = yaml.safe_load(example.group(1))
-    assert fence["kind"] == "plot"
-    validate_figure_descriptor(fence["content"])
+    assert all(fence["kind"] == "plot" for fence in fences)
+    for fence in fences:
+        validate_figure_descriptor(fence["content"])
+    assert sorted(shape for fence in fences for shape in fence["content"]["data"]
+                  if shape != "countLabels") == ["sankey", "traces"]
 
 
 def test_adapter_notes_can_depend_on_a_supplied_reference(tmp_path) -> None:

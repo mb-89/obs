@@ -166,7 +166,8 @@ of obs's `pyproject.toml`), the `commit` of the checkout obs runs from (core and
 this one repository), the package versions of every lockfile Git tracks there (`lockfiles`, by
 repository-relative path: `uv.lock` and each `package-lock.json`), and the `arguments` of the
 call that rebuild it, in the order `--adapter NAME`, `--destination` with the destination's file
-name only, each `--adapter-option`, `--execute-commands`, `--embed-source`. The record names no
+name only, each `--adapter-option`, `--execute-commands`, `--embed-source`, and the `style` the
+manifest declares, where it declares one ([Declared style](#declared-style)). The record names no
 path of the build machine: `--source` is the manifest the Document names, and `--document`,
 `--config`, `--adapter-config` and `--capability-reference` name files outside the vault, so they
 are left out. An obs that runs from no Git checkout cannot name its commit: `--embed-source` then
@@ -192,6 +193,32 @@ per-device appearance setting, not part of the document. Snippets are small, so 
 undeclared ones costs little. The source archive carries the snippet files despite their hidden
 folder: they are inputs of the documents that declare them.
 
+### Declared style
+
+A vault declares its style as a dependency in its manifest, in the core's namespace:
+`obs.style` is a style module pinned to a commit, with the keys of an se module (se's README,
+Modules): `url`, the public `https` clone URL of the module's repository, `ref`, the pin, a full
+40-hex commit SHA, and optionally `path`, the module's folder inside that repository. The
+Document's `style` carries that identity, `url`, `ref` and `path` as declared, and never the
+module's files: an adapter that offers styles resolves and applies it; one that offers none
+ignores it. A manifest without `obs.style` gives a Document without `style`, and the adapter's
+default style applies. Only the manifest declares a style: `obs.style` in any other note is an
+input error naming the note and the field. A declaration that names no pin (a `ref` that is no
+full commit SHA, such as a branch name) or no public `https` URL cannot be resolved the same way
+by every build, so it fails the build naming the field, the declared style and the remedy.
+
+Since the manifest is a source file, the [source archive](#source-archive) carries the
+declaration, and a rebuild from the archive resolves the same pinned style without repeating an
+option. `sourceArchive.build.style` records the declared identity beside the generator, so the
+archived build configuration names every pinned input of the rebuild. A one-off style that a
+call passes to an adapter directly (an option the adapter's manifest does not declare to the
+core) never reaches the Document or the build record, so it does not apply to a rebuild.
+
+Declaring the style in the manifest was chosen over core configuration (`--config`): the
+configuration is a file outside the vault, which the build record leaves out, so a rebuild from
+the archive could not see it; the manifest travels with the vault (worker decision, 6 Nov 2026,
+medium confidence).
+
 ## Input contracts
 
 The core owns data-only input contracts for command fences, callouts, cards, editable
@@ -200,7 +227,8 @@ source semantics only; every presentation projection remains an adapter concern.
 Command-fence execution is the core's ([Command output](#command-output)).
 
 Core configuration is restricted to source resolution and authorized command limits.
-Artifact, browser, and style settings remain adapter configuration.
+Artifact, browser, and style settings remain adapter configuration; the core carries only a
+declared style's identity ([Declared style](#declared-style)).
 The core schema set includes base definitions, note profiles, project configuration,
 and the input/execution subset of cross-cutting configuration. Document construction
 validates every recognized fence and applicable frontmatter field with these contracts.

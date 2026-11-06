@@ -19,9 +19,9 @@ XML report there as `<part>.xml` (`core.xml`, `adapters-html.xml`), from which s
 `work_tickets.py suite` names the slowest tests.
 
 The parts depend on Node packages: each part's `test/browser/package-lock.json`
-(`test/browser`, `adapters/html/test/browser`), the core's diagram renderers
-(`src/obs/diagrams`, which src/obs/diagram.py runs) and the html adapter's maths library
-(`adapters/html/maths`, which an equation figure embeds). `--setup`, its only argument then, installs them
+(`test/browser`, `adapters/html/test/browser`); the core's diagram renderers and the html
+adapter's maths library are built into their packages by each package's build (hatch_build.py,
+adapters/html/hatch_build.py). `--setup`, its only argument then, installs them
 and runs no part; se.toml's `[tests] setup` runs it before the suite, timed apart from the budget.
 A package is installed with `npm ci` when its `node_modules` is missing or was installed from
 another lockfile: after each install the lockfile's SHA-256 is stored in `node_modules/` as
@@ -52,11 +52,9 @@ SETUP = "--setup"
 SETUP_COMMAND = f"uv run python test/suite.py {SETUP}"
 PARALLEL = ["-n", "auto", "--dist", "loadgroup", "--no-loadscope-reorder"]
 REPORTS_VARIABLE = "SE_TEST_REPORTS"
-# Each part's Node test package, where it has one, the core's diagram renderers and the html
-# adapter's maths library.
-NODE_PACKAGES = [*(part / "test" / "browser" for part in PARTS
-                   if (part / "test" / "browser" / "package-lock.json").is_file()),
-                 ROOT / "src" / "obs" / "diagrams", ROOT / "adapters" / "html" / "maths"]
+# Each part's Node test package, where it has one.
+NODE_PACKAGES = [part / "test" / "browser" for part in PARTS
+                 if (part / "test" / "browser" / "package-lock.json").is_file()]
 # In node_modules: the SHA-256 of the lockfile it was installed from.
 INSTALLED_LOCKFILE = ".obs-installed-lockfile"
 

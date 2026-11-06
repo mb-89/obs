@@ -3,8 +3,9 @@
 Reader: whoever changes how a diagram figure is drawn, or adds a diagram renderer
 (input-model, Figure input direction; capabilities/mermaid and capabilities/plantuml).
 
-Both renderers are JavaScript libraries, pinned in ``diagrams/package-lock.json`` and installed
-from it with ``install_command()``; nothing is fetched while building. They
+Both renderers are JavaScript libraries, pinned in ``diagrams/package-lock.json``; the package's
+build installs them from it and ships their files as package data, ``VENDOR``, which this module
+reads only through ``importlib.resources`` (hatch_build.py); nothing is fetched while building. They
 run in one headless Chromium page that a Playwright session on its own thread holds for the
 whole process (Playwright's sync API allows one session per thread, and a caller may hold its
 own), started by the first diagram and closed at exit. The page's origin is a fake host whose
@@ -23,14 +24,15 @@ import shutil
 import threading
 from dataclasses import dataclass
 from functools import cache
+from importlib.resources import files
 from pathlib import Path
 from typing import Callable
 from urllib.parse import urlparse
 from xml.etree import ElementTree
 
 
-PACKAGE = Path(__file__).with_name("diagrams")
-"""The renderers' npm package: its lockfile pins them; ``npm ci`` installs them beside it."""
+VENDOR = files("obs").joinpath("vendor", "diagrams")
+"""The packaged renderers, each file at its path below node_modules (``Renderer.files``)."""
 BROWSER_INSTALL = "uv run playwright install chromium"
 ORIGIN = "https://obs-diagrams.invalid"
 
@@ -49,7 +51,7 @@ class Renderer:
     """One diagram language: the installed files its page loads and how it draws a text."""
 
     files: dict[str, str]
-    """Served path (under ``ORIGIN``) to the file below node_modules."""
+    """Served path (under ``ORIGIN``) to the file below node_modules; the build packages each one."""
     load: str
     """JavaScript that loads the library into the page, after its classic scripts (``scripts``)."""
     scripts: tuple[str, ...]
@@ -197,7 +199,7 @@ def _page(state: dict[str, object], kind: str):
                                "Use an installed Chrome, Edge or Chromium, or install the Playwright "
                                f"browser with '{BROWSER_INSTALL}'") from error
         page = state["browser"].new_page()
-        served = {path: PACKAGE / "node_modules" / file
+        served = {path: VENDOR.joinpath(*file.split("/"))
                   for renderer in RENDERERS.values() for path, file in renderer.files.items()}
 
         def answer(route) -> None:
@@ -206,7 +208,7 @@ def _page(state: dict[str, object], kind: str):
             if url.startswith(ORIGIN + "/") and path == "/":
                 route.fulfill(body="<!doctype html><meta charset=utf-8><body>", content_type="text/html")
             elif url.startswith(ORIGIN + "/") and path in served:
-                route.fulfill(path=str(served[path]), content_type="text/javascript")
+                route.fulfill(body=served[path].read_bytes(), content_type="text/javascript")
             else:
                 route.abort()
 
@@ -223,18 +225,6 @@ def _page(state: dict[str, object], kind: str):
     return page
 
 
-def install_command() -> str:
-    """The command that installs the renderers from their lockfile."""
-    return f"npm --prefix {PACKAGE} ci"
-
-
-def _installed(kind: str) -> None:
-    missing = [file for file in RENDERERS[kind].files.values() if not (PACKAGE / "node_modules" / file).is_file()]
-    if missing:
-        raise DiagramError(f"cannot be drawn: the {kind} renderer is not installed ({PACKAGE / 'node_modules' / missing[0]} "
-                           "is missing)", f"Install the diagram renderers with '{install_command()}'")
-
-
 XLINK = "http://www.w3.org/1999/xlink"
 
 
@@ -249,7 +239,6 @@ def _declare_xlink(svg: str) -> str:
 @cache
 def render(kind: str, text: str) -> str:
     """The SVG markup of the diagram ``text`` of ``kind`` (a key of ``RENDERERS``)."""
-    _installed(kind)
     renderer = RENDERERS[kind]
     name = "diagram-" + hashlib.sha256(f"{kind}\n{text}".encode("utf-8")).hexdigest()[:12]
 
@@ -273,5 +262,6 @@ def render(kind: str, text: str) -> str:
         root = None
     if root is None or root.tag != "{http://www.w3.org/2000/svg}svg":
         raise DiagramError(f"cannot be drawn: the {kind} renderer gave no SVG drawing",
-                           f"Reinstall the diagram renderers with '{install_command()}'")
+                           "Rebuild the obs package, whose build installs the renderers from "
+                           "src/obs/diagrams/package-lock.json")
     return svg
