@@ -287,6 +287,10 @@
       "properties": {
         "title": {"type": "string", "minLength": 1},
         "kind": {"description": "What is decided, before the title in a heading.", "type": "string", "minLength": 1},
+        "context": {"description": "The situation the decision is taken in, one phrase, for its Y-statement.", "type": "string", "minLength": 1},
+        "concern": {"description": "The concern the decision answers, one phrase, for its Y-statement.", "type": "string", "minLength": 1},
+        "confirmation": {"description": "How we will know the decision holds, one line, for example the check that enforces it.", "type": "string", "minLength": 1},
+        "supersededBy": {"description": "The decision that replaces this one, as the text that names it.", "type": "string", "minLength": 1},
         "nouns": {"type": "object", "additionalProperties": false,
                   "properties": {"options": {"type": "string", "minLength": 1}, "datum": {"type": "string", "minLength": 1}}},
         "notes": {"type": "array", "items": {"type": "string", "minLength": 1}},
@@ -308,10 +312,12 @@
             "losses": {"description": "The option's own losses, unweighted: a short text or a list of them.", "$ref": "#/$defs/pughTexts"},
             "values": {"description": "Measured criteria: a number, or null where it was not measured.",
                        "type": "object", "additionalProperties": {"type": ["number", "null"]}},
-            "marks": {"description": "Judged criteria: a mark from -2 to 2 against the datum, or a list of them, one per rater.",
+            "marks": {"description": "Judged criteria: a mark from -2 to 2 against the datum, or a list of them, one per rater; or the mark with the reason for it.",
                       "type": "object", "additionalProperties": {"oneOf": [
-                        {"type": "integer", "minimum": -2, "maximum": 2},
-                        {"type": "array", "minItems": 1, "items": {"type": "integer", "minimum": -2, "maximum": 2}}]}},
+                        {"$ref": "#/$defs/pughMark"},
+                        {"type": "object", "additionalProperties": false, "required": ["mark", "because"], "properties": {
+                          "mark": {"$ref": "#/$defs/pughMark"},
+                          "because": {"description": "Why the option has this mark; an adapter shows it as an argument for or against the option.", "type": "string", "minLength": 1}}}]}},
             "fits": {"type": "boolean"}, "whyNot": {"type": "string", "minLength": 1},
             "suggestable": {"type": "boolean"}, "keep": {"type": "boolean"}, "tieBreak": {"type": "number"},
             "note": {"type": "string", "minLength": 1}
@@ -344,6 +350,8 @@
         "checklistWeight": {"description": "The weight of the Checklist row; 3 by default.", "type": "number", "minimum": 0}
       }
     },
+    "pughMark": {"oneOf": [{"type": "integer", "minimum": -2, "maximum": 2},
+                           {"type": "array", "minItems": 1, "items": {"type": "integer", "minimum": -2, "maximum": 2}}]},
     "pughTexts": {"oneOf": [{"type": "string", "minLength": 1},
                             {"type": "array", "minItems": 1, "items": {"type": "string", "minLength": 1}}]},
     "figureBodies": {
