@@ -132,6 +132,12 @@ definitions alike. Keeping the same fact in two places is an anti-pattern (user,
 - A committed fixture Document (an adapter's `test/fixtures/documents`) is rebuilt from its vault
   by the current core in every run of the complete suite; a refused vault or a stale Document
   fails, naming the vault and the core's message or the first differing JSON path.
+- The adapter's browser tier tests every reader feature once, on its feature fixture: a small
+  vault with a few chapters in which every feature of the feature registry appears, so the tier
+  does not grow with the spec. A test fails where a registered feature is missing from it.
+
+  The spec artifact serves only the checks that need the real spec: its startup budget, its
+  content model, a printed spec chapter and its archive rebuild.
 - No test can hang the suite. Each test of the core and of every adapter has its tier's timeout
   (pytest-timeout), a measured multiple of the tier's slowest test, which `test/bounds.py` owns
   with its measurement; a test past it fails, naming itself and its timeout.
