@@ -131,3 +131,44 @@ def test_a_tarball_without_a_served_file_names_the_lockfile_and_the_file(hook, m
 
     assert failure.value.source == LOCKFILE
     assert failure.value.field == hook.diagram_files(ROOT)[0]
+
+
+def test_the_build_streams_only_the_listed_files_and_stops_reading_once_it_has_them(hook, monkeypatch,
+                                                                                    tmp_path) -> None:
+    """The build reads a pinned tarball as a stream and extracts only the files it lists, so it
+    neither indexes nor reads the members it does not ship: a tarball whose bytes break off after
+    the listed files still builds, from its integrity-checked bytes."""
+    import base64
+    import hashlib
+    import io
+    import os
+    import tarfile
+
+    buffer = io.BytesIO()
+    with tarfile.open(fileobj=buffer, mode="w:gz") as tar:
+        for name, data in (("package/LICENSE", b"licence"), ("package/dist/served.js", b"served"),
+                           ("package/rest.bin", os.urandom(1 << 20))):
+            member = tarfile.TarInfo(name)
+            member.size = len(data)
+            tar.addfile(member, io.BytesIO(data))
+    broken_off = buffer.getvalue()[:len(buffer.getvalue()) // 2]
+    package = tmp_path / "package"
+    package.mkdir()
+    integrity = "sha512-" + base64.b64encode(hashlib.sha512(broken_off).digest()).decode()
+    (package / "package-lock.json").write_text(json.dumps(
+        {"packages": {"node_modules/renderer": {"version": "1.0.0", "integrity": integrity}}}), encoding="utf-8")
+    monkeypatch.setattr(hook.shutil, "which", lambda name: "/fake/bin/npm")
+
+    def npm(command, cwd, **_):
+        destination = Path(command[command.index("--pack-destination") + 1])
+        (destination / "renderer-1.0.0.tgz").write_bytes(broken_off)
+        return subprocess.CompletedProcess(command, 0, stdout=json.dumps([{"filename": "renderer-1.0.0.tgz"}]),
+                                           stderr="")
+
+    work = tmp_path / "work"
+    work.mkdir()
+    installed = hook.pinned_files(package, ["renderer/LICENSE", "renderer/dist/served.js"], work, run=npm)
+
+    assert sorted(path.relative_to(installed).as_posix() for path in installed.rglob("*") if path.is_file()) == [
+        "renderer/LICENSE", "renderer/dist/served.js"]
+    assert (installed / "renderer" / "dist" / "served.js").read_bytes() == b"served"
