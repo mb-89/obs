@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import base64
+import hashlib
 from copy import copy
 from functools import cache, partial
 from dataclasses import dataclass, field, replace
@@ -293,6 +294,8 @@ def build_document(
             capabilities.add("markdown")
         content.extend(parsed)
         chapter["content"] = content
+        if (chapter_metadata.get("obs") or {}).get("bless") == "pending":
+            chapter["bless"] = {"version": bless_version(path, context.embedded, vault)}
         for child in chapter["children"]:
             parse_chapter(child)
 
@@ -748,6 +751,8 @@ class _Context:
     fences: dict[str, int] = field(default_factory=dict)
     field_path: str = ""
     frontmatter: dict[str, object] = field(default_factory=dict)
+    embedded: set[Path] = field(default_factory=set)
+    """The vault files the note embeds, which its bless version counts (input-model#Bless requests)."""
     first_line: int | None = 0
     """The note body's 0-based line the parsed text starts on, or None where the text is not
     the note's own (a card body), for messages that name a note line."""
@@ -1196,7 +1201,20 @@ def _figure_file(source: str, context: _Context, fail: Callable[..., InputError]
     if not path.is_file():
         raise fail("source", f"is {source!r}, which does not exist",
                    f"Add {source} next to the note or correct the path")
+    context.embedded.add(path)
     return path
+
+
+def bless_version(note: Path, embedded: set[Path], vault: _Vault) -> str:
+    """A chapter's version: the SHA-256 of its note and of every vault file it embeds, each as its
+    vault path, its length and its bytes, the note first, then the rest by vault path
+    (input-model#Bless requests)."""
+    digest = hashlib.sha256()
+    for path in [note, *sorted(embedded - {note}, key=vault.relative)]:
+        data = path.read_bytes()
+        digest.update(b"%s\0%d\0" % (vault.relative(path).encode("utf-8"), len(data)))
+        digest.update(data)
+    return digest.hexdigest()
 
 
 def _command_output(command: str, source_path: Path, place: str,
@@ -1353,6 +1371,8 @@ def _semantic_text_nodes(text: str, context: _Context) -> list[dict[str, object]
                 f"Base does not exist in {vault.relative(source_path)}: {value} matches no vault file; "
                 f"create {target} in the vault or embed the vault path of an existing .base file."
             )
+        if match["embed"] and resolved is not None and resolved.is_file():
+            context.embedded.add(resolved)
         if is_base and resolved is not None:
             try:
                 definition = yaml.safe_load(resolved.read_text(encoding="utf-8-sig"))
@@ -1513,6 +1533,8 @@ def _asset(context: _Context, label: str, href: str, path: Path | None) -> dict[
     A vault file is one asset however often it is referenced, and so is a URL; ``path`` is
     None for a URL. A remote image is fetched once; one it cannot fetch is a warning.
     """
+    if path is not None:
+        context.embedded.add(path)
     relative = context.vault.relative(path) if path is not None else None
     existing = next((
         item for item in context.assets
