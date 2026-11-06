@@ -14,9 +14,8 @@ from pathlib import PurePosixPath
 import re
 from typing import Callable, Sequence
 
-from markdown_it import MarkdownIt
-
 from obs.input import InputError
+from obs.note import IGNORED, parser
 
 
 BaseFilter = Callable[[Callable[[str], object]], bool]
@@ -24,8 +23,6 @@ _MISSING = object()
 _LIST_INDEX = re.compile(r"0|[1-9][0-9]*")
 _MARK = re.compile(r"(?<!\S)#mark/(?P<category>[a-z_]+)/(?P<id>[a-z0-9]+(?:_[a-z0-9]+)*)(?=\s|$)")
 _FILE_PROPERTIES = {"file.name", "file.path", "file.folder", "file.ext"}
-IGNORED = "ignored"
-"""The frontmatter field that marks a note as ignored; see markdown-frontmatter."""
 
 
 def selectable(fields: dict[str, object]) -> bool:
@@ -229,7 +226,7 @@ Mark = tuple[str, str]
 def note_marks(body: str) -> tuple[Mark, ...]:
     """The marks a note's Markdown body holds outside code; see capabilities/marks."""
     marks: list[Mark] = []
-    for token in MarkdownIt("commonmark", {"html": False, "linkify": False}).parse(body):
+    for token in parser().parse(body):
         for child in token.children or []:
             if child.type == "text":
                 marks.extend((match["category"], match["id"]) for match in _MARK.finditer(child.content))
@@ -243,7 +240,7 @@ ParagraphMark = tuple[str, str, str]
 @cache
 def paragraph_marks(body: str) -> tuple[ParagraphMark, ...]:
     """The marks of a note's marked paragraphs, in order; see capabilities/marks."""
-    tokens = MarkdownIt("commonmark", {"html": False, "linkify": False}).parse(body)
+    tokens = parser().parse(body)
     marks: list[ParagraphMark] = []
     for previous, token in pairwise(tokens):
         if token.type != "inline" or previous.type != "paragraph_open":

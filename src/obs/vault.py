@@ -14,9 +14,7 @@ from urllib.parse import unquote, urlparse
 import urllib.request
 
 from jsonschema import Draft202012Validator
-from markdown_it import MarkdownIt
 from markdown_it.token import Token
-from mdit_py_plugins.dollarmath import dollarmath_plugin
 import yaml
 
 from obs.commands import CommandError, run_command
@@ -38,9 +36,10 @@ from obs.input import (
     validate_project_config,
     validate_quantity,
 )
+from obs.note import IGNORED, VaultError, parser, read_note
 from obs.producers import ProducerError, run_producers
 from obs.selection import (
-    IGNORED, Record, base_selects, conditions_select, member_order, note_marks, paragraph_marks,
+    Record, base_selects, conditions_select, member_order, note_marks, paragraph_marks,
     view_selectors,
 )
 
@@ -52,8 +51,6 @@ _WIKILINK = re.compile(
     r"(?<!!)\[\[(?P<target>[^\]|#]+)(?:#(?P<heading>[^\]|]+))?(?:\|(?P<label>[^\]]+))?\]\]"
 )
 _EMBED = re.compile(r"!\[\[(?P<target>[^\]|#]+)(?:#[^\]|]+)?(?:\|[^\]]+)?\]\]")
-_FENCE = re.compile(r"[ \t]*(?P<marker>`{3,}|~{3,})")
-_COMMENT = "%%"
 _MARK = re.compile(r"#mark/(?P<category>[a-z_]+)/(?P<id>[a-z0-9_]+)")
 _SEMANTIC = re.compile(
     r"(?P<embed>!)?\[\[(?P<target>[^\]|#]+)(?:#(?P<heading>[^\]|]+))?"
@@ -118,10 +115,6 @@ class _Vault:
         return self.files.get(name.casefold(), [])
 
 
-class VaultError(ValueError):
-    """Raised when vault input violates the neutral parsing contract."""
-
-
 def build_document(
     manifest_path: Path, capability_ids: set[str] | None = None,
     configuration_path: Path | None = None,
@@ -150,7 +143,8 @@ def build_document(
         except ProducerError as error:
             raise VaultError(str(error)) from error
         command_runner = partial(run_command, cwd=vault_root, timeout_seconds=timeout)
-    metadata, body = _read_note(manifest_path)
+    manifest = read_note(manifest_path)
+    metadata, body = manifest.metadata, manifest.body
     title = metadata.get("title", manifest_path.stem.replace("-", " ").title())
     if not isinstance(title, str) or not title.strip():
         raise VaultError("Manifest title must be a non-empty string.")
@@ -189,7 +183,7 @@ def build_document(
     def parse_chapter(chapter: dict[str, object]) -> None:
         path = chapter.pop("_path")
         included.add(path)
-        chapter_metadata, chapter_body = vault.notes.get(path) or _read_note(path)
+        chapter_metadata, chapter_body = vault.notes.get(path) or read_note(path)[:2]
         _validate_note(path, vault)
         _metadata_links(chapter_metadata, path, vault)
         _query_selection(chapter_metadata.get("query"), path, vault)
@@ -275,7 +269,7 @@ def _read_vault(manifest_path: Path, metadata: dict[str, object], body: str) -> 
                 f"Note path escapes the vault: {relative} (vault {vault_root}); "
                 "replace the link to outside the vault with the note itself."
             )
-        notes[source_path] = (metadata, body) if source_path == manifest_path else _read_note(source_path)
+        notes[source_path] = (metadata, body) if source_path == manifest_path else read_note(source_path)[:2]
         identities[source_path] = _unique_identifier(relative.with_suffix("").as_posix(), used)
     return _Vault(vault_root, manifest_path, notes, identities)
 
@@ -487,114 +481,12 @@ def _base_selection(definition: object, source_path: Path, vault: _Vault, place:
             vault.reached.append(owner[0])
 
 
-def _read_note(path: Path) -> tuple[dict[str, object], str]:
-    try:
-        source = path.read_text(encoding="utf-8-sig")
-    except OSError as error:
-        raise VaultError(f"Cannot read note {path}: {error}") from error
-    metadata, body = _split_frontmatter(source, path)
-    return metadata, _without_comments(body, path, source[:len(source) - len(body)].count("\n"))
-
-
-def _without_comments(body: str, path: Path, first_line: int) -> str:
-    """The body without its Obsidian comments; see input-model "Chapter content".
-
-    A ``%%`` outside code opens a comment and the next ``%%`` closes it, on the same line or a
-    later one. A line that held only comment text goes, so a manifest list runs on past it.
-    """
-    if _COMMENT not in body:
-        return body
-    kept: list[str] = []
-    fence = ""
-    opened = 0
-    for number, line in enumerate(body.splitlines(keepends=True), first_line + 1):
-        if not opened:
-            if fence:
-                kept.append(line)
-                if re.fullmatch(rf"[ \t]*{re.escape(fence[0])}{{{len(fence)},}}[ \t]*\r?\n?", line):
-                    fence = ""
-                continue
-            match = _FENCE.match(line)
-            if match:
-                fence = match["marker"]
-                kept.append(line)
-                continue
-        if not opened and _COMMENT not in line:
-            kept.append(line)
-            continue
-        text, opened, touched = _line_without_comments(line, opened, number)
-        if text.strip() or not touched:
-            kept.append(text)
-    if opened:
-        raise VaultError(
-            f"{path}: line {opened}: the Obsidian comment opened here is not closed. Add the "
-            f"closing {_COMMENT}, or write the percent signs in code; see input-model "
-            '"Chapter content".'
-        )
-    return "".join(kept)
-
-
-def _line_without_comments(line: str, opened: int, number: int) -> tuple[str, int, bool]:
-    """One line's shown text, the line its open comment began on (0 for none), and whether a
-    comment touched it; a code span keeps its ``%%``."""
-    shown: list[str] = []
-    touched = bool(opened)
-    position = 0
-    while position < len(line):
-        if line.startswith(_COMMENT, position):
-            opened = 0 if opened else number
-            touched = True
-            position += len(_COMMENT)
-            continue
-        if line[position] in "\r\n":
-            shown.append(line[position])
-        elif opened:
-            pass
-        elif line[position] == "`":
-            run = re.match(r"`+", line[position:])[0]
-            closing = re.compile(rf"(?<!`){run}(?!`)").search(line, position + len(run))
-            end = closing.end() if closing else position + len(run)
-            shown.append(line[position:end])
-            position = end
-            continue
-        else:
-            shown.append(line[position])
-        position += 1
-    return "".join(shown), opened, touched
-
-
-def _split_frontmatter(source: str, path: Path) -> tuple[dict[str, object], str]:
-    if not source.startswith("---\n"):
-        return {}, source
-    closing = source.find("\n---", 4)
-    if closing < 0:
-        raise VaultError(f"Frontmatter is not closed: {path}")
-    try:
-        metadata = yaml.safe_load(source[4:closing])
-    except yaml.YAMLError as error:
-        raise VaultError(f"Invalid frontmatter in {path}: {error}") from error
-    if metadata is None:
-        metadata = {}
-    if not isinstance(metadata, dict):
-        raise VaultError(f"Frontmatter must be a mapping: {path}")
-    if not isinstance(metadata.get(IGNORED, False), bool):
-        raise VaultError(
-            f"Frontmatter field {IGNORED} must be true or false in {path}: "
-            f"{metadata[IGNORED]!r}; write {IGNORED}: true to keep queries and Bases from "
-            f"selecting the note, or remove the field."
-        )
-    body_start = closing + 4
-    if source[body_start:body_start + 1] == "\n":
-        body_start += 1
-    return metadata, source[body_start:]
-
-
 def _validate_note(path: Path, vault: _Vault) -> None:
     """Check an included note's frontmatter contracts once; see input-model "Chapter content"."""
     if path in vault.validated:
         return
     vault.validated.add(path)
-    metadata = vault.notes[path][0] if path in vault.notes else _read_note(path)[0]
+    metadata = vault.notes[path][0] if path in vault.notes else read_note(path).metadata
     try:
         validate_note_profile(metadata, path)
         if metadata.get("kind") == "quantity":
@@ -711,19 +603,8 @@ class _Context:
     field_path: str = ""
 
 
-@cache
-def _parser() -> MarkdownIt:
-    """The supported Markdown dialect: CommonMark, pipe tables, strikethrough and TeX math."""
-    return MarkdownIt("commonmark", {"html": False, "linkify": False}).enable(
-        ["table", "strikethrough"],
-    ).use(
-        dollarmath_plugin, allow_labels=False, allow_space=False, allow_digits=False,
-        double_inline=True,
-    )
-
-
 def _nodes(source: str, context: _Context) -> list[dict[str, object]]:
-    tokens = _parser().parse(source)
+    tokens = parser().parse(source)
     return _blocks(tokens, 0, len(tokens), context)
 
 
@@ -1063,7 +944,7 @@ def _field_nodes(value: object, name: str, context: _Context) -> list[dict[str, 
         ]
     if not isinstance(value, str) or not value.strip():
         return []
-    tokens = _parser().parseInline(value)
+    tokens = parser().parseInline(value)
     children = _bare_urls(_inline_nodes(tokens[0], replace(context, field_path=name)), context)
     return [{"type": "field", "attrs": {"name": name}, "children": children}]
 
