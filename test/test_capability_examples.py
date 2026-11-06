@@ -47,7 +47,7 @@ def _read(tmp_path: Path, example: str, companions: dict[str, str] | None = None
         (tmp_path / name).write_text(body, encoding="utf-8")
     (tmp_path / "example.md").write_text(_note(example), encoding="utf-8")
     (tmp_path / "manifest.md").write_text("- [[example]]\n", encoding="utf-8")
-    return build_document(tmp_path / "manifest.md", capability_reference())
+    return build_document(tmp_path / "manifest.md", capability_reference(), execute_commands=True)
 
 
 @pytest.mark.parametrize(("place", "capability", "example", "companions"), _examples())

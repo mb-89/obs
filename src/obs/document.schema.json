@@ -92,6 +92,15 @@
           }}}
         },
         {
+          "description": "A command fence: its authored source; a producer is silent and renders nothing, every other fence carries the output the core captured on an authorized build (capabilities/command-fences).",
+          "if": {"properties": {"type": {"const": "command-fences"}}},
+          "then": {"properties": {"attrs": {
+            "type": "object", "additionalProperties": false, "required": ["source"],
+            "properties": {"source": {"type": "string"}, "silent": {"const": true}, "output": {"type": "string"}},
+            "oneOf": [{"required": ["silent"]}, {"required": ["output"]}]
+          }}}
+        },
+        {
           "if": {"properties": {"type": {"const": "figure-descriptor"}}},
           "then": {
             "properties": {
