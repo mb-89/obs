@@ -1,8 +1,8 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "title": "obs project input configuration",
+  "description": "The core's keys of a vault's project configuration, which the core validates and applies; every other top-level key the Document carries unread as projectConfig.settings (architecture.md, Project configuration).",
   "type": "object",
-  "additionalProperties": false,
   "properties": {
     "$schema": {"type": "string"},
     "schemaVersion": {"const": 1},

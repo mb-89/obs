@@ -541,5 +541,12 @@ def refuse_renamed_manifest_fields(metadata: dict[str, object], source_path: obj
                               f"Rename it to {new}; see {COVER_METADATA_OWNER}")
 
 
+def project_config_keys() -> frozenset[str]:
+    """The top-level keys of a vault's project configuration the core owns; project.schema.json
+    owns them, and the Document carries every other one unread (architecture.md, Project configuration)."""
+    schema = json.loads(files("obs").joinpath("project.schema.json").read_text(encoding="utf-8"))
+    return frozenset(schema["properties"])
+
+
 def validate_project_config(configuration: object, source_path: object) -> None:
     _validate_schema("project.schema.json", configuration, source_path, "configuration")

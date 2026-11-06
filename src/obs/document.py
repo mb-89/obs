@@ -235,11 +235,14 @@ def build_parser() -> argparse.ArgumentParser:
                              "--adapter it is optional, and without it the Document is a temporary "
                              "file the build removes.")
     parser.add_argument("--source", type=Path, action="append",
-                        help="Manifest note, or vault folder holding it (input.manifestFilename of --config, "
-                             "default manifest.md), to parse into --document. Repeat --source, each followed by its "
+                        help="Manifest note, or vault folder holding it (input.manifestFilename of the vault's project "
+                             "configuration, else of --config, default manifest.md), to parse into --document. Repeat --source, each followed by its "
                              "--destination, to build several artifacts with --adapter in one call, in "
                              "argument order; every other option applies to each.")
-    parser.add_argument("--config", type=Path, help="Core configuration JSON for --source.")
+    parser.add_argument("--config", type=Path,
+                        help="Core configuration JSON for --source. The vault's project configuration "
+                             "(input.projectConfigFilename, default cfg.json), read on every build, overrides "
+                             "its keys; the Document carries that file's other keys to the adapter.")
     parser.add_argument("--execute-commands", action="store_true",
                         help="Authorize running the cmd fences of --source from its vault root: "
                              "producers (cmd silent) before conversion, then each other fence, "
