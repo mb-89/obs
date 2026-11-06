@@ -104,3 +104,48 @@ def test_the_suite_fails_where_the_spec_was_built_twice(tmp_path, monkeypatch, c
     assert code == 1
     error = capsys.readouterr().err
     assert "test/spec_build.py" in error and "document 2" in error
+
+
+def test_the_adapter_spec_fence_is_served_the_runs_one_build(counted_builds, tmp_path, monkeypatch) -> None:
+    """Every build of the spec in the run, the shared one and a test's copy of the vault, is served
+    the adapter's specification its producer fence writes from the run's one ``adapter-spec`` build."""
+    fence, produced = spec_build.adapter_spec_fence()
+    built = []
+
+    def build(folder: Path) -> None:
+        built.append(folder)
+        (folder / produced).parent.mkdir(parents=True)
+        (folder / produced).write_text("<title>obs-html</title>", encoding="utf-8")
+
+    monkeypatch.setitem(spec_build.BUILDS, "adapter-spec", build)
+    run = tmp_path / "run"
+    run.mkdir()
+    monkeypatch.setenv(spec_build.RUN_FOLDER, str(run))
+
+    served = [spec_build.serve_adapter_spec(fence, tmp_path / vault) for vault in ("spec", "copy")]
+
+    assert served == [True, True] and len(built) == 1
+    assert all((tmp_path / vault / produced).read_text(encoding="utf-8") == "<title>obs-html</title>"
+               for vault in ("spec", "copy"))
+    assert spec_build.counts(run) == {"adapter-spec": 1}
+    assert not spec_build.serve_adapter_spec("echo other producer", tmp_path / "spec")
+
+
+def test_the_adapter_spec_build_runs_the_specs_own_fence(monkeypatch, tmp_path) -> None:
+    """The run's one build of the adapter's specification is the spec's fence, unchanged."""
+    runs = []
+    monkeypatch.setattr(spec_build, "_run", lambda command, what, run, **options: runs.append((command, options)))
+
+    spec_build.build_adapter_spec(tmp_path / "adapter-spec-key")
+
+    [(command, options)] = runs
+    assert command == spec_build.adapter_spec_fence()[0] and command.startswith("uv run obs-html --build-own-spec ")
+    assert options["cwd"] == tmp_path / "adapter-spec-key" and options["shell"]
+
+
+@pytest.mark.parametrize("kind", list(spec_build.BUILDS))
+def test_the_suite_fails_where_any_kind_was_built_twice(tmp_path, monkeypatch, capsys, kind) -> None:
+    code, _folders = suite_run(tmp_path, monkeypatch, [kind, kind])
+
+    assert code == 1
+    assert f"{kind} 2" in capsys.readouterr().err
