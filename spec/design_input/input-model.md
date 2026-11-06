@@ -232,9 +232,9 @@ records; they never execute artifact-owned algorithms in the converter.
   `timestamp` is the time of the last change to the document's content.
 
   It starts as the build time; a rebuild whose content equals the existing output keeps
-  that output and its timestamp. Each committed canonical change in the HTML (for example
+  that output and its timestamp. Each committed canonical change in the artifact (for example
   an evidence replacement or a description edit) sets it to the time of that change, and a saved
-  HTML keeps that time. A change that returns the content to its state when opened or
+  artifact keeps that time. A change that returns the content to its state when opened or
   when last saved restores that state's timestamp, so reverting an edit is not a change.
 
   The adapter owns which edits are content changes.
@@ -604,7 +604,7 @@ discussion belong to that note; frontmatter `source` links identify the supporti
 The note body explains qualifications and uncertainty without changing their strength.
 
 Authors reference an unlabelled `[[alias]]` rather than copying the number or its unit
-into prose. HTML renders that link as the canonical value followed by its unit, retaining
+into prose. An adapter renders that link as the canonical value followed by its unit, retaining
 normal note navigation, previews and details. Explicit display labels and ordinary
 non-quantity links keep their existing behavior.
 
@@ -670,7 +670,7 @@ frontmatter fields of the one note, and the unlabelled link renders all of them.
 A derived value records its provenance in one of three ways: prose in the note, a stored
 command that reproduces it, or a stored query over the document's own records.
 
-Everything a query computes runs live in the HTML, so a reader's change updates it at once.
+Everything a query computes runs live in the artifact, so a reader's change updates it at once.
 Values from external systems or heavy analysis are computed offline and stay plain data.
 There is no hard border: analytic equations with numbers plugged in should run live, and
 work that is too heavy for the browser runs offline.
@@ -705,7 +705,7 @@ note shows its title. There is no placeholder syntax such as `$value` in link te
 target's title, not the alias or file name written; a Markdown link always has its own text.
 Heading and block links keep their existing labels.
 
-The lint runs with the paragraph warnings on every build (stderr, never in the HTML): a
+The lint runs with the paragraph warnings on every build (stderr, never in the artifact): a
 Markdown link, autolink or bare `http(s)` URL in a note body (code excluded), and a base
 `linkProperty` whose path, or its last segment, holds an external URL (plain or as a Markdown
 link) in any included note.
@@ -803,7 +803,7 @@ Decided by the user, 4 Nov 2026 (`spec/backlog/review-figure-defaults.md`):
 Implementation decisions, same date:
 
 - The figure lint shares the paragraph-warning path: every build and `--check` print one
-  source-located stderr warning per finding; none changes the HTML. An image alone in its
+  source-located stderr warning per finding; none changes the artifact. An image alone in its
   paragraph gets only the image warning, not the caption or block-id one.
 - Typed numbers are recognised after the manifest's `label` and `labelPlural` and after the
   packaged label list (`input.figureReferences.labels` in `cfg.json`), followed by a number
@@ -1184,9 +1184,6 @@ the per-kind register is the `marks` [register](#registers).
 
 #### Base files and members
 
-Moved from the HTML adapter's generic tables note, whose table definition
-these bullets are part of.
-
 - An embedded `base` fence or an embedded `.base` file is the input adapter. Standard Obsidian keys
   retain their meaning; what the core reads is permitted only under `obs`, artifact-specific
   behavior only under the adapter's namespace ([[#Core and adapter namespaces]]).
@@ -1296,8 +1293,8 @@ Counts are not Bases filters: they use the record-metric conditions owned by
   the vault root in path and source order before the vault is read for conversion.
   It renders no command output. Its files are ordinary vault inputs, so an unauthorized
   build and `--check` use only files already on disk.
-- Command output is HTML-escaped and rendered as preformatted content; it cannot inject
-  artifact markup or styles.
+- Command output is escaped for the artifact's format and rendered as preformatted content; it
+  cannot inject artifact markup or styles.
 - A timeout or nonzero exit fails generation so stale or partial reference output is not
   published.
 - Builds never execute command fences without explicit authorization because a vault may
