@@ -1178,11 +1178,13 @@ separate from artifact presentation.
   "Open the HTML file directly in a browser to print".
 
   A canary that cannot decide raises nothing at load. The feature is tried on use, and an
-  observed failure then shows the reason and remedy inline and raises the warning.
+  observed failure then shows the reason and remedy inline and raises the warning. Where a
+  failure cannot be observed even on use, there is no notice; the control's help text names
+  the remedy.
 
   No feature uses a browser dialog; its messages are inline. Print to PDF never stays in
   its preparing state. The registry and its entries are owned by obs-html's
-  `capabilities.js`; the list of abilities is not repeated here.
+  `features.py`; the list of abilities is not repeated here.
 
   Generic reader-facing controls and messages call the artifact HTML, not a report.
   Where its semantic name is useful, derive it from the authored document type;
