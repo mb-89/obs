@@ -159,6 +159,21 @@
         }
       }
     },
+    "figureFence": {
+      "description": "A figure fence's shared keys; the kind's content and own options are checked by its body schema (document.schema.json, $defs/figureBodies). See capabilities/figures.",
+      "type": "object",
+      "required": ["version", "kind"],
+      "properties": {
+        "version": {"const": 1},
+        "kind": {"type": "string", "pattern": "^[a-z][a-z0-9-]*$"},
+        "caption": {"oneOf": [
+          {"type": "string", "minLength": 1},
+          {"type": "array", "minItems": 1, "maxItems": 64, "items": {"type": "string", "minLength": 1}}
+        ]},
+        "alt": {"type": "string"},
+        "source": {"type": "string", "minLength": 1}
+      }
+    },
     "projectionFields": {
       "type": "object",
       "minProperties": 1,
