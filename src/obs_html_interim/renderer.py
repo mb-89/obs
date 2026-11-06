@@ -320,6 +320,7 @@ def render_artifact(
 {query_script}
   </script>
   <script id="base-schema" type="application/json">{files("obs_html_interim").joinpath("base.schema.json").read_text(encoding="utf-8")}</script>
+  <script id="case-folding" type="application/json">{files("obs").joinpath("case-folding.json").read_text(encoding="utf-8")}</script>
   <script type="application/json" data-json-schema="assets.schema.json">{files("obs_html_interim").joinpath("assets.schema.json").read_text(encoding="utf-8")}</script>
   <script id="property-editor-schema" type="application/json">{files("obs_html_interim").joinpath("property-editor.schema.json").read_text(encoding="utf-8")}</script>
   <script id="yaml-script">

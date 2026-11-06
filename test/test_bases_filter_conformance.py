@@ -129,3 +129,17 @@ def test_match_case_flag_belongs_to_an_equals_condition(package):
         "note.md: query.where[0].equals: is missing; matchCase needs it. "
         "Add equals or remove matchCase; see capabilities/queries."
     )
+
+
+def test_case_folding_table_is_unicode_full_case_folding():
+    """The core's table (src/obs/case-folding.json) folds as Python's str.casefold, Unicode's
+    full case folding; at the table's own Unicode version it holds every folding code point."""
+    import unicodedata
+    from importlib.resources import files
+
+    table = json.loads(files("obs").joinpath("case-folding.json").read_text(encoding="utf-8"))
+    folds = {int(code, 16): folded for code, folded in table["folds"].items()}
+    assert [code for code, folded in folds.items() if chr(code).casefold() != folded] == []
+    if unicodedata.unidata_version == table["unicode"]:
+        assert len(folds) == sum(chr(code).casefold() != chr(code)
+                                 for code in range(0x110000) if not 0xD800 <= code <= 0xDFFF)

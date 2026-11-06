@@ -89,8 +89,8 @@ selects the population for a percentage. Empty denominators display `-`. All sel
 compose with the artifact-wide filter, never table-local filters.
 
 An optional metric `link` is an internal fragment using the existing chapter/heading
-route syntax; a
-`tableFilter` query value applies the existing filter to the table named by a table-group
+route syntax; the adapter adds the drill-down filter derived from the metric's conditions
+([[capabilities/cards-metrics#Drill-downs]]) and applies it to the table named by a table-group
 anchor, or to the target chapter's first table when the link has no group anchor.
 Table-group anchors use the table's generated key and grouped property/value path.
 
@@ -1369,8 +1369,9 @@ how its runtime commits an edit, is that adapter's; its specification is listed 
   `distinct` and `denominator` (see [Document home and abstract](#document-home-and-abstract)).
   A cards metric evaluates it directly; a quantity note's `query` uses the same form and is
   referenced from prose or by a metric's `from`/`secondary`. Both share one evaluator.
-- A count on Home is a `cards` fence in the manifest abstract. Its metric `link` may carry
-  `?tableFilter=` to drill into the table that lists the counted items.
+- A count on Home is a `cards` fence in the manifest abstract. Its metric `link` names the
+  table that lists the counted items; the drill-down filter derives from the metric's
+  conditions ([[capabilities/cards-metrics#Drill-downs]]).
 - Manifest `summaries` (Bases-filter counts over projected table rows) were removed
   (4 Nov 2026). The manifest rejects the key with a migration message; there is no fallback.
   For example, the spec counts open points with `where: [{field: mark.open_point, exists: true}]`
