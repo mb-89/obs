@@ -18,7 +18,7 @@
       "uniqueItems": true
     },
     "options": {
-      "description": "The options obs-document --adapter-option NAME=VALUE may pass. A boolean option is passed as --NAME when its value is true and left out when it is false.",
+      "description": "The options obs-document --adapter-option NAME=VALUE may pass. A boolean option is passed as --NAME when its value is true and left out when it is false. A vault-file option's VALUE is ID=PATH, PATH relative to the vault; the core passes --NAME ID=<the resolved file> (spec/design_input/cli.md, Adapter options).",
       "type": "object",
       "propertyNames": {"pattern": "^[a-z][a-z0-9-]*$"},
       "additionalProperties": {
@@ -26,7 +26,7 @@
         "additionalProperties": false,
         "required": ["type", "summary"],
         "properties": {
-          "type": {"const": "boolean"},
+          "type": {"enum": ["boolean", "vault-file"]},
           "summary": {"type": "string", "minLength": 1}
         }
       }
