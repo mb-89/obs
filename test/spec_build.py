@@ -4,7 +4,8 @@ Reader: a test that reads obs's spec Document, and whoever changes how the suite
 quality.md, Testing boundaries, owns the rule.
 
 Each kind in BUILDS is built at most once per run: ``document``, the spec's Document with its
-capability reference, which every adapter renders itself. The first process of the run that
+capability reference, which every adapter renders itself, and ``adapter-spec``, the HTML adapter's
+specification as the spec's producer fence (ADAPTER_SPEC_NOTE) builds it. The first process of the run that
 asks builds it under a lock, in the run's folder, and every other
 process, of any part, reads what it built. test/suite.py makes the run's folder and names it in
 RUN_FOLDER for its parts; a focused run (a part's own pytest) builds in its pytest base folder.
@@ -14,8 +15,10 @@ COUNTER in the run's folder, which test/suite.py reads at the run's end: where o
 twice, the run fails.
 
 The build runs the spec's commands and producers in its vault, offline: the core's
-test/offline_obs_document.py serves each remote image as a placeholder. They write only what
-the producers write into the vault's generated design_output, as any build of the spec does.
+test/offline_obs_document.py serves each remote image as a placeholder, and serves the adapter
+specification fence the run's ``adapter-spec`` build (``serve_adapter_spec``), in this build and
+in every other build of a copy of the vault in the run. They write only what the producers write
+into the vault's generated design_output, as any build of the spec does.
 
 A test that needs another build of the spec (another option, a copied vault) copies the vault
 and builds only that variant. ``own_builds`` names a test that builds the spec itself; the
@@ -26,6 +29,8 @@ import ast
 import hashlib
 import re
 import os
+import shlex
+import shutil
 import subprocess
 import sys
 from collections import Counter
@@ -53,12 +58,15 @@ class SpecBuildError(Exception):
     """A shared build of obs's spec failed; the message names the step, its command and its output."""
 
 
-def _run(command: list[str], what: str) -> None:
+def _run(command, what: str, run: Path, cwd: Path = ROOT, shell: bool = False, **variables: str) -> None:
+    """Run a build step, with the run's folder in RUN_FOLDER for test/offline_obs_document.py."""
     environment = {key: value for key, value in os.environ.items() if key != "VIRTUAL_ENV"}
-    result = subprocess.run(command, cwd=ROOT, env=environment, text=True, encoding="utf-8",
+    environment.update({RUN_FOLDER: str(run), **variables})
+    result = subprocess.run(command, cwd=cwd, env=environment, shell=shell, text=True, encoding="utf-8",
                             capture_output=True, timeout=900)
     if result.returncode:
-        raise SpecBuildError(f"test/spec_build.py: {what} failed: {' '.join(command)} (in {ROOT})\n"
+        shown = command if shell else " ".join(command)
+        raise SpecBuildError(f"test/spec_build.py: {what} failed: {shown} (in {cwd})\n"
                              f"{result.stdout[-2000:]}{result.stderr[-2000:]}")
 
 
@@ -67,13 +75,36 @@ def build_document(folder: Path) -> None:
     capabilities = SPEC / "capabilities"
     _run([sys.executable, "-m", "obs.capabilities", "--notes", str(capabilities),
           "--coverage", str(capabilities / "coverage.json"), "--output", str(folder / CAPABILITIES)],
-         "building the capability reference with the core")
+         "building the capability reference with the core", folder.parent)
     _run([sys.executable, str(OFFLINE_DOCUMENT), "--document", str(folder / DOCUMENT),
           "--source", str(SPEC / "manifest.md"), "--capability-reference", str(folder / CAPABILITIES),
-          "--execute-commands"], "building obs's spec Document with the core, without the network")
+          "--execute-commands"], "building obs's spec Document with the core, without the network", folder.parent)
 
 
-BUILDS = {"document": build_document}
+# The spec's note whose producer fence builds the HTML adapter's specification.
+ADAPTER_SPEC_NOTE = SPEC / "appendix" / "references" / "obs-html-specification.md"
+
+
+def adapter_spec_fence() -> tuple[str, str]:
+    """The adapter specification's producer fence: its command, and the file it writes relative to
+    the vault."""
+    from obs.note import parser, read_note
+
+    [command] = [token.content.strip() for token in parser().parse(read_note(ADAPTER_SPEC_NOTE).body)
+                 if token.type == "fence" and token.info.strip().split() == ["cmd", "silent"]]
+    words = shlex.split(command)
+    return command, words[words.index("--build-own-spec") + 1]
+
+
+def build_adapter_spec(folder: Path) -> None:
+    """The HTML adapter's specification, built by the spec's own producer fence in ``folder``, with
+    this checkout's obs, as uv run finds it from the vault."""
+    command, _produced = adapter_spec_fence()
+    _run(command, "building the HTML adapter's specification with the spec's producer fence", folder.parent,
+         cwd=folder, shell=True, UV_PROJECT=str(ROOT))
+
+
+BUILDS = {"document": build_document, "adapter-spec": build_adapter_spec}
 # The inputs' key, computed once per process.
 _keys: dict[str, str] = {}
 
@@ -114,6 +145,23 @@ def built(run: Path, kind: str) -> Path:
                 counter.write(f"{kind} {key}\n")
             (folder / ".built").touch()
     return folder
+
+
+def serve_adapter_spec(command: str, vault: Path) -> bool:
+    """For test/offline_obs_document.py's producers: where ``command`` is the adapter specification's
+    producer fence, copy the run's ``adapter-spec`` build (the run's folder named in RUN_FOLDER) to
+    the file the fence writes in ``vault``; whether it was that fence."""
+    fence, produced = adapter_spec_fence()
+    if command != fence:
+        return False
+    if not os.environ.get(RUN_FOLDER):
+        raise SpecBuildError(f"test/spec_build.py: {RUN_FOLDER} names no run folder, so the adapter "
+                             "specification's producer has no shared build to read. Remedy: run "
+                             "test/offline_obs_document.py with the run's folder in it (spec_build.base).")
+    target = vault / produced
+    target.parent.mkdir(parents=True, exist_ok=True)
+    shutil.copyfile(built(Path(os.environ[RUN_FOLDER]), "adapter-spec") / produced, target)
+    return True
 
 
 def counts(run: Path) -> Counter:
