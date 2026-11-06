@@ -27,7 +27,7 @@ import pytest
 # suite (`uv run python test/suite.py`, each part's JUnit report: setup, call and teardown); e2e,
 # which the complete suite leaves out, from the core's `uv run pytest -m "e2e or browser" -n 4 --durations=12` (call). The external tier needs
 # data outside the repository and was not measured; it takes the e2e tier's measurement.
-SLOWEST = {"unit": 9.4, "dom": 4.0, "browser": 33.7, "e2e": 22.8, "external": 22.8}
+SLOWEST = {"unit": 9.4, "dom": 4.0, "browser": 17.5, "e2e": 22.8, "external": 22.8}
 # Each tier's timeout is this multiple of its slowest test: room for a slower machine or a
 # busier run, while a hanging test still fails well before test/suite.py's cap.
 MULTIPLIER = 3
