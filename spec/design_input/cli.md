@@ -91,6 +91,21 @@ An adapter that declares no `serve` command fails the call before the build, nam
 so do `--wait` without `--serve` and `--serve` with several `--source`. The adapter's own
 documentation owns what its server does.
 
+## Answers
+
+`--answers <file>` builds the Document with a reader's answers in it, the answers file a served
+artifact's reader sent (`--serve --wait` prints it, and the adapter's server writes it beside the
+artifact). [[input-model#Answers]] owns its fields and what each answer does to its chapter:
+
+```sh
+uv run obs-document --source deck/manifest.md --adapter html --destination deck.html --serve --wait
+uv run obs-document --source deck/manifest.md --adapter html --destination record.html --answers answers.json
+```
+
+The second artifact is the decision record. `--answers` is used only with `--source`, and an
+answers file the core refuses fails the build before the adapter runs, naming the file and the
+field path.
+
 ## Several documents per call
 
 One `obs-document` call builds several artifacts: each `--source` pairs, in argument order, with

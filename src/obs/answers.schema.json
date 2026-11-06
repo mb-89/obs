@@ -1,0 +1,176 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "obs answers",
+  "$comment": "A reader's verdicts on the chapters that ask for a bless (input-model#Answers): the one definition the adapter writes and obs-document --answers reads.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "verdicts"
+  ],
+  "properties": {
+    "verdicts": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/verdict"
+      }
+    }
+  },
+  "$defs": {
+    "version": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$",
+      "$comment": "The chapter's version: SHA-256 of the note and its embeds, in hex."
+    },
+    "letter": {
+      "type": "string",
+      "pattern": "^[A-Z]$"
+    },
+    "verdict": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "chapter",
+        "version",
+        "verdict"
+      ],
+      "properties": {
+        "chapter": {
+          "type": "string",
+          "minLength": 1
+        },
+        "version": {
+          "$ref": "#/$defs/version"
+        },
+        "verdict": {
+          "enum": [
+            "bless",
+            "decline",
+            "ask",
+            "pick"
+          ]
+        },
+        "comment": {
+          "type": "string",
+          "pattern": "\\S"
+        },
+        "pick": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "figure",
+            "option"
+          ],
+          "properties": {
+            "figure": {
+              "type": "string",
+              "minLength": 1
+            },
+            "option": {
+              "$ref": "#/$defs/letter"
+            }
+          }
+        },
+        "figures": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/$defs/figureChanges"
+          }
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "verdict": {
+                "enum": [
+                  "decline",
+                  "ask",
+                  "pick"
+                ]
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "comment"
+            ]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "verdict": {
+                "const": "pick"
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "pick"
+            ]
+          },
+          "else": {
+            "not": {
+              "required": [
+                "pick"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    "figureChanges": {
+      "$comment": "A decision figure's reader state (the adapter's), by option letter, and the winner it gives.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "weights": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "number",
+            "minimum": 0
+          }
+        },
+        "marks": {
+          "type": "object",
+          "propertyNames": {
+            "pattern": "^[A-Z]$"
+          },
+          "additionalProperties": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "integer",
+              "minimum": -2,
+              "maximum": 2
+            }
+          }
+        },
+        "rulings": {
+          "type": "object",
+          "propertyNames": {
+            "pattern": "^[A-Z]$"
+          },
+          "additionalProperties": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "ruling": {
+                "enum": [
+                  "could",
+                  "nonsense"
+                ]
+              },
+              "tripwire": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        "winner": {
+          "type": "string",
+          "pattern": "^[A-Z]?$"
+        }
+      }
+    }
+  }
+}
