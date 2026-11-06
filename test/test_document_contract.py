@@ -76,7 +76,7 @@ def capability_node_attrs(identifier: str) -> dict[str, object]:
         "count-query": {"query": {}},
         "markdown-frontmatter": {"metadata": {}},
         "profiles": {"profile": {}},
-        "quantities": {"metadata": {}},
+        "quantities": {"metadata": {}, "quantity": {"unit": "", "dimension": {}}},
         "queries": {"query": {}},
         "references": {"metadata": {}},
         "property-editors": {"source": "", "spec": {}, "writes": ["explanation"]},
