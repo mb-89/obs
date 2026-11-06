@@ -1,5 +1,5 @@
 {
-  "description": "Bases filter and query condition conformance; a record's marks are its #mark/<category>/<id> tags; owners: spec/design_input/input-model.md, Bases filter grammar; spec/capabilities/bases.md, Comparisons; spec/capabilities/queries.md, Conditions.",
+  "description": "Bases filter and query condition conformance; a record's marks are its #mark/<category>/<id> tags; owners: spec/design_input/input-model.md, Bases filter grammar; spec/capabilities/bases.md, Comparisons (case folding); spec/capabilities/queries.md, Conditions.",
   "records": [
     {
       "id": "a",
@@ -51,7 +51,9 @@
       "path": "notes/e.md",
       "frontmatter": {
         "count": 1.0, "delta": -2, "flag": 0, "ratio": 0.25, "blank": {},
-        "Phase": "Draft", "phase": "final", "Owner": {"Name": "Eve"}, "label": "\u00c4rger"
+        "Phase": "Draft", "phase": "final", "Owner": {"Name": "Eve"}, "label": "\u00c4rger",
+        "street": "Stra\u00dfe", "Ma\u00dfe": "metric", "dotted": "\u0130", "dotless": "\u0131",
+        "word": "\u039f\u0394\u039f\u03a3"
       }
     }
   ],
@@ -125,7 +127,15 @@
         {"not": {"or": ["flag == 0", "file.folder == \"\""]}}
       ]},
       "expected": ["a"]
-    }
+    },
+    {"filter": "street == \"STRASSE\"", "expected": ["e"]},
+    {"filter": "street == \"strasse\"", "expected": ["e"]},
+    {"filter": "MASSE == \"METRIC\"", "expected": ["e"]},
+    {"filter": "dotted == \"i\u0307\"", "expected": ["e"]},
+    {"filter": "dotted == \"i\"", "expected": []},
+    {"filter": "dotless == \"I\"", "expected": []},
+    {"filter": "word == \"\u03bf\u03b4\u03bf\u03c2\"", "expected": ["e"]},
+    {"filter": "word == \"\u03bf\u03b4\u03bf\u03c3\"", "expected": ["e"]}
   ],
   "conditions": [
     {"where": [], "expected": ["a", "b", "c", "d", "e"]},
@@ -185,7 +195,17 @@
     {"where": [{"field": "title", "exists": true}], "expected": []},
     {"where": [{"field": "slug", "equals": "a"}], "expected": []},
     {"where": [{"field": "kind", "equals": "Item"}, {"field": "status", "exists": true}], "expected": ["a", "b"]},
-    {"where": [{"field": "count", "exists": true}, {"field": "flag", "equals": "false"}], "expected": ["b"]}
+    {"where": [{"field": "count", "exists": true}, {"field": "flag", "equals": "false"}], "expected": ["b"]},
+    {"where": [{"field": "street", "equals": "STRASSE"}], "expected": ["e"]},
+    {"where": [{"field": "street", "equals": "STRASSE", "matchCase": true}], "expected": []},
+    {"where": [{"field": "MASSE", "equals": "Metric"}], "expected": ["e"]},
+    {"where": [{"field": "dotted", "equals": "i\u0307"}], "expected": ["e"]},
+    {"where": [{"field": "dotted", "equals": "i"}], "expected": []},
+    {"where": [{"field": "dotless", "equals": "\u0131"}], "expected": ["e"]},
+    {"where": [{"field": "dotless", "equals": "I"}], "expected": []},
+    {"where": [{"field": "dotless", "equals": "i"}], "expected": []},
+    {"where": [{"field": "word", "equals": "\u03bf\u03b4\u03bf\u03c2"}], "expected": ["e"]},
+    {"where": [{"field": "word", "equals": "\u03bf\u03b4\u03bf\u03c3"}], "expected": ["e"]}
   ],
   "unsupported": [
     "recordType == \"tag\"",

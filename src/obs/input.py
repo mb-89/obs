@@ -174,11 +174,27 @@ def parse_card_spec(text: str, source_path: object, place: str = "cards fence") 
         for number, metric in enumerate(metrics if isinstance(metrics, list) else []):
             refuse_moved_keys(metric, "metric", source_path, f"cards[{index}].metrics[{number}]", place,
                               "capabilities/cards-metrics")
+            _refuse_hand_written_drill_down(card, metric, source_path, f"cards[{index}].metrics[{number}]", place)
     error = schema_error(list(input_validator("cards").iter_errors(specification)), source_path,
                          "capabilities/cards-metrics", place=place)
     if error:
         raise error
     return specification
+
+
+def _refuse_hand_written_drill_down(card: dict[str, object], metric: object, source_path: object, field: str,
+                                    place: str) -> None:
+    """Refuse a metric link's own ?tableFilter=: its drill-down derives from its conditions, so a
+    hand-written one could contradict what it counts (capabilities/cards-metrics)."""
+    for key in ("link", "secondaryLink"):
+        link = metric.get(key) if isinstance(metric, dict) else None
+        if isinstance(link, str) and "?" in link:
+            raise input_error(
+                source_path, ", ".join(item for item in (place, f"{field}.{key}") if item),
+                f"card {json.dumps(card.get('title'), ensure_ascii=False)} writes its drill-down filter by hand "
+                f"({link}), which can contradict the rows the metric counts",
+                "Remove the ?tableFilter= part; an adapter derives the table filter from the metric's where "
+                "and from (the secondary quantity's query for secondaryLink); see capabilities/cards-metrics")
 
 
 def validate_count_query(query: object, source_path: object, field: str = "query") -> None:

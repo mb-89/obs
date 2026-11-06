@@ -29,7 +29,8 @@ def test_bases_comparisons_are_typed_and_ignore_case_with_note_prefix():
     root = Path(__file__).resolve().parents[1]
     script = r"""
 const fs = require("node:fs"), vm = require("node:vm");
-globalThis.document = {querySelector: () => ({textContent: fs.readFileSync("src/obs_html_interim/base.schema.json", "utf8")})};
+globalThis.document = {querySelector: selector => ({textContent: fs.readFileSync(
+    selector === "#case-folding" ? "src/obs/case-folding.json" : "src/obs_html_interim/base.schema.json", "utf8")})};
 for (const name of ["query.js", "base.js"]) vm.runInThisContext(fs.readFileSync(`src/obs_html_interim/${name}`, "utf8"));
 const rows = [
   {frontmatter: {kind: "Item", empty: ""}},
@@ -184,8 +185,9 @@ def test_native_base_validator_rejects_unsupported_properties_and_empty_expansio
         const fs = require('fs');
         const root = process.argv[1];
         const path = require('path');
-        global.document = {querySelector: () => ({textContent:
-            fs.readFileSync(path.join(root, 'src', 'obs_html_interim', 'base.schema.json'), 'utf8')})};
+        global.document = {querySelector: selector => ({textContent: fs.readFileSync(selector === '#case-folding'
+            ? path.join(root, 'src', 'obs', 'case-folding.json')
+            : path.join(root, 'src', 'obs_html_interim', 'base.schema.json'), 'utf8')})};
         eval(fs.readFileSync(path.join(root, 'src', 'obs_html_interim', 'base.js'), 'utf8'));
         const cases = [
             {filters: 'file.mtime == null', views: [{type: 'table', order: ['file.name']}]},
