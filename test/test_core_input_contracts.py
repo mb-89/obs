@@ -88,7 +88,7 @@ def test_core_input_contracts_parse_semantic_callout_and_queries() -> None:
         ("query", {"where": "invalid"}),
         ("property", "version: 1\nfield: title\n"),
         ("base", {}),
-        ("profile", {"layout": "invalid"}),
+        ("profile", {"obs": {"layout": "invalid"}}),
         ("project", {"input": {"manifestFilename": "bad"}}),
         ("command", ""),
     ],
@@ -139,7 +139,6 @@ def test_core_and_adapter_contract_errors_match_for_shared_inputs(tmp_path) -> N
     card = '{"version": 1, "cards": []}'
     query = {"where": "invalid"}
     base = {}
-    profile = {"layout": "invalid"}
     property_editor = "version: 1\nfield: title\n"
     token = next(token for token in MarkdownIt().parse(f"```property-editor\n{property_editor}```\n")
                  if token.type == "fence")
@@ -156,12 +155,9 @@ def test_core_and_adapter_contract_errors_match_for_shared_inputs(tmp_path) -> N
     assert _error_message(lambda: validate_base_definition(base, tmp_path)) == _error_message(
         lambda: validate_adapter_base(base, tmp_path)
     )
-    assert _error_message(lambda: validate_note_profile(profile, tmp_path)) == _error_message(
-        lambda: _validate_note_profile(profile, tmp_path)
-    )
-    assert _error_message(lambda: validate_note_profile({"document": "maybe"}, tmp_path)) == _error_message(
+    assert _error_message(lambda: validate_note_profile({"obs": {"document": "maybe"}}, tmp_path)) == _error_message(
         lambda: _validate_note_profile({"document": "maybe"}, tmp_path)
-    )
+    ).replace("obsHtml.", "obs.")
     assert _error_message(lambda: parse_property_editor(property_editor, tmp_path)) == _error_message(
         lambda: property_editors([token], Chapter(), {})
     )
@@ -174,7 +170,7 @@ FULL_CARD_SPEC = {
     "version": 1,
     "cards": [{
         "title": "Coverage", "body": "Current state.", "metricStyle": "lines",
-        "obsHtml": {"metricsFrom": {
+        "obs": {"metricsFrom": {
             "sourceNote": "registers/risks", "property": "summary.groups",
             "labelProperty": "label", "distinctProperty": "field",
             "where": [{"field": "status", "equals": "open"}],
@@ -189,7 +185,7 @@ FULL_CARD_SPEC = {
             "link": "#findings?tableFilter=status%3Aopen", "secondaryLink": "#closed",
             "tone": "neutral",
             "toneRules": [{"value": "remaining", "when": "positive", "tone": "negative"}],
-            "obsHtml": {"projection": "review.current"},
+            "obs": {"projection": "review.current"},
         }],
     }],
 }
@@ -199,7 +195,14 @@ def test_core_cards_contract_accepts_the_full_card_metric_contract() -> None:
     from obs_html_interim.cards import parse_card_spec as parse_adapter_cards
 
     text = json.dumps(FULL_CARD_SPEC)
-    assert parse_card_spec(text, "note.md") == FULL_CARD_SPEC == parse_adapter_cards(text, "note.md")
+    interim = _interim_namespace(text)
+    assert parse_card_spec(text, "note.md") == FULL_CARD_SPEC
+    assert parse_adapter_cards(interim, "note.md") == json.loads(interim)
+
+
+def _interim_namespace(text: str) -> str:
+    """The same cards in the interim adapter's namespace, which it keeps reading (obs#3 deletes it)."""
+    return text.replace('"obs":', '"obsHtml":')
 
 
 @pytest.mark.parametrize(
@@ -210,7 +213,7 @@ def test_core_cards_contract_accepts_the_full_card_metric_contract() -> None:
         {"link": "https://example.test"},
         {"tone": "loud"},
         {"toneRules": [{"value": "primary", "when": "zero", "tone": "positive"}] * 9},
-        {"obsHtml": {"projection": "Upper"}},
+        {"obs": {"projection": "Upper"}},
     ],
 )
 def test_core_cards_contract_rejects_what_the_adapter_rejects(metric) -> None:
@@ -220,8 +223,8 @@ def test_core_cards_contract_rejects_what_the_adapter_rejects(metric) -> None:
         "title": "Coverage", "body": "", "metrics": [{"label": "Open", "where": [], **metric}],
     }]})
     assert _error_message(lambda: parse_card_spec(text, "note.md")) == _error_message(
-        lambda: parse_adapter_cards(text, "note.md")
-    )
+        lambda: parse_adapter_cards(_interim_namespace(text), "note.md")
+    ).replace(".obsHtml.", ".obs.")
 
 
 def _schema_fields(schema: dict[str, object], prefix: str = "") -> list[str]:
@@ -243,8 +246,8 @@ def test_cards_capability_note_documents_each_card_field_once() -> None:
     note = (root / "spec" / "capabilities" / "cards-metrics.md").read_text(encoding="utf-8")
     documented = re.findall(r"^- `([A-Za-z.\[\]]+)`", note, re.MULTILINE)
     fields = _schema_fields(schema["$defs"]["cards"])
-    assert {"cards[].metrics[].denominator", "cards[].obsHtml.metricsFrom",
-            "cards[].metrics[].obsHtml.projection"} <= set(fields)
+    assert {"cards[].metrics[].denominator", "cards[].obs.metricsFrom",
+            "cards[].metrics[].obs.projection"} <= set(fields)
     assert sorted(documented) == sorted(fields)
 
 
@@ -337,13 +340,13 @@ def test_an_invalid_quantity_query_names_the_note_the_field_and_a_remedy(tmp_pat
 
 
 def test_a_non_boolean_document_profile_names_the_note_the_field_and_a_remedy(tmp_path) -> None:
-    (tmp_path / "chapter.md").write_text("---\nobsHtml: {document: maybe}\n---\nBody.\n",
+    (tmp_path / "chapter.md").write_text("---\nobs: {document: maybe}\n---\nBody.\n",
                                          encoding="utf-8")
 
     message = _build_message(tmp_path)
 
     assert message == (
-        f"{tmp_path / 'chapter.md'}: obsHtml.document: must be true or false, not \"maybe\". "
+        f"{tmp_path / 'chapter.md'}: obs.document: must be true or false, not \"maybe\". "
         "Write true or false; see capabilities/profiles."
     )
 
@@ -351,8 +354,8 @@ def test_a_non_boolean_document_profile_names_the_note_the_field_and_a_remedy(tm
 INVALID_CONTRACTS = {
     "quantity": ("load.md", f"---\n{VALID_QUANTITY}query: {{where: [{{field: 1, exists: true}}]}}\n---\n",
                  "query.where[0].field", "capabilities/queries"),
-    "note profile": ("chapter.md", "---\nobsHtml: {layout: wide}\n---\n",
-                     "obsHtml.layout", "capabilities/profiles"),
+    "note profile": ("chapter.md", "---\nobs: {document: maybe}\n---\n",
+                     "obs.document", "capabilities/profiles"),
     "query": ("chapter.md", "---\nquery: {where: [{equals: open}]}\n---\n",
               "query.where[0].field", "capabilities/queries"),
     "base fence": ("chapter.md", "```base\nviews:\n  - type: table\n```\n",
@@ -496,4 +499,4 @@ def test_the_adapter_names_a_nested_cards_fence_by_note_fence_and_card() -> None
 
 @pytest.mark.parametrize("document", [True, False])
 def test_a_boolean_document_profile_is_accepted(tmp_path, document) -> None:
-    validate_note_profile({"document": document}, tmp_path / "chapter.md")
+    validate_note_profile({"obs": {"document": document}}, tmp_path / "chapter.md")
