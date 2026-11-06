@@ -74,6 +74,9 @@ def _recorded_runs() -> list[list[dict[str, list]]]:
 # Each tier's slowest test, derived from the recorded runs at import, and where it came from.
 SLOWEST, SOURCES = derive(COMMITTED, _recorded_runs(), RUNS)
 TIMEOUTS = {tier: math.ceil(MULTIPLIER * seconds / 10) * 10 for tier, seconds in SLOWEST.items()}
+# How ``explain`` names where a tier's bound came from (SOURCES).
+EXPLAINED_SOURCES = {"recorded": f"SLOWEST recorded on this host over its last {RUNS} runs, test/suite.py",
+                     "committed": "SLOWEST committed as COMMITTED"}
 # The JUnit testcase property naming a test's tier, from which test/suite.py records its time.
 TIER_PROPERTY = "tier"
 # In the run's folder: one file per test process, naming the part and the test it runs.
@@ -101,14 +104,17 @@ def timed_out(report) -> bool:
 
 
 def explain(item, report) -> None:
-    """Name the test, its timeout and its tier in the report of a test past its timeout."""
+    """Name the test, its timeout, its tier and where its tier's bound came from in the report of a
+    test past its timeout."""
     if not timed_out(report):
         return
     seconds = item.get_closest_marker("timeout").args[0]
+    name = tier(item)
     report.sections.append(("test/bounds.py", (
-        f"test/bounds.py: {item.nodeid} ran past its timeout of {seconds} s (tier {tier(item)}, TIMEOUTS) and "
-        "failed. Remedy: run it alone to find what it waits for; where it has grown slower, measure its tier "
-        "again (SLOWEST) rather than raising its timeout by hand.")))
+        f"test/bounds.py: {item.nodeid} ran past its timeout of {seconds} s (tier {name}, TIMEOUTS from "
+        f"{EXPLAINED_SOURCES[SOURCES[name]]}) and failed. Remedy: run it alone to find what it waits for; "
+        "where it has grown slower, run it in the complete suite (test/suite.py), whose recorded runs raise "
+        "its tier's bound (SLOWEST), rather than raising its timeout by hand.")))
 
 
 @contextlib.contextmanager
