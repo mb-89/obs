@@ -9,8 +9,8 @@ reads it when no `--capability-reference` is given. The file is generated, so it
 never edited; `[tool.uv] cache-keys` in pyproject.toml makes `uv sync` and `uv run` build again
 when a note changes. test/test_capabilities.py fails when the shipped file is stale.
 """
-import importlib.util
 import json
+import sys
 from pathlib import Path
 
 from hatchling.builders.hooks.plugin.interface import BuildHookInterface
@@ -24,10 +24,12 @@ class CapabilityReferenceHook(BuildHookInterface):
 
     def initialize(self, version: str, build_data: dict) -> None:
         root = Path(self.root)
-        # The generator by its file: importing the package would need its runtime dependencies.
-        spec = importlib.util.spec_from_file_location("obs_capabilities", root / "src" / "obs" / "capabilities.py")
-        generator = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(generator)
-        reference = generator.build_capability_reference(root / NOTES, root / NOTES / "coverage.json")
+        # The generator from the source tree; it and what it imports need only pyyaml.
+        sys.path.insert(0, str(root / "src"))
+        try:
+            from obs.capabilities import build_capability_reference
+        finally:
+            sys.path.remove(str(root / "src"))
+        reference = build_capability_reference(root / NOTES, root / NOTES / "coverage.json")
         (root / PACKAGED).write_text(json.dumps(reference, indent=2) + "\n", encoding="utf-8")
         build_data["artifacts"].append(PACKAGED.as_posix())

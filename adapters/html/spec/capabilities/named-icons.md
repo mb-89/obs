@@ -4,7 +4,7 @@ capability:
   id: named-icons
   summary: Refer to named icon resources without embedding presentation literals.
   authoring: Use an approved named icon identifier in supported metadata.
-  dependsOn: ["[[capabilities/markdown-frontmatter]]"]
+  dependsOn: ["markdown-frontmatter"]
   source: "[[input-model#Named icon resources]]"
 ---
 

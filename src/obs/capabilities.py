@@ -6,6 +6,8 @@ from pathlib import Path
 from typing import Sequence
 import yaml
 
+from obs.output import write_output
+
 
 def _frontmatter(path: Path) -> dict[str, object]:
     source = path.read_text(encoding="utf-8")
@@ -63,8 +65,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser.add_argument("--output", type=Path, required=True)
     options = parser.parse_args(argv)
     reference = build_capability_reference(options.notes, options.coverage, options.reference)
-    options.output.parent.mkdir(parents=True, exist_ok=True)
-    options.output.write_text(json.dumps(reference, indent=2) + "\n", encoding="utf-8")
+    write_output(options.output, json.dumps(reference, indent=2) + "\n")
     return 0
 
 if __name__ == "__main__":
