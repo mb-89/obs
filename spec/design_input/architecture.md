@@ -104,6 +104,22 @@ A call that builds several documents ([[cli#Several documents per call]]) starts
 per document, each with its own Document, destination and vault root: the call shape stays one
 Document to one artifact for every adapter, and the core's start is what the call shares.
 
+### Vault files an option names
+
+An adapter renders from the Document alone, with one exception: a file the call names explicitly
+with a vault-file option ([[cli#Adapter options]]). The adapter reads that file at the path the
+core passes. The Document never carries it, so no vault content alone makes an adapter read a file.
+
+A path option was chosen over carrying the file's bytes in the Document, unlike the
+[project configuration](#project-configuration). An adapter may trust such a file, for example as
+code its artifact runs, and that trust belongs to the explicit option of the build. A Document
+that carried the bytes would let any Document opt into what only the call may choose.
+
+The file lies inside the vault, so the tie to the source machine stays within the vault the build
+reads anyway. The [source archive](#source-archive) holds the file and the build record repeats the
+option with its vault-relative path, so a rebuild from the archive names the same file (worker
+decision, 6 Nov 2026, high confidence).
+
 ### Asset bytes
 
 The Document embeds the bytes of every vault file it references as an image or a
