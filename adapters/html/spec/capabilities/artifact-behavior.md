@@ -4,7 +4,7 @@ capability:
   id: artifact-behavior
   summary: Declare portable artifact behavior without executable author code.
   authoring: Use the bounded input mappings described by the input model.
-  dependsOn: ["[[capabilities/manifest]]", "[[capabilities/markdown-frontmatter]]"]
+  dependsOn: ["manifest", "markdown-frontmatter"]
   source: "[[input-model#Artifact behavior]]"
 ---
 

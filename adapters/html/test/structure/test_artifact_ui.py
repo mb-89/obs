@@ -7,7 +7,7 @@ ROOT = Path(__file__).parents[2]
 
 
 def test_artifact_ui_alone_owns_what_counts_as_a_change() -> None:
-    design = ROOT / "spec" / "design_input"
+    design = ROOT / "spec"
     artifact_ui = (design / "artifact-ui.md").read_text(encoding="utf-8")
     input_model = (design / "input-model.md").read_text(encoding="utf-8")
     rule = artifact_ui.split("## What counts as a change", 1)[1].split("\n## ", 1)[0]
@@ -22,7 +22,7 @@ def test_artifact_ui_alone_owns_what_counts_as_a_change() -> None:
 
 
 def test_width_rule_has_one_owner() -> None:
-    design = ROOT / "spec" / "design_input"
+    design = ROOT / "spec"
     input_model = (design / "input-model.md").read_text(encoding="utf-8")
 
     assert "column or width changes" not in input_model
@@ -40,12 +40,12 @@ def test_exactly_one_note_classifies_resized_widths() -> None:
     notes = sorted(path for path in (ROOT / "spec").rglob("*.md") if "design_output" not in path.parts)
     classifying = [path.relative_to(ROOT).as_posix() for path in notes
                    if WIDTH_CLASSIFICATION.search(" ".join(path.read_text(encoding="utf-8").split()))]
-    assert classifying == ["spec/design_input/artifact-ui.md"], (
+    assert classifying == ["spec/artifact-ui.md"], (
         f"{classifying}: state the width classification only in artifact-ui#What counts as a change "
         "and link [[artifact-ui#What counts as a change]] elsewhere"
     )
 
-    design = ROOT / "spec" / "design_input"
+    design = ROOT / "spec"
     artifact_ui = (design / "artifact-ui.md").read_text(encoding="utf-8")
     rule = artifact_ui.split("## What counts as a change", 1)[1].split("\n## ", 1)[0]
     assert "table columns and their widths" not in rule
@@ -67,7 +67,7 @@ def _flat(text: str) -> str:
 
 
 def test_top_band_is_one_row_of_equal_squares() -> None:
-    artifact_ui = (ROOT / "spec" / "design_input" / "artifact-ui.md").read_text(encoding="utf-8")
+    artifact_ui = (ROOT / "spec" / "artifact-ui.md").read_text(encoding="utf-8")
     shell = _flat(_section(artifact_ui, "## Reading shell"))
 
     assert "The top band is one row and holds every top control: Home, the breadcrumbs, " \
@@ -82,14 +82,14 @@ def test_top_band_is_one_row_of_equal_squares() -> None:
 
 
 def test_notice_icons_point_to_the_top_band() -> None:
-    artifact_ui = _flat((ROOT / "spec" / "design_input" / "artifact-ui.md").read_text(encoding="utf-8"))
+    artifact_ui = _flat((ROOT / "spec" / "artifact-ui.md").read_text(encoding="utf-8"))
 
     assert "The icon row never covers the menu or chapter controls." not in artifact_ui
     assert "The icons sit in the [[#Reading shell|top band]]." in artifact_ui
 
 
 def test_no_text_appears_twice_in_one_view_is_stated_once() -> None:
-    artifact_ui = _flat((ROOT / "spec" / "design_input" / "artifact-ui.md").read_text(encoding="utf-8"))
+    artifact_ui = _flat((ROOT / "spec" / "artifact-ui.md").read_text(encoding="utf-8"))
     rule = "No text appears twice in one view."
 
     assert artifact_ui.count(rule) == 1
@@ -100,8 +100,8 @@ def test_no_text_appears_twice_in_one_view_is_stated_once() -> None:
 
 
 def test_only_used_features_ship_and_canaries_decide_or_stay_silent() -> None:
-    artifact_ui = _flat((ROOT / "spec" / "design_input" / "artifact-ui.md").read_text(encoding="utf-8"))
-    notice_center = _flat(_section((ROOT / "spec" / "design_input" / "artifact-ui.md").read_text(encoding="utf-8"),
+    artifact_ui = _flat((ROOT / "spec" / "artifact-ui.md").read_text(encoding="utf-8"))
+    notice_center = _flat(_section((ROOT / "spec" / "artifact-ui.md").read_text(encoding="utf-8"),
                                    "## Dock menu"))
 
     for replaced in ("a refused or unknown result counts as limited",
@@ -128,7 +128,7 @@ def test_only_used_features_ship_and_canaries_decide_or_stay_silent() -> None:
 
 
 def test_no_heading_or_link_says_document_presentation() -> None:
-    assert says_document_presentation("spec/design_input/artifact-ui.md") == []
+    assert says_document_presentation("spec/artifact-ui.md") == []
 
 
 READER_TEXT_RULE = "Reader-facing text names no kind"
@@ -136,7 +136,7 @@ ERROR_RULE = "An error message the artifact shows names its source and a remedy"
 
 
 def test_reader_facing_text_and_error_rules_are_stated_once() -> None:
-    flat = " ".join((ROOT / "spec" / "design_input" / "artifact-ui.md").read_text(encoding="utf-8").split())
+    flat = " ".join((ROOT / "spec" / "artifact-ui.md").read_text(encoding="utf-8").split())
     section = flat.split("## Reader-facing text", 1)[1].split(" ## ", 1)[0]
 
     for rule in (READER_TEXT_RULE, ERROR_RULE):

@@ -4,7 +4,7 @@ capability:
   id: artifact-presentation
   summary: Set document-level layout and page presentation.
   authoring: Declare the document obsHtml presentation mapping in manifest frontmatter.
-  dependsOn: ["[[capabilities/manifest]]", "[[capabilities/profiles]]"]
+  dependsOn: ["manifest", "profiles"]
   source: "[[input-model#Artifact presentation profile]]"
 ---
 

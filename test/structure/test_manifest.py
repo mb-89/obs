@@ -19,7 +19,7 @@ def test_spec_manifest_is_a_nested_list_of_existing_links() -> None:
     previous_depth = 0
 
     assert manifest.chapters
-    assert manifest.metadata["title"] == "obs-html"
+    assert manifest.metadata["title"] == "obs"
     assert manifest.abstract.strip()
     for index, chapter in enumerate(manifest.chapters):
         depth = chapter.depth
