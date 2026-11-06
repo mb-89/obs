@@ -396,6 +396,12 @@ Each of the core's schemas is compiled into its validator once per process, by t
 owns it. The Document schema's local references are resolved when it is compiled, not once per
 node.
 
+A vault build checks each figure body as its fence is parsed, so the error names the note and the
+fence. The Document pass checks it again: that is the only check of a Document read from a file.
+
+While parsing, a paragraph's child is checked against `$defs/blockNode` only where its type keys
+one of that definition's branches; a child of any other type cannot be a block node.
+
 The core validates Document identifiers against a supplied capability reference and
 requires an adapter to support each used capability's transitive dependencies before
 starting its process.

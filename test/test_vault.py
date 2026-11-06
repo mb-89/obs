@@ -430,6 +430,34 @@ def test_an_asset_embed_stays_inside_its_paragraph(tmp_path) -> None:
     assert [child["type"] for child in paragraph["children"]] == ["text", "embeds", "text"]
 
 
+def test_a_paragraph_child_is_checked_against_the_block_node_schema_only_where_its_type_keys_a_branch(
+        monkeypatch) -> None:
+    """document.schema.json ($defs/blockNode) decides which of a paragraph's children are block
+    nodes; a child whose type keys none of its branches cannot be one, so the parse does not run
+    the schema on it (most children are text), and it decides every child as the schema does."""
+    from jsonschema import Draft202012Validator
+
+    from obs import vault
+
+    schema = json.loads((ROOT / "src" / "obs" / "document.schema.json").read_text(encoding="utf-8"))
+    standard = Draft202012Validator({**schema["$defs"]["blockNode"], "$defs": schema["$defs"]})
+    types = sorted({*STRUCTURAL_NODE_TYPES, *(item["id"] for item in capability_reference()["capabilities"])})
+    children = [*({"type": kind, "attrs": {}, "children": []} for kind in types),
+                {"type": "embeds", "attrs": {"asset": "a"}, "children": []}, {"type": 1}, {"attrs": {}}]
+    checked, real = [], vault._block_node()
+
+    class Recording:
+        def is_valid(self, node):
+            checked.append(node.get("type"))
+            return real.is_valid(node)
+
+    monkeypatch.setattr(vault, "_block_node", Recording)
+
+    assert [vault._is_block(child) for child in children] == [standard.is_valid(child) for child in children]
+    assert sorted(set(checked)) == sorted({"embeds", *(kind for kind in types if standard.is_valid(
+        {"type": kind, "attrs": {}, "children": []}))})
+
+
 def test_a_register_embed_carries_the_base_definition_and_its_view_rows(tmp_path) -> None:
     document = build_document(register_vault(tmp_path) / "manifest.md", capability_reference())
 
