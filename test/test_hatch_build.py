@@ -172,3 +172,54 @@ def test_the_build_streams_only_the_listed_files_and_stops_reading_once_it_has_t
     assert sorted(path.relative_to(installed).as_posix() for path in installed.rglob("*") if path.is_file()) == [
         "renderer/LICENSE", "renderer/dist/served.js"]
     assert (installed / "renderer" / "dist" / "served.js").read_bytes() == b"served"
+
+
+def test_the_build_replaces_the_capability_reference_atomically_and_leaves_a_current_one_untouched(
+        hook, monkeypatch, tmp_path) -> None:
+    """A build of the package runs while the suite's parts read the shipped reference (the html
+    part's `uv build`, an editable rebuild); obs-document's reader, polling it, never finds a
+    partial file, and a build whose reference is current does not write it at all."""
+    import shutil
+    import threading
+
+    from obs.document import DocumentError, read_capability_reference
+
+    monkeypatch.setattr(hook, "build_diagrams", lambda root: [])
+    shutil.copytree(ROOT / "spec" / "capabilities", tmp_path / "spec" / "capabilities")
+    reference = tmp_path / hook.CAPABILITY_REFERENCE
+    reference.parent.mkdir(parents=True)
+    build = hook.PackageDataHook.__new__(hook.PackageDataHook)
+    build.root = str(tmp_path)
+    build.initialize("standard", {"artifacts": []})
+    current = reference.read_bytes()
+    stale = json.dumps({**json.loads(current), "capabilities": []}, indent=2).encode()
+
+    partial_reads, done = [], threading.Event()
+
+    def read() -> None:
+        while not done.is_set():
+            try:
+                read_capability_reference(reference)
+            except DocumentError as error:
+                partial_reads.append(str(error))
+
+    reader = threading.Thread(target=read)
+    reader.start()
+    try:
+        for _ in range(50):
+            staged = reference.with_name("stale")
+            staged.write_bytes(stale)
+            staged.replace(reference)
+            stale_file = reference.stat()
+            build.initialize("standard", {"artifacts": []})
+            assert reference.stat().st_ino != stale_file.st_ino, "the build rewrote the reference in place"
+    finally:
+        done.set()
+        reader.join()
+
+    assert partial_reads == []
+    unchanged = reference.stat()
+    build.initialize("standard", {"artifacts": []})
+    assert reference.read_bytes() == current
+    assert (reference.stat().st_ino, reference.stat().st_mtime_ns) == (unchanged.st_ino, unchanged.st_mtime_ns)
+    assert sorted(path.name for path in reference.parent.iterdir()) == [reference.name]

@@ -51,6 +51,10 @@ build of the package, editable ones included, writes `src/obs/capability-referen
 `spec/capabilities` (`hatch_build.py`), and `--capability-reference` names another reference only
 where one is wanted.
 
+The build writes the reference as the core writes every output, atomically and only where it
+changed, because builds run while tests read it: a reader never finds a partial reference, and a
+build whose reference is current leaves it untouched.
+
 The file is generated beside the package that ships it rather than in
 `data/data_output`, because an editable install reads package data from the package folder; it is
 ignored like every generated file. uv builds the package again when a capability note changes, and
