@@ -34,7 +34,8 @@ from obs.input import (
     validate_quantity,
 )
 from obs.selection import (
-    IGNORED, Record, base_selects, conditions_select, note_marks, paragraph_marks, view_selectors,
+    IGNORED, Record, base_selects, conditions_select, member_order, note_marks, paragraph_marks,
+    view_selectors,
 )
 
 
@@ -1005,11 +1006,17 @@ def _register_attrs(
                 f"name one of: {', '.join(str(name) for name in names if name is not None)}."
             )
         view = names.index(heading)
-    rows = [
-        [record["id"] for record in vault.records
-         if selects(record, None if (owner := vault.note_of(record)) is None else owner[1])]
-        for selects in view_selectors(definition)
-    ]
+    rows = []
+    for selects, members in zip(view_selectors(definition), map(member_order, definition["views"])):
+        selected = [(record, None if (owner := vault.note_of(record)) is None else owner[1])
+                    for record in vault.records]
+        selected = [(record, note) for record, note in selected if selects(record, note)]
+        if members is not None:  # The members' order is the view's row order (generic-tables).
+            def position(pair: tuple[Record, Record | None]) -> int:
+                owner = pair[0] if pair[0]["type"] == "note" else pair[1]
+                return members.get(owner["path"], len(members)) if owner is not None else len(members)
+            selected.sort(key=position)
+        rows.append([record["id"] for record, _ in selected])
     return {
         "target": target, "heading": heading, "base": _json_value(definition), "view": view, "rows": rows,
     }

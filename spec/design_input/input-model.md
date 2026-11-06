@@ -1456,7 +1456,7 @@ the per-kind register is the `marks` [register](#registers).
   `obs.members` fails the build, naming the note, with the remedy to move it into the view.
 
   The list never writes membership, rank, or labels into a note. It intersects the standard
-  Base filter and initializes row order; interactive filters
+  Base filter and initializes row order, in which the core emits the rows; interactive filters
   and sorting remain table-local. Every path must resolve to a file inside the vault, or
   `--check` fails. Notes matching a Base query are included even without prose backlinks.
 

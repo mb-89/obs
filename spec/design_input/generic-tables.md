@@ -103,7 +103,7 @@ consume the same applied global Filter; a table's local query remains independen
   file render it twice from one definition. Registers use this mechanism ([[input-model]]).
 - A view may declare ordered `obs.members` entries containing a vault-relative note `path`
   and optional view-local `label`. This set intersects the ordinary Base query; its order is the
-  initial row order, and its labels are projected as `obsHtml.label` without modifying canonical
+  initial row order, in which the core emits the view's rows, and its labels are projected as `obsHtml.label` without modifying canonical
   note records. Missing, duplicate, absolute, or vault-escaping member paths, and paths that are
   not Markdown notes, are input errors naming the note, the view, the entry
   (`views[<view>].obs.members[<entry>].path`) and the remedy.
