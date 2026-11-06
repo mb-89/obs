@@ -40,6 +40,17 @@ def test_a_static_projection_is_carried_in_the_property_editors_node(tmp_path: P
     assert "property-editors" in document["capabilities"]
 
 
+def test_the_node_carries_the_fields_its_editor_may_write(tmp_path: Path) -> None:
+    """The edited field, then each projection target once: what an adapter's runtime may commit."""
+    projected = _build(tmp_path, "projection:\n  blank: {status: finding, outputs: []}\n"
+                       "  nonblank: {accepted: \"yes\", status: explained}\n")
+    plain = _build(tmp_path, "")
+
+    for document, writes in ((projected, ["explanation", "status", "outputs", "accepted"]), (plain, ["explanation"])):
+        [editor] = [node for node in document["chapters"][0]["content"] if node["type"] == "property-editors"]
+        assert editor["attrs"]["writes"] == writes
+
+
 @pytest.mark.parametrize(("projection", "field"), [
     ("projection:\n  blank: {status: finding}\n", "projection.nonblank"),
     ("projection:\n  blank: {status: finding}\n  nonblank: {}\n", "projection.nonblank"),

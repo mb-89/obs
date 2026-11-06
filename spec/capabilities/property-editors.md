@@ -33,8 +33,10 @@ A violation fails the build naming the note, the fence, the field path (`field` 
 ## Document node
 
 A `property-editor` fence is one `property-editors` node: `attrs.source` holds the authored
-fence and `attrs.spec` the validated mapping. A fence the schema refuses fails the build with
-the note's path.
+fence, `attrs.spec` the validated mapping and `attrs.writes` the fields the editor may write: the
+edited `field`, then each projection target once, as the rules above checked them. An adapter
+that commits edits at runtime writes no other field of the note. A fence the schema refuses
+fails the build with the note's path.
 
 ## Authoring example
 

@@ -212,6 +212,13 @@ def parse_property_editor(
     return specification
 
 
+def property_editor_writes(specification: dict[str, object]) -> list[str]:
+    """The fields a validated property editor may write: its edited field, then each projection
+    target once (capabilities/property-editors#Document node)."""
+    targets = [name for fields in (specification.get("projection") or {}).values() for name in fields]
+    return list(dict.fromkeys([specification["field"], *targets]))
+
+
 def protected_fields() -> frozenset[str]:
     """The fields no property editor writes, in lower case: input.schema.json's ``protectedField``."""
     return frozenset(_schema()["$defs"]["protectedField"]["enum"])
