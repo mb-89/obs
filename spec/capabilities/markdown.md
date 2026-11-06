@@ -43,15 +43,17 @@ arrive as structural nodes, which every adapter renders; `document.schema.json` 
   (the formula as `text`; `attrs.display` is false for `$x$` and true for `$$x$$` inside a
   line, which Obsidian shows as display math).
 
-A block node is never a paragraph's child, always its sibling: where one is written inside a
-paragraph, the core splits the paragraph around it, so the text before and the text after become
-paragraphs of their own, keeping their authored characters, and a paragraph left with only
-whitespace is dropped; an embed alone in its paragraph replaces it. The block nodes are
-Markdown's blocks (`section`, `paragraph`, `list`, `list-item`, `quote`, `table`, `table-row`,
-`table-cell`, `rule`), `registers`, a note's `embeds` (an embed that names no asset; an embedded
-file stays inline), `figure-descriptor`, `cards-metrics` and `callouts`; `document.schema.json`
-holds the list (`blockNode`) and refuses a Document that puts one inside a paragraph. Display
-math on its own line arrives as a block `math` node; `$$x$$` inside a line stays inline.
+A block node is never a paragraph's child, always its sibling. Where one is written inside a
+paragraph, the core splits the paragraph around it: the text before and the text after become
+paragraphs of their own with their authored characters, and a paragraph left with only
+whitespace is dropped, so an embed alone in its paragraph replaces it.
+
+The block nodes are Markdown's blocks (`section`, `paragraph`, `list`, `list-item`, `quote`,
+`table`, `table-row`, `table-cell`, `rule`), `registers`, a note's `embeds` (an embedded file,
+which names an asset, stays inline), `figure-descriptor`, `cards-metrics` and `callouts`.
+`document.schema.json` holds the list (`blockNode`) and refuses a paragraph that holds one.
+
+Display math on its own line arrives as a block `math` node; `$$x$$` inside a line stays inline.
 
 A `list` says whether it is numbered (`attrs.ordered`) and whether it was authored tight
 (`attrs.tight`): true where no blank line separates its items or their blocks, as CommonMark
