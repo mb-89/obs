@@ -182,10 +182,18 @@
           }}}
         },
         {
-          "if": {"properties": {"type": {"enum": ["markdown-frontmatter", "quantities", "references"]}}},
+          "if": {"properties": {"type": {"enum": ["markdown-frontmatter", "references"]}}},
           "then": {"properties": {"attrs": {
             "type": "object", "additionalProperties": false, "required": ["metadata"],
             "properties": {"metadata": {"type": "object"}}
+          }}}
+        },
+        {
+          "description": "A quantity note's frontmatter, and its quantity: value, display unit, SI value and dimension (capabilities/quantities#Document node).",
+          "if": {"properties": {"type": {"const": "quantities"}}},
+          "then": {"properties": {"attrs": {
+            "type": "object", "additionalProperties": false, "required": ["metadata", "quantity"],
+            "properties": {"metadata": {"type": "object"}, "quantity": {"$ref": "#/$defs/quantity"}}
           }}}
         },
         {
@@ -327,14 +335,15 @@
           "description": "A note's frontmatter as parsed nodes: one field node per nonempty string value of fields, exactly as the children of its markdown-frontmatter node (capabilities/markdown-frontmatter#Document node); every note record carries it. A row a note owns finds its values here, by the note's id.",
           "type": "array", "items": {"allOf": [{"$ref": "#/$defs/node"}, {"properties": {"type": {"const": "field"}}}]}
         },
-        "ignored": {"const": true, "description": "Present on an ignored note: queries and Bases never select it or a row it owns (markdown-frontmatter, Ignored notes)."}
+        "ignored": {"const": true, "description": "Present on an ignored note: queries and Bases never select it or a row it owns (markdown-frontmatter, Ignored notes)."},
+        "quantity": {"description": "Present on the record of every quantity note the Document includes: its quantity, as on its quantities node.", "$ref": "#/$defs/quantity"}
       },
       "allOf": [
         {
           "description": "A note: one vault note, its vault-relative POSIX path, its frontmatter as fields and as fieldNodes.",
           "if": {"properties": {"type": {"const": "note"}}},
           "then": {"required": ["path", "fieldNodes"], "not": {"required": ["note"]}},
-          "else": {"not": {"anyOf": [{"required": ["path"]}, {"required": ["ignored"]}, {"required": ["fieldNodes"]}]}}
+          "else": {"not": {"anyOf": [{"required": ["path"]}, {"required": ["ignored"]}, {"required": ["fieldNodes"]}, {"required": ["quantity"]}]}}
         },
         {
           "description": "A chapter: one manifest TOC chapter, in TOC order; depth 0 at the top level and slug its chapter id.",
@@ -380,6 +389,18 @@
         }
       ]
     },
+    "quantity": {
+      "description": "A quantity in the unit system (capabilities/quantities#Document node): its display unit as authored (empty for a plain number), its dimension as the nonzero exponent of each base dimension, and, for a quantity with a value, that value and its value in SI base units; a range adds both bounds in the display unit and in SI base units. An adapter converts between units from these alone.",
+      "type": "object", "additionalProperties": false, "required": ["unit", "dimension"],
+      "properties": {
+        "unit": {"type": "string"},
+        "dimension": {"type": "object", "propertyNames": {"pattern": "^[a-z_]+$"}, "additionalProperties": {"type": "number", "not": {"const": 0}}},
+        "value": {"type": "number"}, "siValue": {"type": "number"},
+        "range": {"$ref": "#/$defs/quantityRange"}, "siRange": {"$ref": "#/$defs/quantityRange"}
+      },
+      "dependentRequired": {"value": ["siValue"], "siValue": ["value"], "range": ["siRange"], "siRange": ["range"]}
+    },
+    "quantityRange": {"type": "array", "prefixItems": [{"type": "number"}, {"type": "number"}], "minItems": 2, "maxItems": 2},
     "resource": {
       "type": "object", "additionalProperties": false, "required": ["id", "type", "attrs"],
       "properties": {"id": {"$ref": "#/$defs/id"}, "type": {"$ref": "#/$defs/id"}, "attrs": {"type": "object"}}
