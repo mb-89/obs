@@ -7,7 +7,7 @@ product:
   version: ""
 organization: ""
 template: ""
-sap number: ""
+document number: ""
 authors: ""
 reviewers: ""
 approvers: ""

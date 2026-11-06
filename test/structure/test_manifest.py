@@ -73,7 +73,7 @@ def test_spec_manifest_declares_generic_paged_presentation() -> None:
     ]
     assert frontmatter["product"] == {"name": "", "version": ""}
     for field in (
-        "organization", "template", "sap number", "authors", "reviewers", "approvers",
+        "organization", "template", "document number", "authors", "reviewers", "approvers",
         "copyright", "confidentiality", "legal entity",
     ):
         assert frontmatter[field] == ""

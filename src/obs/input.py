@@ -337,5 +337,18 @@ def refuse_moved_keys(mapping: object, contract: str, source_path: object, field
                               f"Rename it to {new}; see {reference}")
 
 
+RENAMED_MANIFEST_FIELDS = {"sap number": "document number"}
+"""Each manifest field the core no longer reads and the field that replaced it, with the same
+meaning; the old field is an input error, never an alias (input-model#Cover metadata and history)."""
+
+
+def refuse_renamed_manifest_fields(metadata: dict[str, object], source_path: object) -> None:
+    """Refuse a renamed manifest field, naming the manifest, the old field and the new one."""
+    for old, new in RENAMED_MANIFEST_FIELDS.items():
+        if old in metadata:
+            raise input_error(source_path, old, f"the manifest names this field {new}",
+                              f"Rename it to {new}; see input-model#Cover metadata and history")
+
+
 def validate_project_config(configuration: object, source_path: object) -> None:
     _validate_schema("project.schema.json", configuration, source_path, "configuration")
