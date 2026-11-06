@@ -39,7 +39,8 @@ class FakeNpm:
 
 def test_the_suite_checks_every_part_lockfile_it_depends_on() -> None:
     assert suite.NODE_PACKAGES == [suite.ROOT / "test" / "browser",
-                                   suite.ROOT / "adapters" / "html" / "test" / "browser"]
+                                   suite.ROOT / "adapters" / "html" / "test" / "browser",
+                                   suite.ROOT / "src" / "obs" / "diagrams"]
 
 
 def test_a_missing_node_modules_is_installed_and_remembers_its_lockfile(tmp_path) -> None:
@@ -107,7 +108,7 @@ def test_setup_installs_the_node_packages_and_runs_no_part(monkeypatch, capsys) 
 
     assert suite.main(["--setup"], clock=lambda: next(ticks)) == 0
 
-    assert "installed Node test packages test/browser, adapters/html/test/browser in 7.0 s" in (
+    assert "installed Node test packages test/browser, adapters/html/test/browser, src/obs/diagrams in 7.0 s" in (
         capsys.readouterr().out)
 
 

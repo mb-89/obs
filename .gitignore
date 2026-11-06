@@ -15,3 +15,5 @@
 /.se/
 # The core's packaged capability reference, written by every build (hatch_build.py)
 /src/obs/capability-reference.json
+# The diagram renderers, installed from their lockfile (npm --prefix src/obs/diagrams ci)
+/src/obs/diagrams/node_modules/
