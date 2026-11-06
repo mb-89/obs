@@ -24,11 +24,11 @@ import pytest
 
 # The slowest test of each tier, in seconds, keyed cheapest first as test/tiers.py orders TIERS,
 # on the 4-CPU Linux container of 2026-11-06: unit, dom and browser from two runs of the complete
-# suite (`uv run python test/suite.py`, each part's JUnit report: setup, call and teardown), unit
-# again after the Document schema's validator was compiled once per process; e2e,
+# suite (`uv run python test/suite.py`, each part's JUnit report: setup, call and teardown), again
+# after the run shared one build of the adapter's specification and dealt its groups heaviest first; e2e,
 # which the complete suite leaves out, from the core's `uv run pytest -m "e2e or browser" -n 4 --durations=12` (call). The external tier needs
 # data outside the repository and was not measured; it takes the e2e tier's measurement.
-SLOWEST = {"unit": 12.4, "dom": 4.0, "browser": 8.1, "e2e": 22.8, "external": 22.8}
+SLOWEST = {"unit": 11.6, "dom": 1.4, "browser": 7.6, "e2e": 22.8, "external": 22.8}
 # Each tier's timeout is this multiple of its slowest test: room for a slower machine or a
 # busier run, while a hanging test still fails well before test/suite.py's cap.
 MULTIPLIER = 3
