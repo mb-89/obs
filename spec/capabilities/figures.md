@@ -12,8 +12,8 @@ capability:
 
 Every figure is one generic figure of a kind: `image`, `svg`, `sankey`, `plot` (a stored-data
 FigureDescriptor, [[capabilities/figure-descriptor]]), `equations` (symbolic equations plotted
-live, [[capabilities/equation-figures]]), `mermaid` ([[capabilities/mermaid]]) or `plantuml`
-([[capabilities/plantuml]]).
+live, [[capabilities/equation-figures]]), `mermaid` ([[capabilities/mermaid]]), `plantuml`
+([[capabilities/plantuml]]) or `pugh` (a decision matrix, [[capabilities/pugh-decisions]]).
 
 The fence carries what every kind shares,
 `caption` and `alt`, and the kind's content: inline under `content`, or from `source`, a file
