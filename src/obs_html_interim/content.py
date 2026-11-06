@@ -753,7 +753,7 @@ def read_manifest(manifest_path: Path) -> Manifest:
     return Manifest(metadata, chapters, abstract, abstract_offset)
 
 
-COVER_TEXT_FIELDS = ("document type", "organization", "template", "sap number",
+COVER_TEXT_FIELDS = ("document type", "organization", "template", "document number",
                      "copyright", "confidentiality", "legal entity")
 COVER_PEOPLE_FIELDS = ("authors", "reviewers", "approvers")
 
