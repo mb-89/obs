@@ -12,6 +12,7 @@ from jsonschema import Draft202012Validator
 from referencing import Registry, Resource
 
 from obs.adapter import AdapterError, adapter_manifest_path, load_adapter, option_arguments
+from obs.discriminator import discriminating_validator
 from obs.input import schema_error
 from obs.output import write_output
 from obs.vault import VaultError, build_document as _build_document
@@ -71,7 +72,7 @@ def validate_document(document: dict[str, object], reference: dict[str, object])
         FIGURE_SCHEMA_PATH.name, Resource.from_contents(figure_schema),
     )
     try:
-        errors = list(Draft202012Validator(schema, registry=registry).iter_errors(document))
+        errors = list(discriminating_validator(schema)(schema, registry=registry).iter_errors(document))
     except ValueError as error:
         raise DocumentError(f"Invalid Document: {error}") from error
     error = schema_error(errors, "Invalid Document", "src/obs/document.schema.json")
@@ -81,22 +82,49 @@ def validate_document(document: dict[str, object], reference: dict[str, object])
     unknown = sorted(set(document["capabilities"]) - known)
     if unknown:
         raise DocumentError(f"Document uses unknown capabilities: {', '.join(unknown)}.")
+    bodies = {
+        kind: Draft202012Validator({**body, "$defs": schema["$defs"]}, registry=registry)
+        for kind, body in schema["$defs"]["figureBodies"].items()
+    }
+    _validate_node_capabilities(document["manifest"].get("abstract", []), known, bodies)
     for chapter in document["chapters"]:
-        _validate_node_capabilities(chapter["content"], known)
-        _validate_chapter_capabilities(chapter["children"], known)
+        _validate_node_capabilities(chapter["content"], known, bodies)
+        _validate_chapter_capabilities(chapter["children"], known, bodies)
 
 
-def _validate_chapter_capabilities(chapters: list[object], known: set[str]) -> None:
+def _validate_chapter_capabilities(
+    chapters: list[object], known: set[str], bodies: dict[str, Draft202012Validator],
+) -> None:
     for chapter in chapters:
-        _validate_node_capabilities(chapter["content"], known)
-        _validate_chapter_capabilities(chapter["children"], known)
+        _validate_node_capabilities(chapter["content"], known, bodies)
+        _validate_chapter_capabilities(chapter["children"], known, bodies)
 
 
-def _validate_node_capabilities(nodes: list[object], known: set[str]) -> None:
+def _validate_node_capabilities(
+    nodes: list[object], known: set[str], bodies: dict[str, Draft202012Validator],
+) -> None:
     for node in nodes:
         if node["type"] not in STRUCTURAL_NODE_TYPES | known:
             raise DocumentError(f"Document node uses unknown capability: {node['type']}.")
-        _validate_node_capabilities(node["children"], known)
+        if node["type"] == "figures":
+            _validate_figure_body(node, bodies)
+            continue
+        _validate_node_capabilities(node["children"], known, bodies)
+
+
+def _validate_figure_body(node: dict[str, object], bodies: dict[str, Draft202012Validator]) -> None:
+    """A figure's one child is its kind's body; see document.schema.json ($defs/figureBodies)."""
+    [body] = node["children"]
+    kind = node["attrs"]["kind"]
+    owner = "src/obs/document.schema.json ($defs/figureBodies)"
+    if body["type"] != kind or kind not in bodies:
+        raise DocumentError(
+            f"Invalid Document: a {kind} figure's body is of type {body['type']!r}; its type is the "
+            f"figure's kind, one of {', '.join(sorted(bodies))}. See {owner}.")
+    error = schema_error(list(bodies[kind].iter_errors(body["attrs"])), "Invalid Document", owner,
+                         field=f"figure body {kind}")
+    if error:
+        raise DocumentError(str(error)) from None
 
 
 def read_document(path: Path, reference: dict[str, object]) -> dict[str, object]:

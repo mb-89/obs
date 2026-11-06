@@ -89,8 +89,8 @@ selects the population for a percentage. Empty denominators display `-`. All sel
 compose with the artifact-wide filter, never table-local filters.
 
 An optional metric `link` is an internal fragment using the existing chapter/heading
-route syntax; a
-`tableFilter` query value applies the existing filter to the table named by a table-group
+route syntax; the adapter adds the drill-down filter derived from the metric's conditions
+([[capabilities/cards-metrics#Drill-downs]]) and applies it to the table named by a table-group
 anchor, or to the target chapter's first table when the link has no group anchor.
 Table-group anchors use the table's generated key and grouped property/value path.
 
@@ -675,10 +675,15 @@ Values from external systems or heavy analysis are computed offline and stay pla
 There is no hard border: analytic equations with numbers plugged in should run live, and
 work that is too heavy for the browser runs offline.
 
-Numeric notes will carry a unit system, so values of the same physical quantity convert
-between units and can be added or subtracted across units. Tolerance stack-up is a candidate
-to move live. The equation system itself is designed separately
-(`spec/backlog/nodes-numeric-system.md`).
+Quantities carry a unit system. A quantity's `unit` is a physical unit: an SI or common
+engineering unit, with prefixes and as products or quotients, which the core parses with one
+pinned unit library. A quantity may carry a `range`, its domain, which holds its value.
+
+In the Document every quantity carries its value, its display unit, its value in SI base units
+and its dimension, so an adapter converts between units without a unit library of its own.
+Values of one dimension convert between units and add or subtract across units; combining
+different dimensions is an input error naming both notes. [[capabilities/quantities]] owns the
+fields, the Document node and the arithmetic. Tolerance stack-up is a candidate to move live.
 
 ### Reference notes and link text
 
@@ -722,10 +727,30 @@ artifact-owned Python scripts
 that provide figure data and subplot composition to generic infrastructure. Artifact-specific
 equations, geometry and engineering logic stay outside the converter.
 
-`figure` fences contain a YAML mapping with `version: 1`, `kind: plot`, `kind: svg`, or
-`kind: sankey`, and `source` (a vault-relative JSON file). An optional `caption`
-supplies visible figure prose; omission renders no caption or placeholder. Plot and SVG
-figures also declare `fallback` (vault-relative SVG).
+Every figure is one generic figure of a kind. A `figure` fence contains a YAML mapping with
+`version: 1`, a `kind`, the attributes every kind shares (`caption` and `alt`, below) and the
+kind's content: inline under `content`, or from `source`, a vault-relative file. Exactly one of
+the two; a fence with neither or both is an input error that names the note, the fence and the
+remedy. A kind's own options sit beside them in the fence. The kinds and their content:
+
+- `image`: a raster image or an SVG image. `source` names the image file; inline `content` is
+  SVG markup.
+- `svg`: an exact SVG drawing, with optional `panels` for viewport inspection (below). `source`
+  names the `.svg` file; inline `content` is SVG markup.
+- `sankey`: the Sankey graph (below), with its option `countLabels`. `source` names the graph's
+  JSON file; inline `content` is the same mapping.
+- `plot`: a stored-data plot, a FigureDescriptor (below). `source` names the descriptor's JSON
+  file; inline `content` is the same mapping.
+
+An optional `caption` supplies visible figure prose; omission renders no caption or placeholder.
+
+The core emits every figure as one `figures` Document node, whatever its kind. Its attrs hold
+what every kind shares: `kind`, `caption` (paragraph nodes, parsed like note content), `alt` and
+`block` (the block id, below). Its one child holds the kind's content and is typed by the kind;
+inline and external content give the same node, and no kind repeats a shared attribute. A
+figure's number is not in the node: numbering is an adapter's presentation decision (below).
+The kinds are one registry, `FIGURE_KINDS` in `src/obs/figure.py`: adding a kind is one entry
+there (its parser) and one body schema in `src/obs/document.schema.json` (`$defs/figureBodies`).
 
 Paths are relative to the note, confined to the vault, and files are read-only
 inputs. Rendering/checking never runs
@@ -825,7 +850,11 @@ Confirmed defaults, same date:
 - The Sankey option keeps the name `countLabels`: it says what it configures, the words shown
   with record counts, and renaming would only move every author's fence without new meaning.
 
-For `plot`, `domain: [minimum, maximum]`, `samples` (2–2000), ordered `equations`,
+Equation figures are filed separately and are not yet a kind of the core. The interim
+reference renderer keeps them as `kind: plot` with `fallback` (a vault-relative SVG) and the
+following contract, which the equation kind takes over.
+
+For an equation plot, `domain: [minimum, maximum]`, `samples` (2–2000), ordered `equations`,
 `traces`, and `layout` are authored in the fence. Source JSON binds named finite numbers
 or arrays.
 
@@ -845,7 +874,8 @@ their presentation.
 Layout declares titles, limits, linear/log axes and legend. No executable strings are
 passed to the browser. Print always uses the complete artifact-owned default SVG.
 
-For `svg`, source JSON has `version: 1` and `panels`: each panel declares `id`, `title`,
+For `svg`, the fence's optional `panels` list (the interim reference renderer reads it from a
+source JSON with `version: 1`) declares per panel `id`, `title`,
 and `box: [x, y, width, height]` in SVG viewBox coordinates. Optional grid/span/aspect/axis
 metadata documents the producer's composition. The complete exact SVG remains the default
 and print view; an inspector selects a panel for independent uniform vector viewport
@@ -863,7 +893,7 @@ The author places, captions, numbers and references the figure only through the 
 the
 generator and project adapters add nothing. Panel boxes are in SVG viewBox units.
 
-For `sankey`, source JSON has `version: 1`, `nodes`, and `links`. Each node has a unique
+For `sankey`, the graph (its source JSON or inline `content`) has `version: 1`, `nodes`, and `links`. Each node has a unique
 nonempty `id`, display `label`, and integer `stage` from 0 through 15; each link names existing
 `source` and `target` node ids and a finite positive `value`.
 
@@ -1339,8 +1369,9 @@ how its runtime commits an edit, is that adapter's; its specification is listed 
   `distinct` and `denominator` (see [Document home and abstract](#document-home-and-abstract)).
   A cards metric evaluates it directly; a quantity note's `query` uses the same form and is
   referenced from prose or by a metric's `from`/`secondary`. Both share one evaluator.
-- A count on Home is a `cards` fence in the manifest abstract. Its metric `link` may carry
-  `?tableFilter=` to drill into the table that lists the counted items.
+- A count on Home is a `cards` fence in the manifest abstract. Its metric `link` names the
+  table that lists the counted items; the drill-down filter derives from the metric's
+  conditions ([[capabilities/cards-metrics#Drill-downs]]).
 - Manifest `summaries` (Bases-filter counts over projected table rows) were removed
   (4 Nov 2026). The manifest rejects the key with a migration message; there is no fallback.
   For example, the spec counts open points with `where: [{field: mark.open_point, exists: true}]`
