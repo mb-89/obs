@@ -98,7 +98,17 @@ a call that hands it several would change that contract for every adapter.
 any adapter: the adapter declares each option it takes in the `options` of its `adapter.json`
 (`src/obs/adapter.schema.json`), and the core hands it over as declared. An option the adapter does
 not declare fails the call before the build, naming the adapter's manifest, the option and the
-declared ones. A boolean option, the only kind so far, is `--NAME` on the adapter's command line
-when its value is `true` and left out when it is `false`. What the core's own options put into
-the Document, such as the vault's sources with `--embed-source`, reaches every adapter through the
-Document and is no adapter option.
+declared ones. A boolean option is `--NAME` on the adapter's command line when its value is
+`true` and left out when it is `false`. What the core's own options put into the Document, such as
+the vault's sources with `--embed-source`, reaches every adapter through the Document and is no
+adapter option.
+
+A vault-file option names one file of the vault the call builds: `NAME=ID=PATH`, ID in lowercase
+letters, digits and hyphens, PATH relative to the manifest's folder. The core passes
+`--NAME ID=FILE`, FILE the resolved file. A PATH that names no regular file inside the vault (a
+link, a folder, a missing file, one outside the vault) fails before the build, naming the option.
+
+Each `--source` resolves PATH inside its own vault. A call without `--source` has no vault, so a
+vault-file option fails there. The build record names the file by its vault-relative path, and the
+source archive holds it even in a hidden folder, so a rebuild from the archive names the same file
+([[architecture#Vault files an option names]]).
