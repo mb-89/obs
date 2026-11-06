@@ -1218,6 +1218,10 @@ letter, A, B, C and on, in the order `candidates` lists them, at most 26 options
 - `chosen`, optional: the key of the option the author chose, which the figure checks.
 - On each option, optional: `what`, one sentence on what it is; `wins` and `losses`, short texts
   of its own gains and losses, which add nothing to the totals.
+- On each option, optional: `short`, its short name, at most 5 words, ideally one, which an
+  adapter shows after the letter where there is room (decided by the user, 6 Nov 2026, work
+  issue `feature/decision-figure-on-phones-20261106`). Without it, the label serves where it has
+  at most 5 words; otherwise the letter stands alone.
 - `checklist`, optional: items, each with `item` (the question), `answer` (one line), `pass`
   (true or false) and, optional, `options`, the letters of the options the item fails.
 - `checklistWeight`, optional: the weight of the row the failed items make, 3 by default.
@@ -1230,7 +1234,8 @@ what no schema states: unique keys; every criterion a value, a mark or a gate na
 measured criteria, marks for judged ones; and a hard gate on a measured criterion.
 
 It also checks the options `datum.prefer` and `chosen` name, the letters a checklist item names,
-and that no criterion is keyed `checklist`, the key of the row the failed items make.
+that no criterion is keyed `checklist`, the key of the row the failed items make, and that no
+`short` has more than 5 words.
 
 A matrix it refuses is an input error in the one form: the note, the fence, the field path
 within it (`content.criteria[1].better`, `source.chosen`) and the remedy, naming
@@ -1239,6 +1244,13 @@ within it (`content.criteria[1].better`, `source.chosen`) and the remedy, naming
 The figure's body carries the checked matrix as data (`matrix`). The core decides nothing: an
 adapter runs ctrl's engine on it, in the reader's page, so a reader's change is decided again
 there.
+
+A chapter's `##` sections after its decision figure stay where the core puts every section: in
+the chapter's content, after the figure, in order. The core adds nothing to the figure for them.
+
+An adapter that shows them as the figure's tabs gathers them when it renders the chapter.
+Decided by the worker, 6 Nov 2026: the Document already carries the sections, so its schema
+does not change.
 
 ### Markdown body and frontmatter
 
