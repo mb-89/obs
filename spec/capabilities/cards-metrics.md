@@ -68,11 +68,20 @@ its path without `.md`.
 - `cards[].metrics[].denominator`: the conditions of the population; the value becomes a
   percentage, and an empty population shows `-`.
 - `cards[].metrics[].distinct`: counts distinct values of this property instead of records.
-- `cards[].metrics[].link`: an internal fragment (`#chapter` or `#chapter/heading`, with an
-  optional `?tableFilter=`) the value routes to.
+- `cards[].metrics[].link`: an internal fragment (`#chapter` or `#chapter/heading`) naming
+  the table the value drills down to. See [Drill-downs](#drill-downs).
 - `cards[].metrics[].secondaryLink`: the same for the secondary value; requires `secondary`.
 - `cards[].metrics[].tone`: `neutral`, `positive`, `warning` or `negative`; the tone when no
   rule matches.
+
+## Drill-downs
+
+A metric's drill-down shows exactly the rows its value counts, so it is derived, never
+written: an adapter filters the linked table by the metric's conditions, those of its `from`
+quantity's query chain followed by its `where`, and a `secondaryLink` by the `secondary`
+quantity's query chain. Each condition selects as [[capabilities/queries#Conditions]] says.
+The core refuses a `link` or `secondaryLink` that writes its own `?tableFilter=`, naming the
+card and the field, because a hand-written filter can contradict the conditions it stands for.
 
 ## Document node
 

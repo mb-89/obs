@@ -182,7 +182,7 @@ FULL_CARD_SPEC = {
             "key": "open", "label": "Open", "where": [{"field": "status", "equals": "open"}],
             "from": "queries/findings", "secondary": "queries/closed", "distinct": "owner",
             "denominator": [{"field": "status", "exists": True}],
-            "link": "#findings?tableFilter=status%3Aopen", "secondaryLink": "#closed",
+            "link": "#findings", "secondaryLink": "#closed",
             "tone": "neutral",
             "toneRules": [{"value": "remaining", "when": "positive", "tone": "negative"}],
             "obs": {"projection": "review.current"},
@@ -225,6 +225,18 @@ def test_core_cards_contract_rejects_what_the_adapter_rejects(metric) -> None:
     assert _error_message(lambda: parse_card_spec(text, "note.md")) == _error_message(
         lambda: parse_adapter_cards(_interim_namespace(text), "note.md")
     ).replace(".obsHtml.", ".obs.")
+
+
+@pytest.mark.parametrize("field", ["link", "secondaryLink"])
+def test_a_hand_written_drill_down_filter_names_the_card_and_the_remedy(field) -> None:
+    """A metric's drill-down derives its table filter from its conditions (capabilities/cards-metrics);
+    a hand-written ?tableFilter= could contradict them, so the core refuses it."""
+    metric = {"label": "Open", "where": [{"field": "status", "equals": "open"}], "from": "queries/findings",
+              "secondary": "queries/closed", field: "#findings?tableFilter=status%3Aclosed"}
+    text = json.dumps({"version": 1, "cards": [{"title": "Coverage", "body": "", "metrics": [metric]}]})
+    message = _error_message(lambda: parse_card_spec(text, "note.md"))
+    assert message.startswith(f"note.md: cards fence, cards[0].metrics[0].{field}: ")
+    assert "Coverage" in message and message.endswith("see capabilities/cards-metrics.")
 
 
 def _schema_fields(schema: dict[str, object], prefix: str = "") -> list[str]:
