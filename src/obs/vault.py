@@ -110,6 +110,8 @@ class _Vault:
     """Each parsed note's figure block ids (input-model, Figure captions and references)."""
     block_links: list[tuple[dict[str, object], Path, Path, str]] = field(default_factory=list)
     """Each wikilink with a block heading: its attrs, its note, the note it targets and its syntax."""
+    titles: dict[Path, str] = field(default_factory=dict)
+    """The manifest's and each listed chapter's title, by note."""
 
     def note_of(self, record: Record) -> tuple[Path, Record] | None:
         """The path and note record a record comes from; None for a row without a note."""
@@ -323,10 +325,18 @@ def _note_title(path: Path, vault: _Vault) -> object:
     return metadata.get("title") or metadata.get("term") or heading or path.stem.replace("-", " ").title()
 
 
+def _shown_title(path: Path, vault: _Vault) -> str:
+    """The title a note is shown by: its chapter's title, else its title as authored, else its
+    file name."""
+    name = vault.titles.get(path) or _note_title(path, vault)
+    return name.strip() if isinstance(name, str) and name.strip() else path.stem
+
+
 def _add_records(vault: _Vault, chapters: list[dict[str, object]], title: str) -> None:
     """Every record a Base view can select, of each type; see document.schema.json ($defs/record)."""
     used = set(vault.identities.values()) | {HOME}
-    titles: dict[Path, str] = {vault.manifest: title}
+    titles = vault.titles
+    titles[vault.manifest] = title
     toc: list[tuple[dict[str, object], int]] = []
 
     def walk(items: list[dict[str, object]], depth: int) -> None:
@@ -357,11 +367,11 @@ def _add_records(vault: _Vault, chapters: list[dict[str, object]], title: str) -
         }, vault.identities[path])
     for path, (metadata, body) in vault.notes.items():
         note, source = vault.identities[path], vault.relative(path)
-        name = titles.get(path) or _note_title(path, vault)
+        name = _shown_title(path, vault)
         for category, identifier, text in paragraph_marks(body):
             add("tag", f"{note}-{category}-{identifier}", {
                 "sourcePath": source, "type": category, "label": identifier, "text": text,
-                "source": name if isinstance(name, str) else path.stem,
+                "source": name,
             }, note)
         if metadata.get("kind") == "glossary":
             add("glossary", note, {
@@ -1137,7 +1147,10 @@ def _inline_nodes(token: Token, context: _Context) -> list[dict[str, object]]:
     open_nodes = [result]
     link: dict[str, str] | None = None
     children = token.children or []
+    skip = 0
     for index, child in enumerate(children):
+        if index < skip:
+            continue
         output = open_nodes[-1]
         mark = child.type.removesuffix("_open").removesuffix("_close")
         if mark in _INLINE_MARKS and child.type.endswith("_open"):
@@ -1146,6 +1159,11 @@ def _inline_nodes(token: Token, context: _Context) -> list[dict[str, object]]:
             open_nodes.append(node["children"])
         elif mark in _INLINE_MARKS:
             open_nodes.pop()
+        elif child.type == "link_open" and (block := _block_href(child.attrGet("href") or "", context)):
+            label, (target, heading, resolved) = _link_label(children[index + 1:]), block
+            output.append(_wikilink(target, heading, label, resolved, f"[{label}]({unquote(child.attrGet('href') or '')})", context))
+            skip = next((end for end in range(index + 1, len(children)) if children[end].type == "link_close"),
+                        len(children)) + 1
         elif child.type == "link_open":
             href = child.attrGet("href") or ""
             link = _resource(context.links, context.link_ids, _link_label(children[index + 1:]), href)
@@ -1232,11 +1250,10 @@ def _semantic_text_nodes(text: str, context: _Context) -> list[dict[str, object]
             nodes.append({"type": "text", "attrs": {}, "children": [], "text": text[position:match.start()]})
         value = match.group(0)
         target = (match["target"] or "").strip()
-        if value.startswith(("[[", "![[")) and not target and (
-                match["embed"] or not (match["heading"] or "").startswith("^")):
+        if value.startswith(("[[", "![[")) and not target and (match["embed"] or not match["heading"]):
             nodes.append({"type": "text", "attrs": {}, "children": [], "text": value})
             position = match.end()
-            continue  # Only a block link names its own note by its heading alone ([[#^name]]).
+            continue  # A link names its own note by its heading alone ([[#Heading]], [[#^name]]).
         resolved = _link(target, source_path, vault, value,
                          f"field {context.field_path}" if context.field_path else "") if target else None
         if value.startswith("[[") and not target:
@@ -1298,18 +1315,36 @@ def _semantic_text_nodes(text: str, context: _Context) -> list[dict[str, object]
 
 def _wikilink(target: str, heading: str, label: str, resolved: Path | None, syntax: str, context: _Context,
               **written: str) -> dict[str, object]:
-    """A wikilinks node to a resolved target, labelled by ``label`` or its target; its chapter is
-    set once inclusion is final, and a block link's heading once every block id is known.
-    ``syntax`` is the link as written; ``written`` is the ``svg`` attribute of a link inside a
-    figure (capabilities/wikilinks)."""
-    attrs = {"target": target, "chapter": None, "heading": heading, "label": label or target or f"#{heading}",
-             **written}
+    """A wikilinks node to a resolved target, labelled by the link text rule
+    (capabilities/wikilinks#Link text); its chapter is set once inclusion is final, and a block
+    link's figure once every block id is known. ``syntax`` is the link as written; ``written`` is
+    the ``svg`` attribute of a link inside a figure (capabilities/wikilinks)."""
+    if not label:
+        note = target if resolved is None else _shown_title(resolved, context.vault)
+        label = f"{note} > {heading}" if target and heading else heading or target
+    attrs = {"target": target, "chapter": None, "heading": heading, "label": label, **written}
     context.vault.links.append((attrs, resolved))
     if heading.startswith("^") and resolved is not None:
         context.vault.block_links.append((attrs, context.source_path, resolved, syntax))
     _resource(context.links, context.link_ids, attrs["label"], target or f"#{heading}")
     context.capabilities.add("wikilinks")
     return {"type": "wikilinks", "attrs": attrs, "children": []}
+
+
+_BLOCK_HREF = re.compile(r"(?P<target>[^#:]*)#(?P<heading>\^[^#]+)")
+"""A Markdown link's href that names a block id: ``note.md#^name`` or ``#^name``; capabilities/wikilinks."""
+
+
+def _block_href(href: str, context: _Context) -> tuple[str, str, Path | None] | None:
+    """The target, heading and resolved note of a Markdown block link, which resolves like the
+    wikilink form ``[[note#^name]]`` (capabilities/wikilinks), or None for any other link."""
+    href = unquote(href.strip())
+    match = _BLOCK_HREF.fullmatch(href)
+    if match is None or "wikilinks" not in context.capability_ids:
+        return None
+    target = match["target"].strip()
+    resolved = _link(target, context.source_path, context.vault, f"[]({href})") if target else context.source_path
+    return target, match["heading"], resolved
 
 
 def _figure_links(svg: str, context: _Context, place: str) -> list[dict[str, object]]:
@@ -1320,10 +1355,10 @@ def _figure_links(svg: str, context: _Context, place: str) -> list[dict[str, obj
         if kind == "href":
             target, _, heading = unquote(value.strip()).partition("#")
             found = [(value, target, heading, "")] if target else []
-        else:  # As in prose, only a block link names its own note by its heading alone ([[#^name]]).
+        else:  # As in prose, a link names its own note by its heading alone ([[#Heading]]).
             found = [(match[0], match["target"].strip(), match["heading"] or "", match["label"] or "")
                      for match in _SEMANTIC.finditer(value) if match[0].startswith("[[")
-                     and (match["target"].strip() or (match["heading"] or "").startswith("^"))]
+                     and (match["target"].strip() or match["heading"])]
         for written, target, heading, label in found:
             if written in nodes:
                 continue

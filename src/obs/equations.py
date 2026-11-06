@@ -465,11 +465,79 @@ def _plot(figure: _Figure, plot: dict, y_items: list[dict], variables: dict, unk
     result: dict[str, object] = {"sweep": sweep, "x": _strip(x), "y": [_strip(item) for item in ys]}
     if "family" in plot:
         result["family"] = _family(figure, plot["family"], variables, unknowns, sweep)
-    if plot.get("parallelCoordinates"):
-        axes = [{"source": name, "tree": {"symbol": name}, "dimension": variables[name]["quantity"]["dimension"]}
-                for name in movable if name not in figure.functions]
-        result["parallelCoordinates"] = {"axes": axes + [_strip(item, axis=False) for item in ys]}
+    grid = [name for name in movable if name not in figure.functions and name != sweep]
+    axes = _grid(figure, plot.get("grid", {}), variables, grid) + [
+        _computed(figure, item, f"plot.computed[{index}]", plotted, x, variables, unknowns, sweep)
+        for index, item in enumerate(plot.get("computed", []))]
+    if axes:
+        result["parallelCoordinates"] = {"shown": bool(plot.get("parallelCoordinates")), "axes": axes}
     return result
+
+
+GRID_STEPS = 5
+"""The steps of a grid variable the fence gives no values or steps (input-model, Equation figures)."""
+
+SUMMARIES = {"maximum": "of", "minimum": "of", "xAtMaximum": "x", "xAtMinimum": "x", "final": "of",
+             "area": "area", "absoluteArea": "area", "valueAt": "of", "settlingTime": "x"}
+"""Each summary of a curve and what its dimension is: the curve's, x's, or their product."""
+
+
+def _grid(figure: _Figure, grid: dict, variables: dict, names: list[str]) -> list[dict[str, object]]:
+    """The grid axes: each movable variable apart from the x sweep, its values in its unit and in SI."""
+    for name in grid:
+        if name not in names:
+            raise figure.fail(f"plot.grid.{name}", f"names {name}, which is no grid variable ({', '.join(names) or 'none'})",
+                              "Name a variable with a range that is neither an unknown, a function nor swept on x")
+    axes = []
+    for name in names:
+        quantity = variables[name]["quantity"]
+        low, high = quantity["range"]
+        given = grid.get(name, {"steps": GRID_STEPS})
+        if "steps" in given:
+            steps = given["steps"]
+            values = [float(f"{low + (high - low) * index / (steps - 1):.15g}") for index in range(steps)]
+        else:
+            values = given["values"]
+            for index, value in enumerate(values):
+                if not low <= value <= high:
+                    raise figure.fail(f"plot.grid.{name}.values[{index}]", f"is {value}, outside the range "
+                                      f"{[low, high]} of {name}", f"Give values inside the range of {name}")
+        unit = parse_unit(quantity["unit"])
+        axes.append({"label": name, "variable": name, "dimension": quantity["dimension"], "values": values,
+                     "siValues": [_si(value, unit) for value in values]})
+    return axes
+
+
+def _computed(figure: _Figure, item: dict, field: str, plotted, x: dict, variables: dict, unknowns: list[str],
+              sweep: str) -> dict[str, object]:
+    """A computed axis: an expression of the variables without x, or a summary of a curve over x."""
+    if "expression" in item:
+        axis = plotted(item["expression"], f"{field}.expression")
+        names = {symbol.name for symbol in axis["expression"].free_symbols} | {
+            type(function).__name__ for function in axis["expression"].atoms(AppliedUndef)}
+        bound = sorted(names & ({sweep, *unknowns} | set(figure.functions)))
+        if bound:
+            raise figure.fail(f"{field}.expression", f"is {item['expression']}, which depends on {', '.join(bound)} "
+                              "and so changes along x", "Write an expression of the other variables, or summarize "
+                              "the curve with summary and of")
+        return {"label": item.get("name", item["expression"]), **_strip(axis, axis=False)}
+    summary = item["summary"]
+    of = plotted(item["of"], f"{field}.of")
+    dimension = {"of": of["dimension"], "x": x["dimension"],
+                 "area": _combine(of["dimension"], x["dimension"], 1)}[SUMMARIES[summary]]
+    axis = {"label": item.get("name", f"{summary}({item['of']})"), "summary": summary,
+            "of": _strip(of, axis=False), "dimension": dimension}
+    if summary == "valueAt":
+        name = x["tree"].get("symbol")
+        quantity = variables[name]["quantity"] if name else {}
+        span = quantity.get("range")
+        if span is not None and not span[0] <= item["at"] <= span[1]:
+            raise figure.fail(f"{field}.at", f"is {item['at']}, outside the range {span} of {name}",
+                              f"Give an x inside the range of {name}")
+        axis |= {"at": item["at"], "siAt": _si(item["at"], parse_unit(quantity["unit"])) if name else item["at"]}
+    if summary == "settlingTime":
+        axis["tolerance"] = item["tolerance"]
+    return axis
 
 
 def _strip(item: dict, axis: bool = True) -> dict[str, object]:

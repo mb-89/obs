@@ -46,7 +46,15 @@ variables:
   zeta: {default: 0.3, range: [0.05, 2]}
   w: {default: 2, range: [0.5, 5], unit: 1/s}
   u: {default: 1, range: [0, 2]}
-plot: {x: t, y: y}
+plot:
+  x: t
+  y: y
+  grid: {zeta: {values: [0.2, 0.5, 0.8, 1.3]}, u: {steps: 3}}
+  computed:
+    - {name: settling, summary: settlingTime, of: y, tolerance: 0.02}
+    - {name: error, summary: absoluteArea, of: u - y}
+    - {expression: zeta*w}
+    - {summary: valueAt, of: y, at: 2}
 """
 SATURATED = OSCILLATOR.replace("w**2*y =", "w**2*Min(Max(y, -1), 1) =")
 RANGES = """\
@@ -122,9 +130,64 @@ def test_a_torque_figure_yields_expression_trees_variable_ranges_and_the_initial
     assert plot["x"] == {"source": "n", "tree": {"symbol": "n"}, "dimension": {"time": -1}}
     assert [(item["source"], item["axis"]) for item in plot["y"]] == [("T", "primary"), ("T*n", "secondary")]
     assert plot["family"] == {"variable": "throttle", "values": [0.25, 0.5, 1], "siValues": [0.25, 0.5, 1]}
-    assert [axis["source"] for axis in plot["parallelCoordinates"]["axes"]] == ["n", "throttle", "T", "T*n"]
+    # The fence shows the plot; its one grid axis is throttle, the one movable variable besides the x sweep.
+    assert plot["parallelCoordinates"]["shown"] is True
+    assert plot["parallelCoordinates"]["axes"] == [{
+        "label": "throttle", "variable": "throttle", "dimension": {},
+        "values": [0, 0.25, 0.5, 0.75, 1], "siValues": [0, 0.25, 0.5, 0.75, 1]}]
     values = {"T_max": 250, "throttle": 0.5, "n": 300, "n_max": 600}
     assert evaluate(branch["T"], values) == pytest.approx(93.75)
+
+
+def test_parallel_coordinates_carry_the_grid_and_the_computed_axes(built) -> None:
+    _, bodies = built
+    plot = bodies["oscillator"]["plot"]
+    parallel = plot["parallelCoordinates"]
+    axes = {axis["label"]: axis for axis in parallel["axes"]}
+
+    # Without parallelCoordinates: true the reader opens the plot from the menu.
+    assert parallel["shown"] is False
+    # Grid variables in the order of variables (t is the sweep), then the computed axes as authored.
+    assert list(axes) == ["zeta", "w", "u", "settling", "error", "zeta*w", "valueAt(y)"]
+    assert axes["zeta"]["values"] == [0.2, 0.5, 0.8, 1.3]  # explicit values
+    assert axes["u"]["values"] == [0, 1, 2]  # steps
+    assert axes["w"]["values"] == [0.5, 1.625, 2.75, 3.875, 5]  # 5 steps by default
+    assert axes["w"]["siValues"] == axes["w"]["values"] and axes["w"]["dimension"] == {"time": -1}
+    settling = axes["settling"]
+    assert (settling["summary"], settling["tolerance"], settling["dimension"]) == ("settlingTime", 0.02, {"time": 1})
+    assert settling["of"] == {"source": "y", "tree": {"symbol": "y"}, "dimension": {}}
+    error = axes["error"]
+    assert error["summary"] == "absoluteArea" and error["dimension"] == {"time": 1}
+    assert evaluate(error["of"]["tree"], {"u": 1, "y": 0.25}) == pytest.approx(0.75)
+    product = axes["zeta*w"]
+    assert product["dimension"] == {"time": -1} and "summary" not in product
+    assert evaluate(product["tree"], {"zeta": 0.5, "w": 3}) == pytest.approx(1.5)
+    assert (axes["valueAt(y)"]["summary"], axes["valueAt(y)"]["at"], axes["valueAt(y)"]["siAt"]) == ("valueAt", 2, 2)
+
+
+@pytest.mark.parametrize(
+    ("content", "field"),
+    [
+        (TORQUE.replace("parallelCoordinates: true", "grid: {n_max: {steps: 3}}"), "content.plot.grid.n_max"),
+        (TORQUE.replace("parallelCoordinates: true", "grid: {n: {steps: 3}}"), "content.plot.grid.n"),
+        (TORQUE.replace("parallelCoordinates: true", "grid: {throttle: {values: [0.5, 2]}}"),
+         "content.plot.grid.throttle.values[1]"),
+        (TORQUE.replace("parallelCoordinates: true", "computed: [{expression: throttle*n}]"),
+         "content.plot.computed[0].expression"),
+        (TORQUE.replace("parallelCoordinates: true", "computed: [{expression: 2*T}]"),
+         "content.plot.computed[0].expression"),
+        (TORQUE.replace("parallelCoordinates: true", "computed: [{summary: valueAt, of: T, at: 9000}]"),
+         "content.plot.computed[0].at"),
+        (TORQUE.replace("parallelCoordinates: true", "computed: [{summary: maximum, of: T + q}]"),
+         "content.plot.computed[0].of"),
+        (TORQUE.replace("parallelCoordinates: true", "computed: [{summary: settlingTime, of: T}]"),
+         "content.plot.computed[0]"),
+    ],
+    ids=["fixed-variable", "sweep", "value-outside", "expression-of-x", "expression-of-unknown", "at-outside",
+         "unknown-name", "no-tolerance"],
+)
+def test_a_parallel_coordinates_input_error_names_the_field_and_the_owner(tmp_path, content, field) -> None:
+    _fails(tmp_path, content, field)
 
 
 def test_a_second_order_linear_system_yields_an_exact_solution(built) -> None:
