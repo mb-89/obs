@@ -39,6 +39,15 @@ the core run the vault's command fences from the vault root and put
 their captured output into the Document; without it, a command fence fails the build naming its
 note and the flag ([[capabilities/command-fences#Authorization]]).
 
+The adapter's warnings reach the person, whichever command they ran: on success, `obs-document`
+writes each line the adapter wrote to stderr ([[architecture#Adapter call|adapter call]]) to its
+own stderr, prefixed with the adapter's registered name, so a line reads
+`<adapter>: Warning: spec/chapter.md: <field path>: <what is wrong>. <remedy>.`: the name says
+which program speaks, and the note path below the vault root says where. The name leads, rather
+than following the adapter's own `Warning:`, so the line stays the adapter's line unchanged. On a
+failure the adapter's stderr is the detail of the one failure message, as before, and is not
+written twice. The adapter's stdout is not shown.
+
 ## Several documents per call
 
 One `obs-document` call builds several artifacts: each `--source` pairs, in argument order, with
@@ -51,7 +60,9 @@ uv run obs-document --adapter html --source a/manifest.md --destination a.html -
 The call builds the documents one after the other, in argument order. Every other option
 (`--execute-commands`, `--embed-source`, `--config`, `--adapter-option`) applies to each of them,
 and each Document goes to a temporary file, so `--document` names none. A failure stops the call
-and names the source it failed on; artifacts built before it stay written.
+and names the source it failed on; artifacts built before it stay written. Each adapter warning
+names its document the same way, `--source <manifest>: <adapter>: Warning: …`, since two manifests
+in one folder share a vault root.
 
 Repeated pairs were chosen over a job file, as the interim CLI chose them: callers already
 assemble argument arrays, and a job file would be a second input format with its own schema and
