@@ -18,14 +18,17 @@ example `--durations=20`. Where `SE_TEST_REPORTS` names a directory, each part w
 XML report there as `<part>.xml` (`core.xml`, `adapters-html.xml`), from which se's
 `work_tickets.py suite` names the slowest tests.
 
-Before the parts run, it installs the Node test packages they depend on: each part's
-`test/browser/package-lock.json` (`test/browser`, `adapters/html/test/browser`). A package is
-installed with `npm ci` when its `node_modules` is missing or was installed from another
-lockfile: after each install the lockfile's SHA-256 is stored in `node_modules/` as
-`.obs-installed-lockfile`, so a warm checkout installs nothing. The install time is printed
-apart from the parts' time. A failed install names the lockfile and the command to run by hand,
-and no part runs.
+The parts depend on Node test packages: each part's `test/browser/package-lock.json`
+(`test/browser`, `adapters/html/test/browser`). `--setup`, its only argument then, installs them
+and runs no part; se.toml's `[tests] setup` runs it before the suite, timed apart from the budget.
+A package is installed with `npm ci` when its `node_modules` is missing or was installed from
+another lockfile: after each install the lockfile's SHA-256 is stored in `node_modules/` as
+`.obs-installed-lockfile`, so a warm checkout installs nothing. A failed install names the
+lockfile and the command to run by hand. The suite itself installs nothing: where a package is
+not installed from its current lockfile, it names the package and the setup command, and no
+part runs.
 
+    uv run python test/suite.py --setup
     uv run python test/suite.py
 """
 import hashlib
@@ -40,6 +43,8 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 # The core, then each integrated adapter folder under adapters/.
 PARTS = [ROOT, *sorted(path.parent for path in (ROOT / "adapters").glob("*/pyproject.toml"))]
+SETUP = "--setup"
+SETUP_COMMAND = f"uv run python test/suite.py {SETUP}"
 PARALLEL = ["-n", "auto", "--dist", "loadgroup", "--no-loadscope-reorder"]
 REPORTS_VARIABLE = "SE_TEST_REPORTS"
 # Each part's Node test package, where it has one.
@@ -102,7 +107,11 @@ def run_part(part: Path, arguments: list[str]) -> tuple[int, str]:
     return result.returncode, f"== {part_name(part)}: {' '.join(command[1:])} in {part}\n{result.stdout}"
 
 
-def main(arguments: list[str], clock=time.monotonic) -> int:
+def setup(arguments: list[str], clock) -> int:
+    """Install the Node test packages not installed from their current lockfiles."""
+    if arguments != [SETUP]:
+        print(f"test/suite.py: {SETUP} takes no other arguments; run `{SETUP_COMMAND}`.", file=sys.stderr)
+        return 2
     started = clock()
     try:
         installed = install_node_packages(NODE_PACKAGES)
@@ -111,10 +120,22 @@ def main(arguments: list[str], clock=time.monotonic) -> int:
         return 1
     packages = ", ".join(package.relative_to(ROOT).as_posix() for package in installed or NODE_PACKAGES)
     if installed:
-        print(f"test/suite.py: installed Node test packages {packages} in {clock() - started:.1f} s "
-              "(not test time).", flush=True)
+        print(f"test/suite.py: installed Node test packages {packages} in {clock() - started:.1f} s.")
     else:
-        print(f"test/suite.py: Node test packages {packages} are installed from their lockfiles.", flush=True)
+        print(f"test/suite.py: Node test packages {packages} are installed from their lockfiles.")
+    return 0
+
+
+def main(arguments: list[str], clock=time.monotonic) -> int:
+    if SETUP in arguments:
+        return setup(arguments, clock)
+    missing = [package for package in NODE_PACKAGES if not is_installed(package)]
+    if missing:
+        lockfiles = ", ".join(str(package / "package-lock.json") for package in missing)
+        print(f"test/suite.py: Node test packages are not installed from their lockfiles {lockfiles}; "
+              f"no part ran. Run the setup first: `{SETUP_COMMAND}` ([tests] setup in se.toml).",
+              file=sys.stderr)
+        return 1
     started = clock()
     names = [part_name(part) for part in PARTS]
     print(f"test/suite.py: running {', '.join(names)} side by side; each part's output follows "
