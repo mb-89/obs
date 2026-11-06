@@ -13,11 +13,11 @@ The system is a Python package managed and executed by `uv`.
 2. Resolve a source folder to its conventional manifest note, or accept an explicit note.
 3. The core parses the selected manifest into a schema-valid JSON [[quality#Glossary|Document]] with document metadata, an ordered chapter tree, semantic Markdown nodes, links, and assets.
 4. The core resolves every manifest link within the containing vault and validates frontmatter and supported input syntax.
-5. Adapters project the Document into their output formats, each an [[quality#Glossary|artifact]]; HTML rendering is the integrated adapter in `adapters/html` ([Repository layout](#repository-layout)).
+5. Adapters project the Document into their output formats, each an [[quality#Glossary|artifact]]; integrated adapters live under `adapters/` ([Repository layout](#repository-layout)).
 6. Resolve authorized derived-content providers, including command fences; in a core build the
    core runs them while it builds the Document ([Command output](#command-output)).
 7. Resolve content links and assets within the vault boundary.
-8. Render one self-contained HTML file with an embedded chapter navigator.
+8. Render one self-contained artifact.
 
 The manifest parser, vault resolver, Markdown parser, and renderer are separate ownership
 boundaries.
@@ -34,7 +34,7 @@ costs rather than treating all conversion as one opaque phase.
 ## Repository layout
 
 The core and its adapters are one repository. The core is `src/obs`; an integrated adapter is
-a folder under `adapters/`, the first being HTML in `adapters/html`. Whether a later adapter
+a folder under `adapters/`, the first in `adapters/html`. Whether a later adapter
 lives here or in its own repository is decided when it comes.
 
 An adapter folder is a member of the root uv workspace. It keeps its own `pyproject.toml`,
@@ -186,7 +186,7 @@ The concrete contracts and execution boundaries are owned by [[input-model]].
 - Invalid configuration fails before generation begins.
 - Manifest and content links may not escape the containing vault.
 - Command fences execute only when the build grants explicit authorization.
-- Generated HTML never refers to source-machine local files.
+- A generated artifact never refers to source-machine local files.
 - Comment text is rendered with DOM text APIs and serialized with script-closing characters
 	escaped. A returned artifact is untrusted input to the read-only extractor.
 
