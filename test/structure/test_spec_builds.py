@@ -34,7 +34,6 @@ from pathlib import Path
 
 from obs import document as core
 from obs.document import build_document, main as obs_document
-from obs_html_interim.cli import main
 
 ROOT = Path(__file__).parents[1]
 SPEC_MANIFEST = ROOT / "spec" / "manifest.md"
@@ -46,11 +45,6 @@ def test_in_process(tmp_path):
 
 def test_one_call(tmp_path):
     obs_document(["--source", str(SPEC_MANIFEST), "--adapter", "html"])
-
-
-def test_interim(tmp_path):
-    spec = Path(__file__).resolve().parents[1] / "spec"
-    main(["--source", str(spec), "--output", str(tmp_path / "spec.html")])
 
 
 def build_by_command(folder):
@@ -87,8 +81,8 @@ def test_another_vault(tmp_path):
 ''', encoding="utf-8")
     found = spec_build.own_builds(tmp_path / "test_own_spec.py", ROOTS, {"test_named_variant"})
     assert [line.split(":")[0] for line in found] == [
-        "test_in_process", "test_one_call", "test_interim", "build_by_command", "test_a_copy"]
+        "test_in_process", "test_one_call", "build_by_command", "test_a_copy"]
     assert all("test/spec_build.py" in line for line in found)
-    assert "test_own_spec.py:15" in found[0]
+    assert "test_own_spec.py:14" in found[0]
     assert spec_build.own_builds(tmp_path / "test_own_spec.py", ROOTS, {"test_gone"})[-1].startswith(
         "test_gone: test_own_spec.py has no such test")

@@ -89,17 +89,17 @@ def suite_run(tmp_path, monkeypatch, builds: list[str]):
 
 
 def test_the_suite_reports_one_build_per_run(tmp_path, monkeypatch, capsys) -> None:
-    code, folders = suite_run(tmp_path, monkeypatch, ["document", "interim"])
+    code, folders = suite_run(tmp_path, monkeypatch, ["document"])
 
     assert code == 0
     assert len(set(folders)) == 1 and not folders[0].exists(), "the run's folder outlives the run"
     assert spec_build.RUN_FOLDER not in os.environ
     out = capsys.readouterr().out
-    assert "test/spec_build.py" in out and "document 1" in out and "interim 1" in out
+    assert "test/spec_build.py" in out and "document 1" in out and "interim" not in out
 
 
 def test_the_suite_fails_where_the_spec_was_built_twice(tmp_path, monkeypatch, capsys) -> None:
-    code, _folders = suite_run(tmp_path, monkeypatch, ["document", "document", "interim"])
+    code, _folders = suite_run(tmp_path, monkeypatch, ["document", "document"])
 
     assert code == 1
     error = capsys.readouterr().err
