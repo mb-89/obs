@@ -15,6 +15,20 @@ static projection of other fields for a blank or nonblank edit. The fence is dat
 input model owns its contract and `input.schema.json` (`propertyEditor`) its shape.
 Saving the edit is adapter behaviour, owned by [[capabilities/reviewed-copies]].
 
+## Projection rules
+
+The core enforces these when it builds the Document, so every adapter gets them. Each target of
+`blank` and `nonblank`:
+
+- is not a protected field, in any letter case: `input.schema.json` (`protectedField`) lists them;
+- is an existing top-level field of the note, of the same type as the projected value: text,
+  number, true/false or empty, or a list whose items share one of those types; an empty list
+  matches any list;
+- is not the edited `field`.
+
+A violation fails the build naming the note, the fence, the field path
+(`projection.<blank|nonblank>.<target>`) and a remedy.
+
 ## Document node
 
 A `property-editor` fence is one `property-editors` node: `attrs.source` holds the authored
