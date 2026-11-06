@@ -20,9 +20,8 @@ import yaml
 
 from obs.commands import CommandError, run_command
 from obs.config import (
-    DEFAULT_COMMAND_TIMEOUT_SECONDS, DEFAULT_CSS_SNIPPET_FOLDER, DEFAULT_FIGURE_LABELS, DEFAULT_LONG_PARAGRAPHS,
-    DEFAULT_MANIFEST_FILENAME,
-    CoreConfig, CoreConfigError, load_core_config,
+    DEFAULT_CORE_CONFIG, DEFAULT_FIGURE_LABELS, DEFAULT_LONG_PARAGRAPHS,
+    CoreConfig, CoreConfigError, load_core_config, overridden,
 )
 from obs.figure import FIGURE_KINDS, FIGURE_SCHEMA_PATH, FigureContentError, FigureContext
 from obs.input import (
@@ -41,6 +40,7 @@ from obs.input import (
     validate_cover_metadata,
     validate_count_query,
     validate_note_profile,
+    project_config_keys,
     validate_project_config,
     validate_quantity,
 )
@@ -138,22 +138,76 @@ class _Vault:
         return self.files.get(name.casefold(), [])
 
 
-def manifest_note(source: Path, configuration_path: Path | None = None) -> Path:
-    """The manifest note ``source`` names: a note as given, a vault folder its
-    ``input.manifestFilename`` note (cli.md, One-call build)."""
-    if not source.is_dir():
-        return source
+PROJECT_CONFIG_OWNER = "spec/design_input/architecture.md (Project configuration)"
+
+
+@dataclass(frozen=True)
+class _Settings:
+    """A build's core configuration and the vault's project configuration file, if it holds one."""
+
+    given: CoreConfig | None
+    """The core configuration --config names, if any."""
+    effective: CoreConfig
+    """The core configuration the build applies: --config or the defaults, the vault's file over it."""
+    given_path: Path | None = None
+    project: Path | None = None
+    project_value: dict[str, object] = field(default_factory=dict)
+
+    def declares_manifest_filename(self) -> bool:
+        return self.given is not None or "manifestFilename" in self.project_value.get("input", {})
+
+    def manifest_filename_owner(self) -> str:
+        """Where the applied ``input.manifestFilename`` comes from."""
+        if "manifestFilename" in self.project_value.get("input", {}):
+            return str(self.project)
+        return f"--config {self.given_path}" if self.given is not None else "src/obs/config.schema.json"
+
+    def handed_over(self, vault_root: Path) -> dict[str, object]:
+        """The Document's ``projectConfig``: the file's keys the core does not own, unread."""
+        if self.project is None:
+            return {}
+        keys = project_config_keys()
+        return {"projectConfig": {"path": self.project.relative_to(vault_root).as_posix(), "settings": {
+            key: value for key, value in self.project_value.items() if key not in keys}}}
+
+
+def _settings(vault_root: Path, configuration_path: Path | None) -> _Settings:
+    """Read --config, then the vault's project configuration over it (architecture.md, Project
+    configuration); the vault's file is read once per call of this."""
     try:
-        filename = (load_core_config(configuration_path).manifest_filename if configuration_path is not None
-                    else DEFAULT_MANIFEST_FILENAME)
+        given = load_core_config(configuration_path) if configuration_path is not None else None
     except CoreConfigError as error:
         raise VaultError(str(error)) from error
+    base = given or DEFAULT_CORE_CONFIG
+    path = vault_root / base.project_config_filename
+    if not path.is_file():
+        return _Settings(given, base, configuration_path)
+    try:
+        value = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, UnicodeError, json.JSONDecodeError) as error:
+        raise VaultError(f"{path}: top level: cannot be read as JSON ({error}). Correct the JSON there, or "
+                         f"remove the file; see {PROJECT_CONFIG_OWNER}.") from error
+    try:
+        validate_project_config(value, path)
+    except InputError as error:
+        raise VaultError(str(error)) from error
+    return _Settings(given, overridden(base, value), configuration_path, path, value)
+
+
+def manifest_note(source: Path, configuration_path: Path | None = None) -> Path:
+    """The manifest note ``source`` names: a note as given, a vault folder its
+    ``input.manifestFilename`` note (cli.md, One-call build), the vault's project configuration
+    over --config."""
+    if not source.is_dir():
+        return source
+    settings = _settings(source, configuration_path)
+    filename = settings.effective.manifest_filename
     note = source / filename
     if not note.is_file():
-        owner = f"--config {configuration_path}" if configuration_path is not None else "src/obs/config.schema.json"
         raise VaultError(
             f"--source {source}: the vault folder holds no manifest note {filename} (input.manifestFilename, "
-            f"{owner}). Add {filename} to the folder, or name the manifest note itself with --source.")
+            f"{settings.manifest_filename_owner()}). Add {filename} to the folder, or name the manifest note "
+            f"itself with --source.")
     return note
 
 
@@ -168,18 +222,13 @@ def build_document(
     producers first, then each rendering fence, whose captured output its node carries. Without
     it a rendering cmd fence fails; see capabilities/command-fences.
     """
-    try:
-        configuration: CoreConfig | None = (
-            load_core_config(configuration_path) if configuration_path is not None else None
-        )
-    except CoreConfigError as error:
-        raise VaultError(str(error)) from error
     manifest_path = manifest_path.resolve()
     vault_root = manifest_path.parent
+    settings = _settings(vault_root, configuration_path)
+    configuration = settings.effective
     command_runner: Callable[[str], str] | None = None
     if execute_commands:
-        timeout = (configuration.command_timeout_seconds if configuration is not None
-                   else DEFAULT_COMMAND_TIMEOUT_SECONDS)
+        timeout = configuration.command_timeout_seconds
         try:
             run_producers(vault_root, True, timeout)
         except ProducerError as error:
@@ -195,29 +244,17 @@ def build_document(
         style = declared_style(metadata, manifest_path)
     except InputError as error:
         raise VaultError(str(error)) from error
-    if configuration is not None and manifest_path.name != configuration.manifest_filename:
+    if settings.declares_manifest_filename() and manifest_path.name != configuration.manifest_filename:
         raise VaultError(
             f"Manifest filename does not match core configuration: {manifest_path.name}"
         )
-    if configuration is not None:
-        project_configuration = vault_root / configuration.project_config_filename
-        if project_configuration.is_file():
-            try:
-                validate_project_config(
-                    json.loads(project_configuration.read_text(encoding="utf-8")),
-                    project_configuration,
-                )
-            except (OSError, json.JSONDecodeError, InputError) as error:
-                raise VaultError(str(error)) from error
     try:
-        snippets = css_snippets(vault_root, configuration.css_snippet_folder if configuration is not None
-                                else DEFAULT_CSS_SNIPPET_FOLDER)
+        snippets = css_snippets(vault_root, configuration.css_snippet_folder)
     except SourceError as error:
         raise VaultError(str(error)) from error
     vault = _read_vault(manifest_path, metadata, body)
-    if configuration is not None:
-        vault.figure_labels = configuration.figure_labels
-        vault.long_paragraphs = configuration.long_paragraphs
+    vault.figure_labels = configuration.figure_labels
+    vault.long_paragraphs = configuration.long_paragraphs
     _validate_note(manifest_path, vault)
     chapters, abstract = _parse_manifest(manifest, manifest_path, vault_root, vault.identities)
     _add_records(vault, chapters, title)
@@ -321,6 +358,7 @@ def build_document(
         "capabilities": sorted(capabilities),
         "cssSnippets": snippets,
         **({"style": style} if style is not None else {}),
+        **settings.handed_over(vault_root),
     }
 
 
