@@ -28,7 +28,9 @@ another lockfile: after each install the lockfile's SHA-256 is stored in `node_m
 `.obs-installed-lockfile`, so a warm checkout installs nothing. A failed install names the
 lockfile and the command to run by hand. The suite itself installs nothing: where a package is
 not installed from its current lockfile, it names the package and the setup command, and no
-part runs.
+part runs. A focused run (`uv run pytest` in a part's folder) needs no setup step: each part's
+`conftest.py` calls `set_up_focused_run` from `pytest_sessionstart`, which installs, as `--setup`
+does, every package not installed from its current lockfile, under a lock shared by the parts.
 
     uv run python test/suite.py --setup
     uv run python test/suite.py
@@ -38,6 +40,7 @@ import os
 import shutil
 import subprocess
 import sys
+import tempfile
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
@@ -101,6 +104,30 @@ def install_node_packages(packages: list[Path], run=subprocess.run) -> list[Path
                                f"{result.stdout}")
         (package / "node_modules" / INSTALLED_LOCKFILE).write_text(lockfile_hash(package), encoding="utf-8")
     return stale
+
+
+def set_up_focused_run(config, packages: list[Path] | None = None, run=None) -> list[Path]:
+    """From a part's ``pytest_sessionstart``: install the Node test packages not installed from their
+    current lockfiles; the packages installed. An xdist worker leaves this to its controller, and a
+    failed install stops the run, naming its lockfile and the remedy."""
+    import pytest
+    from filelock import FileLock
+
+    if hasattr(config, "workerinput"):
+        return []
+    lock = Path(tempfile.gettempdir()) / f"obs-node-setup-{hashlib.sha256(str(ROOT).encode()).hexdigest()[:12]}.lock"
+    try:
+        with FileLock(lock):
+            installed = install_node_packages(NODE_PACKAGES if packages is None else packages,
+                                              run=run or subprocess.run)
+    except InstallError as error:
+        pytest.exit(str(error), returncode=1)
+    reporter = getattr(config, "pluginmanager", None) and config.pluginmanager.get_plugin("terminalreporter")
+    if installed and reporter:
+        reporter.write_line("test/suite.py: installed Node test packages "
+                            f"{', '.join(package.relative_to(ROOT).as_posix() for package in installed)} "
+                            "for this run, from their lockfiles.")
+    return installed
 
 
 def run_part(part: Path, arguments: list[str]) -> tuple[int, str]:
