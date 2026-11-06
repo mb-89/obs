@@ -67,8 +67,8 @@ def test_capability_notes_own_their_authored_contract() -> None:
     } <= identifiers
 
 
-def test_specification_registers_capabilities_as_an_authored_base() -> None:
-    manifest_path = ROOT / "spec" / "manifest.md"
+def test_specification_registers_capabilities_as_an_authored_base(spec_vault) -> None:
+    manifest_path = spec_vault / "manifest.md"
     manifest = read_manifest(manifest_path)
     home = Chapter(0, "Home", "home", manifest_path, "", "home")
     home_document = read_chapter_content(home, manifest.metadata["subtitle"])
