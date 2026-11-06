@@ -12,6 +12,7 @@ import yaml
 from obs_html_interim.content import parse_manifest
 from obs_html_interim.renderer import render_artifact
 from pickers import choose_files
+import spec_build
 from test_guided_card_browser import CARD, RUNTIME, UNAVAILABLE
 
 URL = "https://webstore.iec.ch/publication/1234"
@@ -336,12 +337,8 @@ def test_open_helper_window_is_reused_in_place(browser, artifact):
 
 @pytest.fixture(scope="module")
 def spec_artifact(tmp_path_factory) -> Path:
-    from obs_html_interim.cli import main
-
-    output = tmp_path_factory.mktemp("spec") / "spec.html"
-    spec = Path(__file__).resolve().parents[1] / "spec"
-    assert main(["--source", str(spec), "--execute-commands", "--output", str(output)]) == 0
-    return output
+    """obs's spec as the interim reference renders it: the run's one shared build (test/spec_build.py)."""
+    return spec_build.built(spec_build.base(tmp_path_factory), "interim") / spec_build.INTERIM
 
 
 def url_notes(spec):
