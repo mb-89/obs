@@ -124,6 +124,7 @@ def test_a_record_only_note_s_wikilink_arrives_as_a_resolved_field_node(tmp_path
     assert link["type"] == "wikilinks"
     assert (link["attrs"]["target"], link["attrs"]["chapter"]) == ("x", "x")
     assert [chapter["id"] for chapter in document["chapters"]] == ["x"]
+    assert all("fieldNodes" in record for record in document["records"] if record["type"] == "note")
 
 
 def test_the_manifest_record_s_subtitle_arrives_as_image_nodes_of_its_two_assets(tmp_path, remote_images) -> None:
