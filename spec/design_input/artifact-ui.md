@@ -1182,7 +1182,7 @@ separate from artifact presentation.
 
   No feature uses a browser dialog; its messages are inline. Print to PDF never stays in
   its preparing state. The registry and its entries are owned by obs-html's
-  `capabilities.js`; the list of abilities is not repeated here.
+  `features.py`; the list of abilities is not repeated here.
 
   Generic reader-facing controls and messages call the artifact HTML, not a report.
   Where its semantic name is useful, derive it from the authored document type;

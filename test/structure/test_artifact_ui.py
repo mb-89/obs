@@ -119,7 +119,7 @@ def test_only_used_features_ship_and_canaries_decide_or_stay_silent() -> None:
         "A canary that cannot decide raises nothing at load. The feature is tried on use, and an observed "
         "failure then shows the reason and remedy inline and raises the warning.",
         "No feature uses a browser dialog; its messages are inline.",
-        "The registry and its entries are owned by obs-html's `capabilities.js`; the list of abilities "
+        "The registry and its entries are owned by obs-html's `features.py`; the list of abilities "
         "is not repeated here.",
     ):
         assert rule in notice_center, f"artifact-ui.md, Dock menu: state '{rule}' in the notice center"
