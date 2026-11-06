@@ -116,13 +116,13 @@ definitions alike. Keeping the same fact in two places is an anti-pattern (user,
   one can run after the artifact's own scripts, and reads the artifact's timings from the
   artifact's own performance marks. The adapter's `test/structure/test_quality.py` refuses a
   test that does otherwise.
-- An input many tests read, such as a fixture artifact or the parity builds, is built once per
+- An input many tests read, such as a fixture artifact or the spec artifact, is built once per
   run by `built_once` in the part's `conftest.py` and shared by every worker; the tests only read
   it.
 - obs's spec is built once per run of the complete suite and shared by the core and every
-  adapter: `test/spec_build.py` builds its Document, and the interim reference's artifact, in a
-  folder `test/suite.py` makes for the run, named by a hash of the build's inputs, and counts
-  each build there; the suite fails where one was built twice.
+  adapter: `test/spec_build.py` builds its Document in a folder `test/suite.py` makes for the
+  run, named by a hash of the build's inputs, and counts each build there; the suite fails where
+  one was built twice.
 
   A test that needs another build
   of the spec copies the vault and builds only that variant; the core's
