@@ -157,6 +157,11 @@ JSON manifest. The declaration is data, not a runtime registration mechanism. Th
 [[capability-reference|capability reference]] owns the supported identifiers and their semantics; adapters use
 that reference rather than duplicating capability definitions.
 
+The core validates a Document in one pass of `document.schema.json`. A node's rules are keyed by
+its type, and a `discriminator` there selects the rules of that type by lookup
+(`src/obs/discriminator.py`), so validation grows with the number of nodes, not with the number of
+node types; a standard JSON Schema validator ignores the keyword and refuses the same Documents.
+
 The core validates Document identifiers against a supplied capability reference and
 requires an adapter to support each used capability's transitive dependencies before
 starting its process.

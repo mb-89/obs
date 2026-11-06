@@ -138,6 +138,23 @@ def test_a_record_only_note_s_wikilink_to_a_note_outside_the_document_is_unresol
     assert (link["attrs"]["target"], link["attrs"]["chapter"]) == ("other", None)
     assert [chapter["id"] for chapter in document["chapters"]] == ["x"]
 
+
+@pytest.mark.parametrize("listed", [False, True], ids=["record-only", "included"])
+def test_a_record_field_link_to_a_missing_note_is_unresolved_and_warns_with_its_field(
+    tmp_path, remote_images, listed,
+) -> None:
+    """The warning names source, field, target and remedy, as a body link's names its source (#14)."""
+    vault = _record_vault(tmp_path, '  dependsOn: ["[[x]]", "[[missing-note]]"]\n')
+    if listed:
+        (vault / "manifest.md").write_text("- [[x]]\n- [[cap]]\n", encoding="utf-8")
+    document = _record_document(vault, remote_images)
+
+    [link] = _record_fields(document, "cap.md")["capability.dependsOn.1"]
+    assert (link["attrs"]["target"], link["attrs"]["chapter"]) == ("missing-note", None)
+    [warning] = [item["message"] for item in document["diagnostics"] if "missing-note" in item["message"]]
+    for named in ("cap.md", "capability.dependsOn.1", "[[missing-note]]", "missing-note.md"):
+        assert named in warning
+
 def test_the_manifest_record_s_subtitle_arrives_as_image_nodes_of_its_two_assets(tmp_path, remote_images) -> None:
     document = _record_document(_record_vault(tmp_path, "  id: cap\n"), remote_images)
 
