@@ -176,6 +176,13 @@ tree's uncommitted changes are not recorded. Reading the commit and lockfiles fr
 was chosen over package metadata, because only a checkout holds the lockfiles and the commit
 together.
 
+The archive holds the vault alone, so a vault rebuilds from it only when its command fences read
+nothing outside it: a fence names no path outside the vault root, neither an absolute one nor one
+that climbs above the root, and calls only installed programs, those of obs at the recorded
+commit included. What it needs from outside comes from such a program. The rule is the author's
+to keep; the core does not refuse such a fence. `test/structure/test_command_fences_stay_in_vault.py`
+holds obs's own specification to it.
+
 ### CSS snippets
 
 An Obsidian vault keeps its CSS snippets in its snippet folder, `.obsidian/snippets` unless core
