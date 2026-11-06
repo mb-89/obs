@@ -1,4 +1,3 @@
-import shutil
 from pathlib import Path
 
 import yaml
@@ -37,15 +36,10 @@ def test_spec_manifest_reaches_every_design_input_note() -> None:
     assert design_inputs <= {chapter.source_path for chapter in manifest.chapters}
 
 
-def test_every_spec_wiki_link_resolves(tmp_path) -> None:
-    # A copy of the spec vault, with a stand-in for what its producers write (the HTML adapter's
-    # built specification, spec/appendix/references/obs-html-specification.md): this test renders
-    # without running commands, as the rendering fences' stand-in below shows.
-    vault = tmp_path / "spec"
-    shutil.copytree(ROOT / "spec", vault, ignore=shutil.ignore_patterns("design_output"))
-    (vault / "design_output").mkdir()
-    (vault / "design_output" / "obs-html-specification.html").write_text("<!doctype html>\n", encoding="utf-8")
-    manifest_path = vault / "manifest.md"
+def test_every_spec_wiki_link_resolves(spec_vault) -> None:
+    # It renders without running commands (see the rendering fences' stand-in below), so it reads
+    # the spec vault's copy with stand-ins for what the producers write (test/conftest.py).
+    manifest_path = spec_vault / "manifest.md"
     manifest = read_manifest(manifest_path)
     home = Chapter(0, "Home", "home", manifest_path, "", "home")
     home_document = read_chapter_content(home, manifest.metadata["subtitle"])
