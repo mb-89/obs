@@ -187,7 +187,7 @@ def test_an_unreachable_remote_image_is_one_warning_and_the_node_keeps_its_alt_t
 
 
 def test_an_unreachable_remote_image_in_chapter_text_names_its_note(tmp_path) -> None:
-    vault = asset_vault(tmp_path, "![Remote](https://example.test/remote.png)\n")
+    vault = asset_vault(tmp_path, "See ![Remote](https://example.test/remote.png)\n")  # Not alone: no figure lint.
 
     document = build_document(vault / "manifest.md", capability_reference())
 
