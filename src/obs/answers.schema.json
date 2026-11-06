@@ -66,7 +66,15 @@
               "minLength": 1
             },
             "option": {
-              "$ref": "#/$defs/letter"
+              "$comment": "The picked option's letter, or none for None of the above.",
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/letter"
+                },
+                {
+                  "const": "none"
+                }
+              ]
             }
           }
         },
