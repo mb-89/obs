@@ -124,6 +124,29 @@ def test_document_cli_writes_a_vault_document(tmp_path) -> None:
     assert document["chapters"][0]["content"][2]["children"][0]["text"] == "Content."
 
 
+@pytest.mark.parametrize("block", [
+    {"type": "registers", "attrs": capability_node_attrs("registers"), "children": []},
+    {"type": "embeds", "attrs": {"target": "chapter", "chapter": "chapter"}, "children": []},
+])
+def test_document_refuses_a_block_node_inside_a_paragraph(tmp_path, block) -> None:
+    document = document_fixture(["registers", "embeds"])
+    paragraph = document["chapters"][0]["content"][0]
+    paragraph["children"].append(block)
+
+    with pytest.raises(DocumentError, match=r"chapters\[0\]\.content\[0\]\.children\[1\]: .*"
+                                            r"\(capabilities/markdown#Document nodes\)"):
+        write_document(document, tmp_path / "document.json", capability_reference())
+
+
+def test_document_keeps_an_asset_embed_inside_a_paragraph(tmp_path) -> None:
+    document = document_fixture(["embeds"])
+    document["chapters"][0]["content"][0]["children"].append(
+        {"type": "embeds", "attrs": {"target": "figure.svg", "chapter": None, "asset": "asset"}, "children": []},
+    )
+
+    write_document(document, tmp_path / "document.json", capability_reference())
+
+
 def test_document_validates_figure_descriptor_at_the_figure_node(tmp_path) -> None:
     document = document_fixture(["figure-descriptor"])
     descriptor = figure_descriptor()

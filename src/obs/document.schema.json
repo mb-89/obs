@@ -40,6 +40,17 @@
         "table", "table-row", "table-cell", "emphasis", "strong", "strikethrough", "math", "field", "rule"
       ]
     },
+    "blockNode": {
+      "description": "A block node: never a paragraph's child, always its sibling (capabilities/markdown#Document nodes). An embed is a block node unless it names an asset.",
+      "required": ["type"],
+      "anyOf": [
+        {"properties": {"type": {"enum": [
+          "section", "paragraph", "list", "list-item", "quote", "table", "table-row", "table-cell", "rule",
+          "registers", "figure-descriptor", "cards-metrics", "callouts"
+        ]}}},
+        {"properties": {"type": {"const": "embeds"}, "attrs": {"not": {"required": ["asset"]}}}}
+      ]
+    },
     "node": {
       "type": "object", "additionalProperties": false, "required": ["type", "attrs", "children"],
       "properties": {
@@ -53,6 +64,14 @@
           "description": "Containers that carry no attributes: a quotation's blocks, a table's rows, a row's cells, and a mark's inline nodes.",
           "if": {"properties": {"type": {"enum": ["quote", "table", "table-row", "emphasis", "strong", "strikethrough"]}}},
           "then": {"properties": {"attrs": {"maxProperties": 0}}}
+        },
+        {
+          "description": "A paragraph: its children are inline nodes, never a block node (capabilities/markdown#Document nodes).",
+          "if": {"properties": {"type": {"const": "paragraph"}}},
+          "then": {"properties": {"children": {"items": {"not": {
+            "description": "Place the block node beside the paragraph, never inside it (capabilities/markdown#Document nodes)",
+            "$ref": "#/$defs/blockNode"
+          }}}}}
         },
         {
           "description": "A thematic break: no attributes and no children.",
