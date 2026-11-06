@@ -120,13 +120,13 @@ definitions alike. Keeping the same fact in two places is an anti-pattern (user,
 - Unit, dom and browser tiers run without a paired checkout: representative data comes from
   small vendored fixtures under `test/fixtures`.
 - Tests that call a paired application are e2e, including data it reads through
-  `REFERENCE_EXAMPLE_SNAPSHOT`; tests that read hand-supplied data
+  a snapshot named by an environment variable; tests that read hand-supplied data
   such as that snapshot themselves are external.
 
 ### Test feedback time
 
 Table detail expansion must not re-render the whole artifact or recompute all review items.
-Profile the actual Node artifact in a native browser and measure expansion latency before and
+Profile a large real artifact in a native browser and measure expansion latency before and
 after changes. Keep embedded assets and large payloads single-owned; measure artifact byte
 composition before optimizing size, without dropping source material or weakening portability.
 
