@@ -4,11 +4,13 @@ import subprocess
 import sys
 from pathlib import Path
 
-from jsonschema import ValidationError, validate
+from jsonschema import Draft202012Validator, ValidationError, validate
 import pytest
+from referencing import Registry, Resource
 
 from obs.adapter import AdapterError, load_adapter
 from obs.capabilities import build_capability_reference
+from obs.discriminator import discriminating_validator
 from obs.document import STRUCTURAL_NODE_TYPES, DocumentError, call_adapter, main, write_document
 from obs.vault import build_document
 
@@ -223,6 +225,31 @@ def test_a_wrong_node_of_each_type_is_refused_at_its_field_path(tmp_path, kind, 
     document["chapters"][0]["content"] = [_node("list-item", {}, [node])]
     with pytest.raises(DocumentError, match=rf"^Invalid Document: chapters\[0\]\.content\[0\]\.children\[0\]{re.escape(path)}: .*{owner}"):
         write_document(document, tmp_path / "document.json", capability_reference())
+
+
+@pytest.mark.parametrize(("kind", "node", "path"), _ONE_WRONG_NODE_PER_TYPE,
+                         ids=[case[0] for case in _ONE_WRONG_NODE_PER_TYPE])
+def test_the_type_dispatch_finds_every_error_a_standard_validator_finds(kind, node, path) -> None:
+    """document.schema.json's discriminators only skip clauses that cannot apply: a standard
+    validator, which tries every clause, reports the very same errors."""
+    schema = json.loads((ROOT / "src" / "obs" / "document.schema.json").read_text(encoding="utf-8"))
+    figure = json.loads((ROOT / "src" / "obs" / "figure.schema.json").read_text(encoding="utf-8"))
+    registry = Registry().with_resource("figure.schema.json", Resource.from_contents(figure))
+    document = document_fixture()
+    document["chapters"][0]["content"] = [node, _node("paragraph", {}, [_TEXT, node])]
+
+    def errors(validator: type[Draft202012Validator]) -> list[tuple[object, ...]]:
+        found = validator(schema, registry=registry).iter_errors(document)
+        return sorted((list(error.absolute_path), list(error.absolute_schema_path), error.message) for error in found)
+
+    assert errors(discriminating_validator(schema)) == errors(Draft202012Validator)
+
+
+def test_a_discriminated_clause_must_be_keyed_by_its_property() -> None:
+    schema = {"discriminator": {"propertyName": "type"}, "allOf": [{"if": {"required": ["type"]}, "then": {}}]}
+
+    with pytest.raises(ValueError, match=r"^#/allOf/0/if: .*src/obs/discriminator\.py\.$"):
+        discriminating_validator(schema)
 
 
 def test_a_wrong_field_node_on_a_note_record_is_refused_at_its_field_path(tmp_path) -> None:
