@@ -30,6 +30,10 @@
         "properties": {"level": {"enum": ["error", "warning", "info"]}, "message": {"type": "string", "minLength": 1}}
       }
     },
+    "style": {
+      "description": "The identity of the style module the manifest's obs.style declares, as declared, never its files; an adapter that offers styles resolves and applies it (architecture.md, Declared style).",
+      "$ref": "#/$defs/styleIdentity"
+    },
     "cssSnippets": {
       "description": "The vault's CSS snippets, every .css file of its snippet folder in name order (architecture.md, CSS snippets).",
       "type": "array", "items": {"$ref": "#/$defs/cssSnippet"}
@@ -503,6 +507,15 @@
         "name": {"type": "string", "minLength": 1},
         "path": {"type": "string", "pattern": "^(?!/)(?!.*(^|/)\\.\\.?(/|$)).+\\.css$"},
         "text": {"type": "string"}
+      }
+    },
+    "styleIdentity": {
+      "description": "A style module pinned to a commit: its public https clone URL, the full commit SHA and optionally its folder in that repository (architecture.md, Declared style).",
+      "type": "object", "additionalProperties": false, "required": ["url", "ref"],
+      "properties": {
+        "url": {"type": "string", "pattern": "^https://[^\\s/@]+/\\S+$"},
+        "ref": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+        "path": {"type": "string", "minLength": 1}
       }
     },
     "sourceBuild": {

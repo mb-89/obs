@@ -26,3 +26,6 @@ A note whose frontmatter has `obs` gets a `profiles` node whose `profile` is tha
 authored; `note-profile.schema.json` validates it. An adapter's own namespace, such as a
 presentation mapping in the manifest, is not in it: the adapter reads that from the
 frontmatter itself ([[input-model#Core and adapter namespaces]]).
+
+The manifest's `obs.style` declares the vault's style, a style module pinned to a commit; the
+Document's `style` carries its identity ([[architecture#Declared style]]).
