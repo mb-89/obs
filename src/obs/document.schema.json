@@ -38,6 +38,11 @@
       "description": "The vault's CSS snippets, every .css file of its snippet folder in name order (architecture.md, CSS snippets).",
       "type": "array", "items": {"$ref": "#/$defs/cssSnippet"}
     },
+    "projectConfig": {
+      "description": "The vault's project configuration, present where the vault holds one: its vault-relative path and its top-level keys other than the core's, unread (architecture.md, Project configuration).",
+      "type": "object", "additionalProperties": false, "required": ["path", "settings"],
+      "properties": {"path": {"type": "string", "minLength": 1}, "settings": {"type": "object"}}
+    },
     "sourceArchive": {
       "description": "The vault's source files, present only when the build was asked to disclose them (architecture.md, Source archive).",
       "type": "object", "additionalProperties": false, "required": ["files", "build"],

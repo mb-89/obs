@@ -1,7 +1,7 @@
 """Load the output-neutral portion of cross-cutting configuration."""
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from importlib.resources import files
 import json
 from pathlib import Path
@@ -16,6 +16,9 @@ DEFAULT_COMMAND_TIMEOUT_SECONDS: int = (
 """The cmd fence timeout of a build without core configuration; the schema owns the value."""
 DEFAULT_MANIFEST_FILENAME: str = _SCHEMA["properties"]["input"]["properties"]["manifestFilename"]["default"]
 """The manifest note of a vault folder where core configuration names none; the schema owns the value."""
+DEFAULT_PROJECT_CONFIG_FILENAME: str = (
+    _SCHEMA["properties"]["input"]["properties"]["projectConfigFilename"]["default"])
+"""The vault's project configuration file where core configuration names none; the schema owns the value."""
 DEFAULT_CSS_SNIPPET_FOLDER: str = _SCHEMA["properties"]["input"]["properties"]["cssSnippetFolder"]["default"]
 """The vault's CSS snippet folder where core configuration names none; the schema owns the value."""
 DEFAULT_FIGURE_LABELS: tuple[str, ...] = tuple(
@@ -42,6 +45,23 @@ class CoreConfig:
     figure_labels: tuple[str, ...] = DEFAULT_FIGURE_LABELS
     long_paragraphs: tuple[int, int] = DEFAULT_LONG_PARAGRAPHS
     """The long-paragraph lint's warningLines and lineCharacters."""
+
+
+DEFAULT_CORE_CONFIG = CoreConfig(DEFAULT_MANIFEST_FILENAME, DEFAULT_PROJECT_CONFIG_FILENAME,
+                                 DEFAULT_COMMAND_TIMEOUT_SECONDS)
+"""The core configuration of a build without --config: every key at its schema default."""
+
+
+def overridden(config: CoreConfig, project: dict[str, object]) -> CoreConfig:
+    """``config`` with the core keys of a vault's validated project configuration over it, the
+    vault's file winning key by key (architecture.md, Project configuration)."""
+    given, execution = project.get("input", {}), project.get("execution", {})
+    return replace(
+        config,
+        manifest_filename=given.get("manifestFilename", config.manifest_filename),
+        css_snippet_folder=given.get("cssSnippetFolder", config.css_snippet_folder),
+        command_timeout_seconds=execution.get("commandTimeoutSeconds", config.command_timeout_seconds),
+    )
 
 
 def load_core_config(path: Path) -> CoreConfig:
