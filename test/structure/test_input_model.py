@@ -104,7 +104,8 @@ def test_the_unit_system_is_stated_once_in_numeric_value_notes() -> None:
 def test_the_core_spec_names_every_figure_kind_and_carries_no_plot_evaluator_of_its_own() -> None:
     """The equations kind replaced the interim's equation plot, whose bounded arithmetic language
     and sampling the core never had (input-model, Equation figures); the interim's own module
-    documents it until obs#3."""
+    documents it until obs#3. A descriptor's `traces` are stored data, no evaluator (input-model,
+    Figure descriptor), so the interim's sampling `domain` stands for its plot fence."""
     from obs.figure import FIGURE_KINDS
 
     model = (ROOT / "spec" / "design_input" / "input-model.md").read_text(encoding="utf-8")
@@ -115,7 +116,7 @@ def test_the_core_spec_names_every_figure_kind_and_carries_no_plot_evaluator_of_
 
     for kind in FIGURE_KINDS:
         assert f"`{kind}`" in direction and f"`{kind}`" in figures, kind
-    for evaluator in ("`samples`", "`traces`", "bounded arithmetic expression language", "parameters.json"):
+    for evaluator in ("`samples`", "`domain`", "bounded arithmetic expression language", "parameters.json"):
         assert evaluator not in core_spec, evaluator
 
 
