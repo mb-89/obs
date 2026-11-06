@@ -169,9 +169,10 @@ def _adapter(name: str, configuration_path: Path, options: Sequence[str]) -> tup
 
 def _deliver(adapter: dict[str, object], arguments: list[str], configuration_path: Path,
              document: dict[str, object], document_path: Path, destination: Path,
-             reference: dict[str, object]) -> None:
+             reference: dict[str, object], label: str = "") -> None:
     """Start the adapter on the validated ``document``, which ``document_path`` holds, with the
-    standard ``arguments`` (``--vault-root``) and its options' arguments after DESTINATION."""
+    standard ``arguments`` (``--vault-root``) and its options' arguments after DESTINATION. On
+    success its stderr lines follow on ours, each after ``label`` and its name (cli.md, One-call build)."""
     adapter_name = adapter["name"]
     if adapter["contractVersion"] != document["schemaVersion"]:
         raise AdapterError(
@@ -199,6 +200,9 @@ def _deliver(adapter: dict[str, object], arguments: list[str], configuration_pat
         detail = completed.stderr.strip() or completed.stdout.strip()
         suffix = f": {detail}" if detail else ""
         raise AdapterError(f"Adapter {adapter_name!r} exited with code {completed.returncode}{suffix}")
+    for line in completed.stderr.splitlines():
+        if line.strip():
+            print(f"{label}{adapter_name}: {line}", file=sys.stderr)
 
 
 def _capability_closure(requested: set[str], reference: dict[str, object]) -> set[str]:
@@ -298,7 +302,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             return 0
         for source, destination in zip(sources, destinations):  # cli.md, Several documents per call.
             try:
-                _build(options, source, destination, reference, adapter, arguments)
+                _build(options, source, destination, reference, adapter, arguments, f"--source {source}: ")
             except (AdapterError, DocumentError) as error:
                 raise DocumentError(f"--source {source}: {error}") from error
     except (AdapterError, DocumentError) as error:
@@ -320,8 +324,9 @@ def _check_several(options: argparse.Namespace, sources: list[Path], destination
 
 
 def _build(options: argparse.Namespace, source: Path, destination: Path | None, reference: dict[str, object],
-           adapter: dict[str, object] | None, arguments: list[str]) -> None:
-    """Build the Document of ``source`` and, with an ``adapter``, its artifact at ``destination``."""
+           adapter: dict[str, object] | None, arguments: list[str], label: str = "") -> None:
+    """Build the Document of ``source`` and, with an ``adapter``, its artifact at ``destination``;
+    ``label`` leads each adapter warning (cli.md, Several documents per call)."""
     document = build_document(source, reference, options.config, options.execute_commands, options.embed_source)
     for diagnostic in document["diagnostics"]:
         if diagnostic["level"] == "warning":
@@ -334,7 +339,7 @@ def _build(options: argparse.Namespace, source: Path, destination: Path | None, 
         _write(document, document_path)  # build_document validated it.
         if adapter is not None:  # The vault root as given, for the adapter's messages only.
             _deliver(adapter, ["--vault-root", str(source.parent), *arguments],
-                     options.adapter_config, document, document_path, destination, reference)
+                     options.adapter_config, document, document_path, destination, reference, label)
 
 
 if __name__ == "__main__":
