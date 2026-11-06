@@ -67,12 +67,14 @@ def _refused(tmp_path: Path, projection: str, field: str) -> None:
     assert "; see capabilities/property-editors." in message
 
 
-@pytest.mark.parametrize(("projection", "field"), [
-    ("projection:\n  blank: {Title: Changed}\n  nonblank: {status: explained}\n", "projection.blank.Title"),
-    ("projection:\n  blank: {status: finding}\n  nonblank: {aliases: [Changed]}\n", "projection.nonblank.aliases"),
+@pytest.mark.parametrize("name", [
+    "title", "kind", "aliases", "term", "definition", "__proto__", "constructor", "prototype", "Title", "KiNd",
 ])
-def test_a_projection_never_targets_a_protected_field(tmp_path: Path, projection: str, field: str) -> None:
-    _refused(tmp_path, projection, field)
+@pytest.mark.parametrize("branch", ["blank", "nonblank"])
+def test_a_projection_never_targets_a_protected_field(tmp_path: Path, name: str, branch: str) -> None:
+    other = "nonblank" if branch == "blank" else "blank"
+    _refused(tmp_path, f"projection:\n  {branch}: {{{name}: Changed}}\n  {other}: {{status: explained}}\n",
+             f"projection.{branch}.{name}")
 
 
 @pytest.mark.parametrize(("projection", "field"), [
@@ -80,6 +82,7 @@ def test_a_projection_never_targets_a_protected_field(tmp_path: Path, projection
     ("projection:\n  blank: {status: 5}\n  nonblank: {status: explained}\n", "projection.blank.status"),
     ("projection:\n  blank: {status: finding}\n  nonblank: {outputs: [1]}\n", "projection.nonblank.outputs"),
     ("projection:\n  blank: {outputs: System}\n  nonblank: {status: explained}\n", "projection.blank.outputs"),
+    ("projection:\n  blank: {outputs: [System, 2]}\n  nonblank: {status: explained}\n", "projection.blank.outputs"),
 ])
 def test_a_projection_target_is_an_existing_field_of_the_same_type(
     tmp_path: Path, projection: str, field: str,
