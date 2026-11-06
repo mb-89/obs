@@ -32,7 +32,11 @@ SLOWEST = {"unit": 10.9, "dom": 1.9, "browser": 6.0, "e2e": 22.8, "external": 22
 # Each tier's timeout is this multiple of its slowest test: room for a slower machine or a
 # busier run, while a hanging test still fails well before test/suite.py's cap.
 MULTIPLIER = 3
+# How many of a part's recorded runs (test/suite.py, record_durations) the suite keeps.
+RUNS = 10
 TIMEOUTS = {tier: math.ceil(MULTIPLIER * seconds / 10) * 10 for tier, seconds in SLOWEST.items()}
+# The JUnit testcase property naming a test's tier, from which test/suite.py records its time.
+TIER_PROPERTY = "tier"
 # In the run's folder: one file per test process, naming the part and the test it runs.
 RUNNING = "running"
 
@@ -43,8 +47,10 @@ def tier(item) -> str:
 
 
 def mark(items) -> None:
-    """Give each test its tier's timeout, unless it carries its own timeout mark."""
+    """Give each test its tier's timeout, unless it carries its own timeout mark, and name its tier
+    in its report (TIER_PROPERTY)."""
     for item in items:
+        item.user_properties.append((TIER_PROPERTY, tier(item)))
         if not item.get_closest_marker("timeout"):
             item.add_marker(pytest.mark.timeout(TIMEOUTS[tier(item)]))
 
