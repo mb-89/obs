@@ -923,12 +923,12 @@ references, previews and print clones reuse cached values until canonical/filter
 changes invalidate them.
 
 The note owns its display unit; every implicit reference uses that same unit. Use micrometres
-for comparable node-flatness and small tolerance quantities, with exact conversion from
+for comparable flatness and small tolerance quantities, with exact conversion from
 millimetres and no change to physical meaning. Other dimensions keep appropriate consistent
 units. Do not merge unrelated quantities merely to normalize units.
 
-The Node side-by-side migration applies this ownership across current artifact prose, tables,
-callouts and captions. Preserve relations, ranges, signs, datums and engineering
+A side-by-side migration of an existing artifact applies this ownership across its prose,
+tables, callouts and captions. Preserve relations, ranges, signs, datums and engineering
 qualifications; move value-specific provenance and discussion to the corresponding note.
 
 Identifiers (drawing, reference, chapter, figure, open-point and model names), dates,
@@ -971,7 +971,7 @@ also hold internal content: a `description`, details and records. Each external 
 exactly one such note, however often it is linked.
 
 Every document link to something external targets that note, never the URL. Systems of record
-are not exempt: Catalog and Catalog items link to their internal record notes.
+are not exempt: a system of record and its items link to their internal record notes.
 
 - A click goes to the note. A note with a place in the table of contents navigates as usual. A
   note without one opens in the [[artifact-ui#Floating window|floating window]] and the page
@@ -1001,7 +1001,7 @@ link) in any included note.
 Ordinary plots are authored as Markdown fences containing equations and plot details, not
 custom generator code per artifact.
 
-The Node artifact's ordinary plots use this path. Its complex geometry figures may remain
+An artifact's complex geometry figures may remain
 artifact-owned Python scripts
 that provide figure data and subplot composition to generic infrastructure. Artifact-specific
 equations, geometry and engineering logic stay outside the converter.
@@ -1327,7 +1327,7 @@ the per-kind register is the `marks` [register](#registers).
   and other projections do not introduce extra backlinks.
   A source location is the owning paragraph, a referring body block, or a referring
   frontmatter field; repeated links within that same location yield one backlink.
-- The Node artifact uses these marked paragraphs in their owning authored chapters instead of
+- An artifact uses these marked paragraphs in their owning authored chapters instead of
   a separately maintained numbered open-point register or synthetic open-point notes. Preserve
   the question, decision impact, actions, existing answers, evidence and unresolved
   qualifications together in the owning marked paragraph so all appear in its generated
@@ -1425,7 +1425,7 @@ the per-kind register is the `marks` [register](#registers).
   never replace or resurrect its query/composition. Removed opt-ins receive no
   application presentation. Generated table ordinals are not application APIs.
 
-  Authored Node artifact tables use these queries, never pipe-delimited Markdown tables.
+  Authored artifact tables use these queries, never pipe-delimited Markdown tables.
   Each row is a canonical note; columns project its frontmatter or canonical semantic fields.
   Row-specific explanation and evidence belong in that note's body and remain accessible
   through the shared table's existing detail expansion.
@@ -1677,7 +1677,7 @@ unconfirmed changes risks losing them.
 ## Next Obsidian extension
 
 Evaluate native Bases summaries/formulas, note embeds, and diagrams against
-a side-by-side Leaves artifact migration before choosing the next extension. The source is
+a side-by-side migration of an existing artifact before choosing the next extension. The source is
 the original artifact folder; preserve its original artifact and calculation scripts.
 
 Authorized editorial changes belong in the canonical Markdown, not hardcoded adapter summaries.
@@ -1709,12 +1709,12 @@ Keep the parity decision open rather than approximating unsupported syntax silen
 Reader presentation follows [[artifact-ui]]: authored Important callouts identify key takeaways,
 linked subtitle figures orient readers. Build-comparison provenance remains outside the artifact.
 
-The side-by-side edition now has the original 25 open points, 23 glossary entries,
-24 references and 12 referenced figures. It uses shared query tables and a linked count.
+The side-by-side edition keeps the original's open points, glossary entries, references and
+referenced figures, using shared query tables and a linked count.
 
-Linked local source files follow the attachment rule (the Node edition builds without
-`--embed-attachments` and keeps provenance text); source directories are explicit snapshots and
-machine-specific knowledge-base links remain provenance text.
+Linked local source files follow the attachment rule (the side-by-side edition builds
+without `--embed-attachments` and keeps provenance text); source directories are explicit
+snapshots, and links that resolve only on the author's machine remain provenance text.
 
 Figure numbers and cross-references
 use block ids with `obsHtml.figures.numbering: chapter`; expanded images zoom and pan. Compare native PDF appearance separately;

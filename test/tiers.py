@@ -26,7 +26,7 @@ STRICT_VARIABLE = "OBS_HTML_STRICT"
 INTERIM_PACKAGE = "obs_html_interim"
 INTERIM_EVIDENCE = re.compile(r"obs_html_interim|obs-html-interim")
 EVIDENCE = {
-    "external": re.compile(r"OBS_HTML_TEST_AUTHORED_ARTIFACT|OBS_HTML_ARTIFACT_DATA_PROOF|REFERENCE_EXAMPLE_SNAPSHOT"),
+    "external": re.compile(r"OBS_HTML_TEST_AUTHORED_ARTIFACT|OBS_HTML_ARTIFACT_DATA_PROOF|OBS_HTML_TEST_IMPORTED_SNAPSHOT"),
     "e2e": re.compile(r"REFERENCE_EVIDENCE_WORKTREE|REFERENCE_LEVEL_TEST_ROOT|reproduce\.py|[\"']powershell[\"']"),
     "browser": re.compile(r"OBS_HTML_TEST_NATIVE_BROWSER|sync_playwright|\.chromium\b"),
     "dom": re.compile(

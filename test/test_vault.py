@@ -144,7 +144,7 @@ def test_core_places_recognized_capabilities_in_content_nodes(tmp_path) -> None:
     content = document["chapters"][0]["content"]
 
     assert [node["type"] for node in content] == [
-        "chapter-inclusion", "markdown", "section", "paragraph", "callouts", "bases",
+        "chapter-inclusion", "markdown", "section", "paragraph", "embeds", "paragraph", "callouts", "bases",
         "figures", "command-fences",
     ]
     assert content[3]["children"][1] == {
@@ -152,20 +152,20 @@ def test_core_places_recognized_capabilities_in_content_nodes(tmp_path) -> None:
         "attrs": {"target": "target", "chapter": "target", "heading": "Heading", "label": "Label"},
         "children": [],
     }
-    assert content[3]["children"][3] == {
+    assert content[4] == {
         "type": "embeds", "attrs": {"target": "target", "chapter": "target"}, "children": [],
     }
-    assert content[3]["children"][5] == {
+    assert content[5]["children"][1] == {
         "type": "marks", "attrs": {"category": "risk", "id": "watch"}, "children": [],
     }
-    assert content[4]["attrs"] == {"kind": "warning", "title": "Be careful"}
-    assert content[4]["children"] == [{
+    assert content[6]["attrs"] == {"kind": "warning", "title": "Be careful"}
+    assert content[6]["children"] == [{
         "type": "paragraph", "attrs": {},
         "children": [{"type": "text", "attrs": {}, "children": [], "text": "Callout body."}],
     }]
-    assert content[5]["attrs"] == {"source": "views: []\n", "spec": {"views": []}}
-    assert content[6]["attrs"] == {"source": "caption: Diagram\n", "spec": {"caption": "Diagram"}}
-    assert content[7]["attrs"] == {"source": "echo example\n", "output": "example\n"}
+    assert content[7]["attrs"] == {"source": "views: []\n", "spec": {"views": []}}
+    assert content[8]["attrs"] == {"source": "caption: Diagram\n", "spec": {"caption": "Diagram"}}
+    assert content[9]["attrs"] == {"source": "echo example\n", "output": "example\n"}
     assert set(document["capabilities"]) == {
         "bases", "callouts", "chapter-inclusion", "command-fences", "embeds", "figures",
         "manifest", "markdown", "marks", "wikilinks",
@@ -370,10 +370,49 @@ def register_vault(tmp_path, embed: str = "![[x.base#Open points]]") -> Path:
 
 
 def _registers(document: dict[str, object]) -> list[dict[str, object]]:
+    return [node for node in document["chapters"][0]["content"] if node["type"] == "registers"]
+
+
+def _authored(document: dict[str, object]) -> list[dict[str, object]]:
+    """The first chapter's nodes from its heading on, without the nodes the core adds before it."""
+    content = document["chapters"][0]["content"]
+    return content[[node["type"] for node in content].index("section"):]
+
+
+def _shape(nodes: list[dict[str, object]]) -> list[object]:
+    """Each node's type, a paragraph's as its children's types and texts."""
     return [
-        node for node in document["chapters"][0]["content"] if node["type"] == "paragraph"
-        for node in node["children"] if node["type"] == "registers"
+        [(child["type"], child.get("text")) for child in node["children"]] if node["type"] == "paragraph"
+        else node["type"] for node in nodes
     ]
+
+
+@pytest.mark.parametrize(("body", "shape"), [
+    ("Text ![[x.base]] more", [[("text", "Text ")], "registers", [("text", " more")]]),
+    ("Text\n![[x.base]]\nmore", [[("text", "Text"), ("text", "\n")], "registers",
+                                 [("text", "\n"), ("text", "more")]]),
+    ("![[x.base]]", ["registers"]),
+    ("Before ![[a-point]] ![[x.base]] after", [[("text", "Before ")], "embeds", "registers", [("text", " after")]]),
+    ("- Item ![[x.base]] tail", ["list"]),
+])
+def test_a_block_node_inside_a_paragraph_splits_it_into_siblings(tmp_path, body: str, shape: list[object]) -> None:
+    document = build_document(register_vault(tmp_path, body) / "manifest.md", capability_reference())
+    content = _authored(document)
+
+    assert _shape(content) == ["section", *shape]
+    if body.startswith("- "):
+        [item] = content[1]["children"]
+        assert _shape(item["children"]) == [[("text", "Item ")], "registers", [("text", " tail")]]
+
+
+def test_an_asset_embed_stays_inside_its_paragraph(tmp_path) -> None:
+    vault = register_vault(tmp_path, "Text ![[figure.svg]] more")
+    (vault / "figure.svg").write_text("<svg xmlns='http://www.w3.org/2000/svg'/>", encoding="utf-8")
+
+    document = build_document(vault / "manifest.md", capability_reference())
+
+    [_, paragraph] = _authored(document)
+    assert [child["type"] for child in paragraph["children"]] == ["text", "embeds", "text"]
 
 
 def test_a_register_embed_carries_the_base_definition_and_its_view_rows(tmp_path) -> None:
@@ -573,7 +612,7 @@ def test_core_resolves_link_and_embed_targets_to_chapter_ids(tmp_path) -> None:
 
     document = build_document(vault / "manifest.md", capability_reference())
     nodes = [
-        node for node in document["chapters"][0]["content"][-1]["children"]
+        node for block in document["chapters"][0]["content"] for node in (block["children"] if block["type"] == "paragraph" else [block])
         if node["type"] in {"wikilinks", "embeds"}
     ]
 
@@ -921,8 +960,7 @@ def test_every_record_type_yields_records_and_rows_of_its_type(tmp_path) -> None
 
     records = {record["id"]: record for record in document["records"]}
     [register] = [
-        node for chapter in document["chapters"] for block in chapter["content"]
-        for node in block["children"] if node["type"] == "registers"
+        node for chapter in document["chapters"] for node in chapter["content"] if node["type"] == "registers"
     ]
     rows = dict(zip((view["name"] for view in register["attrs"]["base"]["views"]), register["attrs"]["rows"]))
     assert list(rows) == RECORD_TYPES
