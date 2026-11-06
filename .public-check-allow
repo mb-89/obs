@@ -2,3 +2,5 @@ test/test_obsidian_comments.py:70  # JSON-escaped newlines inside a Markdown com
 adapters/html/src/obs_html/vendor/plotly-basic.min.js:8  # Third-party minified Plotly bundle; generic identifiers, not authored content.
 adapters/html/test/parity/test_parity_table.py:160  # Generic English words in a docstring.
 adapters/html/test/parity/test_parity_table.py:161  # Generic English words in a docstring.
+commit:2ed758f09ee4967b7d23d95dbca482e077b16ef4 author  # Published merge from 5 Nov; history is not rewritten (owner's call).
+commit:2ed758f09ee4967b7d23d95dbca482e077b16ef4 committer  # Published merge from 5 Nov; history is not rewritten (owner's call).

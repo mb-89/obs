@@ -52,9 +52,21 @@ def test_a_pugh_fence_and_a_figure_fence_of_kind_pugh_carry_the_matrix_as_data(t
     plain, figure = _figures(document)
 
     assert plain["attrs"] == {"kind": "pugh"}
-    assert plain["children"] == figure["children"] == [{"type": "pugh", "attrs": {"matrix": MATRIX}, "children": []}]
+    assert plain["children"] == figure["children"] == [
+        {"type": "pugh", "attrs": {"matrix": MATRIX, "shortNames": ["Current", "Managed queue"]}, "children": []}]
     assert figure["attrs"]["block"] == "queue"
     assert {"figures", "pugh-decisions"} <= set(document["capabilities"])
+
+
+def test_the_core_resolves_each_options_short_name_once_into_the_figure_body(tmp_path) -> None:
+    matrix = _changed(lambda m: m["candidates"].append(
+        {"key": "rented", "label": "A queue rented from a vendor", "values": {"latency": 20}}))
+
+    plain, = _figures(_document(tmp_path, f"```pugh\n{yaml.safe_dump(matrix)}```\n"))
+
+    # Its short where given, else a label of at most 5 words, else none, and the letter stands alone.
+    assert plain["children"][0]["attrs"]["shortNames"] == ["Current", "Managed queue", None]
+    assert "shortNames" not in matrix and plain["children"][0]["attrs"]["matrix"] == matrix
 
 
 @pytest.mark.parametrize(("change", "field"), [
