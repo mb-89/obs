@@ -6,9 +6,10 @@ quality.md, Testing boundaries, owns the rule.
 Every test of the core and of every adapter gets its tier's timeout (TIMEOUTS) as a
 pytest-timeout mark, unless it carries its own; each part's conftest.py calls ``mark`` after its
 tiers are assigned. A tier's timeout is MULTIPLIER times its slowest test (setup, call and
-teardown) in the complete suite, rounded up to whole tens of seconds; SLOWEST holds those
-measurements, so a test that grows past its tier's bound is measured again, not its bound raised
-by hand. A test past its timeout fails; ``explain`` adds to its report its name, its timeout,
+teardown) in the complete suite, rounded up to whole tens of seconds. SLOWEST holds those
+measurements, derived at import from the runs test/suite.py recorded on this host (``derive``,
+the last RUNS of each part) and falling back to the committed measurement (COMMITTED) where a
+tier has fewer recorded runs; a loaded host's runs raise its own bounds, and nobody types one. A test past its timeout fails; ``explain`` adds to its report its name, its timeout,
 its tier and this file.
 
 While a test runs, ``running`` names it in the run's folder (the folder test/suite.py makes, in
@@ -22,18 +23,56 @@ from pathlib import Path
 
 import pytest
 
-# The slowest test of each tier, in seconds, keyed cheapest first as test/tiers.py orders TIERS,
+# The committed slowest test of each tier, in seconds, keyed cheapest first as test/tiers.py
+# orders TIERS, which SLOWEST falls back to where a host has fewer recorded runs (derive). Measured
 # on the 4-CPU Linux container of 2026-11-06: unit, dom and browser from two runs of the complete
 # suite (`uv run python test/suite.py`, each part's JUnit report: setup, call and teardown), again
 # after the core's controller started the run's shared build of the spec as its session started; e2e,
 # which the complete suite leaves out, from the core's `uv run pytest -m "e2e or browser" -n 4 --durations=12` (call). The external tier needs
 # data outside the repository and was not measured; it takes the e2e tier's measurement.
-SLOWEST = {"unit": 10.9, "dom": 1.9, "browser": 6.0, "e2e": 22.8, "external": 22.8}
+COMMITTED = {"unit": 10.9, "dom": 1.9, "browser": 6.0, "e2e": 22.8, "external": 22.8}
+# How many of a part's recorded runs (test/suite.py, record_durations) the suite keeps and SLOWEST
+# is derived from.
+RUNS = 10
 # Each tier's timeout is this multiple of its slowest test: room for a slower machine or a
 # busier run, while a hanging test still fails well before test/suite.py's cap.
 MULTIPLIER = 3
-# How many of a part's recorded runs (test/suite.py, record_durations) the suite keeps.
-RUNS = 10
+
+
+def derive(committed: dict[str, float], parts_runs: list[list[dict[str, list]]], runs: int):
+    """Each tier's slowest test over each part's last ``runs`` recorded runs (a run maps each test
+    to its tier and seconds), and where each came from, "recorded" or "committed". A tier recorded
+    in fewer than ``runs`` runs keeps its committed value where that is slower."""
+    samples = {tier: [] for tier in committed}
+    for part_runs in parts_runs:
+        for run in part_runs[-runs:]:
+            slowest_in_run = {}
+            for tier, seconds in run.values():
+                slowest_in_run[tier] = max(seconds, slowest_in_run.get(tier, 0.0))
+            for tier, seconds in slowest_in_run.items():
+                samples.setdefault(tier, []).append(seconds)
+    slowest, sources = {}, {}
+    for tier, seconds in committed.items():
+        recorded = max(samples[tier], default=0.0)
+        enough = len(samples[tier]) >= runs
+        slowest[tier] = recorded if enough else max(recorded, seconds)
+        sources[tier] = "recorded" if enough or recorded > seconds else "committed"
+    return slowest, sources
+
+
+def _recorded_runs() -> list[list[dict[str, list]]]:
+    """test/suite.py's recorded runs, loaded by its path: an adapter's conftest.py loads this module
+    without test/ on its path."""
+    import importlib.util
+
+    spec = importlib.util.spec_from_file_location("suite", Path(__file__).with_name("suite.py"))
+    suite = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(suite)
+    return suite.recorded_runs()
+
+
+# Each tier's slowest test, derived from the recorded runs at import, and where it came from.
+SLOWEST, SOURCES = derive(COMMITTED, _recorded_runs(), RUNS)
 TIMEOUTS = {tier: math.ceil(MULTIPLIER * seconds / 10) * 10 for tier, seconds in SLOWEST.items()}
 # The JUnit testcase property naming a test's tier, from which test/suite.py records its time.
 TIER_PROPERTY = "tier"
