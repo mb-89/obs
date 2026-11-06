@@ -94,6 +94,13 @@ definitions alike. Keeping the same fact in two places is an anti-pattern (user,
   blank between tests as a fresh context shows it. The adapter's browsers keep their frame rate
   capped: uncapped, every frame wait draws as fast as the CPU allows, which the parallel suite
   pays for in every other test.
+- The adapter's browser tests run on Playwright's `chromium-headless-shell`, which costs about half
+  the CPU of full Chromium per page. The checks whose behaviour can differ in the shell run on
+  full Chromium, the browser the PDF path finds, as a small named set: print and PDF export, the
+  viewer fixture's sandboxed frame and the startup marks. A test states its engine by the fixture
+  it takes; the adapter's `test/structure/test_quality.py` names the set and refuses a
+  full-Chromium test outside it, and its `test/conftest.py` names the shell and fails, with the
+  remedy, where it is not installed.
 - A browser test opens what shared fixtures give it: a leased page, and an artifact built once (by
   a fixture through `built_once`, or by the adapter's `test/artifacts.py`); several read-only
   checks of one artifact share one page load. It neither builds an artifact nor starts

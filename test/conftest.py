@@ -9,11 +9,17 @@ from filelock import FileLock
 
 import browser_pool
 import network_guard
+import suite
 import tiers
 
 
 _close_browser_pool = browser_pool.install()
 network_guard.install()
+
+
+def pytest_sessionstart(session):
+    """A focused run installs the suite's Node test packages where they are missing or stale."""
+    suite.set_up_focused_run(session.config)
 
 
 def pytest_addoption(parser):
