@@ -678,6 +678,152 @@
               "children": []
             }
           ]
+        },
+        {
+          "type": "figures",
+          "attrs": {
+            "kind": "pugh",
+            "caption": [
+              {
+                "type": "paragraph",
+                "attrs": {},
+                "children": [
+                  {
+                    "type": "text",
+                    "attrs": {},
+                    "children": [],
+                    "text": "The pugh figure, see "
+                  },
+                  {
+                    "type": "wikilinks",
+                    "attrs": {
+                      "target": "gallery",
+                      "chapter": "gallery",
+                      "heading": "",
+                      "label": "gallery"
+                    },
+                    "children": []
+                  },
+                  {
+                    "type": "text",
+                    "attrs": {},
+                    "children": [],
+                    "text": "."
+                  }
+                ]
+              }
+            ],
+            "block": "pugh-figure"
+          },
+          "children": [
+            {
+              "type": "pugh",
+              "attrs": {
+                "matrix": {
+                  "title": "Which option",
+                  "chosen": "A",
+                  "criteria": [
+                    {
+                      "key": "err",
+                      "label": "Error",
+                      "weight": 3,
+                      "better": "lower",
+                      "tolerance": 0.1,
+                      "floor": 0
+                    },
+                    {
+                      "key": "speed",
+                      "label": "Speed",
+                      "weight": 2,
+                      "better": "higher",
+                      "tolerance": 0.1,
+                      "floor": 0
+                    },
+                    {
+                      "key": "cost",
+                      "label": "Cost of ownership",
+                      "weight": 1,
+                      "better": "lower",
+                      "tolerance": 0.25,
+                      "floor": 1
+                    }
+                  ],
+                  "candidates": [
+                    {
+                      "key": "D",
+                      "label": "What runs today",
+                      "what": "The datum: nothing changes.",
+                      "values": {
+                        "err": 1,
+                        "speed": 10,
+                        "cost": 9
+                      },
+                      "wins": "Nothing to migrate."
+                    },
+                    {
+                      "key": "A",
+                      "label": "Precise",
+                      "what": "Precise but dear.",
+                      "values": {
+                        "err": 0.4,
+                        "speed": 10.5,
+                        "cost": 19
+                      },
+                      "tieBreak": 2,
+                      "losses": [
+                        "A new licence",
+                        "Training"
+                      ]
+                    },
+                    {
+                      "key": "B",
+                      "label": "Quick",
+                      "what": "Quick and cheap.",
+                      "values": {
+                        "err": 0.85,
+                        "speed": 30,
+                        "cost": 4
+                      },
+                      "tieBreak": 1,
+                      "wins": "Runs on a phone."
+                    },
+                    {
+                      "key": "C",
+                      "label": "Middling",
+                      "values": {
+                        "err": 0.95,
+                        "speed": 22,
+                        "cost": 9
+                      },
+                      "tieBreak": 0
+                    }
+                  ],
+                  "datum": {
+                    "prefer": [
+                      "D"
+                    ]
+                  },
+                  "sensitivity": {
+                    "seed": 3,
+                    "draws": 2000
+                  },
+                  "checklist": [
+                    {
+                      "item": "Does it keep the data in the EU?",
+                      "answer": "All of them do.",
+                      "pass": true
+                    },
+                    {
+                      "item": "Is there a second supplier?",
+                      "answer": "Not for this kind of system.",
+                      "pass": false
+                    }
+                  ]
+                }
+              },
+              "children": []
+            }
+          ]
         }
       ],
       "children": [],
@@ -776,6 +922,7 @@
     "markdown-frontmatter",
     "mermaid",
     "plantuml",
+    "pugh-decisions",
     "wikilinks"
   ],
   "cssSnippets": []

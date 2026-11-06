@@ -8,6 +8,7 @@ from typing import Callable
 from xml.etree import ElementTree
 
 from jsonschema import Draft202012Validator
+import yaml
 
 from obs import diagram
 from obs.input import schema_error
@@ -166,6 +167,80 @@ def _diagram(kind: str) -> Callable[[object, "str | None"], dict[str, object]]:
     return read
 
 
+PUGH = "capabilities/pugh-decisions"
+"""The note that owns the pugh kind's contract; see input-model, Pugh decision figures."""
+
+
+@cache
+def _document_validator(definition: str) -> Draft202012Validator:
+    """A validator of one ``$defs`` entry of document.schema.json that refers to no other file."""
+    schema = json.loads(Path(__file__).with_name("document.schema.json").read_text(encoding="utf-8"))
+    return Draft202012Validator({"$schema": schema["$schema"], "$defs": schema["$defs"],
+                                 "$ref": f"#/$defs/{definition}"})
+
+
+def _pugh(content: object, _media_type: str | None) -> dict[str, object]:
+    """A Pugh decision matrix in YAML or JSON, checked against ``$defs/pughMatrix`` and for what no
+    schema states; the body carries it as data, which an adapter decides."""
+    field = "source" if isinstance(content, bytes) else "content"
+    matrix = content
+    if isinstance(content, (bytes, str)):
+        try:
+            matrix = yaml.safe_load(content)
+        except yaml.YAMLError as error:
+            raise FigureContentError(field, f"is not valid YAML: {error}".replace("\n", " "),
+                                     f"Write the matrix as a YAML mapping; see {PUGH}") from error
+    matrix = json.loads(json.dumps(matrix, default=str))
+    _checked(matrix, _document_validator("pughMatrix"), field, PUGH)
+
+    def fail(at: str, problem: str, remedy: str) -> FigureContentError:
+        return FigureContentError(f"{field}.{at}", problem, f"{remedy}; see {PUGH}")
+
+    criteria = {criterion["key"]: criterion for criterion in matrix["criteria"]}
+    options = [candidate["key"] for candidate in matrix["candidates"]]
+    for name, keys in (("criteria", [criterion["key"] for criterion in matrix["criteria"]]), ("candidates", options)):
+        for index, key in enumerate(keys):
+            if key in keys[:index]:
+                raise fail(f"{name}[{index}].key", f"is {key!r}, which an earlier entry has",
+                           "Give every entry its own key")
+    if "checklist" in criteria:
+        index = list(criteria).index("checklist")
+        raise fail(f"criteria[{index}].key", "is 'checklist', the key of the row failed checklist items make",
+                   "Give the criterion another key")
+    named = ", ".join(criteria)
+    for index, candidate in enumerate(matrix["candidates"]):
+        for part, kind in (("values", "measured"), ("marks", "judged")):
+            for key in candidate.get(part, {}):
+                at = f"candidates[{index}].{part}.{key}"
+                if key not in criteria:
+                    raise fail(at, "names no criterion of the matrix", f"Name one of {named}")
+                if criteria[key].get("kind", "measured") != kind:
+                    other = "marks" if part == "values" else "values"
+                    raise fail(at, f"is given for {key!r}, a criterion that is not {kind}", f"Give it {other} instead")
+    for index, gate in enumerate(matrix.get("gates", [])):
+        if gate["criterion"] not in criteria:
+            raise fail(f"gates[{index}].criterion", f"is {gate['criterion']!r}, which is no criterion of the matrix",
+                       f"Name one of {named}")
+        limit = next((key for key in ("max", "min") if key in gate), None)
+        if limit and criteria[gate["criterion"]].get("kind", "measured") != "measured":
+            raise fail(f"gates[{index}].{limit}", f"limits {gate['criterion']!r}, a judged criterion",
+                       "Limit a measured criterion, or give a judged one maxRatio")
+    for index, key in enumerate(matrix.get("datum", {}).get("prefer", [])):
+        if key not in options:
+            raise fail(f"datum.prefer[{index}]", f"is {key!r}, which is no option of the matrix",
+                       f"Name one of {', '.join(options)}")
+    if "chosen" in matrix and matrix["chosen"] not in options:
+        raise fail("chosen", f"is {matrix['chosen']!r}, which is no option of the matrix",
+                   f"Name one of {', '.join(options)}")
+    letters = [chr(ord("A") + index) for index in range(len(options))]
+    for index, item in enumerate(matrix.get("checklist", [])):
+        for position, letter in enumerate(item.get("options", [])):
+            if letter not in letters:
+                raise fail(f"checklist[{index}].options[{position}]", f"is {letter!r}, which is no option's letter",
+                           f"Name one of {', '.join(letters)}, the options' letters in the order candidates lists them")
+    return {"matrix": matrix}
+
+
 @dataclass(frozen=True)
 class FigureContext:
     """What a kind that resolves its content against the vault gets from the note it is in."""
@@ -215,6 +290,7 @@ FIGURE_KINDS: dict[str, FigureKind] = {
     "equations": FigureKind(_equations, "equation-figures", resolve=_equation_body),
     "mermaid": FigureKind(_diagram("mermaid"), "mermaid", fence=True),
     "plantuml": FigureKind(_diagram("plantuml"), "plantuml", fence=True),
+    "pugh": FigureKind(_pugh, "pugh-decisions", fence=True),
 }
 """The figure kinds; see input-model, Figure input direction. Adding a kind is one entry here and
 one body schema in document.schema.json."""
