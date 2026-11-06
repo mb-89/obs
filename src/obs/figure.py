@@ -8,6 +8,7 @@ from xml.etree import ElementTree
 
 from jsonschema import Draft202012Validator
 
+from obs import diagram
 from obs.input import schema_error
 
 
@@ -46,11 +47,14 @@ def write_figure_descriptor(descriptor: dict[str, object], path: Path) -> None:
 
 
 class FigureContentError(ValueError):
-    """A figure's content its kind cannot read; ``field`` names it within the fence."""
+    """A figure's content its kind cannot read; ``field`` names it within the fence, ``line`` the
+    content's 1-based line where the kind names one, and ``reference`` the note that owns the
+    kind's contract where it is not capabilities/figures."""
 
-    def __init__(self, field: str, problem: str, remedy: str) -> None:
+    def __init__(self, field: str, problem: str, remedy: str, line: int | None = None,
+                 reference: str | None = None) -> None:
         super().__init__(problem)
-        self.field, self.problem, self.remedy = field, problem, remedy
+        self.field, self.problem, self.remedy, self.line, self.reference = field, problem, remedy, line, reference
 
 
 Content = "bytes | object"
@@ -105,6 +109,28 @@ def _descriptor(content: object, _media_type: str | None) -> dict[str, object]:
     return {"descriptor": descriptor}
 
 
+def _diagram(kind: str) -> Callable[[object, "str | None"], dict[str, object]]:
+    """A diagram language's figure body: its text, and the SVG drawn from it at build time."""
+
+    def read(content: object, _media_type: str | None) -> dict[str, object]:
+        field = "source" if isinstance(content, bytes) else "content"
+        try:
+            text = content.decode("utf-8") if isinstance(content, bytes) else content
+        except UnicodeDecodeError as error:
+            raise FigureContentError(field, "is not UTF-8 text", "Save the diagram file as UTF-8",
+                                     reference=f"capabilities/{kind}") from error
+        if not isinstance(text, str) or not text.strip():
+            raise FigureContentError(field, f"is no {kind} diagram text", f"Write the diagram's {kind} text",
+                                     reference=f"capabilities/{kind}")
+        try:
+            return {"source": text, "svg": diagram.render(kind, text)}
+        except diagram.DiagramError as error:
+            raise FigureContentError(field, error.problem, error.remedy, error.line,
+                                     f"capabilities/{kind}") from error
+
+    return read
+
+
 @dataclass(frozen=True)
 class FigureKind:
     """One kind of figure: how its content becomes its body (the figures node's one child).
@@ -117,6 +143,9 @@ class FigureKind:
     """The body from the content and, for a source file, its media type."""
     capability: str | None = None
     """A capability whose contract the body carries, which a Document with the kind uses."""
+    fence: bool = False
+    """Whether a plain fence of the kind's name (```` ```mermaid ````) is a figure of the kind,
+    without caption, where the kind's capability is supported."""
 
 
 FIGURE_KINDS: dict[str, FigureKind] = {
@@ -124,6 +153,8 @@ FIGURE_KINDS: dict[str, FigureKind] = {
     "svg": FigureKind(lambda content, _type: {"svg": _svg_markup(content)}),
     "sankey": FigureKind(lambda content, _type: {"graph": _json(content)}),
     "plot": FigureKind(_descriptor, "figure-descriptor"),
+    "mermaid": FigureKind(_diagram("mermaid"), "mermaid", fence=True),
+    "plantuml": FigureKind(_diagram("plantuml"), "plantuml", fence=True),
 }
 """The figure kinds; see input-model, Figure input direction. Adding a kind is one entry here and
 one body schema in document.schema.json."""
