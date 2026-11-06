@@ -9,7 +9,9 @@
       "required": ["manifestFilename", "projectConfigFilename"],
       "properties": {
         "manifestFilename": {
+          "description": "The manifest note a vault folder given as --source resolves to (cli.md, One-call build); the default applies to a build without core configuration.",
           "type": "string",
+          "default": "manifest.md",
           "pattern": "^[^/\\\\]+\\.md$"
         },
         "projectConfigFilename": {
