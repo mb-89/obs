@@ -377,8 +377,10 @@ INVALID_CONTRACTS = {
                     "cards fence 1, cards[0].metrics[0].tone", "capabilities/cards-metrics"),
     "property-editor fence": ("chapter.md", "```property-editor\nversion: 1\nfield: title\n```\n",
                               "property-editor fence 1, label", "capabilities/property-editors"),
-    "figure fence": ("chapter.md", '```figure\n{"schemaVersion": 1}\n```\n',
-                     "figure fence 1, id", "capabilities/figure-descriptor"),
+    "figure fence": ("chapter.md", '```figure\nversion: 1\nkind: plot\ncontent: {"schemaVersion": 1}\n```\n',
+                     "figure fence 1, content.id", "capabilities/figure-descriptor"),
+    "figure fence kind": ("chapter.md", "```figure\nversion: 1\n```\n", "figure fence 1, kind",
+                          "capabilities/figures"),
     "embedded base": ("x.base", "views:\n  - type: table\n", "views[0].order", "capabilities/bases"),
 }
 
@@ -482,8 +484,8 @@ def test_a_file_top_level_and_a_fence_place_name_where_the_failure_is() -> None:
          r"Write YAML; see capabilities/property-editors\.$"),
         ("```base\n{unclosed\n```\n", r"base fence 1: is not valid YAML: .*\. Write YAML; "
          r"see capabilities/bases\.$"),
-        ("```figure\n[1]\n```\n", r"figure fence 1: must hold a JSON object\. Write the descriptor as "
-         r"one JSON object; see capabilities/figure-descriptor\.$"),
+        ("```figure\n[1]\n```\n", r"figure fence 1: must be a mapping, not \[1\]\. Write a mapping; "
+         r"see capabilities/figures\.$"),
         ("```base\nviews: []\n```\n```base\nviews: 1\n```\n", r"base fence 2, views: must be a list"),
         ("```cmd\necho ok\n```\n```cmd\n\n```\n", r"cmd fence 2: is empty\. Write the command to run "
          r"or remove the fence; see capabilities/command-fences\.$"),
