@@ -1,20 +1,19 @@
 """obs's spec, built once per run and shared by the core's and every adapter's tests.
 
-Reader: a test that reads obs's spec Document or the interim reference's spec artifact, and
-whoever changes how the suite builds them; quality.md, Testing boundaries, owns the rule.
+Reader: a test that reads obs's spec Document, and whoever changes how the suite builds it;
+quality.md, Testing boundaries, owns the rule.
 
 Each kind in BUILDS is built at most once per run: ``document``, the spec's Document with its
-capability reference, and ``interim``, the interim reference's artifact of the spec. The first
-process of the run that asks builds it under a lock, in the run's folder, and every other
+capability reference, which every adapter renders itself. The first process of the run that
+asks builds it under a lock, in the run's folder, and every other
 process, of any part, reads what it built. test/suite.py makes the run's folder and names it in
 RUN_FOLDER for its parts; a focused run (a part's own pytest) builds in its pytest base folder.
 A build's folder is named by a hash of its inputs (INPUTS: the spec vault without what its
-producers write, the core's, the interim reference's and the HTML adapter's sources, and this
-build), so changed inputs are never served a stale build. Each build appends its kind and key to
+producers write, the core's and the HTML adapter's sources, and this build), so changed inputs are never served a stale build. Each build appends its kind and key to
 COUNTER in the run's folder, which test/suite.py reads at the run's end: where one kind was built
 twice, the run fails.
 
-Both builds run the spec's commands and producers in its vault, offline: the core's
+The build runs the spec's commands and producers in its vault, offline: the core's
 test/offline_obs_document.py serves each remote image as a placeholder. They write only what
 the producers write into the vault's generated design_output, as any build of the spec does.
 
@@ -42,8 +41,6 @@ RUN_FOLDER = "OBS_SPEC_BUILD"
 COUNTER = "builds.txt"
 # The Document build's files, in its folder.
 DOCUMENT, CAPABILITIES = "spec.json", "capabilities.json"
-# The interim reference's artifact, in its folder.
-INTERIM = "reference.html"
 # What a build reads, relative to ROOT; GENERATED parts of a path are no input.
 INPUTS = ("spec", "src", "adapters/html/src", "adapters/html/spec", "adapters.json", "adapters/html/adapter.json",
           "uv.lock", "test/offline_obs_document.py", "test/spec_build.py")
@@ -76,13 +73,7 @@ def build_document(folder: Path) -> None:
           "--execute-commands"], "building obs's spec Document with the core, without the network")
 
 
-def build_interim(folder: Path) -> None:
-    """obs's spec as the interim reference renders it."""
-    _run([sys.executable, "-m", "obs_html_interim.cli", "--source", str(SPEC), "--output", str(folder / INTERIM),
-          "--execute-commands"], "rendering obs's spec with the interim reference")
-
-
-BUILDS = {"document": build_document, "interim": build_interim}
+BUILDS = {"document": build_document}
 # The inputs' key, computed once per process.
 _keys: dict[str, str] = {}
 
@@ -132,10 +123,10 @@ def counts(run: Path) -> Counter:
     return Counter(line.split()[0] for line in lines if line.strip())
 
 
-# What builds a vault: the core's build and its CLI, and the interim reference's CLI, by the
-# modules a test imports them from, and by the commands and scripts that run them.
-BUILDER_IMPORTS = {"obs.document": {"build_document", "main"}, "obs_html_interim.cli": {"main"}}
-BUILDER_WORDS = {"obs-document", "obs-html-interim", "obs.document", "obs_html_interim.cli", "OFFLINE_DOCUMENT"}
+# What builds a vault: the core's build and its CLI, by the module a test imports them from, and
+# by the commands and scripts that run them.
+BUILDER_IMPORTS = {"obs.document": {"build_document", "main"}}
+BUILDER_WORDS = {"obs-document", "obs.document", "OFFLINE_DOCUMENT"}
 # The copy of the spec vault the core's conftest.py hands a test.
 SPEC_COPY = "spec_vault"
 # A path whose segments after its root are these names the spec vault or its manifest.

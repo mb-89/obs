@@ -287,3 +287,21 @@ def test_empty_conditions_select_every_selectable_note_so_the_build_validates_it
     (tmp_path / "stray.md").write_text("Stray.\n", encoding="utf-8")
     chapters = [chapter["id"] for chapter in build_document(manifest, capability_reference())["chapters"]]
     assert "stray" in chapters and "hidden" not in chapters
+
+
+def test_a_base_filter_includes_notes_by_indexed_and_literal_dotted_paths(tmp_path) -> None:
+    """A base filter's grammar reaches a list item by index (items.0.name) and a key with a dot by
+    note["a.b"]; each selected note is included, and a note neither path matches is not."""
+    manifest = _vault(tmp_path, {
+        "manifest.md": "- [[chapter]]\n",
+        "chapter.md": "# Chapter\n\n```base\nfilters:\n  or: ['items.0.name == \"first\"', 'note[\"a.b\"] == \"literal\"']\n"
+                      "views:\n  - type: table\n    order: [file.name]\n```\n",
+        "indexed.md": "---\nitems: [{name: first}, {name: second}]\n---\n# Indexed\n",
+        "literal.md": "---\na.b: literal\na: {b: nested}\n---\n# Literal\n",
+        "other.md": "---\nitems: [{name: second}]\na: {b: nested}\n---\n# Other\n",
+    })
+
+    document = build_document(manifest, capability_reference())
+
+    assert sorted(chapter["id"] for chapter in _chapters(document["chapters"])) == ["chapter", "indexed", "literal"]
+    assert document["diagnostics"] == []
