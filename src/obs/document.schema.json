@@ -431,7 +431,7 @@
       }
     },
     "expression": {
-      "description": "An expression tree (capabilities/equation-figures), never a string to execute: a dimensionless number, a variable (a function's value at the independent variable), a function's derivative of an order, the imaginary unit, or an operator applied to its arguments. It evaluates in complex arithmetic with principal branches; test/fixtures/expression-vectors.json holds shared vectors.",
+      "description": "An expression tree (capabilities/equation-figures), never a string to execute: a dimensionless number, a variable (a function's value at the independent variable), a function's derivative of an order, the imaginary unit, or an operator applied to its arguments. It evaluates in complex arithmetic with principal branches; heaviside's optional second argument is its value at 0, 1/2 without it. test/fixtures/expression-vectors.json holds shared vectors.",
       "oneOf": [
         {"type": "object", "additionalProperties": false, "required": ["number"], "properties": {"number": {"type": "number"}}},
         {"type": "object", "additionalProperties": false, "required": ["symbol"], "properties": {"symbol": {"type": "string", "pattern": "^[A-Za-z][A-Za-z0-9_]{0,39}$"}}},
@@ -442,7 +442,8 @@
           "properties": {
             "op": {"enum": ["add", "mul", "pow", "exp", "log", "sin", "cos", "tan", "asin", "acos", "atan", "atan2", "sinh", "cosh", "tanh", "abs", "sign", "min", "max", "heaviside"]},
             "args": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/expression"}}
-          }
+          },
+          "if": {"properties": {"op": {"const": "heaviside"}}}, "then": {"properties": {"args": {"maxItems": 2}}}
         }
       ]
     },

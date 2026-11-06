@@ -52,3 +52,8 @@ def test_the_vectors_use_every_operator_and_node_of_the_tree() -> None:
         walk(vector["tree"])
     [*_, operators] = SCHEMA["$defs"]["expression"]["oneOf"]
     assert seen == {*operators["properties"]["op"]["enum"], "number", "symbol", "derivative", "constant"}
+    # heaviside's optional second argument, its value at 0; it has no third.
+    assert any(json.dumps(vector["tree"]) == '{"op": "heaviside", "args": [{"number": 0}, {"number": 0.5}]}'
+               for vector in VECTORS["vectors"])
+    validator = Draft202012Validator({"$ref": "#/$defs/expression", "$defs": SCHEMA["$defs"]})
+    assert not validator.is_valid({"op": "heaviside", "args": [{"number": 0}] * 3})

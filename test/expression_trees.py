@@ -45,7 +45,7 @@ _COMPLEX = {
     "sign": lambda value: 0 if value == 0 else value / abs(value),
     "atan2": lambda y, x: math.atan2(_real(y), _real(x)),
     "min": lambda *values: min(values, key=_real), "max": lambda *values: max(values, key=_real),
-    "heaviside": lambda value: 0.5 if _real(value) == 0 else float(_real(value) > 0),
+    "heaviside": lambda value, at_zero=0.5: _real(at_zero) if _real(value) == 0 else float(_real(value) > 0),
 }
 
 
