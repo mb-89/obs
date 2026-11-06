@@ -44,14 +44,22 @@ def test_the_vectors_use_every_operator_and_node_of_the_tree() -> None:
     seen = set()
 
     def walk(tree: dict) -> None:
-        seen.add(tree.get("op") or next(iter(tree)))
+        seen.add(tree.get("op") or tree.get("relation") or next(iter(tree)))
         for arg in tree.get("args", []):
             walk(arg)
+        for case in tree.get("piecewise", []):
+            walk(case["value"])
+            if "when" in case:
+                walk(case["when"])
+        for condition in tree.get("all", []) + tree.get("any", []) + ([tree["not"]] if "not" in tree else []):
+            walk(condition)
 
     for vector in VECTORS["vectors"]:
         walk(vector["tree"])
     [*_, operators] = SCHEMA["$defs"]["expression"]["oneOf"]
-    assert seen == {*operators["properties"]["op"]["enum"], "number", "symbol", "derivative", "constant"}
+    [relations, *_] = SCHEMA["$defs"]["condition"]["oneOf"]
+    assert seen == {*operators["properties"]["op"]["enum"], *relations["properties"]["relation"]["enum"],
+                    "number", "symbol", "derivative", "constant", "piecewise", "all", "any", "not"}
     # heaviside's optional second argument, its value at 0; it has no third.
     assert any(json.dumps(vector["tree"]) == '{"op": "heaviside", "args": [{"number": 0}, {"number": 0.5}]}'
                for vector in VECTORS["vectors"])
