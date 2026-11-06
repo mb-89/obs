@@ -26,6 +26,7 @@ CHAPTER = f"""# Figures
 ```figure
 version: 1
 kind: svg
+caption: A drawing that links its notes.
 content: '{SVG}'
 ```
 ^drawing
@@ -110,3 +111,13 @@ def test_an_ambiguous_link_inside_a_figure_fails_the_build_naming_note_figure_an
 
     assert "chapter.md" in str(raised.value) and "figure fence 1" in str(raised.value)
     assert "[[target]]" in str(raised.value)
+
+
+def test_a_block_link_inside_a_figure_targets_its_figure_like_prose(tmp_path) -> None:
+    chapter = CHAPTER.split("```mermaid")[0].replace("[[target]] and", "[[#^drawing]] and")
+
+    document = build_document(_vault(tmp_path, chapter), capability_reference())
+
+    first = _figure_links(document)[0][0]
+    assert (first["target"], first["chapter"], first["figure"], first["svg"]) == (
+        "", "chapter", "drawing", "[[#^drawing]]")
