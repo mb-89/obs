@@ -127,6 +127,17 @@ def test_a_record_only_note_s_wikilink_arrives_as_a_resolved_field_node(tmp_path
     assert all("fieldNodes" in record for record in document["records"] if record["type"] == "note")
 
 
+
+def test_a_record_only_note_s_wikilink_to_a_note_outside_the_document_is_unresolved(tmp_path, remote_images) -> None:
+    """Only an included note is a chapter; a link to another note no chapter includes names none."""
+    vault = _record_vault(tmp_path, '  dependsOn: ["[[other]]"]\n')
+    (vault / "other.md").write_text("# Other\n", encoding="utf-8")
+    document = _record_document(vault, remote_images)
+
+    [link] = _record_fields(document, "cap.md")["capability.dependsOn.0"]
+    assert (link["attrs"]["target"], link["attrs"]["chapter"]) == ("other", None)
+    assert [chapter["id"] for chapter in document["chapters"]] == ["x"]
+
 def test_the_manifest_record_s_subtitle_arrives_as_image_nodes_of_its_two_assets(tmp_path, remote_images) -> None:
     document = _record_document(_record_vault(tmp_path, "  id: cap\n"), remote_images)
 
