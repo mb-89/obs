@@ -4,6 +4,9 @@ The manifest's document number is `document number`; the removed `sap number` is
 naming the manifest, the old field and the new one, with no compatibility layer. Errors are
 matched by their field path and owner reference (AGENTS.md), never by wording.
 """
+from importlib.resources import files
+import json
+import re
 from pathlib import Path
 
 import pytest
@@ -13,6 +16,8 @@ from obs.document import DocumentError, build_document
 
 ROOT = Path(__file__).parents[1]
 OWNER = "; see input-model#Cover metadata and history."
+VENDOR_WORDS = re.compile(r"\bsap\b", re.IGNORECASE)
+"""Vendor words no field name may contain; a framework never names an application or vendor."""
 
 
 def _build(tmp_path: Path, frontmatter: str) -> dict[str, object]:
@@ -40,3 +45,17 @@ def test_the_removed_sap_number_names_the_manifest_the_old_field_and_the_new_one
     assert "document number" in message
     assert message.endswith(OWNER), message
 
+
+def _keys(value: object) -> list[str]:
+    if isinstance(value, dict):
+        return [*map(str, value), *(key for item in value.values() for key in _keys(item))]
+    if isinstance(value, list):
+        return [key for item in value for key in _keys(item)]
+    return []
+
+
+def test_no_core_schema_names_a_vendor_in_a_field_name() -> None:
+    found = [f"src/obs/{schema.name}: {key!r}" for schema in files("obs").iterdir()
+             if schema.name.endswith(".schema.json")
+             for key in _keys(json.loads(schema.read_text(encoding="utf-8"))) if VENDOR_WORDS.search(key)]
+    assert not found, f"a core schema names a vendor in a field name; name the field generically: {found}"
