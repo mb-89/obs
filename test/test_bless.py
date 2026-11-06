@@ -141,3 +141,12 @@ def test_answers_need_a_source(tmp_path) -> None:
               str(tmp_path / "out.html"), "--answers", str(tmp_path / "answers.json")])
 
     assert "--answers" in str(failure.value) and "--source" in str(failure.value)
+
+
+def test_a_none_of_the_above_pick_is_an_answer(tmp_path) -> None:
+    """The reader picked none of the decision's options (input-model, Answers): ``option: none``."""
+    (tmp_path / "vault").mkdir()
+    version = _version(_vault(tmp_path / "vault"))
+    verdict = _verdict(version, pick={"figure": "choice", "option": "none"})
+
+    assert _answered(tmp_path, [verdict])["decision"]["bless"] == {"version": version, "answer": verdict}
