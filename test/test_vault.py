@@ -463,7 +463,26 @@ def test_each_view_selects_its_own_members(tmp_path) -> None:
     document = build_document(vault / "manifest.md", capability_reference())
 
     [register] = _registers(document)
-    assert register["attrs"]["rows"] == [["a-point", "b-point"], ["c-point"], ["a-point", "b-point", "c-point"]]
+    assert register["attrs"]["rows"] == [["b-point", "a-point"], ["c-point"], ["a-point", "b-point", "c-point"]]
+
+
+def test_a_view_with_members_yields_its_rows_in_member_order(tmp_path) -> None:
+    """generic-tables: the members' order is the view's initial row order, which the core emits."""
+    vault = register_vault(tmp_path, "![[x.base]]")
+    (vault / "x.base").write_text(
+        "views:\n  - type: table\n    order: [file.name]\n    obs:\n      members:\n"
+        "        - path: c-point.md\n        - path: a-point.md\n        - path: b-point.md\n"
+        "  - type: table\n    order: [label]\n    obs:\n      records: tag\n      members:\n"
+        "        - path: c-point.md\n        - path: a-point.md\n",
+        encoding="utf-8",
+    )
+    for name in ("a-point", "c-point"):
+        (vault / f"{name}.md").write_text(f"---\nkind: point\n---\nRisk. #mark/risk/{name[0]}\n", encoding="utf-8")
+
+    [register] = _registers(build_document(vault / "manifest.md", capability_reference()))
+
+    assert register["attrs"]["rows"] == [["c-point", "a-point", "b-point"],
+                                         ["tag-c-point-risk-c", "tag-a-point-risk-a"]]
 
 
 @pytest.mark.parametrize("entries", [
