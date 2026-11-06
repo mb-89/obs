@@ -56,7 +56,7 @@ this rule set differs, a good system comes before full compatibility, and the ru
 - **Missing properties:** a missing property and `null` equal `null`; empty text and empty
   collections do not.
 
-[[generic-tables#Bases filter grammar]] owns which comparisons a filter may write.
+[[input-model#Bases filter grammar]] owns which comparisons a filter may write.
 [[capabilities/queries#Conditions]] applies the same rules to query conditions.
 
 ## Authoring example

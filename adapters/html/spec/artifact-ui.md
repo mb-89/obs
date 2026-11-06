@@ -513,7 +513,7 @@ sidebar.
 
 Decided 29 Oct 2026, implemented 4 Nov 2026
 (`spec/backlog/persistent-rich-hover.md`). Hovering a link to a
-[[input-model#Reference notes and link text|reference note]] shows a small card with the
+reference note (obs's input model, Reference notes and link text: [[obs-specification|obs's specification]]) shows a small card with the
 note's short description and its external link.
 
 The reader either follows the external link
@@ -1253,8 +1253,8 @@ separate from artifact presentation.
 
   An unclosed quote, expression or parenthesis, or a field without a value, reads as still
   being typed rather than as an error.
-- A field clause selects by the one rule set ([[capabilities/bases#Comparisons]]): it resolves
-  a note property and tests its text as [[capabilities/queries#Conditions]] does. Words,
+- A field clause selects by the one rule set (obs's bases capability, Comparisons: [[obs-specification|obs's specification]]): it resolves
+  a note property and tests its text as obs's queries capability (Conditions) does. Words,
   wildcards and regular expressions ignore case; a `c` after a regular expression
   (`status: /^Open$/c`) matches case, as a condition's `matchCase` does.
 

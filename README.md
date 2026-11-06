@@ -45,9 +45,9 @@ uv run python test/suite.py
 ## Design and reference
 
 - [CLI](spec/design_input/cli.md): live executable help.
-- [Configuration](spec/design_input/configuration.md): defaults and schemas.
+- [Configuration](adapters/html/spec/configuration.md): defaults and schemas.
 - [Input model](spec/design_input/input-model.md): authored source contracts.
-- [Artifact UI](spec/design_input/artifact-ui.md): reader, review, and PDF presentation.
+- [Artifact UI](adapters/html/spec/artifact-ui.md): reader, review, and PDF presentation.
 
 ## License
 

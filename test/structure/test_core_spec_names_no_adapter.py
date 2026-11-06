@@ -63,3 +63,13 @@ def test_every_allowed_exception_is_still_needed() -> None:
     lines = {(path.relative_to(ROOT).as_posix(), line.strip())
              for path in core_notes() for line in path.read_text(encoding="utf-8").splitlines()}
     assert sorted(ALLOWED - lines) == []
+
+
+WIDTH_CLASSIFICATION = re.compile(r"widths?\b[^.]*session-only|session-only[^.]*\bwidths?\b", re.IGNORECASE)
+
+
+def test_no_core_note_classifies_resized_widths() -> None:
+    classifying = [path.relative_to(ROOT).as_posix() for path in core_notes()
+                   if WIDTH_CLASSIFICATION.search(" ".join(path.read_text(encoding="utf-8").split()))]
+    assert classifying == [], (
+        f"{classifying}: the HTML adapter's artifact-ui note (What counts as a change) classifies widths")
