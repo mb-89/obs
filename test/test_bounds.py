@@ -41,38 +41,43 @@ def _run(**slowest) -> dict:
 
 
 def test_a_slow_hosts_recorded_runs_raise_its_bound() -> None:
-    slowest, sources = bounds.derive(COMMITTED, [[_run(browser=11.5)], [_run(browser=3.0)]], runs=10, factor=2)
-    assert slowest == {"unit": 10.9, "browser": 11.5}
+    slowest, sources = bounds.derive(COMMITTED, [[_run(browser=14.36)], [_run(browser=3.0)]], runs=10,
+                                     factor=bounds.CAP_FACTOR)
+    assert slowest == {"unit": 10.9, "browser": 14.36}
     assert sources == {"unit": "committed", "browser": "recorded"}
 
 
 def test_without_records_the_committed_bounds_apply() -> None:
-    assert bounds.derive(COMMITTED, [], runs=10, factor=2) == (COMMITTED, {"unit": "committed", "browser": "committed"})
+    assert bounds.derive(COMMITTED, [], runs=10, factor=bounds.CAP_FACTOR) == (
+        COMMITTED, {"unit": "committed", "browser": "committed"})
 
 
 def test_only_the_last_runs_count_and_once_there_are_enough_they_alone_set_the_bound() -> None:
     old, recent = _run(browser=30.0), [_run(browser=2.0, unit=1.0), _run(browser=4.0, unit=0.5)]
-    slowest, sources = bounds.derive(COMMITTED, [[old, *recent]], runs=2, factor=2)
+    slowest, sources = bounds.derive(COMMITTED, [[old, *recent]], runs=2, factor=bounds.CAP_FACTOR)
     assert slowest == {"unit": 1.0, "browser": 4.0}
     assert sources == {"unit": "recorded", "browser": "recorded"}
 
 
 def test_a_tier_with_fewer_recorded_runs_falls_back_to_its_committed_bound() -> None:
-    slowest, sources = bounds.derive(COMMITTED, [[_run(browser=2.0, unit=1.0), _run(browser=4.0)]], runs=2, factor=2)
+    slowest, sources = bounds.derive(COMMITTED, [[_run(browser=2.0, unit=1.0), _run(browser=4.0)]], runs=2,
+                                     factor=bounds.CAP_FACTOR)
     assert slowest == {"unit": 10.9, "browser": 4.0}
     assert sources == {"unit": "committed", "browser": "recorded"}
 
 
 def test_records_above_the_cap_raise_the_bound_no_further_than_the_cap() -> None:
-    slowest, sources = bounds.derive(COMMITTED, [[_run(browser=30.0)]], runs=10, factor=2)
-    assert slowest["browser"] == 12.0 and sources["browser"] == "recorded"
+    slowest, sources = bounds.derive(COMMITTED, [[_run(browser=30.0)]], runs=10, factor=bounds.CAP_FACTOR)
+    assert slowest["browser"] == 18.0 and sources["browser"] == "recorded"
 
 
 def test_a_test_above_its_tiers_cap_is_named_and_one_below_it_is_not() -> None:
-    run = {"test.x::slow": ["browser", 12.5], "test.x::loaded": ["browser", 11.9], "test.x::fast": ["unit", 1.0]}
-    [message] = bounds.over_cap(run, COMMITTED, factor=2)
-    assert message.startswith("test/bounds.py: test.x::slow took 12.5 s, over the browser tier's cap of 12.0 s")
+    run = {"test.x::slow": ["browser", 18.5], "test.x::loaded": ["browser", 14.36], "test.x::fast": ["unit", 1.0]}
+    [message] = bounds.over_cap(run, COMMITTED, factor=bounds.CAP_FACTOR)
+    assert message.startswith("test/bounds.py: test.x::slow took 18.5 s, over the browser tier's cap of 18.0 s")
     assert "COMMITTED" in message and "CAP_FACTOR" in message
+    [dom] = bounds.over_cap({"test.x::dom": ["dom", 6.0]}, {"dom": 1.9}, factor=3)
+    assert "cap of 5.7 s" in dom
 
 
 def test_a_test_past_its_timeout_fails_naming_itself_and_its_timeout(tmp_path: Path) -> None:
