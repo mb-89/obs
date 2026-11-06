@@ -244,7 +244,14 @@ def _pugh(content: object, _media_type: str | None) -> dict[str, object]:
             if letter not in letters:
                 raise fail(f"checklist[{index}].options[{position}]", f"is {letter!r}, which is no option's letter",
                            f"Name one of {', '.join(letters)}, the options' letters in the order candidates lists them")
-    return {"matrix": matrix}
+    return {"matrix": matrix, "shortNames": [_short_name(candidate) for candidate in matrix["candidates"]]}
+
+
+def _short_name(candidate: dict) -> str | None:
+    """An option's short name, shown after its letter where there is room: its ``short``, else its
+    label where that has at most SHORT_WORDS words, else None and the letter stands alone."""
+    label = str(candidate.get("label", candidate["key"]))
+    return candidate.get("short") or (label if len(label.split()) <= SHORT_WORDS else None)
 
 
 @dataclass(frozen=True)

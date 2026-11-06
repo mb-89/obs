@@ -117,7 +117,7 @@ def test_each_kind_carries_its_content_in_its_one_child(tmp_path) -> None:
     assert bodies["sankey"] == {"graph": GRAPH, "countLabels": {"unit": "items"}}
     assert bodies["plot"] == {"descriptor": DESCRIPTOR}
     assert [bodies["mermaid"]["source"], bodies["plantuml"]["source"]] == [FLOW, SEQUENCE]
-    assert bodies["pugh"] == {"matrix": DECISION}
+    assert bodies["pugh"] == {"matrix": DECISION, "shortNames": ["now", "new"]}
     assert bodies["equations"]["solution"]["branches"] == [
         {"y": {"op": "mul", "args": [{"symbol": "a"}, {"symbol": "x"}]}}]
 
