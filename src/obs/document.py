@@ -48,7 +48,8 @@ def build_document(
         known = {item["id"] for item in reference["capabilities"]}
         document = _build_document(manifest_path, known, configuration_path, execute_commands)
         if embed_source:
-            document["sourceArchive"] = source_archive(manifest_path.resolve().parent, document["assets"])
+            document["sourceArchive"] = source_archive(manifest_path.resolve().parent, document["assets"],
+                                                        document["cssSnippets"])
         validate_document(document, reference)
     except (SourceError, VaultError) as error:
         raise DocumentError(str(error)) from error

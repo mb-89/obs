@@ -15,6 +15,12 @@
         "projectConfigFilename": {
           "type": "string",
           "pattern": "^[^/\\\\]+\\.json$"
+        },
+        "cssSnippetFolder": {
+          "description": "Vault-relative folder, with forward slashes, whose .css files the Document carries as the vault's CSS snippets (architecture.md, CSS snippets).",
+          "type": "string",
+          "default": ".obsidian/snippets",
+          "pattern": "^(?!/)(?!.*(^|/)\\.\\.?(/|$))[^\\\\]+$"
         }
       }
     },

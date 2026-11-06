@@ -150,6 +150,23 @@ the adapter to the source machine's vault, as an asset root would. The archive h
 only: what rebuilds an artifact beyond the vault (the core's and the adapter's sources, their
 settings) is the adapter's to add.
 
+### CSS snippets
+
+An Obsidian vault keeps its CSS snippets in its snippet folder, `.obsidian/snippets` unless core
+configuration's `input.cssSnippetFolder` names another (`src/obs/config.schema.json`). The
+Document's `cssSnippets` carries every `.css` file directly in that folder, in name order, each
+with its `name` (the file name without `.css`), its vault-relative `path` and its `text`; a vault
+without the folder has none. A snippet that is not UTF-8 text, or that resolves outside the vault,
+fails the build naming its path. An adapter applies the snippets its own namespace declares, by
+name, from the Document alone; the core states nothing about how they style an artifact.
+
+Carrying every snippet was chosen over reading which ones a document declares: the declaration is
+a presentation choice in an adapter's namespace, which the core never reads
+([[input-model#Core and adapter namespaces]]), and Obsidian's own list of enabled snippets is a
+per-device appearance setting, not part of the document. Snippets are small, so carrying the
+undeclared ones costs little. The source archive carries the snippet files despite their hidden
+folder: they are inputs of the documents that declare them.
+
 ## Input contracts
 
 The core owns data-only input contracts for command fences, callouts, cards, editable

@@ -1,4 +1,5 @@
-"""The vault's source files a Document carries on request; see architecture "Source archive"."""
+"""Vault files a Document carries beyond its notes: the CSS snippets and, on request, the source
+archive; see architecture "CSS snippets" and "Source archive"."""
 from __future__ import annotations
 
 import base64
@@ -7,6 +8,7 @@ from pathlib import Path
 
 
 OWNER = "spec/design_input/architecture.md (Source archive)"
+SNIPPETS_OWNER = "spec/design_input/architecture.md (CSS snippets)"
 EXCLUDED_FOLDERS = frozenset({
     "__pycache__", "node_modules", "site-packages", "__pypackages__", "data_output", "design_output",
 })
@@ -14,15 +16,34 @@ COMPILED_SUFFIXES = frozenset({".pyc", ".pyo", ".exe", ".dll", ".so", ".dylib", 
 
 
 class SourceError(ValueError):
-    """Raised when the vault's source files cannot be archived."""
+    """Raised when the vault's CSS snippets or source files cannot be read."""
 
 
-def source_archive(vault_root: Path, assets: list[dict[str, object]]) -> dict[str, object]:
-    """The Document's ``sourceArchive``: each source file below ``vault_root`` with its bytes, or
-    with the id of the asset that already holds them."""
+def css_snippets(vault_root: Path, folder: str) -> list[dict[str, str]]:
+    """The Document's ``cssSnippets``: every ``.css`` file directly in the vault's snippet ``folder``."""
+    snippets = []
+    for path in sorted((vault_root / folder).glob("*.css"), key=lambda item: item.name):
+        relative = path.relative_to(vault_root).as_posix()
+        if not path.resolve().is_relative_to(vault_root.resolve()):
+            raise SourceError(f"CSS snippet {relative} resolves outside the vault. Replace it with the file it "
+                              f"points to, or remove it; see {SNIPPETS_OWNER}.")
+        try:
+            text = path.read_text(encoding="utf-8")
+        except UnicodeDecodeError as error:
+            raise SourceError(f"CSS snippet {relative} is not UTF-8 text ({error.reason}). Save it as UTF-8; "
+                              f"see {SNIPPETS_OWNER}.") from error
+        snippets.append({"name": path.stem, "path": relative, "text": text})
+    return snippets
+
+
+def source_archive(vault_root: Path, assets: list[dict[str, object]],
+                   snippets: list[dict[str, str]]) -> dict[str, object]:
+    """The Document's ``sourceArchive``: each source file below ``vault_root`` and each CSS snippet
+    file, with its bytes or with the id of the asset that already holds them."""
     held = {asset["path"]: asset["id"] for asset in assets if "path" in asset}
     files = []
-    for path in _source_paths(vault_root):
+    paths = _source_paths(vault_root) + [vault_root / snippet["path"] for snippet in snippets]
+    for path in sorted(paths, key=lambda path: path.relative_to(vault_root).as_posix()):
         relative = path.relative_to(vault_root).as_posix()
         if relative in held:
             files.append({"path": relative, "asset": held[relative]})
@@ -45,7 +66,7 @@ def _source_paths(vault_root: Path) -> list[Path]:
                     f"symlink, which the source archive never follows. Replace it with the file or folder "
                     f"it points to, or remove it; see {OWNER}.")
         paths.extend(here / name for name in names)
-    return sorted(paths, key=lambda path: path.relative_to(vault_root).as_posix())
+    return paths
 
 
 def _excluded_folder(folder: Path) -> bool:
