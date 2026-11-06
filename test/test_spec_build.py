@@ -75,7 +75,7 @@ def suite_run(tmp_path, monkeypatch, builds: list[str]):
     """test/suite.py's main with stand-in parts; the core's records ``builds`` in the run's folder."""
     folders = []
 
-    def run_part(part: Path, arguments: list[str]) -> tuple[int, str]:
+    def run_part(part: Path, arguments: list[str], run_folder: Path) -> tuple[int, str]:
         folder = Path(os.environ[spec_build.RUN_FOLDER])
         folders.append(folder)
         if part == suite.ROOT:
