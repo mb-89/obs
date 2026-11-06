@@ -60,6 +60,9 @@ A `list` says whether it is numbered (`attrs.ordered`) and whether it was author
 defines a tight list, so an adapter renders a loose list's paragraphs as paragraphs.
 
 Every place that holds Markdown yields these nodes: chapter and abstract text, list items,
-callout, quote and card bodies, table cells, and frontmatter values
-([[capabilities/markdown-frontmatter#Document node]]). A list item holds any block, including a
+callout, quote and card bodies, table cells, frontmatter values
+([[capabilities/markdown-frontmatter#Document node]]), and as inline nodes callout titles
+([[capabilities/callouts#Document node]]), card titles and metric labels
+([[capabilities/cards-metrics#Document node]]) and figure captions. An adapter renders them
+from the nodes and parses no source text. A list item holds any block, including a
 callout.
