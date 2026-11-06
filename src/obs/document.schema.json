@@ -219,7 +219,8 @@
             "type": "object", "additionalProperties": false, "required": ["target", "chapter", "heading", "label"],
             "properties": {
               "target": {"type": "string", "minLength": 1}, "chapter": {"$ref": "#/$defs/chapterReference"},
-              "heading": {"type": "string"}, "label": {"type": "string", "minLength": 1}
+              "heading": {"type": "string"}, "label": {"type": "string", "minLength": 1},
+              "svg": {"description": "Only on a link inside a figure, a child of the figure's body: the link exactly as the figure's SVG holds it, an a element's href or the wikilink text with its brackets (capabilities/wikilinks#Links inside a figure).", "type": "string", "minLength": 1}
             }
           }}}
         },

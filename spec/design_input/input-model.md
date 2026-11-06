@@ -776,7 +776,9 @@ note, the fence's line and the install command. No diagram is ever an empty figu
 Paths are relative to the note, confined to the vault, and files are read-only
 inputs. Rendering/checking never runs
 producers. Existing explicit command authorization remains unchanged. Authored SVG is
-embedded as an image, never executable inline markup.
+never executable: an output that shows a figure's SVG inline, so its links can be followed,
+shows no script, event handler or other executable content of it. A link inside a figure's SVG
+is a link like one in prose ([[capabilities/wikilinks#Links inside a figure]]).
 
 At the core boundary, a generated figure is a versioned JSON FigureDescriptor. It
 carries neutral data, an ordered panel list, and provenance; it does not carry rendered

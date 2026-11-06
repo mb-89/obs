@@ -42,6 +42,7 @@ from obs.input import (
     validate_quantity,
 )
 from obs.note import IGNORED, Note, VaultError, lines, parser, read_note
+from obs import svg_links
 from obs.quantity import document_quantity
 from obs.producers import ProducerError, run_producers
 from obs.selection import (
@@ -376,7 +377,7 @@ def _metadata_links(metadata: object, source_path: Path, vault: _Vault, name: st
     elif isinstance(metadata, str):
         for match in _SEMANTIC.finditer(metadata):
             if match["target"]:
-                _link(match["target"].strip(), source_path, vault, field=name)
+                _link(match["target"].strip(), source_path, vault, place=f"field {name}")
 
 
 def _select(selects, vault: _Vault) -> None:
@@ -998,6 +999,9 @@ def _figure(fence: dict[str, object], context: _Context, place: str, opener: int
     error = schema_error(list(validator.iter_errors(body)), source_path, FIGURES, place=place)
     if error:
         raise error
+    svg = svg_links.figure_svg(body)
+    note_line = _note_line(context, opener)
+    links = _figure_links(svg, context, place if note_line is None else f"line {note_line}, {place}") if svg else []
     attrs: dict[str, object] = {"kind": fence["kind"]}
     if "caption" in fence:
         captions = fence["caption"] if isinstance(fence["caption"], list) else [fence["caption"]]
@@ -1009,7 +1013,7 @@ def _figure(fence: dict[str, object], context: _Context, place: str, opener: int
     if "alt" in fence:
         attrs["alt"] = fence["alt"]
     return {"type": "figures", "attrs": attrs,
-            "children": [{"type": fence["kind"], "attrs": body, "children": []}]}
+            "children": [{"type": fence["kind"], "attrs": body, "children": links}]}
 
 
 @cache
@@ -1189,7 +1193,8 @@ def _semantic_text_nodes(text: str, context: _Context) -> list[dict[str, object]
             nodes.append({"type": "text", "attrs": {}, "children": [], "text": text[position:match.start()]})
         value = match.group(0)
         target = (match["target"] or "").strip()
-        resolved = _link(target, source_path, vault, value, context.field_path) if target else None
+        resolved = _link(target, source_path, vault, value,
+                         f"field {context.field_path}" if context.field_path else "") if target else None
         is_base = bool(match["embed"]) and Path(target).suffix == ".base"
         definition: object = None
         if is_base and resolved is None:
@@ -1233,11 +1238,7 @@ def _semantic_text_nodes(text: str, context: _Context) -> list[dict[str, object]
             nodes.append({"type": "embeds", "attrs": attrs, "children": []})
             capabilities.add("embeds")
         elif value.startswith("[[") and "wikilinks" in capability_ids:
-            attrs = {"target": target, "chapter": None, "heading": match["heading"] or "", "label": match["label"] or target}
-            vault.links.append((attrs, resolved))
-            nodes.append({"type": "wikilinks", "attrs": attrs, "children": []})
-            _resource(links, link_ids, attrs["label"], target)
-            capabilities.add("wikilinks")
+            nodes.append(_wikilink(target, match["heading"] or "", match["label"] or target, resolved, context))
         elif "marks" in capability_ids:
             nodes.append({"type": "marks", "attrs": {"category": match["category"], "id": match["id"]}, "children": []})
             capabilities.add("marks")
@@ -1247,6 +1248,37 @@ def _semantic_text_nodes(text: str, context: _Context) -> list[dict[str, object]
     if position < len(text):
         nodes.append({"type": "text", "attrs": {}, "children": [], "text": text[position:]})
     return nodes
+
+
+def _wikilink(target: str, heading: str, label: str, resolved: Path | None, context: _Context,
+              **written: str) -> dict[str, object]:
+    """A wikilinks node to a resolved target; its chapter is set once inclusion is final.
+    ``written`` is the ``svg`` attribute of a link inside a figure (capabilities/wikilinks)."""
+    attrs = {"target": target, "chapter": None, "heading": heading, "label": label, **written}
+    context.vault.links.append((attrs, resolved))
+    _resource(context.links, context.link_ids, label, target)
+    context.capabilities.add("wikilinks")
+    return {"type": "wikilinks", "attrs": attrs, "children": []}
+
+
+def _figure_links(svg: str, context: _Context, place: str) -> list[dict[str, object]]:
+    """One wikilinks node per distinct link the figure's SVG holds, resolved by the prose rule
+    (_link); ``place`` names the figure in a message. See capabilities/wikilinks."""
+    nodes: dict[str, dict[str, object]] = {}
+    for kind, value in svg_links.links(svg):
+        if kind == "href":
+            target, _, heading = unquote(value.strip()).partition("#")
+            found = [(value, target, heading, target)] if target else []
+        else:
+            found = [(match[0], match["target"].strip(), match["heading"] or "", match["label"] or match["target"].strip())
+                     for match in _SEMANTIC.finditer(value) if match[0].startswith("[[")]
+        for written, target, heading, label in found:
+            if written in nodes:
+                continue
+            resolved = _link(target, context.source_path, context.vault, written, place)
+            if "wikilinks" in context.capability_ids:
+                nodes[written] = _wikilink(target, heading, label, resolved, context, svg=written)
+    return list(nodes.values())
 
 
 def _register_attrs(
@@ -1357,17 +1389,18 @@ def _image_file(src: str, label: str, context: _Context) -> Path | None:
     return path
 
 
-def _link(target: str, source_path: Path, vault: _Vault, syntax: str = "", field: str = "") -> Path | None:
+def _link(target: str, source_path: Path, vault: _Vault, syntax: str = "", place: str = "") -> Path | None:
     """Resolve a link or embed target and include a reached note; warn for a missing note.
 
     Resolution follows input-model ("Remaining chapter content"): source-relative path,
     vault-relative path, then a bare name that matches exactly one non-hidden vault file (a
     Markdown note by its name, then by its alias). ``syntax`` is the link as written, for errors;
-    ``field`` is the dotted frontmatter path of a link in a field value, for its warning.
+    ``place`` names where in the note the link is, for its messages: ``field <dotted path>`` for a
+    link in a frontmatter value, the figure for a link inside a figure.
     """
     syntax = syntax or f"[[{target}]]"
     relative = Path(target)
-    source = vault.relative(source_path)
+    source = vault.relative(source_path) + (f", {place}" if place else "")
     if relative.is_absolute() or ".." in relative.parts:
         raise VaultError(f"Link escapes the vault in {source_path}: {target}")
     if not relative.suffix:
@@ -1401,7 +1434,7 @@ def _link(target: str, source_path: Path, vault: _Vault, syntax: str = "", field
     if path is None:
         if relative.suffix == ".md":
             warning = (
-                f"Link target does not exist in {source}{f', field {field}' if field else ''}: [[{target}]]; "
+                f"Link target does not exist in {source}: [[{target}]]; "
                 f"create {relative.as_posix()} in the vault or correct the link."
             )
             if warning not in vault.warnings:
