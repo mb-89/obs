@@ -711,7 +711,7 @@
             const author = document.createElement("span");
             author.textContent = [text(metadata.authors), metadata.organization].filter(Boolean).join(" · ");
             const reference = document.createElement("span");
-            reference.textContent = [metadata["sap number"], metadata.template].filter(Boolean).join(" · ");
+            reference.textContent = [metadata["document number"], metadata.template].filter(Boolean).join(" · ");
             const number = document.createElement("span");
             number.className = "paper-page-number";
             const previous = [...destination.children].slice(0, index)
