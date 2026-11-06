@@ -41,6 +41,15 @@ The adapter then renders from the Document alone, so `obs-html` has no command o
 Document renders the same through `obs-document --adapter html` and through `obs-html`. The
 interim `obs-html-interim --execute-commands` still runs its own fences until the cutover.
 
+## Adapter options
+
+`--adapter-option NAME=VALUE`, repeatable, passes an option to the adapter without the core naming
+any adapter: the adapter declares each option it takes in the `options` of its `adapter.json`
+(`src/obs/adapter.schema.json`), and the core hands it over as declared. An option the adapter does
+not declare fails the call before the build, naming the adapter's manifest, the option and the
+declared ones. A boolean option, the only kind so far, is `--NAME` on the adapter's command line
+when its value is `true` and left out when it is `false`.
+
 ## Attachments per build
 
 `--embed-attachments` is the build half of the attachment rule in [[input-model]]: authors mark
@@ -51,8 +60,9 @@ and a source archive rebuilds with the flag it was built with.
 `obs-html --embed-attachments` makes the same choice on a Document, which carries every marked
 file's bytes ([[architecture#Asset bytes]]): with it, the evidence edition, each marked attachment
 is a download of those bytes showing its name, type and size; without it, the light edition, the
-attachment shows its label and vault path and its bytes stay out of the HTML. The core's
-`obs-document --adapter html` passes no option and so builds the light edition.
+attachment shows its label and vault path and its bytes stay out of the HTML. Through the core,
+`obs-document --adapter html` builds the light edition, and with `--adapter-option
+embed-attachments=true` the evidence edition ([Adapter options](#adapter-options)).
 
 ## Several artifacts per call
 

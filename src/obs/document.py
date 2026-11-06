@@ -11,7 +11,7 @@ from typing import Sequence
 from jsonschema import Draft202012Validator
 from referencing import Registry, Resource
 
-from obs.adapter import AdapterError, load_adapter
+from obs.adapter import AdapterError, adapter_manifest_path, load_adapter, option_arguments
 from obs.input import schema_error
 from obs.vault import VaultError, build_document as _build_document
 
@@ -118,16 +118,24 @@ def _write(document: dict[str, object], path: Path) -> None:
 
 
 def call_adapter(adapter_name: str, configuration_path: Path, document_path: Path,
-                 destination: Path, capability_reference_path: Path) -> None:
+                 destination: Path, capability_reference_path: Path, options: Sequence[str] = ()) -> None:
+    adapter, arguments = _adapter(adapter_name, configuration_path, options)
     reference = read_capability_reference(capability_reference_path)
-    _deliver(adapter_name, configuration_path, read_document(document_path, reference), document_path,
+    _deliver(adapter, arguments, configuration_path, read_document(document_path, reference), document_path,
              destination, reference)
 
 
-def _deliver(adapter_name: str, configuration_path: Path, document: dict[str, object], document_path: Path,
-             destination: Path, reference: dict[str, object]) -> None:
+def _adapter(name: str, configuration_path: Path, options: Sequence[str]) -> tuple[dict[str, object], list[str]]:
+    """The adapter's manifest and the arguments its declared ``options`` give."""
+    adapter = load_adapter(name, configuration_path)
+    return adapter, option_arguments(adapter, adapter_manifest_path(name, configuration_path), list(options))
+
+
+def _deliver(adapter: dict[str, object], arguments: list[str], configuration_path: Path,
+             document: dict[str, object], document_path: Path, destination: Path,
+             reference: dict[str, object]) -> None:
     """Start the adapter on the validated ``document``, which ``document_path`` holds."""
-    adapter = load_adapter(adapter_name, configuration_path)
+    adapter_name = adapter["name"]
     if adapter["contractVersion"] != document["schemaVersion"]:
         raise AdapterError(
             f"Adapter {adapter_name!r} contract version {adapter['contractVersion']} does not "
@@ -142,7 +150,7 @@ def _deliver(adapter_name: str, configuration_path: Path, document: dict[str, ob
         )
     try:
         completed = subprocess.run(
-            [*adapter["command"], str(document_path.resolve()), str(destination.resolve())],
+            [*adapter["command"], str(document_path.resolve()), str(destination.resolve()), *arguments],
             cwd=configuration_path.parent,
             check=False,
             capture_output=True,
@@ -198,6 +206,9 @@ def build_parser() -> argparse.ArgumentParser:
                         help="Capability reference JSON (default: the one this package ships, "
                              "generated from spec/capabilities when it was built).")
     parser.add_argument("--destination", type=Path, help="Adapter output destination.")
+    parser.add_argument("--adapter-option", action="append", default=[], metavar="NAME=VALUE",
+                        help="Pass an option the adapter declares in its adapter.json (options); "
+                             "repeatable. A boolean option takes true or false.")
     return parser
 
 
@@ -215,11 +226,16 @@ def main(argv: Sequence[str] | None = None) -> int:
                                 "or build an artifact with --adapter and --destination.")
         if not options.source and not options.adapter:
             raise DocumentError("--adapter is required when --source is not supplied.")
+        if options.adapter_option and not options.adapter:
+            raise DocumentError("--adapter-option is only used with --adapter.")
+        if options.adapter:  # Before the build: an undeclared option fails at once.
+            adapter, arguments = _adapter(options.adapter, options.adapter_config, options.adapter_option)
         reference = read_capability_reference(options.capability_reference)
         with ExitStack() as stack:
             if not options.source:
-                call_adapter(options.adapter, options.adapter_config, options.document, options.destination,
-                             options.capability_reference)
+                _deliver(adapter, arguments, options.adapter_config,
+                         read_document(options.document, reference), options.document, options.destination,
+                         reference)
                 return 0
             document = build_document(options.source, reference, options.config, options.execute_commands)
             for diagnostic in document["diagnostics"]:
@@ -231,7 +247,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                 document_path = Path(folder) / "document.json"
             _write(document, document_path)  # build_document validated it.
             if options.adapter:
-                _deliver(options.adapter, options.adapter_config, document, document_path,
+                _deliver(adapter, arguments, options.adapter_config, document, document_path,
                          options.destination, reference)
     except (AdapterError, DocumentError) as error:
         raise SystemExit(f"obs-document: {error}") from error
