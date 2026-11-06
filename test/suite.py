@@ -22,7 +22,7 @@ XML report there as `<part>.xml` (`core.xml`, `adapters-html.xml`), from which s
 `work_tickets.py suite` names the slowest tests.
 
 The parts depend on Node packages: each part's `test/browser/package-lock.json`
-(`test/browser`, `adapters/html/test/browser`); the core's diagram renderers and the html
+(today `adapters/html/test/browser` alone); the core's diagram renderers and the html
 adapter's maths library are built into their packages by each package's build (hatch_build.py,
 adapters/html/hatch_build.py). `--setup`, its only argument then, installs them
 and runs no part; se.toml's `[tests] setup` runs it before the suite, timed apart from the budget.

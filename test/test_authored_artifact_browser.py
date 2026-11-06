@@ -21,6 +21,8 @@ def test_authored_artifact_all_chapters_modes_and_pdf(tmp_path):
         page.on("console", lambda message: errors.append(message.text)
                 if message.type == "error" and "Page layout failed" in message.text else None)
         page.goto(Path(authored).resolve().as_uri())
+        # The artifact starts asynchronously; its status says when its runtime is ready.
+        page.wait_for_function("['ready', 'error'].includes(document.documentElement.dataset.artifactStatus)")
         slugs = page.evaluate("JSON.parse(document.querySelector('[data-artifact-data]').textContent).toc")
         assert slugs
         for width, height in [(1440, 900), (1920, 1440), (2560, 2160), (390, 844)]:

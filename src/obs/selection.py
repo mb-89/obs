@@ -1,6 +1,6 @@
 """Select records by Base filters and note records by query conditions.
 
-The Bases filter grammar is owned by generic-tables ("Bases filter grammar"); query
+The Bases filter grammar is owned by input-model ("Bases filter grammar"); query
 conditions by input-model ("Chapter content"). The core uses both to decide which notes a
 Document includes and which records a register's views select.
 """
@@ -104,34 +104,43 @@ def _comparison() -> re.Pattern[str]:
     return re.compile(schema["$defs"]["comparison"]["pattern"])
 
 
-def _unsupported(filters: object, reason: str = "") -> InputError:
+class UnsupportedFilter(InputError):
+    """A Bases filter outside the grammar, with the Base field that holds it."""
+
+    def __init__(self, problem: str, field: str) -> None:
+        super().__init__(problem)
+        self.field = field
+
+
+def _unsupported(filters: object, field: str, reason: str = "") -> UnsupportedFilter:
     text = filters if isinstance(filters, str) else json.dumps(filters, ensure_ascii=False, default=str)
-    return InputError(f"Unsupported Bases filter: {text}{reason}")
+    return UnsupportedFilter(f"Unsupported Bases filter: {text}{reason}", field)
 
 
-def compile_base_filter(filters: object) -> BaseFilter:
+def compile_base_filter(filters: object, field: str = "filters") -> BaseFilter:
     """Compile one Bases filter; ``None`` matches everything.
 
-    The predicate receives a resolver from property name to typed value.
+    The predicate receives a resolver from property name to typed value; ``field`` is the Base
+    field that holds the filter, named by an unsupported filter's error.
     """
     if filters is None:
         return lambda value_for: True
     if isinstance(filters, str):
         match = _comparison().fullmatch(filters)
         if not match:
-            raise _unsupported(filters)
+            raise _unsupported(filters, field)
         simple, spaced, operator, literal = match.groups()
         if simple == "recordType":
-            raise _unsupported(filters, " (recordType filters were removed; select rows with obs.records)")
+            raise _unsupported(filters, field, " (recordType filters were removed; select rows with obs.records)")
         name = simple or f'note["{spaced}"]'
         if (re.match(r'^note(?:\.file\.|\["file\.)', name) or name.startswith(("formula.", "this."))
                 or name.startswith("file.") and name not in _FILE_PROPERTIES):
-            raise _unsupported(filters, f" (Unsupported Bases property: {name})")
-        field = spaced or simple.removeprefix("note.")
+            raise _unsupported(filters, field, f" (Unsupported Bases property: {name})")
+        prop = spaced or simple.removeprefix("note.")
         expected = literal[1:-1] if literal[0] in "\"'" else json.loads(literal)
 
         def compare(value_for: Callable[[str], object]) -> bool:
-            value = value_for(field)
+            value = value_for(prop)
             if isinstance(value, str) and isinstance(expected, str):
                 equal = same_text(value, expected)
             else:
@@ -145,13 +154,13 @@ def compile_base_filter(filters: object) -> BaseFilter:
         operator, operand = next(iter(filters.items()))
         operands = operand if isinstance(operand, list) else [operand]
         if operator in {"and", "or", "not"} and operands and None not in operands:
-            children = [compile_base_filter(item) for item in operands]
+            children = [compile_base_filter(item, field) for item in operands]
             if operator == "or":
                 return lambda value_for: any(child(value_for) for child in children)
             if operator == "not":
                 return lambda value_for: not any(child(value_for) for child in children)
             return lambda value_for: all(child(value_for) for child in children)
-    raise _unsupported(filters)
+    raise _unsupported(filters, field)
 
 
 Record = dict[str, object]
@@ -181,10 +190,10 @@ def view_selectors(definition: dict[str, object]) -> list[RecordSelector]:
     base = compile_base_filter(definition.get("filters"))
     profile = definition.get("obs") if isinstance(definition.get("obs"), dict) else {}
 
-    def selector(view: dict[str, object]) -> RecordSelector:
+    def selector(index: int, view: dict[str, object]) -> RecordSelector:
         own_profile = view.get("obs") if isinstance(view.get("obs"), dict) else {}
         kind = own_profile.get("records", profile.get("records", "note"))
-        own = compile_base_filter(view.get("filters"))
+        own = compile_base_filter(view.get("filters"), f"views[{index}].filters")
         paths = member_order(view)
 
         def selects(record: Record, note: Record | None) -> bool:
@@ -197,7 +206,7 @@ def view_selectors(definition: dict[str, object]) -> list[RecordSelector]:
                 return record_value(record, note, field)
             return base(value_for) and own(value_for)
         return selects
-    return [selector(view) for view in definition.get("views", [])]
+    return [selector(index, view) for index, view in enumerate(definition.get("views", []))]
 
 
 def member_order(view: dict[str, object]) -> dict[str, int] | None:

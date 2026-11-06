@@ -52,8 +52,8 @@ from obs.quantity import document_quantity
 from obs.producers import ProducerError, run_producers
 from obs.sources import SourceError, css_snippets
 from obs.selection import (
-    Record, base_selects, conditions_select, member_order, note_marks, paragraph_marks,
-    view_selectors,
+    Record, UnsupportedFilter, base_selects, conditions_select, member_order, note_marks,
+    paragraph_marks, view_selectors,
 )
 
 
@@ -587,11 +587,12 @@ def _base_selection(definition: object, source_path: Path, vault: _Vault, place:
         return
     try:
         selects = base_selects(definition)
-    except InputError as error:
-        raise VaultError(
-            f"{error} ({place} in {vault.relative(source_path)}); "
-            "use the Bases filter grammar of generic-tables."
-        ) from error
+    except UnsupportedFilter as error:
+        raise VaultError(str(input_error(
+            source_path, f"{place}, {error.field}", str(error),
+            'Write comparisons such as status == "done", combined with and, or and not; '
+            "see input-model#Bases filter grammar",
+        ))) from error
     for record in vault.records:
         owner = vault.note_of(record)
         if owner is not None and selects(record, owner[1]):
