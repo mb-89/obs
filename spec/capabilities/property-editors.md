@@ -17,17 +17,18 @@ Saving the edit is adapter behaviour, owned by [[capabilities/reviewed-copies]].
 
 ## Projection rules
 
-The core enforces these when it builds the Document, so every adapter gets them. Each target of
-`blank` and `nonblank`:
+The core enforces these when it builds the Document, so every adapter gets them. The edited
+`field` is not a protected field, in any letter case: `input.schema.json` (`protectedField`) lists
+them. Each target of `blank` and `nonblank`:
 
-- is not a protected field, in any letter case: `input.schema.json` (`protectedField`) lists them;
+- is not a protected field, in any letter case;
 - is an existing top-level field of the note, of the same type as the projected value: text,
   number, true/false or empty, or a list whose items share one of those types; an empty list
   matches any list;
 - is not the edited `field`.
 
-A violation fails the build naming the note, the fence, the field path
-(`projection.<blank|nonblank>.<target>`) and a remedy.
+A violation fails the build naming the note, the fence, the field path (`field` or
+`projection.<blank|nonblank>.<target>`) and a remedy.
 
 ## Document node
 
