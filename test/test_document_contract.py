@@ -374,11 +374,11 @@ def test_one_call_builds_the_spec_without_a_capability_reference_or_a_document(
 
     called = json.loads(destination.read_text(encoding="utf-8"))
     assert called["manifest"] == "manifest.md"
-    assert called["arguments"][1:] == [str(destination.resolve())]
+    assert called["arguments"][1:] == [str(destination.resolve()), "--vault-root", str(SPEC_MANIFEST.parent)]
     assert not Path(called["arguments"][0]).exists(), "the temporary Document outlives the build"
 
 
-def test_a_given_document_is_kept(tmp_path, monkeypatch) -> None:
+def test_a_given_document_is_kept_and_the_vault_root_is_passed_as_given(tmp_path, monkeypatch) -> None:
     vault = tmp_path / "vault"
     vault.mkdir()
     (vault / "manifest.md").write_text("- [[chapter]]\n", encoding="utf-8")
@@ -391,7 +391,19 @@ def test_a_given_document_is_kept(tmp_path, monkeypatch) -> None:
 
     assert json.loads((tmp_path / "kept.json").read_text(encoding="utf-8"))["manifest"]["path"] == "manifest.md"
     assert json.loads((tmp_path / "out.json").read_text(encoding="utf-8"))["arguments"] == [
-        str((tmp_path / "kept.json").resolve()), str((tmp_path / "out.json").resolve())]
+        str((tmp_path / "kept.json").resolve()), str((tmp_path / "out.json").resolve()), "--vault-root", "vault"]
+
+
+def test_an_adapter_called_on_a_document_gets_no_vault_root(tmp_path) -> None:
+    document = tmp_path / "document.json"
+    write_document(document_fixture(), document, capability_reference())
+    configuration = recording_adapter(tmp_path)
+
+    assert main(["--document", str(document), "--adapter", "fixture", "--adapter-config", str(configuration),
+                 "--destination", str(tmp_path / "out.json")]) == 0
+
+    assert json.loads((tmp_path / "out.json").read_text(encoding="utf-8"))["arguments"] == [
+        str(document.resolve()), str((tmp_path / "out.json").resolve())]
 
 
 @pytest.mark.parametrize(("value", "passed"), [("true", ["--flag"]), ("false", [])])
