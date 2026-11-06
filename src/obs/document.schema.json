@@ -53,7 +53,9 @@
       ]
     },
     "node": {
+      "description": "A Document node. Its type selects the one allOf clause keyed by that type (if.properties.type), by lookup (src/obs/discriminator.py); a type no clause names has no rule beyond these properties.",
       "type": "object", "additionalProperties": false, "required": ["type", "attrs", "children"],
+      "discriminator": {"propertyName": "type"},
       "properties": {
         "type": {"$ref": "#/$defs/id"},
         "attrs": {"type": "object"},
