@@ -83,7 +83,8 @@ def additional_capability_vault(tmp_path) -> Path:
         "![Source](source.csv)\n\n![[register.base#Open]]\n\n"
         "```cards\nversion: 1\ncards: [{title: Coverage, body: Current state.}]\n```\n\n"
         "```figure\nversion: 1\nkind: plot\ncontent: "
-        '{"schemaVersion": 1, "id": "comparison", "data": {}, "panels": [{"id": "overview", '
+        '{"schemaVersion": 1, "id": "comparison", "data": {"traces": [{"x": [0], "y": [0]}]}, '
+        '"panels": [{"id": "overview", '
         '"bounds": {"x": 0, "y": 0, "width": 1, "height": 1}, '
         '"grid": {"row": 0, "column": 0, "rowSpan": 1, "columnSpan": 1}, '
         '"axes": [{"id": "time", "scale": "linear", "limits": {"minimum": 0, "maximum": 1}, '
