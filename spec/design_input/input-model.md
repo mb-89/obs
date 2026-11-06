@@ -1007,7 +1007,9 @@ A shared sink unions those values only from matching active incoming contributio
 so hiding a contributing level cannot retain that level's item counts. Without
 incoming contribution fields, the node's existing `unique` field remains the default.
 
-A counted node shows two lines below its label: `<n> <unit>` and `<n> <unique>`. The fence's
+A counted node shows two lines below its label: `<n> <unit>` and `<n> <unique>`. The first
+counts the node's selected rows, the rows its drill-down shows; the second counts the distinct
+`unique` items over those same rows, so a row holding several items can make it the larger. The fence's
 optional `countLabels: {unit: <noun>, unique: <word>}` names them; the neutral defaults are
 `records` and `unique`. Domain vocabulary is authored in the
 fence, never built into the converter.

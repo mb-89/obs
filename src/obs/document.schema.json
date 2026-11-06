@@ -36,8 +36,8 @@
     },
     "sourceArchive": {
       "description": "The vault's source files, present only when the build was asked to disclose them (architecture.md, Source archive).",
-      "type": "object", "additionalProperties": false, "required": ["files"],
-      "properties": {"files": {"type": "array", "items": {"$ref": "#/$defs/sourceFile"}}}
+      "type": "object", "additionalProperties": false, "required": ["files", "build"],
+      "properties": {"files": {"type": "array", "items": {"$ref": "#/$defs/sourceFile"}}, "build": {"$ref": "#/$defs/sourceBuild"}}
     },
     "capabilities": {"type": "array", "items": {"$ref": "#/$defs/id"}, "uniqueItems": true}
   },
@@ -49,6 +49,10 @@
         "document", "section", "paragraph", "text", "list", "list-item", "code", "quote",
         "table", "table-row", "table-cell", "emphasis", "strong", "strikethrough", "math", "field", "rule"
       ]
+    },
+    "inlineNodes": {
+      "description": "Inline nodes of a string the author wrote as inline Markdown, never a block node (capabilities/markdown#Document nodes).",
+      "type": "array", "items": {"allOf": [{"$ref": "#/$defs/node"}, {"not": {"$ref": "#/$defs/blockNode"}}]}
     },
     "blockNode": {
       "description": "A block node: never a paragraph's child, always its sibling (capabilities/markdown#Document nodes). An embed is a block node unless it names an asset. Each branch is keyed by type, so a paragraph's children are checked by their types (src/obs/discriminator.py).",
@@ -164,22 +168,26 @@
           }}}
         },
         {
-          "description": "A callout: its canonical type and its title (the authored one, or the default input-model.md#Callouts names); its children are the parsed body, the same block and inline nodes as chapter content, including nested callouts.",
+          "description": "A callout: its canonical type and its title as inline nodes (the authored one parsed as inline Markdown, or the default input-model.md#Callouts names; none for an untitled important); its children are the parsed body, the same block and inline nodes as chapter content, including nested callouts.",
           "if": {"properties": {"type": {"const": "callouts"}}},
           "then": {"properties": {"attrs": {
             "type": "object", "additionalProperties": false, "required": ["kind", "title"],
-            "properties": {"kind": {"$ref": "#/$defs/id"}, "title": {"type": "string"}}
+            "properties": {"kind": {"$ref": "#/$defs/id"}, "title": {"$ref": "#/$defs/inlineNodes"}}
           }}}
         },
         {
-          "description": "A cards fence: its authored source and validated spec; its children are one document node per card, in the spec's order, holding that card's body parsed like chapter content.",
+          "description": "A cards fence: its authored source and validated spec; its children are one document node per card, in the spec's order, holding that card's body parsed like chapter content, its title and each metric's label (in the order of its metrics) as inline nodes.",
           "if": {"properties": {"type": {"const": "cards-metrics"}}},
           "then": {"properties": {
             "attrs": {
               "type": "object", "additionalProperties": false, "required": ["source", "spec"],
               "properties": {"source": {"type": "string"}, "spec": {"type": "object"}}
             },
-            "children": {"items": {"properties": {"type": {"const": "document"}, "attrs": {"maxProperties": 0}}}}
+            "children": {"items": {"properties": {"type": {"const": "document"}, "attrs": {
+              "type": "object", "additionalProperties": false, "required": ["title", "labels"],
+              "properties": {"title": {"$ref": "#/$defs/inlineNodes"},
+                             "labels": {"type": "array", "items": {"$ref": "#/$defs/inlineNodes"}}}
+            }}}}
           }}
         },
         {
@@ -471,6 +479,16 @@
         "name": {"type": "string", "minLength": 1},
         "path": {"type": "string", "pattern": "^(?!/)(?!.*(^|/)\\.\\.?(/|$)).+\\.css$"},
         "text": {"type": "string"}
+      }
+    },
+    "sourceBuild": {
+      "description": "What rebuilds the artifact: obs's public repository, the commit of the checkout obs ran from, the package versions of every lockfile Git tracks there by repository-relative path, and the obs-document arguments of the call without the build machine's paths (architecture.md, Source archive).",
+      "type": "object", "additionalProperties": false, "required": ["repository", "commit", "lockfiles", "arguments"],
+      "properties": {
+        "repository": {"type": "string", "minLength": 1},
+        "commit": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+        "lockfiles": {"type": "object", "additionalProperties": {"type": "object", "additionalProperties": {"type": "string"}}},
+        "arguments": {"type": "array", "items": {"type": "string"}, "contains": {"const": "--embed-source"}}
       }
     },
     "sourceFile": {

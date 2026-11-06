@@ -6,10 +6,13 @@ and owner reference (AGENTS.md), never by wording.
 import base64
 import json
 import os
+import subprocess
+import tomllib
 from pathlib import Path
 
 import pytest
 
+from obs import sources
 from obs.document import DocumentError, build_document, main, validate_document
 from test_document_contract import recording_adapter
 from test_vault import capability_reference
@@ -97,6 +100,54 @@ def test_the_one_call_build_hands_the_adapter_the_source_archive_only_with_the_o
                  "--embed-source"]) == 0
 
     assert "scripts/produce.py" in _files(json.loads(kept.read_text(encoding="utf-8")))
+
+
+CHECKOUT = Path(__file__).resolve().parents[1]
+
+
+def test_the_archive_records_the_obs_commit_and_lockfiles_that_rebuild_it(tmp_path) -> None:
+    """The record names what rebuilds the artifact: obs's public repository, the commit of the
+    checkout obs runs from and the versions of every lockfile Git tracks there."""
+    build = build_document(source_vault(tmp_path) / "manifest.md", capability_reference(),
+                           embed_source=True)["sourceArchive"]["build"]
+
+    head = subprocess.run(["git", "-C", str(CHECKOUT), "rev-parse", "HEAD"], capture_output=True,
+                          text=True, check=True).stdout.strip()
+    project = tomllib.loads((CHECKOUT / "pyproject.toml").read_text(encoding="utf-8"))["project"]
+    locked = {item["name"]: item["version"]
+              for item in tomllib.loads((CHECKOUT / "uv.lock").read_text(encoding="utf-8"))["package"]}
+    assert build["repository"] == project["urls"]["Repository"]
+    assert build["commit"] == head
+    assert build["lockfiles"]["uv.lock"] == locked
+    diagrams = json.loads((CHECKOUT / "src/obs/diagrams/package-lock.json").read_text(encoding="utf-8"))
+    assert build["lockfiles"]["src/obs/diagrams/package-lock.json"]["mermaid"] == \
+        diagrams["packages"]["node_modules/mermaid"]["version"]
+    assert build["arguments"] == ["--embed-source"]
+
+
+def test_the_one_call_build_records_its_arguments_without_a_path_of_the_build_machine(tmp_path) -> None:
+    vault = source_vault(tmp_path)
+    (tmp_path / "adapter").mkdir()
+    configuration = recording_adapter(tmp_path / "adapter", options={"evidence": {"type": "boolean",
+                                                                                  "summary": "Evidence."}})
+    kept = tmp_path / "document.json"
+
+    assert main(["--embed-source", "--source", str(vault / "manifest.md"), "--adapter", "fixture",
+                 "--adapter-config", str(configuration), "--destination", str(tmp_path / "out.json"),
+                 "--document", str(kept), "--adapter-option", "evidence=true", "--execute-commands"]) == 0
+
+    build = json.loads(kept.read_text(encoding="utf-8"))["sourceArchive"]["build"]
+    assert build["arguments"] == ["--adapter", "fixture", "--destination", "out.json",
+                                  "--adapter-option", "evidence=true", "--execute-commands", "--embed-source"]
+    assert str(tmp_path) not in json.dumps(build)
+
+
+def test_an_obs_outside_a_git_checkout_cannot_name_its_commit(tmp_path) -> None:
+    with pytest.raises(sources.SourceError) as refused:
+        sources.generator(tmp_path)
+
+    assert "--embed-source" in str(refused.value) and str(tmp_path) in str(refused.value)
+    assert sources.OWNER in str(refused.value)
 
 
 def test_the_option_needs_a_source_to_archive(tmp_path) -> None:

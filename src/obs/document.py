@@ -37,19 +37,21 @@ class DocumentError(ValueError):
 
 def build_document(
     manifest_path: Path, reference: dict[str, object], configuration_path: Path | None = None,
-    execute_commands: bool = False, embed_source: bool = False,
+    execute_commands: bool = False, embed_source: bool = False, delivery: Sequence[str] = (),
 ) -> dict[str, object]:
     """Parse a vault into a schema-valid neutral Document.
 
     ``execute_commands`` authorizes running the vault's cmd fences; see capabilities/command-fences.
     ``embed_source`` discloses the vault's source files; see architecture, Source archive.
+    ``delivery`` are the call's adapter arguments the archive's build record names before the core's.
     """
     try:
         known = {item["id"] for item in reference["capabilities"]}
         document = _build_document(manifest_path, known, configuration_path, execute_commands)
         if embed_source:
+            arguments = [*delivery, *(["--execute-commands"] if execute_commands else []), "--embed-source"]
             document["sourceArchive"] = source_archive(manifest_path.resolve().parent, document["assets"],
-                                                        document["cssSnippets"])
+                                                        document["cssSnippets"], arguments)
         validate_document(document, reference)
     except (SourceError, VaultError) as error:
         raise DocumentError(str(error)) from error
@@ -327,7 +329,11 @@ def _build(options: argparse.Namespace, source: Path, destination: Path | None, 
            adapter: dict[str, object] | None, arguments: list[str], label: str = "") -> None:
     """Build the Document of ``source`` and, with an ``adapter``, its artifact at ``destination``;
     ``label`` leads each adapter warning (cli.md, Several documents per call)."""
-    document = build_document(source, reference, options.config, options.execute_commands, options.embed_source)
+    delivery = ["--adapter", options.adapter, "--destination", destination.name] if adapter is not None else []
+    for option in options.adapter_option:
+        delivery += ["--adapter-option", option]
+    document = build_document(source, reference, options.config, options.execute_commands, options.embed_source,
+                              delivery)
     for diagnostic in document["diagnostics"]:
         if diagnostic["level"] == "warning":
             print(f"obs-document: warning: {diagnostic['message']}", file=sys.stderr)

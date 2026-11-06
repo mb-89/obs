@@ -30,7 +30,7 @@ its path without `.md`.
 
 - `version`: always `1`.
 - `cards`: one to eight cards.
-- `cards[].title`: the card's plain-text title.
+- `cards[].title`: the card's title, inline Markdown (see [Document node](#document-node)).
 - `cards[].body`: Markdown, parsed like chapter content (see [Document node](#document-node)).
 - `cards[].metricStyle`: `pills` or `lines`; how an adapter lays out the metrics.
 - `cards[].obs`: the core's namespace for a card's fields.
@@ -64,7 +64,7 @@ its path without `.md`.
 - `cards[].metrics[].toneRules`: up to eight first-match rules, each `value` (`primary`,
   `secondary` or `remaining`, the denominator minus the numerator), `when` (`zero` or
   `positive`) and `tone`; an empty denominator stays `neutral`.
-- `cards[].metrics[].label`: the metric's plain-text label.
+- `cards[].metrics[].label`: the metric's label, inline Markdown (see [Document node](#document-node)).
 - `cards[].metrics[].where`: the conditions of the counted records.
 - `cards[].metrics[].denominator`: the conditions of the population; the value becomes a
   percentage, and an empty population shows `-`.
@@ -96,7 +96,12 @@ A `cards` fence is one `cards-metrics` node. Its `attrs` hold the authored `sour
 validated `spec`; `document.schema.json` owns the node's shape.
 
 Its `children` are one `document` node per card, in the order of `spec.cards`. Each holds that
-card's `body` parsed like chapter content.
+card's `body` parsed like chapter content, and in its `attrs` the card's `title` and its
+metrics' `labels` (one per metric of `metrics`, in their order) as inline nodes, parsed like a
+paragraph's text: a wikilink in them carries the one link label
+([[capabilities/wikilinks#Link text]]). An adapter renders titles and labels from these nodes
+and parses no title or label text. A series metric's label is the frontmatter value it counts
+by, and shows as that text.
 
 Paragraphs, lists, links, wikilinks (with `attrs.chapter`), callouts and capability fences
 (`base`, `cmd`, `figure`, `cards`, `property-editor`) arrive as the same node trees, and the
