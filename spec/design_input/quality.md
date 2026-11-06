@@ -91,7 +91,9 @@ definitions alike. Keeping the same fact in two places is an anti-pattern (user,
   adapter startup within a selected module; do not require the end-to-end scenario to test a
   local interaction. Prefer extracting pure transformations only when they have a cohesive owner.
 - The complete suite (`test/suite.py`) runs its parts side by side and each part's tests in
-  parallel worker processes, one per CPU (pytest-xdist).
+  parallel worker processes, one per CPU (pytest-xdist). Each part's worker groups start heaviest
+  first, weighed by their test time in the part's last run the suite recorded; without a record
+  they keep their order.
 
   A module's tests share a worker, so its module fixtures are built
   once per run; each worker starts one browser and leases every test a page from its pool, made
