@@ -10,9 +10,10 @@
     "manifest": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["title", "metadata"],
+      "required": ["title", "path", "metadata"],
       "properties": {
         "title": {"type": "string", "minLength": 1},
+        "path": {"description": "The manifest note's vault-relative POSIX path, which an adapter's messages about the manifest name.", "type": "string", "pattern": "^(?!/)(?!.*(^|/)\\.\\.?(/|$)).+\\.md$"},
         "metadata": {"type": "object"},
         "abstract": {"type": "array", "items": {"$ref": "#/$defs/node"}}
       }

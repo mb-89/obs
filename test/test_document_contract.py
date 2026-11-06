@@ -9,6 +9,7 @@ import pytest
 from obs.adapter import AdapterError, load_adapter
 from obs.capabilities import build_capability_reference
 from obs.document import DocumentError, call_adapter, main, write_document
+from obs.vault import build_document
 
 ROOT = Path(__file__).parents[1]
 
@@ -25,7 +26,7 @@ def write_reference(path: Path) -> Path:
 def document_fixture(capabilities: list[str] | None = None) -> dict[str, object]:
     return {
         "schemaVersion": 1,
-        "manifest": {"title": "Fixture", "metadata": {"kind": "artifact"}},
+        "manifest": {"title": "Fixture", "path": "manifest.md", "metadata": {"kind": "artifact"}},
         "chapters": [{
             "id": "chapter",
             "title": "Chapter",
@@ -126,6 +127,26 @@ def test_document_cli_writes_a_vault_document(tmp_path) -> None:
 
     document = json.loads(output.read_text(encoding="utf-8"))
     assert document["chapters"][0]["content"][2]["children"][0]["text"] == "Content."
+
+
+def test_the_manifest_carries_its_note_s_vault_relative_path(tmp_path) -> None:
+    """An adapter's error about the manifest names its note, as one about a chapter names the chapter's."""
+    vault = tmp_path / "vault"
+    vault.mkdir()
+    (vault / "report.md").write_text("- [[chapter]]\n", encoding="utf-8")
+    (vault / "chapter.md").write_text("Content.\n", encoding="utf-8")
+
+    assert build_document(vault / "report.md")["manifest"]["path"] == "report.md"
+
+
+def test_the_document_schema_requires_the_manifest_path() -> None:
+    schema = json.loads((ROOT / "src" / "obs" / "document.schema.json").read_text(encoding="utf-8"))
+    document = document_fixture()
+    del document["manifest"]["path"]
+
+    with pytest.raises(ValidationError) as failure:
+        validate(document, schema)
+    assert (list(failure.value.absolute_path), failure.value.validator) == (["manifest"], "required")
 
 
 @pytest.mark.parametrize("block", [
