@@ -46,3 +46,16 @@ The Sankey example's graph file:
  "nodes": [{"id": "open", "label": "Open", "stage": 0}, {"id": "done", "label": "Done", "stage": 1}],
  "links": [{"source": "open", "target": "done", "value": 3}]}
 ```
+
+## Rendered example
+
+This figure is rendered, not quoted; [[capabilities/wikilinks]] links it by its block id.
+
+```figure
+version: 1
+kind: image
+caption: One generic figure of kind image, with its block id.
+alt: A filled circle.
+source: generic-figure.svg
+```
+^generic-figure

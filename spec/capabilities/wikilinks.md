@@ -38,6 +38,12 @@ A block link (`[[#^name]]` within its note, `[[note#^name]]` across notes) targe
 A block id that no figure in the target note carries is a build error that names the note, the
 link and this page; so is a block id two figures of one note carry. A link to a missing note stays the missing-note warning.
 
+The Markdown form is the same block link and the same `wikilinks` node:
+`[label](note.md#^name)` keeps `note.md` as its `target` and its link text as its `label`;
+`[](note.md#^name)` is unaliased, labelled by [[#Link text]] as `[[note#^name]]` is; and
+`[](#^name)` is `[[#^name]]`. For example, [the rendered figure](figures.md#^generic-figure)
+links the figure of [[capabilities/figures#Rendered example]].
+
 ## Link text
 
 A link's `label` is the text an adapter shows, as Obsidian shows it (decided 6 Nov 2026). The
