@@ -13,6 +13,8 @@ from jsonschema import Draft202012Validator
 from jsonschema.exceptions import ValidationError, best_match
 import yaml
 
+from obs.quantity import UnitError, parse_unit
+
 
 class InputError(ValueError):
     """Raised when an authored input violates the core input contract."""
@@ -322,6 +324,12 @@ def validate_quantity(metadata: dict[str, object], source_path: object) -> None:
     if "unit" in metadata and (not isinstance(unit, str) or not unit.strip()):
         fail("unit", f"must be a non-empty string, not {unit!r}",
              "write the display unit, such as mm, or remove unit")
+    if "unit" in metadata:
+        try:
+            parse_unit(unit)
+        except UnitError as error:
+            fail("unit", str(error), "write an SI or common engineering unit with an optional prefix, "
+                 "such as mm, kN, N*m, km/h, rpm or %, or remove unit for a plain number")
     aliases = metadata.get("aliases")
     aliases = [aliases] if isinstance(aliases, str) else aliases
     if not isinstance(aliases, list) or len(aliases) != 1 or not isinstance(aliases[0], str) \
