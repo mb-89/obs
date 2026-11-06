@@ -4,7 +4,7 @@ capability:
   id: trusted-projections
   summary: Project trusted source data into declared presentation views.
   authoring: Declare presentation data in authored Markdown and approved data-only schemas.
-  dependsOn: ["[[capabilities/markdown-frontmatter]]"]
+  dependsOn: ["markdown-frontmatter"]
   source: "[[input-model#Trusted presentation projections]]"
 ---
 

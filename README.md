@@ -29,19 +29,20 @@ uv run pytest test/test_content.py -k paragraph
 uv run obs-html-interim --help
 ```
 
-The complete suite, the core's and every adapter's, runs in parallel with one command; it
-installs the Node test packages the browser tests use first (its docstring is its reference):
+The complete suite, the core's and every adapter's, runs in parallel with one command, after its
+setup has installed the Node test packages the browser tests use (its docstring is its reference):
 
 ```powershell
+uv run python test/suite.py --setup
 uv run python test/suite.py
 ```
 
 ## Design and reference
 
 - [CLI](spec/design_input/cli.md): live executable help.
-- [Configuration](spec/design_input/configuration.md): defaults and schemas.
+- [Configuration](adapters/html/spec/configuration.md): defaults and schemas.
 - [Input model](spec/design_input/input-model.md): authored source contracts.
-- [Artifact UI](spec/design_input/artifact-ui.md): reader, review, and PDF presentation.
+- [Artifact UI](adapters/html/spec/artifact-ui.md): reader, review, and PDF presentation.
 
 ## License
 

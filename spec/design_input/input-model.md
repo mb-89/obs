@@ -4,35 +4,6 @@
 their dependencies, summaries, and authoring examples. This note owns the corresponding
 input semantics.
 
-## Trusted presentation projections
-
-Trusted application runtimes may save a named selection through
-`obsArtifact.setViewSelection(key, selected, choices)` and read it through
-`viewSelection(key)`.
-
-Values are unique strings from the supplied finite choices; they live in
-`readerState.views`, not canonical notes, filter expressions or record
-stores. Unknown/stale saved choices are rejected by the application against its
-current catalog.
-
-`obsFigures.setProjection(sourceNote, graph)` supplies a transient graph through the
-same dynamic Sankey renderer and canonical record predicates as the authored
-`sourceNote`.
-
-`obsCards.setProjection(key, fieldsBySourcePath)` supplies transient field
-predicates for a declared metric key, not precomputed numeric values. Its
-counts still use the shared aggregate evaluator over filtered canonical records.
-Neither API commits canonical data; removing a projection restores canonical fields.
-
-A trusted runtime may likewise project a table's visible columns from its saved view
-selection by dispatching `obs-table-set-columns` on the table host. That projection is
-derived view state: it becomes the table's current default and is not itself saved table
-presentation.
-
-Only explicit reader column changes that differ from the current projection are
-retained as reader state, so reopening and
-re-projecting a saved selection starts unchanged.
-
 HTML-style Markdown authoring comments (`<!-- ... -->`), including multiline comments,
 are non-rendered source annotations. They contribute no visible prose, links, semantic
 marks, table definitions, or paragraph diagnostics. Preserve the surrounding content and
@@ -41,7 +12,8 @@ source locations; comment-like text inside fenced or inline code remains literal
 This applies to chapter bodies and the manifest abstract, not to review-comment data.
 
 The source resolves to one manifest note inside an Obsidian-compatible vault. Source selection
-and runtime defaults are owned by [[cli]] and [[configuration]], respectively.
+is owned by [[cli]]; the core's runtime defaults by its configuration schema,
+`src/obs/config.schema.json`.
 [[manifest]] selects and orders that design vault.
 
 ## Manifest contract
@@ -73,13 +45,24 @@ and runtime defaults are owned by [[cli]] and [[configuration]], respectively.
 Decided by the user, 5 Nov 2026: obs makes no statement about an adapter; it treats an adapter
 like any other outside specification. Every key the core reads lives in the core's namespace
 `obs`, and the core validates every key there: a Base's and a view's `obs.records`, a view's
-`obs.members` ([[generic-tables]]), a card's `obs.metricsFrom` and a metric's `obs.projection`
+`obs.members` ([[#Base files and members]]), a card's `obs.metricsFrom` and a metric's `obs.projection`
 ([[capabilities/cards-metrics#Fields]]), and a note's `obs.document`
 ([[capabilities/profiles]]). An adapter's options live in its own namespace, `obs` followed
-by its name in camelCase (`obsHtml` for obs-html, [[capabilities/trusted-actions]]); the core
+by its name in camelCase ([[#Adapter extensions]]); the core
 neither reads nor validates it, and keeps it out of document metadata rows. A key the core
 used to read in an adapter's namespace is an input error naming the note, the old key and the
 new key; there is no compatibility layer.
+
+### Adapter extensions
+
+An adapter documents each trusted extension it adds in a note of its own specification's
+`spec/capabilities/` folder, in the format of the core's capability notes: `kind: adapter-behavior`
+and the same `capability` frontmatter, with the extension's contract in the note body. The core's
+notes do not list adapter extensions.
+
+The extension's namespace is the adapter's own option namespace, the camelCase form of the
+adapter's name, followed by a dot and the extension's area, for example `obsExample.attachments`
+for an adapter named `example`.
 
 ## Document home and abstract
 
@@ -149,7 +132,7 @@ consistently across authored prose, imported rich text, metadata and tables.
 
 Document links to external things go through
 [reference notes](#reference-notes-and-link-text); the only direct external link is the one
-inside the hover card. A direct external link in authored prose is a lint warning and still
+the adapter shows with the reference note. A direct external link in authored prose is a lint warning and still
 follows the new-tab rule above until migrated.
 
 Internal artifact navigation and explicit download/save actions retain their
@@ -167,7 +150,7 @@ The two intervening nonempty Markdown blocks retain
 ordinary semantics, including cards and canonical `base` queries. Delimiters inside
 fenced code are literal. An incomplete or nested column block is an input error,
 not silently discarded prose. This is artifact layout syntax, not source-authored HTML
-or CSS; its paged/mobile presentation is owned by [[artifact-ui]].
+or CSS; its presentation is the adapter's.
 
 Delimiters are top-level block boundaries (optional surrounding whitespace, at most
 three leading spaces), not inline text, list items or blockquotes. Each successive
@@ -254,12 +237,12 @@ records; they never execute artifact-owned algorithms in the converter.
   HTML keeps that time. A change that returns the content to its state when opened or
   when last saved restores that state's timestamp, so reverting an edit is not a change.
 
-  [[artifact-ui#What counts as a change]] owns which edits are content changes.
+  The adapter owns which edits are content changes.
   Structured values are human text, never JSON: one `key: value` pair per line with the
   values aligned in one column, for example:
 
   ```text
-  name:    obs-html
+  name:    <adapter>
   version: v0.3-2-g1a2b3c4
   commit:  1a2b3c4
   ```
@@ -273,9 +256,8 @@ records; they never execute artifact-owned algorithms in the converter.
   Structured values retain their complete content rather than being silently omitted.
 - Home retains authored abstract order, including History and Metadata
   declarations. Removing or moving a fence removes or moves its view, including on Home;
-  no renderer supplies missing tables or sections. Which front pages exist, their order and
-  titles are declared by the artifact presentation profile below; their paged rendering and
-  Contents are owned by [[artifact-ui]].
+  no renderer supplies missing tables or sections. Which front pages exist, their order,
+  titles and rendering are the adapter's presentation options.
 
   The abstract is the manifest Markdown following the TOC.
 - Home has a stable navigation identity and participates in previous/next navigation
@@ -295,100 +277,18 @@ presents it. Default profiles:
 - **Slides**: lists the slideshows; the reader picks one, and the content tagged for that
   slideshow is shown.
 
-A manifest or vault can define further profiles. The presentation keys below are today's
-single, implicit profile. First one-pager pieces (4 Nov 2026): a manifest without a TOC (Home
-alone) and `heading: compact` in the presentation profile below.
-
-### Artifact presentation profile
-
-Author presentation decisions live in the manifest frontmatter's reserved `obsHtml`
-mapping, the same namespace that notes and Bases fences use for obs-html-only options. The
-core does not read it ([[#Core and adapter namespaces]]).
-
-Obsidian keeps it as ordinary frontmatter, so the author edits it in Properties or source.
-The adapter's packaged profile schema (the interim's `note-profile.schema.json`, obs-html's
-`profile.schema.json`) constrains it and owns the defaults; the converter
-contains no front-page titles, labels or opening mode of its own.
-
-```yaml
-obsHtml:
-  layout: paged              # or scrolling
-  heading: cover             # or compact
-  pages:
-    - {page: cover}
-    - {page: abstract, title: Abstract}
-    - {page: contents, title: Contents}
-  figures: {numbering: none, label: Figure}
-  print: {paper: A4, margin: 20mm}
-  cssSnippets: [house-style] # .obsidian/snippets/house-style.css
-```
-
-- `layout` chooses the view every opening starts in: `paged` (paper sheets) or `scrolling`
-  (continuous reading). Readers can still switch during the session; that choice is not saved
-  as the next opening's state. It replaces the removed `artifact.reading.paged` setting.
-- `heading` presents the cover metadata at the top of Home. `cover` (default) is the title box,
-  which `pages` can also place as the title sheet. `compact` is one line: organization, product
-  name and version, document type and title (subtitle last), separated by `·`; the other cover
-  fields (template, people, document number, legal entity, copyright, confidentiality) are not shown.
-  The compact line is never a sheet of its own: in the paged and PDF projections it opens the
-  first declared front page, so `pages` must declare at least one page and no `cover`.
-- `pages` is the ordered list of generated front pages of the paged and PDF projections.
-  Each kind (`cover`, `abstract`, `contents`) appears at most once.
-  - `cover` is the title sheet built from the cover metadata. It has no `title`; its heading is
-    the document title.
-  - `abstract` places the abstract Markdown: its lead sheet followed by one page group per
-    top-level second-level heading. The optional plain-text `title` becomes the lead sheet's
-    heading and running-header section; without it the lead sheet has no generated heading.
-    A manifest whose abstract contains Markdown must declare `abstract`; authored prose is
-    never silently dropped from the PDF.
-  - `contents` is the generated chapter list with measured page numbers; the optional
-    plain-text `title` is its heading.
-  - An omitted kind produces no page. `pages: []` is valid for a manifest without abstract
-    Markdown.
-- `figures` numbers captioned `figure` fences. `numbering` is `none` (default), `document`
-  (`Figure 1`, `Figure 2`, … in contents order) or `chapter` (`Figure <n>.<m>`, where `<n>` is the
-  top-level contents position of the chapter, its subchapters included, and `<m>` counts within
-  it). `label` is the plain-text word before the number (default `Figure`, for example `Abb.`);
-  `labelPlural` precedes merged references (default `Figures`).
-
-  The number precedes the first caption paragraph; uncaptioned figures and notes outside the
-  contents (record notes, reproduction copies) are not numbered. Authors never type numbers.
-- `print` sets the paper of the paged and PDF projections: `paper` is a portrait paper name
-  from configuration's `artifact.print.paperSizes` and `margin` the margin
-  on every side in millimetres (`20mm`). Omitted keys use the defaults; configuration owns the
-  margin limits. It replaces the removed project `artifact.paper` setting.
-- `cssSnippets` lists CSS snippet names, without `.css`, from the vault's snippet folder
-  (configuration's `input.cssSnippetFolder`, Obsidian's `.obsidian/snippets` by default).
-
-  The HTML embeds them in list order after its own styles, so they style screen, pages and
-  PDF and win at equal specificity. Obsidian's own enabled-snippet list is a per-device
-  appearance choice and is not read: the document declares what it needs.
-
-  A listed snippet that is missing, or that contains `</style`, is an input error. The
-  default is none.
-- Generated abstract sections are [register](#registers) embeds in the abstract Markdown.
-- Vaults that declare none of these keys keep the packaged defaults shown above, which reproduce
-  the established cover, "Abstract", "Contents", and paged opening.
-
-  The default is compatibility: an existing vault keeps its artifact unchanged until its author
-  decides otherwise. Attachments are not a profile key; see the attachment rule under
-  [Document home and abstract](#document-home-and-abstract).
-- The profile is presentation configuration, not document metadata: it is neither a Document
-  metadata row nor shown in Home's frontmatter.
-
-  On an ordinary note (for example a copied manifest inside a reproduction folder) the
-  document-level keys are inert; only the selected
-  manifest's profile applies.
+A manifest or vault can define further profiles. The presentation keys an adapter reads are
+today's single, implicit profile. First one-pager pieces (4 Nov 2026): a manifest without a TOC
+(Home alone) and an adapter's compact heading.
 
 ### Registers
 
 Decided by the user, 4 Nov 2026 (`spec/backlog/review-macro-syntax.md`). Generated registers
-are Obsidian Bases views in `.base` files of the vault ([[generic-tables]] owns the embed),
+are Obsidian Bases views in `.base` files of the vault ([[#Base files and members]] owns the embed),
 embedded where they appear: glossary, references, numeric values, mark registers such as
 open points and document metadata.
 
-`obsHtml.macros` is rejected with a migration message; the spec vault's `registers.base` is
-the starter.
+The spec vault's `registers.base` is the starter.
 
 ```markdown
 <!-- open-points.md, listed in the manifest TOC like any chapter -->
@@ -400,11 +300,11 @@ Optional authored introduction.
 - A vault may keep all its registers as views of one `.base` file, so they are easy to find.
   `![[file.base#View]]` embeds one view; `![[file.base]]` embeds all views with a selector.
 - Registers are a superset of Bases. Each view is valid Bases YAML that Obsidian renders as a
-  plain table of notes. Keys under `obs:` and `obsHtml:`, which Obsidian ignores, make obs_html render
-  the rich register, for example one row per marked paragraph instead of one per note.
+  plain table of notes. Keys under `obs:` and an adapter's namespace, which Obsidian ignores, make an
+  adapter render the rich register, for example one row per marked paragraph instead of one per note.
 - The view's own filter is the fallback and must select something sensible in Obsidian: notes
   with the mark tag, notes with `kind: glossary`, notes with a `url`, numeric-value notes.
-- Filters, columns, titles and grouping are authored in the view. obs_html owns no default
+- Filters, columns, titles and grouping are authored in the view. No adapter owns default
   columns or filters for registers; the spec vault's `.base` file is the documented starter.
 - Rows that are not notes (marked paragraphs, glossary terms, chapters with a callout,
   document metadata) come from the shared record projections, selected by the view's
@@ -419,193 +319,8 @@ Optional authored introduction.
   parent it appears. Removing it from the TOC removes the chapter.
 - A document has one appendix. Its hand-written sections come first, then its register
   sections. Readers are not told which sections are generated.
-- Rendering the `obsHtml` keys inside Obsidian itself (a plugin) is a possible later step, not
+- Rendering an adapter's keys inside Obsidian itself (a plugin) is a possible later step, not
   planned.
-
-## Artifact behavior
-
-- Generation produces exactly one HTML file containing the artifact shell and all chapters.
-- `artifact.dataCompression` selects `gzip` (the default) or `none` for canonical
-  artifact-data transport. Gzip uses one base64-encoded island; a plain JSON island
-  remains valid and may be used when compression would increase the encoded size.
-
-  This changes storage, not note/query/review semantics or the original downloaded
-  evidence bytes. Both formats are self-contained and use one decoding owner.
-  Unsupported decoding or malformed payloads produce a visible initialization
-  error, not an apparently successful empty artifact.
-
-  All dependent runtimes wait for validated decoding. Save reviewed HTML encodes
-  a consistent snapshot of the current canonical model and reader/review state,
-  keeps it compressed, and removes disposable materialized views rather than
-  embedding another raw model. Async compression must not lose file-picker user
-  activation, clear unsaved state after failed writes, or mark later edits saved.
-
-  Reopen, read-only extraction and source reproduction use the same format contract.
-  The island retains its `artifact-data` identity. During opening its decoded JSON
-  replaces the encoded text in memory; saving replaces that disposable projection
-  with exactly one encoded current snapshot. Plain transport remains readable
-  without browser compression support.
-
-  Gzip requires native stream decompression; unavailable support is an explicit
-  opening error, never a network fallback.
-  A save captures model, review and dirty baseline together before awaiting work.
-  Only a successfully closed file may advance that captured baseline; a download
-  cannot confirm completion, and edits arriving later remain unsaved.
-- The authored chapter order follows the manifest; presentation of headings is owned by
-  [[artifact-ui]].
-- Exactly one chapter or subchapter is visible at a time.
-- The active chapter has its own scroll range; content never continues into the next one.
-- Left and right controls walk the [[#Manifest contract|chapter sequence]].
-- Selecting a table-of-contents item or changing chapters resets content scroll to the top.
-- Stable URL fragments identify chapters so browser history and direct links work.
-- Home is always a reachable navigation destination, including when a filter leaves
-  one or no matching authored chapters. Previous/next, breadcrumb/Home and both
-  sidebar/artifact contents derive from the same retained navigation sequence.
-
-  A still-visible active chapter cannot be stranded outside that sequence.
-  Artifacts may explicitly scope their global query to record data rather than
-  authored chapters; that scope preserves chapter navigation and PDF chapter inclusion.
-  The ordinary artifact's chapter-filter behavior remains the default.
-- The manifest frontmatter's `obsHtml.query` owns the optional global query profile
-  (schema: the adapter's profile schema); project configuration rejects a `artifact.query`.
-
-  Instead of the profile, the manifest may name one internal note link, such as an
-  adapter's generated configuration note, whose own `obsHtml.query` holds the profile.
-
-  `scope` is `chapters` (default) or `records`. In record scope, optional `where`
-  selects the count/facet population using the same exact, AND-combined record conditions
-  as dynamic figures. It does not remove authored chapters or document/PDF sections.
-
-  Optional `fields` is a curated discoverable catalog of `{field, source?, label?}`:
-  `field` is the query alias, `label` defaults to that alias, and `source` defaults to
-  `field`, or is a nonempty array of source paths whose scalar values are unioned.
-
-  Source paths address canonical fields and may follow a canonical internal note reference
-  prefix into the target's remaining metadata path, including arrays of references.
-
-  For example, `roles.origin.item.disciplines` follows `roles.origin` to its canonical
-  note, then reads `item.disciplines`; target metadata is never copied into path notes.
-  Alias values are derived again after canonical edits, never serialized as another dataset.
-
-  An explicit catalog limits discoverable fields but does not bypass the ordinary
-  discriminative-facet rule: constants, single-value fields and near-unique fields
-  are not attribute pills. The default distinct-value upper fraction is one half
-  of the applicable population, owned by configuration/schema.
-
-  Text and identifiers remain directly queryable even when not offered as facets. Raw
-  metadata remains
-  queryable without becoming discoverable noise.
-  Example: `{"scope":"records","where":[{"field":"kind","equals":"path"}],
-  "fields":[{"field":"discipline","source":["roles.origin.item.disciplines",
-  "roles.destination.item.disciplines"],"label":"Discipline"}]}`.
-- Styles, scripts, and local assets are embedded so the HTML file is portable.
-  Artifacts may opt into version-pinned, integrity-checked CDN delivery of Plotly through
-  `artifact.figures.plotlyDelivery: cdn`; the default `embedded` preserves offline graph
-  interaction.
-
-  CDN-backed Plotly plots do not embed a duplicate static image; printing uses an on-demand SVG of
-  the interactive graph, not a stored fallback. CDN failure displays an explicit
-  interaction-unavailable notice. Local attachments are unaffected.
-
-  `artifact.embedPdfs` defaults to `true`. Setting it to `false` leaves PDF links pointing
-  to the local source files instead of embedding their bytes; those PDFs do not travel
-  with the standalone HTML. Other attachment types are unaffected.
-
-### Optional reproduction archive
-
-An explicitly requested reproduction archive captures the selected vault and generator inputs.
-CLI invocation and prerequisites are owned by [[cli]]; controls and PDF presentation by
-[[artifact-ui]]. The source boundary is defined here.
-
-It discloses the selected vault's explicit directory snapshot, including scripts/data not
-in the TOC, whether or not that vault has Git metadata. Installed dependency directories,
-Python environments identified by `pyvenv.cfg`, Python caches, generated
-`data_output`/`design_output` and compiled executables are excluded.
-
-Generic names such as `output`, `outputs`, `build` or `cache` do not establish that a declared
-source is disposable.
-Dot folders such as `.obsidian` stay excluded, except the CSS snippets the manifest lists:
-they are declared inputs of the document.
-Extracted source archives carry a source inventory so rebuilding without `.git` preserves
-the same selection.
-Their build configuration is a complete, schema-valid configuration of the original
-build's settings, including `input.styleFolder`, so a rebuild from the extracted archive
-validates.
-
-Symlinks are rejected, never followed outside that boundary.
-
-The generator's package source,
-project manifest, uv lockfile, README and platform bootstrap wrappers accompany
-the vault snapshot.
-
-Implementation-source selection follows the owning Git-tracked source tree and any explicitly
-included new implementation files, schemas, and other source resources needed by this build,
-not a recursive copy of the checkout.
-
-Do not collect build products, environments, installed dependencies, caches, unrelated binaries,
-other project inputs or worker state. A selected external/non-Git vault remains supported;
-its declared source boundary must not be silently reduced to visible chapters alone.
-
-Original attachments have one embedded payload owner shared by reader downloads and source
-reproduction. Source packaging must not embed another full copy of those bytes.
-
-Compression or references are packaging only: downloaded evidence is byte-identical to the
-supplied original,
-and the downloaded ZIP remains a complete, ordinary reproducible archive. Missing or corrupt
-payloads produce explicit errors rather than incomplete successful downloads.
-
-With source embedding, reader assets use `obs-asset:` references into a descriptor map.
-Each descriptor declares `archivePath`, `mime` and original-byte `sha256`; its owning ZIP
-member is stored once with ZIP deflate compression.
-
-The download remains that complete ZIP, not a thin archive requiring sidecars. Browsers
-hydrate references with native decompression
-and digest validation to local Blob URLs; reviewed-save retains descriptors and the ZIP,
-not those process-local URLs.
-
-Missing members, unsupported/encrypted compression, malformed ZIP metadata and digest
-mismatches fail explicitly. This transport changes no authored
-input semantics and does not make archived originals the authority for edited model state.
-
-The embedded ZIP is a generic compressed source store, not an adapter-specific attachment
-mechanism. Its central directory owns member paths and sizes; do not serialize another file
-inventory or raw/base64 member bodies into the reader.
-
-The complete ordinary ZIP can be downloaded for source/configuration authoring outside the
-HTML. There is no source-file
-browser or configuration editor in the reader or Settings.
-
-Explicit attachment links can download one selected member after local decompression and
-integrity validation through the same generic owner. Individual downloads preserve the
-original bytes and basename; source/script files are downloads, not executable previews.
-A missing or corrupt selected member fails explicitly, without a successful empty download.
-
-An adapter-supported input refresh must not require downloading or extracting this archive.
-The reader parses a newly selected input and calculates from current canonical records.
-
-On successful replacement, the canonical update and the changed owning archive entry must
-be committed at one revision; old unreferenced bytes and decoded URL caches are superseded,
-not retained as a second payload. Cancellation or failure preserves the previous revision.
-
-Saving/reopening the HTML must retain that same current owner and permit another update.
-Compressed storage is not a reason to require a source-archive authoring workflow.
-
-Effective configuration and a rebuild script accompany the sources; bundle instructions give
-explicit vault/settings paths for the wrappers rather than using the checkout's default spec.
-
-The generator checkout must be available; an incomplete archive is an error.
-
-Hidden files, external absolute-path dependencies and OS/Python executables are not collected.
-Non-hidden source files are included without secret detection; authors must inspect the archive
-before distributing it.
-
-Command authorization is recorded but rerunning commands still requires an explicit
-rebuild flag. uv/Python and downloadable locked dependencies remain prerequisites; this is a
-source reproduction bundle, not an offline VM or a promise of byte-identical timestamps.
-
-Network resources and external tools are not made offline by this flag.
-
-Never execute embedded files automatically.
 
 ## Cover metadata and history
 
@@ -628,6 +343,16 @@ Empty product
 members are omitted as well.
 
 They are not proof of approval or legal status.
+
+The core validates these fields and `history` against its `coverMetadata` schema
+(`src/obs/cover-metadata.schema.json`) once unassigned values are omitted; a failure is an input
+error naming the manifest, the field path and the remedy.
+
+Unknown fields inside `product` and a `history` entry are input errors. The manifest's other
+frontmatter (title, subtitle, `obs`, an adapter's namespace and any further field) is not cover
+metadata: other contracts own it.
+
+A further field stays a residual metadata row, open to queries (worker decision, 6 Nov 2026).
 
 Title/subtitle and
 cover fields are excluded from the residual Key / Value table to avoid repeating their presentation.
@@ -748,9 +473,8 @@ Generation time remains separate from document revision dates.
 
   Record-only notes remain queryable and available to figures and explicit canonical
   reference/detail tabs, but do not appear in generic Search, chapter activation or
-  standalone technical note details. A link to one shows its
-  [[artifact-ui#Link hover card|hover card]] and, when clicked, the note in the
-  [[artifact-ui#Floating window|floating window]] (reference notes, decided 29 Oct 2026).
+  standalone technical note details. A link to one behaves like a link to a reference note
+  ([[#Reference notes and link text]], decided 29 Oct 2026).
 
   A record-only manifest or authored TOC target is an input error, not a silently dropped
   chapter. Direct browser
@@ -758,9 +482,7 @@ Generation time remains separate from document revision dates.
   links and explicitly declared subject tabs retain their behavior. Producers opt into this
   distinction through data, never inferred note kinds or generator-specific filenames.
 
-  Clicking a document link to an unlisted note shows it in the floating window; the page stays.
-  A direct browser fragment still opens an unlisted note in the same reader with a Home
-  breadcrumb and browser history. An unlisted note is not a chapter; see the
+  An unlisted note is not a chapter; see the
   [[#Manifest contract|chapter sequence]].
 - Standard Markdown is supported before optional Obsidian extensions.
 - `[[wikilinks]]` resolve by source-relative path, vault-relative path, unique note name, and
@@ -800,16 +522,15 @@ callouts are the one system for marked content.
 - Mark kinds (open point, risk, assumption, issue, decision, warning, question, idea) become
   callout types: `> [!open-point] Label`. The callout's content is the marked item; a callout
   nested under a list item marks that item. `#mark/...` tags are removed.
-- Each type declares its HTML presentation (rail icon as today's marks, box, collapsed box or
-  inline badge); nothing is inferred from content. In Markdown a callout is always a block.
-- Registers, cards, hover cards and profiles select callouts by type from the shared record
+- Each type declares its presentation, which the adapter owns; nothing is inferred from content. In Markdown a callout is always a block.
+- Registers, cards, an adapter's previews and profiles select callouts by type from the shared record
   projections. In Obsidian, Bases views of them fall back to note lists.
 
 Obsidian is the reference syntax. A blockquote is a callout when the first line of its
 first paragraph is `[!type]`, optionally followed directly by a fold marker `+` or `-`
 and then by a space and an inline-Markdown title: `> [!warning]- Check the limits`.
 The type is case-insensitive. Later lines of the blockquote, including nested blocks and
-callouts, are the callout body. Presentation follows [[artifact-ui]].
+callouts, are the callout body. Presentation is the adapter's.
 
 | Type | Obsidian aliases |
 |---|---|
@@ -830,8 +551,7 @@ callouts, are the callout body. Presentation follows [[artifact-ui]].
 
 - Without an authored title, the title is the authored type keyword with its first letter
   capitalized, as in Obsidian (`[!faq]` shows "Faq"). An authored title replaces it.
-- `important` keeps its established obs_html meaning: an untitled emphasis box for key
-  takeaways, not Obsidian's alias of `tip`. An authored title is still shown.
+- `important` is its own type: an emphasis of key takeaways, not Obsidian's alias of `tip`. An authored title is still shown.
 - Fold markers are accepted for Obsidian compatibility; the callout always renders
   expanded, so screen, search and PDF show its whole body. Interactive folding is not
   supported.
@@ -982,10 +702,8 @@ Every document link to something external targets that note, never the URL. Syst
 are not exempt: a system of record and its items link to their internal record notes.
 
 - A click goes to the note. A note with a place in the table of contents navigates as usual. A
-  note without one opens in the [[artifact-ui#Floating window|floating window]] and the page
-  stays put.
-- A hover shows a card with the note's `description` and its external link
-  ([[artifact-ui#Link hover card|hover card]]).
+  note without one opens where the adapter shows a note without a place, and the page stays put.
+- A preview, where the adapter has one, shows the note's `description` and its external link.
 - A bare URL in authored prose, and a table `linkProperty` to an external URL, are lint
   warnings.
 - The references register is a query over notes with a `url`, not a maintained list.
@@ -1070,8 +788,7 @@ for example `Figure 2.4`; it is a build error unless that figure is numbered.
 
 A labelled reference keeps its label. Unresolved block references and duplicate block ids in
 one note
-are build errors. Numbering itself is the manifest's `obsHtml.figures` decision
-([Artifact presentation profile](#artifact-presentation-profile)).
+are build errors. Numbering itself is an adapter's presentation decision.
 
 #### Figure captions and references
 
@@ -1091,7 +808,7 @@ Decided by the user, 4 Nov 2026 (`spec/backlog/review-figure-defaults.md`):
 - Adjacent unlabelled references merge into one plural reference: `[[#^a]] and [[#^b]]`
   renders `Figures 2.4 and 2.5`, and a run of three or more consecutive numbers renders
   `Figures 2.4–2.6`. Adjacent means separated only by whitespace, a comma or a conjunction
-  from the packaged list; `obsHtml.figures.labelPlural` names the plural (default `Figures`).
+  from the packaged list; the adapter's figure options name the plural.
 
 Implementation decisions, same date:
 
@@ -1115,9 +832,6 @@ Confirmed defaults, same date:
 - Numbering stays off unless the manifest sets it (documents opt in, nodes sets `chapter`):
   a document without numbering renders unchanged, and numbers belong to documents whose
   figures are all captioned and referenced by block links.
-- CDN-delivered Plotly stays opt-in and shows an explicit notice when the network fails:
-  the embedded default keeps one HTML file interactive offline, so only an author who
-  accepts the network dependency trades size for it, and a reader never sees a silent gap.
 - The Sankey option keeps the name `countLabels`: it says what it configures, the words shown
   with record counts, and renaming would only move every author's fence without new meaning.
 
@@ -1149,7 +863,7 @@ zoom, pan and reset.
 
 This is viewport inspection, not data reflow or recalculation. Producers retain responsibility
 for engineering geometry, subplot placement, annotation,
-hatching and provenance. Interaction and visual-parity requirements belong to [[artifact-ui]].
+hatching and provenance. Interaction and visual parity are the adapter's.
 
 Python-generated figures follow one producer convention: the artifact-owned script writes the
 exact `<name>.svg` and its `<name>.figure.json` panel sidecar side by side (an ordinary plot
@@ -1270,7 +984,7 @@ infer domain meaning, execute code, fetch assets, or copy source records into th
 The artifact owner defines node labels, stages, record predicates and the unfiltered value
 derived from its canonical model. Rendering, record selection, artifact-filter integration
 and SVG layout are generic. Conditions are data-only field checks, not query strings or
-executable expressions. See [[artifact-ui]] for diagram interaction and print behavior.
+executable expressions. Diagram interaction and print behavior are the adapter's.
 
 ### Markdown body and frontmatter
 
@@ -1288,9 +1002,8 @@ executable expressions. See [[artifact-ui]] for diagram interaction and print be
 
   Obsidian's `cssclasses` (one class name or a list of them) is the note's styling hook: the
   names are validated CSS class identifiers and are projected onto that note's rendered
-  container, as [[artifact-ui]] places it. Styles come only from the CSS snippets the manifest
-  lists (see [Artifact presentation profile](#artifact-presentation-profile)); obs-html gives the
-  classes no meaning of its own.
+  container, as the adapter places it. Styles come only from the CSS snippets the adapter's
+  presentation options list; no adapter gives the classes a meaning of its own.
 
 - Every frontmatter field is available to the shared query language. Nested mapping fields
   use dotted names, quoted field names address spaces,
@@ -1304,8 +1017,7 @@ Replaced by callout types (user, 4 Nov 2026; see [Callouts](#callouts)); this se
 the current implementation until that migration lands.
 
 Mark tags classify a paragraph as an open point, risk, warning, decision or another fixed kind.
-This section owns their syntax and records. Their icon rail and optional box are owned by
-[[artifact-ui#Content sections]] (box opt-in per kind: `artifact.borderedTags` in `cfg.json`), and
+This section owns their syntax and records. Their presentation is the adapter's, and
 the per-kind register is the `marks` [register](#registers).
 
 - A paragraph may contain one or more whitespace-delimited Obsidian-compatible semantic tags of the
@@ -1383,13 +1095,13 @@ the per-kind register is the `marks` [register](#registers).
   A Base normally evaluates canonical note rows once, as native Bases does.
   `obs.records` explicitly selects an artifact-only row projection: `note`, `chapter`,
   `tag`, `glossary`, `documentHistory` or `documentMetadata`. A `note` projection adds
-  the artifact's own note fields to the canonical note rows (see [[generic-tables]]).
+  the artifact's own note fields to the canonical note rows.
 
   A filter comparison on a bare `recordType` is rejected with a migration message naming
   `obs.records`. View filters intersect global Base filters during discovery and rendering.
 
-  Filter syntax and comparison semantics are owned by the Bases filter grammar in
-  [[generic-tables]]. The separate artifact UI's notion of an assigned
+  Filter syntax and comparison semantics are owned by the
+  [[#Bases filter grammar]]. An adapter's notion of an assigned
   value is not a redefinition of standard Base equality.
   Standard views have at most one `groupBy` property; multi-property sorting is
   supported, but multi-property grouping is not reinterpreted as native syntax.
@@ -1398,7 +1110,7 @@ the per-kind register is the `marks` [register](#registers).
 
   Data-dependent columns are opt-in presentation, not a domain query compiler.
 
-  `obsHtml.expandProperties` maps an ordered property to
+  An adapter's `expandProperties` option maps an ordered property to
   `{sourceNote, property, keyProperty, labelProperties?, separator?}`. The named
   canonical note's property is an ordered list of objects; each unique nonempty
   key expands `field` into `field.<key>`, inheriting its authored property
@@ -1425,7 +1137,7 @@ the per-kind register is the `marks` [register](#registers).
   template syntax, a new predicate evaluator or a numeric/formula engine.
 
   An authored metric's `obs.projection` selects an opaque trusted
-  application-provided field projection. A Base's `obsHtml.viewProjection`
+  application-provided field projection. A Base's adapter option `viewProjection`
   similarly opts into an application presentation; optional `fallbackColumns`
   declares its all-hidden column view. These declarations do not grant trust.
 
@@ -1447,7 +1159,7 @@ the per-kind register is the `marks` [register](#registers).
 
   The
   initial adapter supports table views, ordered properties, and the filters defined by
-  the Bases filter grammar in [[generic-tables]].
+  the [[#Bases filter grammar]].
   Reader and static projections evaluate canonical typed values, not display text.
 
   Unsupported standard
@@ -1463,13 +1175,13 @@ the per-kind register is the `marks` [register](#registers).
   they are rejected rather than evaluated as file metadata.
 
   Artifact-only additions live under
-  a top-level `obsHtml` mapping so normal Bases syntax remains portable and can expand independently;
+  a top-level mapping in the adapter's namespace so normal Bases syntax remains portable and can expand independently;
   what the core reads lives under `obs` ([[#Core and adapter namespaces]]).
 
   For a view whose membership or order cannot be expressed by canonical note properties,
   `obs.members` is an ordered list of `{path, label?}` entries. `path` is a unique,
   vault-relative Markdown filename; `label` is optional view-local display text, exposed only
-  as the derived `obsHtml.label` cell. The list belongs to the view's `obs`; a Base-level
+  as a derived cell. The list belongs to the view's `obs`; a Base-level
   `obs.members` fails the build, naming the note, with the remedy to move it into the view.
 
   The list never writes membership, rank, or labels into a note. It intersects the standard
@@ -1477,13 +1189,103 @@ the per-kind register is the `marks` [register](#registers).
   and sorting remain table-local. Every path must resolve to a file inside the vault, or
   `--check` fails. Notes matching a Base query are included even without prose backlinks.
 
-  `obsHtml.maxRows` is an optional positive integer specifying the approximate number of
-  ordinary body rows in the table's vertical viewport. It constrains visual height only;
-  page size, filtering, grouping, sorting, and row membership remain independent. Omission
-  preserves the unbounded current table presentation, and invalid values or unsupported
-  `obsHtml` properties fail validation.
 - Notes containing base fences remain ordinary manifest chapters: authored prose before and after a
   fence renders normally, and manifest position alone determines chapter hierarchy and navigation.
+
+#### Base files and members
+
+Moved from the HTML adapter's generic tables note, whose table definition
+these bullets are part of.
+
+- An embedded `base` fence or an embedded `.base` file is the input adapter. Standard Obsidian keys
+  retain their meaning; what the core reads is permitted only under `obs`, artifact-specific
+  behavior only under the adapter's namespace ([[#Core and adapter namespaces]]).
+
+  A line `![[name.base]]` or `![[path/name.base#View]]` embeds a reusable `.base` file as in
+  Obsidian. A target with a folder is vault-relative; a bare name must match exactly one
+  non-hidden file in the vault. A bare name that matches none or several fails the build, naming
+  the embedding note and the candidates; the remedy is to embed the file's vault path.
+
+  The file holds the same YAML as a fence and passes the same validation once per build.
+  `![[file.base]]` embeds all views with the selector; `#View` embeds only that view. Every
+  embed is its own table instance with its own key and state, so two notes embedding one
+  file render it twice from one definition. Registers use this mechanism ([[#Registers]]).
+- A view may declare ordered `obs.members` entries containing a vault-relative note `path`
+  and optional view-local `label`. This set intersects the ordinary Base query; its order is the
+  initial row order, in which the core emits the view's rows, and its labels are projected as a derived cell without modifying canonical
+  note records. Missing, duplicate, absolute, or vault-escaping member paths, and paths that are
+  not Markdown notes, are input errors naming the note, the view, the entry
+  (`views[<view>].obs.members[<entry>].path`) and the remedy.
+  Members belong to their view: each view selects its own members, and a Base-level
+  `obs.members` is an input error naming the note; the remedy is to move it into the view.
+
+#### Bases filter grammar
+
+This subsection owns the supported subset of Obsidian
+[[obsidian-bases-views|Bases filters]]. It applies to Base `filters`,
+view `filters`. Anything outside it is unsupported.
+
+- A filter is one comparison string or a mapping with exactly one key, `and`, `or` or
+  `not`. That key holds one filter or a nonempty list of filters, nested to any depth.
+  `and` needs all operands, `or` needs one, and `not` means none of them is true.
+- A comparison is `property == literal` or `property != literal`, with optional spaces
+  or tabs around the operator. The `comparison` pattern in `base.schema.json` owns the
+  exact characters, so both runtimes read the same syntax.
+- A property is `name`, `note.name` or `note["any name"]`. A bare `name` uses ASCII
+  letters, digits, `_` and `.` and starts with a letter. Both prefixes read the same
+  frontmatter property. `file.name`, `file.path`, `file.folder` and `file.ext` read the
+  note's vault-relative path, not frontmatter.
+- A literal is `null`, `true`, `false`, a JSON-style number, or text in double or
+  single quotes. Quoted text is taken verbatim; it contains no backslash, line break
+  or its own quote character.
+- A property resolves to a whole frontmatter key first, its name matched by
+  [[capabilities/bases#Comparisons]]. Otherwise its dots walk nested mappings. A numeric segment selects a list item; other segments collect the values of
+  every list item. Segments never read text or list members such as Bases' `.length`.
+- Equality follows [[capabilities/bases#Comparisons]] (case, types, missing properties).
+- Functions, methods, other operators, `formula.*`, `this.*`, other `file.*`
+  properties and frontmatter names starting with `file.` are unsupported.
+
+Python evaluators decide at generation time which notes a Base includes, because the
+generator runs without a JavaScript engine: the core's `src/obs/selection.py` for the
+Document. An adapter whose readers can edit Base definitions or canonical values evaluates
+again.
+
+Every evaluator runs the shared conformance fixture
+`test/fixtures/bases-filter-conformance.json`, which lists records, filters, expected
+record ids and unsupported filters. A grammar change updates this subsection, the schema
+pattern and that fixture together.
+
+Generation fails on an unsupported filter. The error names the source file, the base
+fence, and the filter text; it never treats the filter as matching
+nothing.
+
+A view's `obs.records` evaluates projected rows of one kind instead of canonical notes;
+the base's `obs.records` is the default for its views. A comparison on a bare
+`recordType` is rejected with a migration message naming `obs.records`. Both
+evaluators resolve a projected row's properties in the same way.
+
+A row's own fields resolve first: `sourcePath`, plus `chapter`, `title`,
+`slug` and `depth` on note and chapter rows, `term`, `definition` and `aliases` on
+glossary rows, and `type`, `label`, `text` and `source` on tag rows.
+
+Any other property of a note, chapter or glossary row resolves on its note's frontmatter
+and path as above. A tag row has no other properties. Displayed cells, such as flattened
+frontmatter text or tag backlinks, are never filter values.
+
+Document metadata rows (`recordType` `documentMetadata`: `key`, `value`) and history rows
+(`documentHistory`: `version`, `date`, `author`, `change`) never include a note; all their
+fields are own fields. [[#Cover metadata and history]] owns their content. The core emits a manifest metadata
+row per frontmatter key other than `history`, `obs` and an adapter's namespace
+([[#Core and adapter namespaces]]), with its value as authored; the
+adapter adds the rows of its own generation provenance.
+
+The core emits every projection as records of its type in the Document's `records`, a
+tag row for each mark of a marked paragraph; `src/obs/document.schema.json` (`$defs/record`)
+defines each record type and its fields.
+
+Inclusion, table rows and tag navigation to the table holding a row use the grammar above.
+Counts are not Bases filters: they use the record-metric conditions owned by
+[[#Document home and abstract|cards]].
 
 ### Glossary
 
@@ -1536,7 +1338,7 @@ Filter input and open bar. Empty or closed filters reopen unfiltered with the ba
 Invalid input drafts never replace the last valid expression in saved state.
 If a stored expression cannot compile, show it and its error in the open Filter bar rather
 than silently discarding it. Fresh generation remains unfiltered; appearance always starts
-Light with Pages. [[artifact-ui#What counts as a change]] owns whether reader state marks
+Light with Pages. The adapter owns whether reader state marks
 the artifact changed.
 
 An absent trusted view selection means an empty selection. Registering that empty
@@ -1547,8 +1349,7 @@ selections retain their loaded baseline. Initialization must not rebase genuine
 reader or canonical edits made while other startup work is still finishing.
 
 Reviewed reader state also retains visible column keys in display order, keyed by the
-table's stable identity. How resized column widths are classified is owned by
-[[artifact-ui#What counts as a change]].
+table's stable identity. How resized column widths are classified is the adapter's.
 
 The table owner validates and rebuilds these settings against its current column catalog;
 saved rows or rendered DOM
@@ -1561,8 +1362,8 @@ A `property-editor` fence contains `version: 1`, `field`, and `label`, plus an o
 positive `maxLength` (default and bound owned by its schema).
 
 An optional static `projection` mapping declares `blank` and `nonblank` maps of top-level frontmatter
-fields to safe primitive values. Projection keys cannot name the edited field; values must
-match the existing field types, and arrays must be flat and homogeneous.
+fields to safe primitive values. Which fields it may write is owned by
+[[capabilities/property-editors#Projection rules]].
 
 After validating the entire mapping, a committed edit selects `blank` for trimmed empty text
 and `nonblank` otherwise, then atomically commits the text and selected values. The mapping is
@@ -1573,9 +1374,9 @@ A property editor opts one existing top-level string property of that canonical 
 plain-text editing, including empty strings.
 
 Generated Home and presentation-semantic properties are not editable, whether directly or
-through a derived projection. The editor
-schema owns the shared protected-field constraint, applied case-insensitively at generation
-and at the runtime transaction boundary.
+through a derived projection. [[capabilities/property-editors#Projection rules]] owns that
+constraint for a projection; the adapter's editor schema applies it to the edited field and at
+the runtime transaction boundary.
 
 Enter or leaving the editor commits text; query fields and metadata caches are refreshed.
 Saved copies replace the artifact data island from the canonical model, not rendered inputs.
@@ -1598,8 +1399,8 @@ through these canonical property editors as unsaved reviewed-copy state.
 
 An artifact opened from a generated or reviewed HTML file starts clean. A semantic change marks it dirty;
 reverting all changes to the loaded state clears that state. Edits that do not change a
-canonical value do not make semantic review state dirty. The changed-HTML notice and unload
-confirmation follow [[artifact-ui#What counts as a change]].
+canonical value do not make semantic review state dirty. The adapter's notice of a change and its unload
+confirmation follow the adapter's rule for what counts as a change.
 
 The artifact-level comparison also covers the current embedded source archive, when present,
 through its existing archive owner rather than a second serialized payload.
@@ -1658,7 +1459,7 @@ unconfirmed changes risks losing them.
   safely in reviewed-copy serialization, merge and extraction; existing annotations
   remain compatible.
 
-  The gesture and waiting-only scope are owned by [[artifact-ui]]. Version 2 annotations
+  The gesture and waiting-only scope are the adapter's. Version 2 annotations
   optionally carry `batch: {scope, items}`. `scope` is
   `section`, `chapter`, or `document`; `items` is a nonempty, duplicate-free array
   of `{chapter, item}` review identities. This is an annotation association, not a
@@ -1689,8 +1490,7 @@ a side-by-side migration of an existing artifact before choosing the next extens
 the original artifact folder; preserve its original artifact and calculation scripts.
 
 Authorized editorial changes belong in the canonical Markdown, not hardcoded adapter summaries.
-The side-by-side adapter stages normalized notes in `.obs-html/vault` and writes
-`artifact-obs-html.html`. It preserves engineering statements and values without rerunning models.
+The side-by-side migration preserves engineering statements and values without rerunning models.
 
 Open points and glossary entries become canonical notes queried by ordinary tables, with stable
 links to the same records. Existing answers do not imply closure: no status is inferred.
@@ -1706,16 +1506,15 @@ Base64 PDF/plain-text/JSON/binary
 attachment links are allowed; this does not enable raw HTML or HTML/script data URLs.
 
 Math is rendered as static MathML without remote scripts. Display math written inside a paragraph
-(`Text $$a^2$$ text`) stays inside that paragraph, as in Obsidian: obs_html writes it as
-phrasing content shown as a block, since HTML allows no block element inside a paragraph.
+(`Text $$a^2$$ text`) stays inside that paragraph, as in Obsidian.
 
 Ordinary Markdown citations such
 as `[[1]](references.md#ref-1)` are links with bracketed labels, not nested wikilinks.
 
 Keep the parity decision open rather than approximating unsupported syntax silently.
 
-Reader presentation follows [[artifact-ui]]: authored Important callouts identify key takeaways,
-linked subtitle figures orient readers. Build-comparison provenance remains outside the artifact.
+Authored Important callouts identify key takeaways and linked subtitle figures orient readers;
+their presentation is the adapter's. Build-comparison provenance remains outside the artifact.
 
 The side-by-side edition keeps the original's open points, glossary entries, references and
 referenced figures, using shared query tables and a linked count.
@@ -1725,314 +1524,14 @@ without `--embed-attachments` and keeps provenance text); source directories are
 snapshots, and links that resolve only on the author's machine remain provenance text.
 
 Figure numbers and cross-references
-use block ids with `obsHtml.figures.numbering: chapter`; expanded images zoom and pan. Compare native PDF appearance separately;
+use block ids with chapter numbering; expanded images zoom and pan. Compare native PDF appearance separately;
 DOM tests establish behavior, not visual parity. These findings belong to this remaining
 extension decision, not additional open-point markers.
 
 Choose the next Obsidian extension after comparing native Bases formulas/summaries, note
 embeds and diagrams against the side-by-side artifact (embedded `.base` files are owned by
-[[generic-tables]]). Preserve unsupported syntax
+[[#Base files and members]]). Preserve unsupported syntax
 as an explicit limitation rather than silently approximating it.
 #mark/open_point/next_obsidian_extension
 
-See [[product]], [[architecture]], [[artifact-ui]], and [[cli]].
-
-## Canonical reference presentation
-
-### Named icon resources
-
-Icons are one projection of the shared [[semantic-assets]] index, not a separate
-catalog or glyph/drawing map in behavior code. That owner specifies typed assets,
-named references, nested inheritance, state defaults, semantic colors, confined
-file dependencies and validation. Its generic `artifact.assetIndex` replaces the
-unreleased icon-only configuration proposal.
-
-File-resource coloration and its bounded monochrome opt-in follow that same
-owner; Base references use its shared semantic-identifier profile.
-
-Existing Obsidian Base declarations reference semantic identifiers through
-`obsHtml.icon.name` and composed `obsHtml.icons[*].name`. Identifiers are not
-restricted to today's built-in icon-name enum. An artifact author can change the
-catalog or select another named resource without editing application code.
-
-Do not introduce a separate inline-Markdown dialect for this change; ordinary
-file-image references retain their existing resource semantics.
-
-Asset appearance never selects an action, navigation target, download mode,
-accessible label or permission. Those remain explicit properties of the
-existing control/action declaration. Link-backed icon declarations may explicitly
-request `download: true` or `false`.
-
-Preserve the legacy `snapshot` link slot's download behavior when that field is
-omitted, normalize this compatibility at
-the input boundary, and use an explicit download declaration in maintained
-adapter output. Changing or overriding its glyph must not change its behavior.
-
-The existing action owner supplies active/inactive or other declared state to
-that resolver; state selection does not duplicate action or record semantics.
-Typography/layout and application of the resolved colors remain stylesheet
-responsibilities. Resource ownership and source reproduction follow [[semantic-assets]].
-
-Base property declarations may add `obsHtml.reference: {label: [item.id, item.name]}`.
-
-The ordered field names are resolved on the existing linked canonical note, not on the
-referencing row. `file.name` denotes its source filename stem and `title` its subject title.
-The input remains an ordinary wiki/Markdown link or list of links; presentation never
-copies target records into relation rows.
-
-Optional `reference.metadata: [item]` selects canonical metadata fields/subtrees
-by prefix, preserving the target's field order and displaying labels relative to
-the selected subtree. The default retains all ordinary note metadata; projections
-may exclude transport/query wrappers without runtime knowledge of those wrappers.
-
-`properties.<field>.obsHtml.detail: true` makes that reference eligible for the explicitly
-declared `views[0].obsHtml.details: columns` mode. Missing references are empty, not
-synthetic subject documents. Existing `displayName` labels apply to group captions too.
-
-`views[0].obsHtml.wide: true` marks table composition only; [[artifact-ui]] owns orientation.
-
-Icon slots use `properties.<slot>.obsHtml.icon` with a catalog resource `name`
-and accessible `label`, plus one of `linkProperty` with `unavailable`,
-`action: sourceArchive`, a fixed action ID registered by the explicitly selected
-trusted runtime (with `unavailable` when its `card` declares a `link`, see
-[Trusted floating-content actions](#trusted-floating-content-actions)), `help`
-(plain text), or `unavailable` alone.
-
-`helpProperty` may replace static help text with the canonical row's field,
-using its existing trusted rich-metadata projection rather than flattening
-formatted values or links to plain text. Optional `help` appends a shared
-plain-text explanation. Presentation reuses the shared rich-hover owner defined
-in [[artifact-ui]], not a separately styled instruction popup.
-
-Help alone remains informational;
-an action ID selects an existing handler, never an authored callback.
-Compact slot width is owned by `artifact.tableIconWidthPixels`
-in the shared configuration/schema.
-
-Link properties consume existing safe rendered links, sourceArchive consumes the
-existing original-source download owner, and unavailable slots remain explicitly disabled.
-An authored action ID never grants runtime registration or script trust.
-Default appearances, including unavailable slots, are owned by the icon catalog,
-not this contract or an action-name switch.
-
-An unavailable slot retains its explicit reason and disabled state when its appearance is
-overridden.
-Tooltips identify the operation as well as any row-specific instructions.
-An import/replacement icon is not a claim that the browser reproduces an external
-export. Icon changes preserve the same trusted action and shared rich-hover help.
-
-### Compact declarative table presentation
-
-A view may explicitly disable pagination (including its item totals/footer), request
-equal initial widths for its displayed subject columns, and select a smaller point
-size for expanded subject details. These are schema-validated `obsHtml` view options;
-omitting them preserves the existing table defaults.
-
-Shared bounds/defaults belong in configuration and its schema, not duplicated
-constants.
-The declarations are `pagination: false`, `columnSizing: equal`, and
-`detailFontSize: 10` (points) under the view's `obsHtml` mapping.
-One final labelled property may compose several existing icon actions in a compact
-cell; it retains each action's accessibility and unavailable state.
-
-This is data-only composition of existing actions, not executable authored content.
-Its `obsHtml.icons` array contains existing icon declarations; singular `icon`
-remains supported. They are alternative declarations for the same property.
-Canonical reference metadata selection supports a human-facing ordered allowlist
-without copying the selected values into relation notes.
-
-Missing fields are omitted; safe URLs remain links and rendered descriptions are not
-repeated as raw HTML.
-Blank strings, nulls and empty collections are also omitted from detail metadata;
-false and zero remain meaningful values.
-Record-backed tables can use the existing artifact query catalog for field discovery
-when it describes the same population; other tables retain their own field scopes.
-
-An explicitly empty property `displayName` suppresses its visible header text while
-retaining an accessible field label. It does not erase the field identity or its values.
-`showEmptyDetailTabs: true` under the view's `obsHtml` preserves every displayed
-detail-subject column as a tab; tabs without permitted content are visibly disabled
-and cannot be activated.
-
-The omitted/default setting retains the existing omission behavior for other artifacts.
-`screenPageBreaks: false` under the view's `obsHtml` keeps the current table page,
-including expanded details, together on one variable-height HTML sheet. This is a
-screen pagination hint, not text `nowrap` or a change to row pagination. PDF retains
-normal physical-paper splitting and repeated headers.
-
-`compact: true` opts into shared compact table sizing: tightly measured composed
-icon slots/header controls and the configured compact minimum text-column width.
-It does not suppress overflow or remove controls; ordinary tables retain their
-configured ordinary minimum. Both minima are schema-bounded shared configuration.
-
-An opt-in `properties.<field>.obsHtml.editable: true` uses the canonical note's
-already-declared property editor directly in the table cell. The owning editable
-property, validation/projection and save lifecycle remain authoritative; a table
-does not create another editable value or trigger downloads on edits.
-
-`editor: singleLine` alongside `editable: true` requests a one-line text input.
-An existing multiline canonical value is preserved on untouched focus/blur;
-only an actual edit commits the input's one-line text through the existing owner.
-`singleLine: true` on a reference property requests an ellipsized one-line cell label, with
-the complete text retained as its accessible text and hover title.
-
-`properties.<field>.obsHtml.leadingLines: [otherField, ...]` composes a plain cell:
-each listed property of the same row renders as its own line, in order, before the
-property's own value.
-
-A missing, null, blank or empty leading value renders no line, so rows without it show no
-empty first line. The leading properties remain ordinary
-row properties; the column keeps its own field identity for sorting, filtering and
-property editors, and canonical values are never concatenated or rewritten.
-
-It is presentation only, shared by screen, static and printed tables, and applies to
-plain and `linkProperty` values. Combining it with `icon`, `icons`, `reference` or
-`editable` is rejected. Example: `description: {obsHtml: {leadingLines: [evidenceDate]}}`
-shows the evidence date above its description.
-
-An optional `reference.linkProperty` resolves a safe source URL on the referenced
-record for its displayed label. Explicit subject-tab activation still selects
-the tab; the identifier inside that subject uses the source URL. Raw identity
-fields remain unchanged. `obsHtml.linkProperty` on an ordinary property similarly
-links its label through another field on the same record.
-
-Decided 29 Oct 2026: a `linkProperty` that resolves to an external URL is replaced
-by linking the record's own note, which carries the `url`
-([[#Reference notes and link text|reference notes]]). The URL then appears only in the hover card. Until
-migrated, such a `linkProperty` is a lint warning.
-
-An optional `reference.metadataFormats` mapping gives displayed metadata fields
-an explicit `format` (`html` or `table`) and an optional raw `source` field path.
-Missing raw sources retain the original plain value; canonical fields are never
-rewritten by formatting. HTML is parsed inertly and copied through a finite
-passive-element/attribute allowlist.
-
-Sole entity-escaped markup may be decoded through its bounded HTML/XML layers; ordinary
-percentages and prose are not
-percent-decoded. A table source is the existing data-only `{headers, rows}` shape,
-with scalar cells; its markup-valued cells use the same safe HTML formatter.
-Empty structured tables are omitted rather than replaced by flattened schema text.
-
-Imported image references use explicit non-fetching placeholders. Only absolute
-HTTP(S) and mail links remain active; relative source links are not guessed
-against the generated artifact's location.
-Formatting is shared by initial, filtered, printed and canonically refreshed
-subject details and must not add another query or canonical data owner.
-
-Table `obs-table-set-row-keys` presentation events may restrict a mounted view to
-known row identities (or reset with null); this independent presentation scope
-intersects, never replaces, its authored and interactive queries. Static exports
-inherit the same scope without altering canonical records.
-
-## Shared source-archive link
-
-The authored Markdown link target `obs-source:archive` invokes the same current
-archive-download action as the cover and Settings/exports controls; it never
-addresses a second archive or a separately cached copy. The source owner resolves
-the current bytes at activation, including after a committed evidence replacement.
-
-When the initial build omits the archive, generated artifact guidance must not claim
-that a complete source ZIP is available or expose a broken download. A later
-partial evidence archive retains its truthful partial label.
-
-## Trusted runtime and canonical replacement
-
-The builder alone may select one regular vault-local JavaScript bundle with
-`--trusted-runtime-bundle ID=PATH`. Markdown, Base definitions, metadata, ordinary
-assets and uploaded evidence never authorize executable code.
-
-The bundle registers its selected ID and unique fixed actions before
-`obs-html-ready`; missing, malformed,
-duplicate and mismatched registration fails visibly. Authored action declarations
-are data, not callbacks. Source reproduction records the original explicit selection
-in its rebuild command; it does not infer trust from the extracted manifest.
-
-`obsArtifact.stageCanonicalTransaction({expectedRevision, notes, assetChanges,
-sourceChanges})` stages a detached complete canonical-note candidate and its single
-owning ZIP. The framework validates safe content, identities, attachment references
-and confined source changes before returning a revision-checked commit handle.
-
-The commit updates notes, archive and descriptors together, invalidates derived views
-and emits one canonical change. Parsing, source projection, compression, validation,
-cancellation or revision failure leaves the prior state unchanged. This does not
-relax the narrower existing-field property-editor contract.
-
-Runtime text uses text nodes and allowlisted semantic content, never uploaded HTML
-assigned as executable markup. Selected action handlers artifact synchronous throws and
-asynchronous rejection through the same visible application error notice.
-
-Dynamic Sankey fences may declare `sourceNote`, an exact extensionless vault-relative
-Markdown identity whose `frontmatter.graph` supplies current graph data.
-
-The collector includes that confined dependency even without a navigation/link
-reference. Manifest
-`canonicalNotes` selects other exact canonical dependencies. These declarations select
-data only, never scripts; traversal, missing files, duplicate declarations, aliases and
-slug guesses are not dependency identities.
-
-### Trusted floating-content actions
-
-Builder-selected trusted actions may use a shared framework floating-content host;
-its presentation and browser fallbacks belong to [[artifact-ui]]. This is a reusable
-host for safe content and controls, not a new authored scripting language, form DSL,
-workflow engine or parallel canonical store.
-
-Markdown still selects registered action IDs and owns instructions, source links and
-content-aware composition. Uploaded files,
-ordinary metadata and Base declarations do not gain permission to execute rendering code.
-
-A Base action icon may add `card` to turn its activation into a guided action card
-instead of an immediate file picker. The declaration contains only bindings to the
-row's existing canonical fields and fixed labels:
-
-required `title` and `submit` (the Apply label), optional `subject` (field shown as the card
-subject), `content` (fields rendered as rich instructions through the shared rich-metadata
-owner), `link` (field whose safe rendered links open the source in a new tab), and
-`input: {property, label}` (one required, nonblank text value prefilled from that
-field).
-
-Unknown keys are rejected. The card shows the source link first, above the
-subject and instructions, because the reader opens the source before following them.
-
-A declared `link` is a precondition of the card: a row whose `link` field renders no
-safe link gets no card, and its action slot is disabled (not dispatched) with the
-icon's authored `unavailable` reason, like other unavailable slots. An action icon
-whose card declares `link` therefore requires `unavailable`.
-
-The author decides which rows qualify through the row data and this declaration; the
-generator does not recognise particular rows. Choosing or dropping a file only stages it.
-Apply passes `{noteId, file, values, signal, artifact}` to the same registered
-action handler; `values` contains only the declared input property. The handler,
-not the card, validates and commits.
-
-Actions without `card` keep the existing file-picker behavior.
-`obsArtifact.openFloatingWindow({use, title, mount, returnFocus})`
-shows trusted content in the artifact's one [[artifact-ui#Floating window|floating window]];
-`use` names the header ("Evidence collection" for guided action cards).
-`mount(container, session)` mounts trusted controls once and the session exposes `active`,
-`mode`, an abort `signal` and idempotent `close()`, which removes that content from the
-window's history (closing the window when nothing else is left).
-
-A floating action's draft remains transient until explicit submission. File bytes
-and required accompanying metadata are validated and staged through the existing
-revision-checked canonical transaction, then committed together.
-
-Failure, cancellation or stale revision leaves the previous canonical model and
-archive
-unchanged. Closing a card must not allow pending asynchronous work to commit later.
-Successful submission uses the existing canonical-change and unsaved-HTML owners.
-Do not serialize helper windows, draft files or a second copy of evidence payloads.
-
-### Current source projection after a trusted update
-
-A complete source archive must rebuild the updated canonical result, not an earlier
-normalized vault. The trusted adapter stages its current generated Markdown and
-original-input filename mappings together with the evidence replacement.
-
-The generic transaction validates vault-local source changes, preserves unrelated
-members, updates
-the source inventory and commits all bytes at the same checked canonical revision.
-
-Source Markdown contains ordinary local attachment paths, never process-local Blob URLs.
-An archive first created by upload without initial sources remains a partial evidence
-archive; it must not acquire complete-source instructions or claims.
+See [[product]], [[architecture]], and [[cli]].

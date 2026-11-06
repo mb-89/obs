@@ -88,27 +88,9 @@ consume the same applied global Filter; a table's local query remains independen
 
   Formulas and summaries are
   later extensions of the same definition rather than separate table implementations.
-- An embedded `base` fence or an embedded `.base` file is the input adapter. Standard Obsidian keys
-  retain their meaning; what the core reads is permitted only under `obs`, artifact-specific
-  behavior only under `obsHtml` ([[input-model#Core and adapter namespaces]]).
-
-  A line `![[name.base]]` or `![[path/name.base#View]]` embeds a reusable `.base` file as in
-  Obsidian. A target with a folder is vault-relative; a bare name must match exactly one
-  non-hidden file in the vault. A bare name that matches none or several fails the build, naming
-  the embedding note and the candidates; the remedy is to embed the file's vault path.
-
-  The file holds the same YAML as a fence and passes the same validation once per build.
-  `![[file.base]]` embeds all views with the selector; `#View` embeds only that view. Every
-  embed is its own table instance with its own key and state, so two notes embedding one
-  file render it twice from one definition. Registers use this mechanism ([[input-model]]).
-- A view may declare ordered `obs.members` entries containing a vault-relative note `path`
-  and optional view-local `label`. This set intersects the ordinary Base query; its order is the
-  initial row order, in which the core emits the view's rows, and its labels are projected as `obsHtml.label` without modifying canonical
-  note records. Missing, duplicate, absolute, or vault-escaping member paths, and paths that are
-  not Markdown notes, are input errors naming the note, the view, the entry
-  (`views[<view>].obs.members[<entry>].path`) and the remedy.
-  Members belong to their view: each view selects its own members, and a Base-level
-  `obs.members` is an input error naming the note; the remedy is to move it into the view.
+- obs's input model owns how a `base` fence or an embedded `.base` file is read and which
+  rows a view's `obs.members` selects (Base fences, Base files and members); the `obsHtml`
+  mapping holds this adapter's table options.
 - Display labels for columns and grouped properties are presentation metadata over the
   existing field keys. Headers/group captions need not expose dotted storage paths;
   renaming a display label never changes filters, canonical properties or stable routes.
@@ -186,71 +168,8 @@ consume the same applied global Filter; a table's local query remains independen
 
 ### Bases filter grammar
 
-This subsection owns the supported subset of Obsidian
-[Bases filters](https://help.obsidian.md/bases/views). It applies to Base `filters`,
-view `filters`. Anything outside it is unsupported.
-
-- A filter is one comparison string or a mapping with exactly one key, `and`, `or` or
-  `not`. That key holds one filter or a nonempty list of filters, nested to any depth.
-  `and` needs all operands, `or` needs one, and `not` means none of them is true.
-- A comparison is `property == literal` or `property != literal`, with optional spaces
-  or tabs around the operator. The `comparison` pattern in `base.schema.json` owns the
-  exact characters, so both runtimes read the same syntax.
-- A property is `name`, `note.name` or `note["any name"]`. A bare `name` uses ASCII
-  letters, digits, `_` and `.` and starts with a letter. Both prefixes read the same
-  frontmatter property. `file.name`, `file.path`, `file.folder` and `file.ext` read the
-  note's vault-relative path, not frontmatter.
-- A literal is `null`, `true`, `false`, a JSON-style number, or text in double or
-  single quotes. Quoted text is taken verbatim; it contains no backslash, line break
-  or its own quote character.
-- A property resolves to a whole frontmatter key first, its name matched by
-  [[capabilities/bases#Comparisons]]. Otherwise its dots walk nested mappings. A numeric segment selects a list item; other segments collect the values of
-  every list item. Segments never read text or list members such as Bases' `.length`.
-- Equality follows [[capabilities/bases#Comparisons]] (case, types, missing properties).
-- Functions, methods, other operators, `formula.*`, `this.*`, other `file.*`
-  properties and frontmatter names starting with `file.` are unsupported.
-
-Python evaluators decide at generation time which notes a Base includes, because the
-generator runs without a JavaScript engine: the core's `src/obs/selection.py` for the
-Document, and the interim adapter's until its cutover. The browser evaluates again because
-readers can edit Base definitions and canonical values in the open HTML.
-
-Every evaluator runs the shared conformance fixture
-`test/fixtures/bases-filter-conformance.json`, which lists records, filters, expected
-record ids and unsupported filters. A grammar change updates this subsection, the schema
-pattern and that fixture together.
-
-Generation fails on an unsupported filter. The error names the source file, the base
-fence, and the filter text; it never treats the filter as matching
-nothing. The browser Query view reports the same filter as invalid.
-
-A view's `obs.records` evaluates projected rows of one kind instead of canonical notes;
-the base's `obs.records` is the default for its views. A comparison on a bare
-`recordType` is rejected with a migration message naming `obs.records`. Both
-evaluators resolve a projected row's properties in the same way.
-
-A row's own fields resolve first: `sourcePath`, plus `chapter`, `title`,
-`slug` and `depth` on note and chapter rows, `term`, `definition` and `aliases` on
-glossary rows, and `type`, `label`, `text` and `source` on tag rows.
-
-Any other property of a note, chapter or glossary row resolves on its note's frontmatter
-and path as above. A tag row has no other properties. Displayed cells, such as flattened
-frontmatter text or tag backlinks, are never filter values.
-
-Document metadata rows (`recordType` `documentMetadata`: `key`, `value`) and history rows
-(`documentHistory`: `version`, `date`, `author`, `change`) never include a note; all their
-fields are own fields. [[input-model]] owns their content. The core emits a manifest metadata
-row per frontmatter key other than `history`, `obs` and an adapter's namespace
-([[input-model#Core and adapter namespaces]]), with its value as authored; the
-adapter adds the rows of its own generation provenance.
-
-The core emits every projection as records of its type in the Document's `records`, a
-tag row for each mark of a marked paragraph; `src/obs/document.schema.json` (`$defs/record`)
-defines each record type and its fields.
-
-Inclusion, table rows and tag navigation to the table holding a row use the grammar above.
-Counts are not Bases filters: they use the record-metric conditions owned by
-[[input-model#Document home and abstract|cards]].
+obs's input model owns the supported filter grammar (Base fences, Bases filter grammar); this
+adapter's browser evaluator runs the same conformance fixture.
 
 ## Editable query view
 

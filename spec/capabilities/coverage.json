@@ -1,13 +1,9 @@
 {
   "sections": {
-    "Trusted presentation projections": "adapter",
     "Manifest contract": "input",
     "Document home and abstract": "input",
     "Profiles": "input",
-    "Artifact presentation profile": "adapter",
     "Registers": "input",
-    "Artifact behavior": "adapter",
-    "Optional reproduction archive": "adapter",
     "Cover metadata and history": "adapter",
     "Chapter content": "input",
     "Callouts": "input",
@@ -22,13 +18,6 @@
     "Command-derived content": "input",
     "Reviewed copy": "input",
     "One count query": "input",
-    "Next Obsidian extension": "input",
-    "Canonical reference presentation": "adapter",
-    "Named icon resources": "adapter",
-    "Compact declarative table presentation": "adapter",
-    "Shared source-archive link": "adapter",
-    "Trusted runtime and canonical replacement": "adapter",
-    "Trusted floating-content actions": "adapter",
-    "Current source projection after a trusted update": "adapter"
+    "Next Obsidian extension": "input"
   }
 }

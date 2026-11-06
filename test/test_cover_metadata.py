@@ -1,8 +1,10 @@
-"""Cover metadata names no application or vendor (input-model#Cover metadata and history).
+"""The core validates the manifest's cover metadata (input-model#Cover metadata and history).
 
-The manifest's document number is `document number`; the removed `sap number` is an input error
-naming the manifest, the old field and the new one, with no compatibility layer. Errors are
-matched by their field path and owner reference (AGENTS.md), never by wording.
+Cover metadata names no application or vendor: the document number is `document number`, and the
+removed `sap number` is an input error naming the manifest, the old field and the new one, with no
+compatibility layer. The core checks every cover field against `src/obs/cover-metadata.schema.json`
+through the one error formatter; the manifest's other frontmatter stays open. Errors are matched by
+their field path and owner reference (AGENTS.md), never by wording.
 """
 from importlib.resources import files
 import json
@@ -44,6 +46,63 @@ def test_the_removed_sap_number_names_the_manifest_the_old_field_and_the_new_one
     assert message.startswith(f"{tmp_path / 'vault' / 'manifest.md'}: sap number: "), message
     assert "document number" in message
     assert message.endswith(OWNER), message
+
+
+def _refused(tmp_path: Path, frontmatter: str) -> str:
+    """The message of the input error the manifest frontmatter raises."""
+    with pytest.raises(DocumentError) as raised:
+        _build(tmp_path, frontmatter)
+    return str(raised.value)
+
+
+def _names(message: str, tmp_path: Path, field: str) -> None:
+    """The message names the manifest, the field and a remedy, and points at the owner."""
+    assert message.startswith(f"{tmp_path / 'vault' / 'manifest.md'}: {field}: "), message
+    assert re.search(r"\. [A-Z][^.]*" + re.escape(OWNER) + "$", message), message
+
+
+def test_a_non_string_author_names_the_manifest_the_field_and_the_remedy(tmp_path) -> None:
+    _names(_refused(tmp_path, "authors: 5\n"), tmp_path, "authors")
+
+
+def test_an_unknown_cover_metadata_field_names_the_manifest_the_field_and_the_remedy(tmp_path) -> None:
+    _names(_refused(tmp_path, "product: {name: Pump, colour: red}\n"), tmp_path, "product.colour")
+
+
+@pytest.mark.parametrize(("frontmatter", "field"), [
+    ("document type: 3\n", "document type"),
+    ("organization: [Acme]\n", "organization"),
+    ("legal entity: {name: Acme}\n", "legal entity"),
+    ("reviewers: [Ann, 7]\n", "reviewers[1]"),
+    ("approvers: [Ann, ' ']\n", "approvers[1]"),
+    ("product: Pump\n", "product"),
+    ("product: {version: '2'}\n", "product.name"),
+    ("product: {name: Pump, version: 2}\n", "product.version"),
+    ("history: first\n", "history"),
+    ("history: [{version: '1', author: Ann}]\n", "history[0].change"),
+    ("history: [{version: '1', author: Ann, change: New, reviewer: Bob}]\n", "history[0].reviewer"),
+    ("history: [{version: '1', author: Ann, change: New, date: 5 May}]\n", "history[0].date"),
+    ("history: [{version: '1', author: Ann, change: New, date: '2026-02-30'}]\n", "history[0].date"),
+    ("history: [{version: '1', author: Ann, change: A}, {version: '1', author: Ann, change: B}]\n",
+     "history[1].version"),
+    ("history: [{version: '1*', author: Ann, change: A}, {version: '2', author: Ann, change: B}]\n",
+     "history[0].version"),
+])
+def test_each_cover_metadata_rule_names_the_manifest_the_field_and_the_remedy(
+    tmp_path, frontmatter: str, field: str,
+) -> None:
+    _names(_refused(tmp_path, frontmatter), tmp_path, field)
+
+
+def test_unassigned_cover_fields_and_other_frontmatter_are_accepted(tmp_path) -> None:
+    document = _build(tmp_path, (
+        "document type: ''\norganization:\nauthors: []\nreviewers: ' '\nproduct: {name: '', version: ''}\n"
+        "history: [{version: '00', author: Ann, change: New, date: 2026-05-04},"
+        " {version: '01*', author: Ann, change: Draft, date: ''}]\n"
+        "status: draft\nobsHtml: {layout: paged}\n"
+    ))
+
+    assert document["manifest"]["metadata"]["status"] == "draft"
 
 
 def _keys(value: object) -> list[str]:
