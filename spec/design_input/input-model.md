@@ -481,10 +481,10 @@ Generation time remains separate from document revision dates.
   explicitly. Link examples inside code remain literal.
 
   A link's `attrs.chapter` names the chapter of its target; a link to the manifest names
-  `home`, which no chapter identifier takes. Name lookup skips the manifest. `null` remains
-  only for a target that does not exist; the build then warns, naming the source note, the
-  target and the remedy (decided 5 Nov 2026), and for a link in a frontmatter value also its
-  field, by the dotted path its field node names.
+  `home`, which no chapter identifier takes. Name lookup skips the manifest. `null` follows
+  [[capabilities/wikilinks#Document node]]. For a target that does not exist the build warns,
+  naming the source note, the target and the remedy (decided 5 Nov 2026), and for a link in a
+  frontmatter value also its field, by the dotted path its field node names.
 - Obsidian `aliases` frontmatter supplies alternative names for the same note.
 
   It accepts a
@@ -862,6 +862,23 @@ Implementation decisions, same date:
   author's order and separators stay: the plural label replaces the singular once, and each
   number keeps its link. A run of three or more numbers in the same chapter that increase by
   one renders as first–last, linking both ends.
+
+Core and adapter, 6 Nov 2026:
+
+- The core resolves a block link written as a wikilink (`[[#^name]]`, `[[note#^name]]`) to the
+  figure that carries the block id, as [[capabilities/wikilinks]] owns; an unknown block id and
+  a block id two figures of one note carry are build errors that name the note and the link or
+  figure. The Markdown form `[](note.md#^name)` is not yet a reference the core resolves.
+- The core runs the figure lint on every build: a figure fence without caption, an image file
+  alone in its paragraph (`![...]` of another file is an attachment), a caption outside the
+  figure and a typed figure number, each a Document diagnostic with its note line. It knows no
+  numbers and reads no adapter's options: typed numbers are recognised after the labels of the
+  core configuration (`input.figureReferences.labels`, whose default
+  `src/obs/config.schema.json` owns), and the suggested link is the note's figure at the
+  position the number's last component gives.
+- The adapter numbers the figures, shows the number, renders a reference as the figure's label
+  and number and merges adjacent references; the error for an unlabelled reference to an
+  unnumbered figure is the adapter's, since only it knows numbers.
 
 Confirmed defaults, same date:
 
