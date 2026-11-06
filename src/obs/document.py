@@ -266,6 +266,11 @@ def build_parser() -> argparse.ArgumentParser:
                              "generated from spec/capabilities when it was built).")
     parser.add_argument("--destination", type=Path, action="append",
                         help="Adapter output destination; once per --source.")
+    parser.add_argument("--serve", action="store_true",
+                        help="After the build, serve the artifact with the command the adapter declares (serve in "
+                             "its adapter.json) and exit with its exit code; it prints where to open it.")
+    parser.add_argument("--wait", action="store_true",
+                        help="With --serve: the server exits after the reader's first answers, printing them.")
     parser.add_argument("--adapter-option", action="append", default=[], metavar="NAME=VALUE",
                         help="Pass an option the adapter declares in its adapter.json (options); "
                              "repeatable. A boolean option takes true or false; a vault-file option ID=PATH, "
@@ -300,9 +305,19 @@ def main(argv: Sequence[str] | None = None) -> int:
             raise DocumentError("--adapter is required when --source is not supplied.")
         if options.adapter_option and not options.adapter:
             raise DocumentError("--adapter-option is only used with --adapter.")
+        if options.wait and not options.serve:
+            raise DocumentError("--wait is only used with --serve: the server waits for the reader's answers. "
+                                "Add --serve, or drop --wait.")
+        if options.serve and (not options.adapter or len(sources) > 1):
+            raise DocumentError("--serve serves the one artifact --adapter writes. Build one --source or --document "
+                                "with --adapter and --destination, or drop --serve.")
         adapter, arguments = None, []
         if options.adapter:  # Before the build: an undeclared option fails at once.
             adapter, arguments = _adapter(options.adapter, options.adapter_config, options.adapter_option)
+        if options.serve and "serve" not in adapter:
+            raise DocumentError(f"--serve needs a serve command, and adapter {options.adapter!r} "
+                                f"({adapter_manifest_path(options.adapter, options.adapter_config)}) declares none. "
+                                f"Drop --serve, or declare serve in that manifest; see {SERVE_OWNER}.")
         reference = read_capability_reference(options.capability_reference)
         if not options.source:
             vault_file = next((item for item in arguments if isinstance(item, VaultFile)), None)
@@ -312,10 +327,10 @@ def main(argv: Sequence[str] | None = None) -> int:
                                     f"{ADAPTER_OPTIONS_OWNER}.")
             _deliver(adapter, arguments, options.adapter_config, read_document(options.document, reference),
                      options.document, options.destination, reference)
-            return 0
+            return _serve(adapter, options) if options.serve else 0
         if len(sources) == 1:
             _build(options, options.source, options.destination, reference, adapter, arguments)
-            return 0
+            return _serve(adapter, options) if options.serve else 0
         for source, destination in zip(sources, destinations):  # cli.md, Several documents per call.
             try:
                 _build(options, source, destination, reference, adapter, arguments, f"--source {source}: ")
@@ -324,6 +339,22 @@ def main(argv: Sequence[str] | None = None) -> int:
     except (AdapterError, DocumentError, InputError) as error:
         raise SystemExit(f"obs-document: {error}") from error
     return 0
+
+
+SERVE_OWNER = "spec/design_input/cli.md (One-call build)"
+
+
+def _serve(adapter: dict[str, object], options: argparse.Namespace) -> int:
+    """Run the adapter's serve command on the artifact it wrote, its output on ours; its exit code."""
+    command = [*adapter["serve"], str(options.destination.resolve()), *(["--wait"] if options.wait else [])]
+    sys.stdout.flush()
+    try:
+        return subprocess.run(command, cwd=options.adapter_config.parent, check=False).returncode
+    except OSError as error:
+        raise AdapterError(f"--serve: cannot start adapter {adapter['name']!r}'s serve command {command[0]!r}: "
+                           f"{error}. Install the adapter, or drop --serve; see {SERVE_OWNER}.") from error
+    except KeyboardInterrupt:
+        return 0
 
 
 def _check_several(options: argparse.Namespace, sources: list[Path], destinations: list[Path]) -> None:
