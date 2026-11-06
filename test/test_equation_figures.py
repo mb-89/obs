@@ -8,6 +8,7 @@ anything is solved.
 from __future__ import annotations
 
 import json
+import math
 from pathlib import Path
 
 import pytest
@@ -43,12 +44,13 @@ equations: y'' + 2*zeta*w*y' + w**2*y = w**2*u
 variables:
   t: {default: 0, range: [0, 10], unit: s}
   y: {of: t, initial: [0, 0]}
-  zeta: {default: 0.3, range: [0.05, 2]}
+  zeta: {default: 0.3, range: [0.1, 1.9]}
   w: {default: 2, range: [0.5, 5], unit: 1/s}
   u: {default: 1, range: [0, 2]}
 plot:
   x: t
   y: y
+  family: {variable: zeta, steps: 7}
   grid: {zeta: {values: [0.2, 0.5, 0.8, 1.3]}, u: {steps: 3}}
   computed:
     - {name: settling, summary: settlingTime, of: y, tolerance: 0.02}
@@ -206,6 +208,40 @@ def test_a_second_order_linear_system_yields_an_exact_solution(built) -> None:
     for zeta in (0.3, 2.0):
         expected = _oscillator(zeta, 2.0, 1.0, 1.5)
         assert evaluate(branch["y"], {"t": 1.5, "zeta": zeta, "w": 2.0, "u": 1.0}) == pytest.approx(expected, rel=1e-9)
+
+
+def test_an_oscillator_family_through_critical_damping_draws_every_curve(built) -> None:
+    _, bodies = built
+    body = bodies["oscillator"]
+    family = body["plot"]["family"]
+    [branch] = body["solution"]["branches"]
+    start, end = body["variables"]["t"]["quantity"]["siRange"]
+
+    # 7 steps over [0.1, 1.9] hit zeta = 1, where the general solution is 0/0.
+    assert 1 in family["siValues"]
+    for zeta in family["siValues"]:
+        for index in range(241):
+            t = start + (end - start) * index / 240
+            assert evaluate(branch["y"], {"t": t, "zeta": zeta, "w": 2.0, "u": 1.0}) is not None, (zeta, t)
+    for t in (0.25, 1.5, 6.0):
+        critical = 1 - (1 + 2.0 * t) * math.exp(-2.0 * t)
+        assert evaluate(branch["y"], {"t": t, "zeta": 1, "w": 2.0, "u": 1.0}) == pytest.approx(critical, rel=1e-9)
+
+
+def test_where_sympy_finds_no_limit_the_document_marks_the_value_for_the_numeric_solver(tmp_path, monkeypatch) -> None:
+    def no_limit(*_):
+        raise NotImplementedError("no limit")
+
+    monkeypatch.setattr(sympy, "limit", no_limit)
+    document = _build(tmp_path, _figure(OSCILLATOR))
+
+    [node] = [node for node in document["chapters"][0]["content"] if node["type"] == "figures"]
+    solution = node["children"][0]["attrs"]["solution"]
+    assert solution["method"] == "exact"
+    assert solution["numeric"]["when"] == {"relation": "eq", "args": [{"symbol": "zeta"}, {"number": 1}]}
+    system = solution["numeric"]["system"]
+    assert (system["method"], system["state"], system["initial"]) == (
+        "differential", [{"of": "y", "order": 0}, {"of": "y", "order": 1}], [0, 0])
 
 
 def _oscillator(zeta: float, w: float, u: float, t: float) -> float:

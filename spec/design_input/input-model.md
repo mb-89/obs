@@ -1083,7 +1083,14 @@ The core resolves the symbolics once, with SymPy (`src/obs/equations.py`):
   sum, both sides of an equation, `Min` and `Max`, and the dimensionless arguments of `exp`,
   `log` and the trigonometric functions. A mismatch names both quantities.
 - It solves the unknowns where SymPy can: `solve` for algebraic equations, `dsolve` with the
-  initial conditions for differential ones; each solution is one branch.
+  initial conditions for differential ones; each solution is one branch. A solution SymPy gives
+  piecewise stays piecewise.
+- Where a denominator of a solution vanishes at a value inside a variable's range (the
+  oscillator's critical damping, ζ = 1, where its general solution is 0/0), the branch is
+  piecewise: at that value it is SymPy's limit there, elsewhere the general solution; at a pole
+  there is no point. Where SymPy finds no limit, or the tree cannot carry it, and the variable is
+  not the x sweep, the solution marks the value and carries the numeric system below as well,
+  and a curve at a marked value is solved numerically. No curve inside a range is empty.
 - Where it cannot, the Document carries the system for numeric solving: algebraic equations as
   residuals, with each unknown's `default` as its starting guess.
 - A differential system goes in state form: its independent variable and start, its state
@@ -1097,7 +1104,9 @@ tree evaluated with SI values yields SI values.
 
 A tree evaluates in complex arithmetic with principal branches. A result is a point of the
 plot where its imaginary part vanishes, so an exact solution with complex intermediates (an
-underdamped oscillator) plots for every parameter. `src/obs/document.schema.json` owns the tree
+underdamped oscillator) plots for every parameter. A piecewise tree's value is that of its first
+case whose condition holds; an equality holds within the shared vectors' relative tolerance, so
+a value that a unit conversion rounds still meets its case. `src/obs/document.schema.json` owns the tree
 (`$defs/expression`) and the figure's body (`$defs/figureBodies/equations`).
 
 The Document's `plot.parallelCoordinates` carries `shown` and the axes: a grid variable's
