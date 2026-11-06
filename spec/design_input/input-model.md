@@ -709,7 +709,8 @@ a numeric-value note shows its value and unit (and range or tolerance once typed
 note shows its title. There is no placeholder syntax such as `$value` in link text.
 "Unlabelled" means a wikilink without `|label`: `[[alias]]` and `[[note-name]]` show the
 target's title, not the alias or file name written; a Markdown link always has its own text.
-Heading and block links keep their existing labels.
+An unlabelled heading or block link shows the note's title and the heading
+([[capabilities/wikilinks#Link text]]).
 
 The lint runs with the paragraph warnings on every build (stderr, never in the artifact): a
 Markdown link, autolink or bare `http(s)` URL in a note body (code excluded), and a base
