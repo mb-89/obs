@@ -1,3 +1,4 @@
+import math
 import json
 import re
 from xml.etree import ElementTree
@@ -455,3 +456,47 @@ def test_cli_check_reports_invalid_sankey_graph_without_writing(tmp_path, capsys
     assert result.value.code == 2
     assert set(tmp_path.iterdir()) == before
     assert "later stage" in capsys.readouterr().err
+
+
+DESCRIPTOR = {
+    "schemaVersion": 1, "id": "squares",
+    "data": {"traces": [{"x": [0, 1, 2], "y": [0, 1, 4], "label": "y = x²", "mode": "lines+markers",
+                         "color": "#d62728"}]},
+    "panels": [{"id": "squares", "bounds": {"x": 0, "y": 0, "width": 720, "height": 320},
+                "grid": {"row": 0, "column": 0, "rowSpan": 1, "columnSpan": 1},
+                "axes": [{"id": "x", "scale": "linear", "limits": {"minimum": 0, "maximum": 2}, "label": "x"},
+                         {"id": "y", "scale": "log", "limits": {"minimum": 1, "maximum": 4}, "label": "y"}]}],
+    "provenance": {"command": ["generate-figure"]},
+}
+
+
+def test_a_plot_fence_with_the_core_s_descriptor_draws_its_traces(tmp_path):
+    import yaml
+    fence = yaml.safe_dump({"version": 1, "kind": "plot", "caption": "Squares", "content": DESCRIPTOR},
+                           sort_keys=False, allow_unicode=True)
+    html = render_figure(fence, tmp_path / "note.md", tmp_path)
+    payload = json.loads(re.search(r'data-figure-spec="([^"]+)"', html)[1].replace("&quot;", '"'))
+    assert 'data-figure-kind="plot"' in html and "<img" not in html
+    assert payload["data"] == [{"x": [0, 1, 2], "y": [0, 1, 4], "type": "scatter", "mode": "lines+markers",
+                                "name": "y = x²", "marker": {"color": "#d62728"}, "line": {"color": "#d62728"}}]
+    assert payload["layout"] == {
+        "xaxis": {"title": {"text": "x"}, "type": "linear", "range": [0, 2]},
+        "yaxis": {"title": {"text": "y"}, "type": "log", "range": [0, math.log10(4)]},
+    }
+
+
+def test_a_plot_fence_with_the_core_s_sankey_descriptor_is_refused_with_its_owner(tmp_path):
+    import yaml
+    descriptor = {**DESCRIPTOR, "data": {"sankey": {"version": 1, "nodes": [
+        {"id": "a", "label": "A", "stage": 0}, {"id": "b", "label": "B", "stage": 1}],
+        "links": [{"source": "a", "target": "b", "value": 1}]}}}
+    fence = yaml.safe_dump({"version": 1, "kind": "plot", "content": descriptor}, sort_keys=False)
+    with pytest.raises(FigureError, match=r"content\.data\.sankey.*figure-descriptor"):
+        render_figure(fence, tmp_path / "note.md", tmp_path)
+
+
+def test_a_plot_fence_with_an_invalid_descriptor_names_its_field_and_owner(tmp_path):
+    import yaml
+    fence = yaml.safe_dump({"version": 1, "kind": "plot", "content": {**DESCRIPTOR, "id": "Bad"}}, sort_keys=False)
+    with pytest.raises(FigureError, match=r"\bid\b.*capabilities/figure-descriptor"):
+        render_figure(fence, tmp_path / "note.md", tmp_path)

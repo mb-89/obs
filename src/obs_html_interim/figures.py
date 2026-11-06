@@ -28,6 +28,11 @@ passed to the browser. Print always uses the complete artifact-owned default SVG
 
 An ordinary plot's producer writes `<name>.parameters.json` for its fence's equations, plus
 its SVG `fallback`.
+
+A `plot` fence with `content` in place of `source` carries the core's FigureDescriptor
+(obs capabilities/figure-descriptor), with only `caption` and `alt` beside it. The interim draws
+its `traces` shape with Plotly on the first panel's first two axes, x and y, and prints it as it
+prints an equation plot without fallback; it refuses the `sankey` shape and a descriptor `source`.
 """
 from __future__ import annotations
 
@@ -478,6 +483,34 @@ def _plain_text(html: str) -> str:
     return re.sub(r"\s+", " ", unescape(re.sub(r"<[^>]*>", "", html))).strip()
 
 
+def _descriptor_plot(descriptor: dict) -> dict:
+    """The Plotly data and layout of a FigureDescriptor's traces; see the module docstring."""
+    from obs.figure import FigureDescriptorError, validate_figure_descriptor
+
+    try:
+        validate_figure_descriptor(descriptor, "figure content")
+    except FigureDescriptorError as error:
+        raise FigureError(str(error)) from error
+    if "traces" not in descriptor["data"]:
+        raise FigureError("figure content.data.sankey: the interim renderer draws only the traces shape of "
+                          "capabilities/figure-descriptor. Draw it with a figure of kind sankey.")
+    axes = descriptor["panels"][0]["axes"]
+    if len(axes) < 2:
+        raise FigureError("figure content.panels[0].axes: a traces descriptor needs an x and a y axis; "
+                          "see capabilities/figure-descriptor. Add the y axis.")
+
+    def axis(item: dict) -> dict:
+        limits = [item["limits"]["minimum"], item["limits"]["maximum"]]
+        return {"title": {"text": item["label"]}, "type": item["scale"],
+                "range": [math.log10(value) for value in limits] if item["scale"] == "log" else limits}
+
+    data = [{"x": trace["x"], "y": trace["y"], "type": "scatter", "mode": trace.get("mode", "lines"),
+             "name": trace.get("label", ""),
+             **({"marker": {"color": trace["color"]}, "line": {"color": trace["color"]}} if "color" in trace else {})}
+            for trace in descriptor["data"]["traces"]]
+    return {"data": data, "layout": {"xaxis": axis(axes[0]), "yaxis": axis(axes[1])}}
+
+
 def figure_spec(text: str) -> dict:
     spec = yaml.safe_load(text)
     errors = list(_figure_validator().iter_errors(spec))
@@ -513,6 +546,14 @@ def render_figure(
         identity = (f' id="{escape(anchor, quote=True)}"' if anchor else "") + (
             f' data-figure-number="{escape(number, quote=True)}"' if number_html else ""
         )
+        if "content" in spec:
+            payload = {"kind": "plot", **_descriptor_plot(spec["content"]), "alt": spec.get("alt") or caption}
+            encoded = escape(json.dumps(payload, separators=(",", ":"), allow_nan=False), quote=True)
+            return (
+                f'<figure class="engineering-figure" data-artifact-figure data-engineering-figure data-figure-kind="plot" data-figure-spec="{encoded}"{identity}>'
+                '<div class="figure-live" aria-label="Interactive figure"></div>'
+                f'{caption_element}</figure>\n'
+            )
         source = _asset(spec["source"], note, vault)
         if spec["kind"] == "image":
             mime = mimetypes.guess_type(source.name)[0]
