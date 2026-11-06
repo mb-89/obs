@@ -776,7 +776,9 @@ note, the fence's line and the install command. No diagram is ever an empty figu
 Paths are relative to the note, confined to the vault, and files are read-only
 inputs. Rendering/checking never runs
 producers. Existing explicit command authorization remains unchanged. Authored SVG is
-embedded as an image, never executable inline markup.
+never executable: an output that shows a figure's SVG inline, so its links can be followed,
+shows no script, event handler or other executable content of it. A link inside a figure's SVG
+is a link like one in prose ([[capabilities/wikilinks#Links inside a figure]]).
 
 At the core boundary, a generated figure is a versioned JSON FigureDescriptor. It
 carries neutral data, an ordered panel list, and provenance; it does not carry rendered
@@ -862,6 +864,23 @@ Implementation decisions, same date:
   author's order and separators stay: the plural label replaces the singular once, and each
   number keeps its link. A run of three or more numbers in the same chapter that increase by
   one renders as first–last, linking both ends.
+
+Core and adapter, 6 Nov 2026:
+
+- The core resolves a block link written as a wikilink (`[[#^name]]`, `[[note#^name]]`) to the
+  figure that carries the block id, as [[capabilities/wikilinks]] owns; an unknown block id and
+  a block id two figures of one note carry are build errors that name the note and the link or
+  figure. The Markdown form `[](note.md#^name)` is not yet a reference the core resolves.
+- The core runs the figure lint on every build: a figure fence without caption, an image file
+  alone in its paragraph (`![...]` of another file is an attachment), a caption outside the
+  figure and a typed figure number, each a Document diagnostic with its note line. It knows no
+  numbers and reads no adapter's options: typed numbers are recognised after the labels of the
+  core configuration (`input.figureReferences.labels`, whose default
+  `src/obs/config.schema.json` owns), and the suggested link is the note's figure at the
+  position the number's last component gives.
+- The adapter numbers the figures, shows the number, renders a reference as the figure's label
+  and number and merges adjacent references; the error for an unlabelled reference to an
+  unnumbered figure is the adapter's, since only it knows numbers.
 
 Confirmed defaults, same date:
 

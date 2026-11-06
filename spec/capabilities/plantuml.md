@@ -23,6 +23,9 @@ the remedy: PlantUML's own message, or the command that installs the renderers
 ([[input-model#Remaining chapter content]], Figure input direction). A diagram includes no
 other file and no standard-library sprite: the renderer reads nothing but the diagram.
 
+A `[[note]]` link on an element links it to a note like a prose link
+([[capabilities/wikilinks#Links inside a figure]]).
+
 ## Authoring example
 
 ````markdown

@@ -15,6 +15,26 @@
         "projectConfigFilename": {
           "type": "string",
           "pattern": "^[^/\\\\]+\\.json$"
+        },
+        "cssSnippetFolder": {
+          "description": "Vault-relative folder, with forward slashes, whose .css files the Document carries as the vault's CSS snippets (architecture.md, CSS snippets).",
+          "type": "string",
+          "default": ".obsidian/snippets",
+          "pattern": "^(?!/)(?!.*(^|/)\\.\\.?(/|$))[^\\\\]+$"
+        },
+        "figureReferences": {
+          "type": "object",
+          "required": ["labels"],
+          "properties": {
+            "labels": {
+              "description": "The words before a number that make prose a typed figure number, which the figure lint warns about (input-model, Figure captions and references); the default applies to a build without core configuration.",
+              "type": "array",
+              "minItems": 1,
+              "uniqueItems": true,
+              "items": {"type": "string", "pattern": "\\S", "maxLength": 64},
+              "default": ["Figure", "Figures", "Fig.", "Figs.", "Abbildung", "Abbildungen", "Abb.", "Bild", "Bilder"]
+            }
+          }
         }
       }
     },
