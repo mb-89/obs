@@ -203,6 +203,10 @@ def _pugh(content: object, _media_type: str | None) -> dict[str, object]:
             if key in keys[:index]:
                 raise fail(f"{name}[{index}].key", f"is {key!r}, which an earlier entry has",
                            "Give every entry its own key")
+    if "checklist" in criteria:
+        index = list(criteria).index("checklist")
+        raise fail(f"criteria[{index}].key", "is 'checklist', the key of the row failed checklist items make",
+                   "Give the criterion another key")
     named = ", ".join(criteria)
     for index, candidate in enumerate(matrix["candidates"]):
         for part, kind in (("values", "measured"), ("marks", "judged")):
@@ -228,6 +232,12 @@ def _pugh(content: object, _media_type: str | None) -> dict[str, object]:
     if "chosen" in matrix and matrix["chosen"] not in options:
         raise fail("chosen", f"is {matrix['chosen']!r}, which is no option of the matrix",
                    f"Name one of {', '.join(options)}")
+    letters = [chr(ord("A") + index) for index in range(len(options))]
+    for index, item in enumerate(matrix.get("checklist", [])):
+        for position, letter in enumerate(item.get("options", [])):
+            if letter not in letters:
+                raise fail(f"checklist[{index}].options[{position}]", f"is {letter!r}, which is no option's letter",
+                           f"Name one of {', '.join(letters)}, the options' letters in the order candidates lists them")
     return {"matrix": matrix}
 
 

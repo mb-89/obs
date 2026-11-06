@@ -282,7 +282,7 @@
       ]
     },
     "pughMatrix": {
-      "description": "A Pugh decision matrix (capabilities/pugh-decisions; input-model, Pugh decision figures): the shape of ctrl's matrix file (github.com/mb-89/ctrl, design/output/pugh.md, \"The matrix file\"), without its options' figures and its overrides, with the chosen option and each option's short label and sentence. The core also checks what no schema states (src/obs/figure.py): unique keys, the criteria and options a field names, values for measured and marks for judged criteria.",
+      "description": "A Pugh decision matrix (capabilities/pugh-decisions; input-model, Pugh decision figures): the shape of ctrl's matrix file (github.com/mb-89/ctrl, design/output/pugh.md, \"The matrix file\"), without its options' figures and its overrides, with the chosen option, each option's sentence, wins and losses, and a checklist. An option's letter is its place in candidates (A for the first). The core also checks what no schema states (src/obs/figure.py): unique keys, the criteria, options and letters a field names, values for measured and marks for judged criteria, and no criterion keyed checklist.",
       "type": "object", "additionalProperties": false, "required": ["criteria", "candidates"],
       "properties": {
         "title": {"type": "string", "minLength": 1},
@@ -298,12 +298,13 @@
             "tolerance": {"type": "number", "minimum": 0}, "floor": {"type": "number", "minimum": 0},
             "kind": {"enum": ["measured", "judged"]}
           }}},
-        "candidates": {"description": "The options.", "type": "array", "minItems": 1, "maxItems": 64, "items": {
+        "candidates": {"description": "The options, lettered A to Z in this order.", "type": "array", "minItems": 1, "maxItems": 26, "items": {
           "type": "object", "additionalProperties": false, "required": ["key"],
           "properties": {
             "key": {"type": "string", "minLength": 1}, "label": {"type": "string", "minLength": 1},
-            "short": {"description": "The option's column label.", "type": "string", "minLength": 1},
             "what": {"description": "One sentence on what the option is.", "type": "string", "minLength": 1},
+            "wins": {"description": "The option's own gains, unweighted: a short text or a list of them.", "$ref": "#/$defs/pughTexts"},
+            "losses": {"description": "The option's own losses, unweighted: a short text or a list of them.", "$ref": "#/$defs/pughTexts"},
             "values": {"description": "Measured criteria: a number, or null where it was not measured.",
                        "type": "object", "additionalProperties": {"type": ["number", "null"]}},
             "marks": {"description": "Judged criteria: a mark from -2 to 2 against the datum, or a list of them, one per rater.",
@@ -329,9 +330,21 @@
           "seed": {"type": "number", "minimum": 0}, "holdShare": {"type": "number", "minimum": 0, "maximum": 1},
           "runnersUp": {"type": "integer", "minimum": 0}
         }},
-        "chosen": {"description": "The key of the option the author chose; an adapter says where it is not the winner.", "type": "string", "minLength": 1}
+        "chosen": {"description": "The key of the option the author chose; an adapter says where it is not the winner.", "type": "string", "minLength": 1},
+        "checklist": {"description": "Questions the decision must pass; a failed item that names options marks them on a weighted Checklist row.", "type": "array", "items": {
+          "type": "object", "additionalProperties": false, "required": ["item", "answer", "pass"],
+          "properties": {
+            "item": {"description": "The question.", "type": "string", "minLength": 1},
+            "answer": {"description": "One line.", "type": "string", "minLength": 1},
+            "pass": {"type": "boolean"},
+            "options": {"description": "The letters of the options the item fails.", "type": "array", "minItems": 1, "uniqueItems": true,
+                        "items": {"type": "string", "pattern": "^[A-Z]$"}}
+          }}},
+        "checklistWeight": {"description": "The weight of the Checklist row; 3 by default.", "type": "number", "minimum": 0}
       }
     },
+    "pughTexts": {"oneOf": [{"type": "string", "minLength": 1},
+                            {"type": "array", "minItems": 1, "items": {"type": "string", "minLength": 1}}]},
     "figureBodies": {
       "pugh": {
         "description": "A Pugh decision figure (capabilities/pugh-decisions): the matrix as data, which an adapter decides.",

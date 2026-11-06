@@ -22,10 +22,17 @@ MATRIX = {
         {"key": "ops", "label": "Ease of operation", "weight": 2, "better": "higher", "kind": "judged"},
     ],
     "candidates": [
-        {"key": "current", "label": "Current queue", "short": "Now", "values": {"latency": 12}},
-        {"key": "managed", "label": "Managed queue", "short": "Managed", "what": "A hosted queue we rent.",
+        {"key": "current", "label": "Current queue", "values": {"latency": 12}},
+        {"key": "managed", "label": "Managed queue", "what": "A hosted queue we rent.",
+         "wins": "No servers to run.", "losses": ["A bill every month", "Its latency"],
          "values": {"latency": 14}, "marks": {"ops": [2, 1, 2]}},
     ],
+    "checklist": [
+        {"item": "Does it keep our data in the EU?", "answer": "Both do.", "pass": True},
+        {"item": "Can we leave it within a month?", "answer": "Not the managed one.", "pass": False,
+         "options": ["B"]},
+    ],
+    "checklistWeight": 2,
     "gates": [{"criterion": "latency", "maxRatio": 2}],
     "datum": {"prefer": ["current"]},
 }
@@ -66,6 +73,11 @@ def test_a_pugh_fence_and_a_figure_fence_of_kind_pugh_carry_the_matrix_as_data(t
     (lambda m: m["datum"].update(prefer=["later"]), "content.datum.prefer[0]"),
     (lambda m: m.update(chosen="later"), "content.chosen"),
     (lambda m: m.pop("criteria"), "content.criteria"),
+    (lambda m: m["candidates"][0].update(short="Now"), "content.candidates[0].short"),
+    (lambda m: m["checklist"][1].update(options=["C"]), "content.checklist[1].options[0]"),
+    (lambda m: m["checklist"][0].pop("pass"), "content.checklist[0].pass"),
+    (lambda m: m["criteria"][1].update(key="checklist"), "content.criteria[1].key"),
+    (lambda m: m.update(checklistWeight=-1), "content.checklistWeight"),
 ])
 def test_a_matrix_the_core_refuses_names_the_note_the_fence_the_field_and_the_owner(tmp_path, change, field) -> None:
     content = json.dumps(_changed(change))

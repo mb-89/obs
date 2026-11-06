@@ -67,10 +67,10 @@ content:
        kind: judged}
     - {key: later, label: A later adapter may still live apart, weight: 1, better: higher, kind: judged}
   candidates:
-    - {key: apart, label: The adapter in its own repository, short: Apart,
+    - {key: apart, label: The adapter in its own repository,
        what: "The first adapter as it stood, pinning the core by commit and syncing it as a module.",
        values: {pins: 4}}
-    - {key: folder, label: The adapter as a folder of this repository, short: Folder,
+    - {key: folder, label: The adapter as a folder of this repository,
        what: A uv workspace member under adapters/ that depends on the core by path.,
        values: {pins: 0}, marks: {commit: 2, bookkeeping: 1, suite: 1, own: 0, later: 0}}
   datum: {prefer: [apart]}
