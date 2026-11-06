@@ -15,6 +15,7 @@ from obs.adapter import AdapterError, adapter_manifest_path, load_adapter, optio
 from obs.discriminator import discriminating_validator
 from obs.input import schema_error
 from obs.output import write_output
+from obs.sources import SourceError, source_archive, validate_source_archive
 from obs.vault import VaultError, build_document as _build_document
 
 
@@ -36,17 +37,21 @@ class DocumentError(ValueError):
 
 def build_document(
     manifest_path: Path, reference: dict[str, object], configuration_path: Path | None = None,
-    execute_commands: bool = False,
+    execute_commands: bool = False, embed_source: bool = False,
 ) -> dict[str, object]:
     """Parse a vault into a schema-valid neutral Document.
 
     ``execute_commands`` authorizes running the vault's cmd fences; see capabilities/command-fences.
+    ``embed_source`` discloses the vault's source files; see architecture, Source archive.
     """
     try:
         known = {item["id"] for item in reference["capabilities"]}
         document = _build_document(manifest_path, known, configuration_path, execute_commands)
+        if embed_source:
+            document["sourceArchive"] = source_archive(manifest_path.resolve().parent, document["assets"],
+                                                        document["cssSnippets"])
         validate_document(document, reference)
-    except VaultError as error:
+    except (SourceError, VaultError) as error:
         raise DocumentError(str(error)) from error
     return document
 
@@ -78,6 +83,9 @@ def validate_document(document: dict[str, object], reference: dict[str, object])
     error = schema_error(errors, "Invalid Document", "src/obs/document.schema.json")
     if error:
         raise DocumentError(str(error)) from None
+    error = validate_source_archive(document)
+    if error:
+        raise DocumentError(error)
     known = {item["id"] for item in reference["capabilities"]}
     unknown = sorted(set(document["capabilities"]) - known)
     if unknown:
@@ -220,13 +228,21 @@ def build_parser() -> argparse.ArgumentParser:
                         help="JSON Document to read, or to write from --source; with --source and "
                              "--adapter it is optional, and without it the Document is a temporary "
                              "file the build removes.")
-    parser.add_argument("--source", type=Path, help="Manifest note to parse into --document.")
+    parser.add_argument("--source", type=Path, action="append",
+                        help="Manifest note to parse into --document. Repeat --source, each followed by its "
+                             "--destination, to build several artifacts with --adapter in one call, in "
+                             "argument order; every other option applies to each.")
     parser.add_argument("--config", type=Path, help="Core configuration JSON for --source.")
     parser.add_argument("--execute-commands", action="store_true",
                         help="Authorize running the cmd fences of --source from its vault root: "
                              "producers (cmd silent) before conversion, then each other fence, "
                              "whose captured output the Document carries. Review the commands "
                              "first; without this a cmd fence fails the build.")
+    parser.add_argument("--embed-source", action="store_true",
+                        help="Disclose the source data of --source: the Document carries the vault's "
+                             "source files (sourceArchive), every file below the manifest's folder "
+                             "except hidden, generated and compiled ones, for an adapter that embeds a "
+                             "source archive. Nothing scans them for secrets: inspect the vault first.")
     parser.add_argument("--adapter", help="Configured adapter name.")
     parser.add_argument("--adapter-config", type=Path, default=Path(ADAPTER_CONFIGURATION),
                         help=f"Adapter configuration JSON (default: {ADAPTER_CONFIGURATION} in the "
@@ -234,7 +250,8 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--capability-reference", type=Path, default=PACKAGED_CAPABILITY_REFERENCE,
                         help="Capability reference JSON (default: the one this package ships, "
                              "generated from spec/capabilities when it was built).")
-    parser.add_argument("--destination", type=Path, help="Adapter output destination.")
+    parser.add_argument("--destination", type=Path, action="append",
+                        help="Adapter output destination; once per --source.")
     parser.add_argument("--adapter-option", action="append", default=[], metavar="NAME=VALUE",
                         help="Pass an option the adapter declares in its adapter.json (options); "
                              "repeatable. A boolean option takes true or false.")
@@ -243,9 +260,20 @@ def build_parser() -> argparse.ArgumentParser:
 
 def main(argv: Sequence[str] | None = None) -> int:
     options = build_parser().parse_args(argv)
+    sources, destinations = options.source or [], options.destination or []
     try:
+        if len(sources) > 1:
+            _check_several(options, sources, destinations)
+        elif len(destinations) > 1:
+            raise DocumentError("--destination is repeated without as many --source: each --source pairs with "
+                                "the --destination that follows it. Give one --source per --destination.")
+        options.source = sources[0] if sources else None
+        options.destination = destinations[0] if destinations else None
         if options.execute_commands and not options.source:
             raise DocumentError("--execute-commands is only used with --source.")
+        if options.embed_source and not options.source:
+            raise DocumentError("--embed-source is only used with --source: it archives the vault --source "
+                                "names. Build the Document from its manifest with --source.")
         if options.adapter and options.destination is None:
             raise DocumentError("--destination is missing: --adapter writes the artifact there. "
                                 "Name the output file with --destination.")
@@ -257,30 +285,56 @@ def main(argv: Sequence[str] | None = None) -> int:
             raise DocumentError("--adapter is required when --source is not supplied.")
         if options.adapter_option and not options.adapter:
             raise DocumentError("--adapter-option is only used with --adapter.")
+        adapter, arguments = None, []
         if options.adapter:  # Before the build: an undeclared option fails at once.
             adapter, arguments = _adapter(options.adapter, options.adapter_config, options.adapter_option)
         reference = read_capability_reference(options.capability_reference)
-        with ExitStack() as stack:
-            if not options.source:
-                _deliver(adapter, arguments, options.adapter_config,
-                         read_document(options.document, reference), options.document, options.destination,
-                         reference)
-                return 0
-            document = build_document(options.source, reference, options.config, options.execute_commands)
-            for diagnostic in document["diagnostics"]:
-                if diagnostic["level"] == "warning":
-                    print(f"obs-document: warning: {diagnostic['message']}", file=sys.stderr)
-            document_path = options.document
-            if document_path is None:
-                folder = stack.enter_context(tempfile.TemporaryDirectory(prefix="obs-document-"))
-                document_path = Path(folder) / "document.json"
-            _write(document, document_path)  # build_document validated it.
-            if options.adapter:  # The vault root as given, for the adapter's messages only.
-                _deliver(adapter, ["--vault-root", str(options.source.parent), *arguments],
-                         options.adapter_config, document, document_path, options.destination, reference)
+        if not options.source:
+            _deliver(adapter, arguments, options.adapter_config, read_document(options.document, reference),
+                     options.document, options.destination, reference)
+            return 0
+        if len(sources) == 1:
+            _build(options, options.source, options.destination, reference, adapter, arguments)
+            return 0
+        for source, destination in zip(sources, destinations):  # cli.md, Several documents per call.
+            try:
+                _build(options, source, destination, reference, adapter, arguments)
+            except (AdapterError, DocumentError) as error:
+                raise DocumentError(f"--source {source}: {error}") from error
     except (AdapterError, DocumentError) as error:
         raise SystemExit(f"obs-document: {error}") from error
     return 0
+
+
+def _check_several(options: argparse.Namespace, sources: list[Path], destinations: list[Path]) -> None:
+    """Several --source build one artifact each; see cli.md, Several documents per call."""
+    if not options.adapter:
+        raise DocumentError("several --source need --adapter: each builds the artifact of the --destination "
+                            "that follows it. Name the adapter with --adapter, or give one --source.")
+    if options.document is not None:
+        raise DocumentError("--document names one Document, but several --source build one each, each into a "
+                            "temporary file. Drop --document, or give one --source to keep its Document.")
+    if len(destinations) != len(sources):
+        raise DocumentError(f"{len(sources)} --source but {len(destinations)} --destination: each --source pairs "
+                            f"with the --destination that follows it. Give one --destination per --source.")
+
+
+def _build(options: argparse.Namespace, source: Path, destination: Path | None, reference: dict[str, object],
+           adapter: dict[str, object] | None, arguments: list[str]) -> None:
+    """Build the Document of ``source`` and, with an ``adapter``, its artifact at ``destination``."""
+    document = build_document(source, reference, options.config, options.execute_commands, options.embed_source)
+    for diagnostic in document["diagnostics"]:
+        if diagnostic["level"] == "warning":
+            print(f"obs-document: warning: {diagnostic['message']}", file=sys.stderr)
+    with ExitStack() as stack:
+        document_path = options.document
+        if document_path is None:
+            folder = stack.enter_context(tempfile.TemporaryDirectory(prefix="obs-document-"))
+            document_path = Path(folder) / "document.json"
+        _write(document, document_path)  # build_document validated it.
+        if adapter is not None:  # The vault root as given, for the adapter's messages only.
+            _deliver(adapter, ["--vault-root", str(source.parent), *arguments],
+                     options.adapter_config, document, document_path, destination, reference)
 
 
 if __name__ == "__main__":
