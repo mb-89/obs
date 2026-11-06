@@ -26,6 +26,13 @@ manifest. This holds wherever the node sits, in chapter content or in a field no
 record ([[capabilities/bases#Note records]]). Adapters link by `chapter` and never derive it from `target`. The node's attributes
 are defined by `src/obs/document.schema.json`.
 
+A block link (`[[#^name]]` within its note, `[[note#^name]]` across notes) targets a figure:
+`[[#^name]]` has an empty `target` and, unaliased, the `label` `#^name`; `figure`
+is the block id of the `figures` node in `chapter` that carries it
+([[input-model#Figure captions and references]]). A block id that no figure in the target note
+carries is a build error that names the note, the link and this page; so is a block id two
+figures of one note carry. A link to a missing note stays the missing-note warning.
+
 ## Links inside a figure
 
 A link inside a figure is a link like any other. The core reads every link in a figure's SVG:
