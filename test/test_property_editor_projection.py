@@ -8,7 +8,10 @@ from pathlib import Path
 import pytest
 
 from obs.document import DocumentError, build_document
+from obs.input import protected_fields
 from test_vault import capability_reference
+
+PROTECTED = sorted(protected_fields())
 
 PROJECTION = {
     "blank": {"status": "finding", "accepted": "no", "outputs": []},
@@ -35,6 +38,17 @@ def test_a_static_projection_is_carried_in_the_property_editors_node(tmp_path: P
     [editor] = [node for node in document["chapters"][0]["content"] if node["type"] == "property-editors"]
     assert editor["attrs"]["spec"]["projection"] == PROJECTION
     assert "property-editors" in document["capabilities"]
+
+
+def test_the_node_carries_the_fields_its_editor_may_write(tmp_path: Path) -> None:
+    """The edited field, then each projection target once: what an adapter's runtime may commit."""
+    projected = _build(tmp_path, "projection:\n  blank: {status: finding, outputs: []}\n"
+                       "  nonblank: {accepted: \"yes\", status: explained}\n")
+    plain = _build(tmp_path, "")
+
+    for document, writes in ((projected, ["explanation", "status", "outputs", "accepted"]), (plain, ["explanation"])):
+        [editor] = [node for node in document["chapters"][0]["content"] if node["type"] == "property-editors"]
+        assert editor["attrs"]["writes"] == writes
 
 
 @pytest.mark.parametrize(("projection", "field"), [
@@ -67,9 +81,7 @@ def _refused(tmp_path: Path, projection: str, field: str) -> None:
     assert "; see capabilities/property-editors." in message
 
 
-@pytest.mark.parametrize("name", [
-    "title", "kind", "aliases", "term", "definition", "__proto__", "constructor", "prototype", "Title", "KiNd",
-])
+@pytest.mark.parametrize("name", [*PROTECTED, "Title", "KiNd"])
 @pytest.mark.parametrize("branch", ["blank", "nonblank"])
 def test_a_projection_never_targets_a_protected_field(tmp_path: Path, name: str, branch: str) -> None:
     other = "nonblank" if branch == "blank" else "blank"
@@ -93,3 +105,18 @@ def test_a_projection_target_is_an_existing_field_of_the_same_type(
 def test_a_projection_never_writes_the_edited_field(tmp_path: Path) -> None:
     _refused(tmp_path, "projection:\n  blank: {explanation: Replaced}\n  nonblank: {status: explained}\n",
              "projection.blank.explanation")
+
+
+@pytest.mark.parametrize("name", [*PROTECTED, "Title", "KiNd"])
+def test_an_editor_never_edits_a_protected_field(tmp_path: Path, name: str) -> None:
+    (tmp_path / "manifest.md").write_text("- [[chapter]]\n", encoding="utf-8")
+    (tmp_path / "chapter.md").write_text(
+        f"---\nexplanation: Original\n{name}: Original\n---\n# Chapter\n\n"
+        f"```property-editor\nversion: 1\nfield: {name}\nlabel: Review\n```\n", encoding="utf-8",
+    )
+    with pytest.raises(DocumentError) as failure:
+        build_document(tmp_path / "manifest.md", capability_reference())
+
+    message = str(failure.value)
+    assert message.startswith(f"{tmp_path / 'chapter.md'}: property-editor fence 1, field: "), message
+    assert "; see capabilities/property-editors." in message

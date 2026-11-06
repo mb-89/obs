@@ -167,11 +167,14 @@
           }}
         },
         {
-          "description": "A property-editor fence: its authored source and the mapping input.schema.json (propertyEditor) validated.",
+          "description": "A property-editor fence: its authored source, the mapping input.schema.json (propertyEditor) validated, and the fields it may write (capabilities/property-editors#Document node).",
           "if": {"properties": {"type": {"const": "property-editors"}}},
           "then": {"properties": {"attrs": {
-            "type": "object", "additionalProperties": false, "required": ["source", "spec"],
-            "properties": {"source": {"type": "string"}, "spec": {"type": "object"}}
+            "type": "object", "additionalProperties": false, "required": ["source", "spec", "writes"],
+            "properties": {
+              "source": {"type": "string"}, "spec": {"type": "object"},
+              "writes": {"type": "array", "minItems": 1, "uniqueItems": true, "items": {"type": "string", "minLength": 1}}
+            }
           }}}
         },
         {
