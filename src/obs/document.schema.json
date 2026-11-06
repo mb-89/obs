@@ -299,13 +299,7 @@
         "type": "object", "additionalProperties": false, "required": ["graph"],
         "properties": {
           "graph": {"description": "The Sankey graph (input-model, Figure input direction); an adapter checks the shape it draws.", "type": "object"},
-          "countLabels": {
-            "type": "object", "additionalProperties": false, "minProperties": 1,
-            "properties": {
-              "unit": {"type": "string", "pattern": "^\\S(.*\\S)?$", "maxLength": 64},
-              "unique": {"type": "string", "pattern": "^\\S(.*\\S)?$", "maxLength": 64}
-            }
-          }
+          "countLabels": {"$ref": "figure.schema.json#/$defs/countLabels"}
         }
       },
       "plot": {

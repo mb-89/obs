@@ -54,7 +54,7 @@ def figure_descriptor() -> dict[str, object]:
     return {
         "schemaVersion": 1,
         "id": "comparison",
-        "data": {"series": [{"id": "observed", "values": [2, 5, 3]}]},
+        "data": {"traces": [{"x": [0, 1, 2], "y": [2, 5, 3]}]},
         "panels": [{
             "id": "overview",
             "bounds": {"x": 0, "y": 0, "width": 720, "height": 320},
