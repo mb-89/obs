@@ -113,7 +113,7 @@ def test_core_parses_a_vault_into_semantic_document_json(tmp_path) -> None:
         encoding="utf-8",
     )))
     assert document["manifest"] == {
-        "title": "Fixture vault", "metadata": {"title": "Fixture vault"},
+        "title": "Fixture vault", "path": "manifest.md", "metadata": {"title": "Fixture vault"},
         "abstract": [
             {"type": "markdown-frontmatter", "attrs": {"metadata": {"title": "Fixture vault"}}, "children": [
                 {"type": "field", "attrs": {"name": "title"}, "children": [
