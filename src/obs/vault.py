@@ -1220,7 +1220,8 @@ _INLINE_MARKS = {"em": "emphasis", "strong": "strong", "s": "strikethrough"}
 
 
 def _inline_nodes(token: Token, context: _Context) -> list[dict[str, object]]:
-    """The inline nodes of one inline token; marks nest, link text carries attrs.link."""
+    """The inline nodes of one inline token; marks nest, link text carries attrs.link, a hard line
+    break is a break node and a soft one a space (capabilities/markdown#Document nodes)."""
     result: list[dict[str, object]] = []
     open_nodes = [result]
     link: dict[str, str] | None = None
@@ -1265,8 +1266,10 @@ def _inline_nodes(token: Token, context: _Context) -> list[dict[str, object]]:
                 "type": "math", "attrs": {"display": child.type == "math_inline_double"},
                 "children": [], "text": child.content,
             })
-        elif child.type in {"text", "softbreak", "hardbreak"}:
-            text = "\n" if child.type != "text" else child.content
+        elif child.type == "hardbreak":
+            output.append({"type": "break", "attrs": {}, "children": []})
+        elif child.type in {"text", "softbreak"}:
+            text = " " if child.type == "softbreak" else child.content
             if link:
                 output.append({"type": "text", "attrs": {"link": link["id"]}, "children": [], "text": text})
             else:
