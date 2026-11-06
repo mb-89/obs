@@ -1385,6 +1385,12 @@ def _markdown(
                 )
                 token.meta["figure_reference"] = entry
                 label = entry.label
+            if resolve_references and not label and heading and not heading.startswith("^"):
+                # As the core labels it (obs capabilities/wikilinks#Link text).
+                linked = linked_name and _resolve_chapter_target(
+                    linked_name, notes, vault_root, chapter, reference_index,
+                )
+                label = f"{linked.title if linked else linked_name} > {heading}" if linked_name else heading
             if resolve_references and not label and not heading:
                 linked = chapter if not linked_name else _resolve_chapter_target(
                     linked_name, notes, vault_root, chapter, reference_index,
