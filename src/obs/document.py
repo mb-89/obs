@@ -314,6 +314,8 @@ def build_parser() -> argparse.ArgumentParser:
                              "its adapter.json) and exit with its exit code; it prints where to open it.")
     parser.add_argument("--wait", action="store_true",
                         help="With --serve: the server exits after the reader's first answers, printing them.")
+    parser.add_argument("--timeout", metavar="S",
+                        help="With --serve --wait: the server fails after S seconds without answers.")
     parser.add_argument("--answers", type=Path,
                         help="With --source: a reader's answers file (what --serve --wait prints and the served "
                              "artifact's server writes); the chapters that ask carry their verdicts, so the artifact "
@@ -358,6 +360,9 @@ def main(argv: Sequence[str] | None = None) -> int:
         if options.wait and not options.serve:
             raise DocumentError("--wait is only used with --serve: the server waits for the reader's answers. "
                                 "Add --serve, or drop --wait.")
+        if options.timeout is not None and not options.wait:
+            raise DocumentError("--timeout is only used with --serve --wait: it bounds the wait for the reader's "
+                                "answers. Add --wait, or drop --timeout.")
         if options.serve and (not options.adapter or len(sources) > 1):
             raise DocumentError("--serve serves the one artifact --adapter writes. Build one --source or --document "
                                 "with --adapter and --destination, or drop --serve.")
@@ -396,7 +401,8 @@ SERVE_OWNER = "spec/design_input/cli.md (One-call build)"
 
 def _serve(adapter: dict[str, object], options: argparse.Namespace) -> int:
     """Run the adapter's serve command on the artifact it wrote, its output on ours; its exit code."""
-    command = [*adapter["serve"], str(options.destination.resolve()), *(["--wait"] if options.wait else [])]
+    command = [*adapter["serve"], str(options.destination.resolve()), *(["--wait"] if options.wait else []),
+               *(["--timeout", options.timeout] if options.timeout is not None else [])]
     sys.stdout.flush()
     try:
         return subprocess.run(command, cwd=options.adapter_config.parent, check=False).returncode
