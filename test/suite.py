@@ -16,14 +16,24 @@ output is printed when it ends. Every part runs to its end even when another fai
 code is non-zero when any part failed. Arguments are passed on to every part's pytest, for
 example `--durations=20`. Where `SE_TEST_REPORTS` names a directory, each part writes its JUnit
 XML report there as `<part>.xml` (`core.xml`, `adapters-html.xml`), from which se's
-`work_tickets.py suite` names the slowest tests. Install the Node test packages once first:
-`npm --prefix test/browser ci` and `npm --prefix adapters/html/test/browser ci`.
+`work_tickets.py suite` names the slowest tests.
+
+Before the parts run, it installs the Node test packages they depend on: each part's
+`test/browser/package-lock.json` (`test/browser`, `adapters/html/test/browser`). A package is
+installed with `npm ci` when its `node_modules` is missing or was installed from another
+lockfile: after each install the lockfile's SHA-256 is stored in `node_modules/` as
+`.obs-installed-lockfile`, so a warm checkout installs nothing. The install time is printed
+apart from the parts' time. A failed install names the lockfile and the command to run by hand,
+and no part runs.
 
     uv run python test/suite.py
 """
+import hashlib
 import os
+import shutil
 import subprocess
 import sys
+import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 
@@ -32,6 +42,15 @@ ROOT = Path(__file__).resolve().parents[1]
 PARTS = [ROOT, *sorted(path.parent for path in (ROOT / "adapters").glob("*/pyproject.toml"))]
 PARALLEL = ["-n", "auto", "--dist", "loadgroup", "--no-loadscope-reorder"]
 REPORTS_VARIABLE = "SE_TEST_REPORTS"
+# Each part's Node test package, where it has one.
+NODE_PACKAGES = [part / "test" / "browser" for part in PARTS
+                 if (part / "test" / "browser" / "package-lock.json").is_file()]
+# In node_modules: the SHA-256 of the lockfile it was installed from.
+INSTALLED_LOCKFILE = ".obs-installed-lockfile"
+
+
+class InstallError(Exception):
+    """A Node test package could not be installed; the message names its lockfile and the remedy."""
 
 
 def part_name(part: Path) -> str:
@@ -47,6 +66,34 @@ def part_command(part: Path, arguments: list[str], environment) -> list[str]:
     return command
 
 
+def lockfile_hash(package: Path) -> str:
+    return hashlib.sha256((package / "package-lock.json").read_bytes()).hexdigest()
+
+
+def is_installed(package: Path) -> bool:
+    """Whether the package's node_modules was installed from its current lockfile."""
+    marker = package / "node_modules" / INSTALLED_LOCKFILE
+    return marker.is_file() and marker.read_text(encoding="utf-8").strip() == lockfile_hash(package)
+
+
+def install_node_packages(packages: list[Path], run=subprocess.run) -> list[Path]:
+    """Run `npm ci` for each package not installed from its current lockfile; the packages installed."""
+    stale = [package for package in packages if not is_installed(package)]
+    for package in stale:
+        remedy = (f"Lockfile {package / 'package-lock.json'}: install it by hand with "
+                  f"`npm --prefix {package} ci` and rerun the suite.")
+        npm = shutil.which("npm")
+        if npm is None:
+            raise InstallError(f"test/suite.py: npm is not on PATH; install Node.js. {remedy}")
+        result = run([npm, "ci"], cwd=package, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+                     text=True, encoding="utf-8", errors="replace")
+        if result.returncode:
+            raise InstallError(f"test/suite.py: npm ci failed (exit code {result.returncode}). {remedy}\n"
+                               f"{result.stdout}")
+        (package / "node_modules" / INSTALLED_LOCKFILE).write_text(lockfile_hash(package), encoding="utf-8")
+    return stale
+
+
 def run_part(part: Path, arguments: list[str]) -> tuple[int, str]:
     """Run one part's pytest; its exit code and its output, headed by its command."""
     command = part_command(part, arguments, os.environ)
@@ -55,7 +102,20 @@ def run_part(part: Path, arguments: list[str]) -> tuple[int, str]:
     return result.returncode, f"== {part_name(part)}: {' '.join(command[1:])} in {part}\n{result.stdout}"
 
 
-def main(arguments: list[str]) -> int:
+def main(arguments: list[str], clock=time.monotonic) -> int:
+    started = clock()
+    try:
+        installed = install_node_packages(NODE_PACKAGES)
+    except InstallError as error:
+        print(error, file=sys.stderr)
+        return 1
+    packages = ", ".join(package.relative_to(ROOT).as_posix() for package in installed or NODE_PACKAGES)
+    if installed:
+        print(f"test/suite.py: installed Node test packages {packages} in {clock() - started:.1f} s "
+              "(not test time).", flush=True)
+    else:
+        print(f"test/suite.py: Node test packages {packages} are installed from their lockfiles.", flush=True)
+    started = clock()
     names = [part_name(part) for part in PARTS]
     print(f"test/suite.py: running {', '.join(names)} side by side; each part's output follows "
           "when it ends.", flush=True)
@@ -67,6 +127,7 @@ def main(arguments: list[str]) -> int:
             print(output, end="" if output.endswith("\n") else "\n", flush=True)
             if code:
                 failed.append(part_name(running[finished]))
+    print(f"test/suite.py: parts took {clock() - started:.1f} s.")
     if failed:
         failed.sort(key=names.index)
         print(f"test/suite.py: failed parts: {', '.join(failed)}. Remedy: rerun `uv run pytest` in each "
