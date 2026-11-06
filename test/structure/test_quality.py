@@ -33,4 +33,4 @@ def test_quality_names_the_one_selection_resolver() -> None:
     rule = " ".join(next(item for item in ownership.split("\n- ") if "selection resolver" in item).split())
     assert "`obs.selection.note_value`" in rule and callable(obs.selection.note_value)
     assert "[[capabilities/bases#Comparisons]]" in rule
-    assert "adapter's specification" in rule
+    assert "`obsQuery.propertyTexts`" in rule and "adapter's specification" in rule
