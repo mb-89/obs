@@ -1221,7 +1221,8 @@ letter, A, B, C and on, in the order `candidates` lists them, at most 26 options
 - On each option, optional: `short`, its short name, at most 5 words, ideally one, which an
   adapter shows after the letter where there is room (decided by the user, 6 Nov 2026, work
   issue `feature/decision-figure-on-phones-20261106`). Without it, the label serves where it has
-  at most 5 words; otherwise the letter stands alone.
+  at most 5 words; otherwise the letter stands alone. The core resolves this once, into the
+  body's `shortNames`, below.
 - `checklist`, optional: items, each with `item` (the question), `answer` (one line), `pass`
   (true or false) and, optional, `options`, the letters of the options the item fails.
 - `checklistWeight`, optional: the weight of the row the failed items make, 3 by default.
@@ -1244,6 +1245,11 @@ within it (`content.criteria[1].better`, `source.chosen`) and the remedy, naming
 The figure's body carries the checked matrix as data (`matrix`). The core decides nothing: an
 adapter runs ctrl's engine on it, in the reader's page, so a reader's change is decided again
 there.
+
+Beside it, the body carries `shortNames`: each option's short name, in the order `candidates`
+lists them, as the core resolved it from `short` and the label, or null where the letter stands
+alone. Decided by the dispatcher, 6 Nov 2026 (work issue
+`fix/decision-figure-follow-ups-20261106`): an adapter shows these and keeps no rule of its own.
 
 A chapter's `##` sections after its decision figure stay where the core puts every section: in
 the chapter's content, after the figure, in order. The core adds nothing to the figure for them.
