@@ -16,8 +16,11 @@ network_guard.install()
 
 
 def pytest_sessionstart(session):
-    """A focused run installs the suite's Node test packages where they are missing or stale; the
-    JUnit report, where the run writes one, names the part's worker count."""
+    """In a run of the complete suite the controller starts the run's shared build of obs's spec
+    before its workers collect (test/spec_build.py, start). A focused run installs the suite's Node
+    test packages where they are missing or stale; the JUnit report, where the run writes one,
+    names the part's worker count."""
+    spec_build.start(session.config)
     suite.set_up_focused_run(session.config)
     suite.record_workers(session.config)
 
@@ -59,6 +62,7 @@ def pytest_terminal_summary(terminalreporter, exitstatus, config):
 
 def pytest_sessionfinish(session, exitstatus):
     tiers.worker_finish(session.config)
+    spec_build.finish()
 
 
 @pytest.hookimpl(optionalhook=True)

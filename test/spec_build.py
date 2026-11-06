@@ -8,7 +8,9 @@ capability reference, which every adapter renders itself, and ``adapter-spec``, 
 specification as the spec's producer fence (ADAPTER_SPEC_NOTE) builds it. The first process of the run that
 asks builds it under a lock, in the run's folder, and every other
 process, of any part, reads what it built. test/suite.py makes the run's folder and names it in
-RUN_FOLDER for its parts; a focused run (a part's own pytest) builds in its pytest base folder.
+RUN_FOLDER for its parts, and the core's controller starts the Document build as its session
+starts (``start``); a focused run (a part's own pytest) builds in its pytest base folder, only
+where a test asks.
 A build's folder is named by a hash of its inputs (INPUTS: the spec vault without what its
 producers write, the core's and the HTML adapter's sources, and this build), so changed inputs are never served a stale build. Each build appends its kind and key to
 COUNTER in the run's folder, which test/suite.py reads at the run's end: where one kind was built
@@ -33,6 +35,7 @@ import shlex
 import shutil
 import subprocess
 import sys
+import threading
 from collections import Counter
 from pathlib import Path
 
@@ -145,6 +148,39 @@ def built(run: Path, kind: str) -> Path:
                 counter.write(f"{kind} {key}\n")
             (folder / ".built").touch()
     return folder
+
+
+# The controller's background build, which finish() waits for.
+_started: list[threading.Thread] = []
+
+
+def start(config) -> threading.Thread | None:
+    """From the core's ``pytest_sessionstart``: in a run of the complete suite (RUN_FOLDER set),
+    start the run's Document build in a thread of the part's controller, before its workers start
+    and collect; the thread. It builds through ``built``, so a test that needs the build waits on
+    the same lock and the count stays one. A build that fails keeps its error to itself: the test
+    that needs the build builds it again and reports it. A worker leaves this to its controller,
+    and a focused run builds only where a test asks."""
+    if hasattr(config, "workerinput") or not os.environ.get(RUN_FOLDER):
+        return None
+    run = Path(os.environ[RUN_FOLDER])
+
+    def build() -> None:
+        try:
+            built(run, "document")
+        except Exception:  # Reported by the test that needs the build, which builds it again.
+            pass
+
+    thread = threading.Thread(target=build, name="obs-spec-build", daemon=True)
+    thread.start()
+    _started.append(thread)
+    return thread
+
+
+def finish() -> None:
+    """From the core's ``pytest_sessionfinish``: wait for the build ``start`` started."""
+    while _started:
+        _started.pop().join()
 
 
 def serve_adapter_spec(command: str, vault: Path) -> bool:

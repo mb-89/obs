@@ -126,6 +126,8 @@ definitions alike. Keeping the same fact in two places is an anti-pattern (user,
   run, named by a hash of the build's inputs, and counts each build there; the suite fails where
   one was built twice.
 
+  The core's controller starts that build as its session starts, before its workers collect.
+
   So is an adapter's specification that a producer fence of
   the spec builds: every build of the spec in the run, a test's copy of the vault too, is served
   that one build.
