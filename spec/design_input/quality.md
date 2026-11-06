@@ -108,9 +108,17 @@ definitions alike. Keeping the same fact in two places is an anti-pattern (user,
   one can run after the artifact's own scripts, and reads the artifact's timings from the
   artifact's own performance marks. The adapter's `test/structure/test_quality.py` refuses a
   test that does otherwise.
-- An input many tests read, such as obs's spec Document, a fixture artifact or the parity
-  builds, is built once per run by `built_once` in the part's `conftest.py` and shared by every
-  worker; the tests only read it.
+- An input many tests read, such as a fixture artifact or the parity builds, is built once per
+  run by `built_once` in the part's `conftest.py` and shared by every worker; the tests only read
+  it.
+- obs's spec is built once per run of the complete suite and shared by the core and every
+  adapter: `test/spec_build.py` builds its Document, and the interim reference's artifact, in a
+  folder `test/suite.py` makes for the run, named by a hash of the build's inputs, and counts
+  each build there; the suite fails where one was built twice. A test that needs another build
+  of the spec copies the vault and builds only that variant; the core's
+  `test/structure/test_spec_builds.py` and the adapter's `test/structure/test_quality.py` refuse
+  a test that builds the spec otherwise, except the named few, such as the adapter's archive
+  rebuild, which rebuilds the spec from its own source archive.
 - A committed fixture Document (an adapter's `test/fixtures/documents`) is rebuilt from its vault
   by the current core in every run of the complete suite; a refused vault or a stale Document
   fails, naming the vault and the core's message or the first differing JSON path.
