@@ -132,3 +132,17 @@ def test_the_manifest_record_s_subtitle_arrives_as_image_nodes_of_its_two_assets
     images = [node for node in _record_fields(document, "manifest.md")["subtitle"] if node["type"] == "attachments"]
     assets = {asset["id"]: asset["href"] for asset in document["assets"]}
     assert [assets[node["attrs"]["asset"]] for node in images] == list(RECORD_BADGES)
+
+
+def test_a_bare_url_in_a_string_value_arrives_as_a_link_node(tmp_path, remote_images) -> None:
+    document = _record_document(_record_vault(
+        tmp_path, "  source: https://example.org/a\n  summary: 'See https://example.org/b?c=1&d=2.'\n",
+    ), remote_images)
+
+    fields = _record_fields(document, "cap.md")
+    links = {link["id"]: link["href"] for link in document["links"]}
+    [source] = fields["capability.source"]
+    assert links[source["attrs"]["link"]] == source["text"] == "https://example.org/a"
+    before, url, after = fields["capability.summary"]
+    assert (before["text"], url["text"], after["text"]) == ("See ", "https://example.org/b?c=1&d=2", ".")
+    assert links[url["attrs"]["link"]] == "https://example.org/b?c=1&d=2"

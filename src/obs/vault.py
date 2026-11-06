@@ -1064,8 +1064,33 @@ def _field_nodes(value: object, name: str, context: _Context) -> list[dict[str, 
     if not isinstance(value, str) or not value.strip():
         return []
     tokens = _parser().parseInline(value)
-    children = _inline_nodes(tokens[0], replace(context, field_path=name))
+    children = _bare_urls(_inline_nodes(tokens[0], replace(context, field_path=name)), context)
     return [{"type": "field", "attrs": {"name": name}, "children": children}]
+
+
+_BARE_URL = re.compile(r"https?://[^\s<>]*[^\s<>.,;:!?'\")\]]", re.IGNORECASE)
+
+
+def _bare_urls(nodes: list[dict[str, object]], context: _Context) -> list[dict[str, object]]:
+    """A field's plain text with each bare http(s) URL as link text, as Obsidian shows it."""
+    result: list[dict[str, object]] = []
+    for node in nodes:
+        if node["type"] in {"emphasis", "strong", "strikethrough"}:
+            result.append({**node, "children": _bare_urls(node["children"], context)})
+            continue
+        if node["type"] != "text" or node["attrs"]:
+            result.append(node)
+            continue
+        text, position = node["text"], 0
+        for match in _BARE_URL.finditer(text):
+            if match.start() > position:
+                result.append({**node, "text": text[position:match.start()]})
+            link = _resource(context.links, context.link_ids, match[0], match[0])
+            result.append({"type": "text", "attrs": {"link": link["id"]}, "children": [], "text": match[0]})
+            position = match.end()
+        if position < len(text):
+            result.append({**node, "text": text[position:]})
+    return result
 
 
 def _semantic_text_nodes(text: str, context: _Context) -> list[dict[str, object]]:
