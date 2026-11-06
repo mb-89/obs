@@ -394,12 +394,41 @@ def validate_base_definition(definition: object, source_path: object, place: str
     _validate_schema("base.schema.json", definition, source_path, "capabilities/bases", place=place)
 
 
-def validate_note_profile(metadata: dict[str, object], source_path: object) -> None:
-    """Check a note's frontmatter profile: its obs mapping, and no key moved out of an adapter's."""
+def validate_note_profile(metadata: dict[str, object], source_path: object, manifest: bool = False) -> None:
+    """Check a note's frontmatter profile: its obs mapping, and no key moved out of an adapter's;
+    only the ``manifest`` declares a style."""
     refuse_moved_keys(metadata, "note", source_path, "", "", "capabilities/profiles")
+    profile = metadata.get("obs")
+    if isinstance(profile, dict) and "style" in profile and not manifest:
+        raise input_error(source_path, "obs.style", "declares a style, which only the manifest declares for its "
+                          "vault", f"Move obs.style into the manifest's frontmatter; see {STYLE_OWNER}")
     if "obs" in metadata:
-        _validate_schema("note-profile.schema.json", metadata["obs"], source_path, "capabilities/profiles",
-                         field="obs")
+        _validate_schema("note-profile.schema.json", profile, source_path, "capabilities/profiles", field="obs")
+
+
+STYLE_OWNER = "spec/design_input/architecture.md (Declared style)"
+_PIN = re.compile(r"[0-9a-f]{40}")
+_PUBLIC_URL = re.compile(r"https://[^\s/@]+/\S+")
+
+
+def declared_style(metadata: dict[str, object], source_path: object) -> dict[str, str] | None:
+    """The identity of the style module the manifest's ``obs.style`` pins, or None without one."""
+    style = metadata.get("obs", {}).get("style") if isinstance(metadata.get("obs"), dict) else None
+    if style is None:
+        return None
+    named = f"style {style.get('url')!r}" if isinstance(style, dict) else "the style"
+    remedy = ("Declare the style module as obs.style: {url: <public https clone URL>, ref: <its full 40-hex "
+              f"commit SHA>, path: <optional folder in it>}}; see {STYLE_OWNER}")
+    if not isinstance(style, dict):
+        raise input_error(source_path, "obs.style", f"is {_shown(style)}, not a mapping", remedy)
+    for key, pattern, problem in (("url", _PUBLIC_URL, "names no public https clone URL"),
+                                  ("ref", _PIN, "pins no commit (a full 40-hex SHA), so no two builds are "
+                                               "sure to resolve the same style")):
+        if not isinstance(style.get(key), str) or not pattern.fullmatch(style[key]):
+            raise input_error(source_path, f"obs.style.{key}", f"is {_shown(style.get(key))} for {named}, "
+                              f"which {problem}", remedy)
+    _validate_schema("note-profile.schema.json", metadata["obs"], source_path, STYLE_OWNER, field="obs")
+    return {key: style[key] for key in ("url", "ref", "path") if key in style}
 
 
 MOVED_KEYS = {
