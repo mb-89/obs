@@ -11,7 +11,8 @@ identity = "mb <mb>"
 public_check = true
 
 [tests]
-# The complete suite and its time budget; test/suite.py's docstring says what the suite runs.
+# The complete suite, its setup and its time budget; test/suite.py's docstring says what each runs.
+setup = ["uv", "run", "python", "test/suite.py", "--setup"]
 command = ["uv", "run", "python", "test/suite.py", "--durations=10"]
 target_seconds = 60
 limit_seconds = 120
