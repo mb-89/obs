@@ -82,6 +82,15 @@ than following the adapter's own `Warning:`, so the line stays the adapter's lin
 failure the adapter's stderr is the detail of the one failure message, as before, and is not
 written twice. The adapter's stdout is not shown.
 
+`--serve` serves the artifact after the build, without the core naming any adapter: it runs the
+`serve` command the adapter declares in its `adapter.json` with the artifact's path, and `--wait`
+after it, and exits with that command's exit code. The server's output reaches the person as it
+comes, since it says where to open the artifact and, with `--wait`, returns the reader's answers.
+
+An adapter that declares no `serve` command fails the call before the build, naming its manifest;
+so do `--wait` without `--serve` and `--serve` with several `--source`. The adapter's own
+documentation owns what its server does.
+
 ## Several documents per call
 
 One `obs-document` call builds several artifacts: each `--source` pairs, in argument order, with
