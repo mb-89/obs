@@ -333,36 +333,16 @@
           "unknowns": {"type": "array", "minItems": 1, "uniqueItems": true, "items": {"type": "string", "pattern": "^[A-Za-z][A-Za-z0-9_]{0,39}$"}},
           "solution": {"oneOf": [
             {
-              "description": "Explicit solutions: each branch gives every unknown as a tree of the other variables (and the independent variable).",
+              "description": "Explicit solutions: each branch gives every unknown as a tree of the other variables (and the independent variable). Where its numeric condition holds for a curve's values of the variables besides the sweep, the curve is solved numerically from the numeric system instead.",
               "type": "object", "additionalProperties": false, "required": ["method", "branches"],
               "properties": {"method": {"const": "exact"}, "branches": {"type": "array", "minItems": 1, "items": {
                 "type": "object", "propertyNames": {"type": "string", "pattern": "^[A-Za-z][A-Za-z0-9_]{0,39}$"}, "minProperties": 1, "additionalProperties": {"$ref": "#/$defs/expression"}
+              }}, "numeric": {"type": "object", "additionalProperties": false, "required": ["when", "system"], "properties": {
+                "when": {"$ref": "#/$defs/condition"}, "system": {"$ref": "#/$defs/numericSystem"}
               }}}
             },
-            {
-              "description": "Algebraic equations to solve numerically: residuals that vanish at the solution, and the SI starting guess of each unknown.",
-              "type": "object", "additionalProperties": false, "required": ["method", "residuals", "guess"],
-              "properties": {
-                "method": {"const": "algebraic"},
-                "residuals": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/expression"}},
-                "guess": {"type": "object", "propertyNames": {"type": "string", "pattern": "^[A-Za-z][A-Za-z0-9_]{0,39}$"}, "additionalProperties": {"type": "number"}}
-              }
-            },
-            {
-              "description": "A differential system in state form, to integrate numerically from start (SI) over the independent variable's range: the derivative of state[i] is derivatives[i], and initial[i] is state[i] at start (SI).",
-              "type": "object", "additionalProperties": false, "required": ["method", "independent", "start", "state", "derivatives", "initial"],
-              "properties": {
-                "method": {"const": "differential"}, "independent": {"type": "string", "pattern": "^[A-Za-z][A-Za-z0-9_]{0,39}$"}, "start": {"type": "number"},
-                "state": {"type": "array", "minItems": 1, "items": {
-                  "type": "object", "additionalProperties": false, "required": ["of", "order"],
-                  "properties": {"of": {"type": "string", "pattern": "^[A-Za-z][A-Za-z0-9_]{0,39}$"}, "order": {"type": "integer", "minimum": 0}}
-                }},
-                "derivatives": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/expression"}},
-                "initial": {"type": "array", "minItems": 1, "items": {"type": "number"}}
-              }
-            }
-          ]},
-          "plot": {
+            {"$ref": "#/$defs/numericSystem"}
+          ]},          "plot": {
             "description": "The initial plot: sweep is the variable swept over its range; x and each y are plotted expressions; family gives one curve per value (display unit and SI); parallelCoordinates lists its axes.",
             "type": "object", "additionalProperties": false, "required": ["sweep", "x", "y"],
             "properties": {
@@ -431,12 +411,16 @@
       }
     },
     "expression": {
-      "description": "An expression tree (capabilities/equation-figures), never a string to execute: a dimensionless number, a variable (a function's value at the independent variable), a function's derivative of an order, the imaginary unit, or an operator applied to its arguments. It evaluates in complex arithmetic with principal branches; heaviside's optional second argument is its value at 0, 1/2 without it. test/fixtures/expression-vectors.json holds shared vectors.",
+      "description": "An expression tree (capabilities/equation-figures), never a string to execute: a dimensionless number, a variable (a function's value at the independent variable), a function's derivative of an order, the imaginary unit, an operator applied to its arguments, or a piecewise expression: the value of its first case whose condition holds (a case without one always holds), no point where none holds. It evaluates in complex arithmetic with principal branches; heaviside's optional second argument is its value at 0, 1/2 without it. test/fixtures/expression-vectors.json holds shared vectors.",
       "oneOf": [
         {"type": "object", "additionalProperties": false, "required": ["number"], "properties": {"number": {"type": "number"}}},
         {"type": "object", "additionalProperties": false, "required": ["symbol"], "properties": {"symbol": {"type": "string", "pattern": "^[A-Za-z][A-Za-z0-9_]{0,39}$"}}},
         {"type": "object", "additionalProperties": false, "required": ["derivative", "order"], "properties": {"derivative": {"type": "string", "pattern": "^[A-Za-z][A-Za-z0-9_]{0,39}$"}, "order": {"type": "integer", "minimum": 1}}},
         {"type": "object", "additionalProperties": false, "required": ["constant"], "properties": {"constant": {"const": "i"}}},
+        {"type": "object", "additionalProperties": false, "required": ["piecewise"], "properties": {"piecewise": {"type": "array", "minItems": 1, "items": {
+          "type": "object", "additionalProperties": false, "required": ["value"],
+          "properties": {"when": {"$ref": "#/$defs/condition"}, "value": {"$ref": "#/$defs/expression"}}
+        }}}},
         {
           "type": "object", "additionalProperties": false, "required": ["op", "args"],
           "properties": {
@@ -445,6 +429,45 @@
           },
           "if": {"properties": {"op": {"const": "heaviside"}}}, "then": {"properties": {"args": {"maxItems": 2}}}
         }
+      ]
+    },
+    "numericSystem": {
+      "description": "A system the live evaluator solves numerically: algebraic equations, or a differential system in state form.",
+      "oneOf": [
+        {
+          "description": "Algebraic equations to solve numerically: residuals that vanish at the solution, and the SI starting guess of each unknown.",
+          "type": "object", "additionalProperties": false, "required": ["method", "residuals", "guess"],
+          "properties": {
+            "method": {"const": "algebraic"},
+            "residuals": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/expression"}},
+            "guess": {"type": "object", "propertyNames": {"type": "string", "pattern": "^[A-Za-z][A-Za-z0-9_]{0,39}$"}, "additionalProperties": {"type": "number"}}
+          }
+        },
+        {
+          "description": "A differential system in state form, to integrate numerically from start (SI) over the independent variable's range: the derivative of state[i] is derivatives[i], and initial[i] is state[i] at start (SI).",
+          "type": "object", "additionalProperties": false, "required": ["method", "independent", "start", "state", "derivatives", "initial"],
+          "properties": {
+            "method": {"const": "differential"}, "independent": {"type": "string", "pattern": "^[A-Za-z][A-Za-z0-9_]{0,39}$"}, "start": {"type": "number"},
+            "state": {"type": "array", "minItems": 1, "items": {
+              "type": "object", "additionalProperties": false, "required": ["of", "order"],
+              "properties": {"of": {"type": "string", "pattern": "^[A-Za-z][A-Za-z0-9_]{0,39}$"}, "order": {"type": "integer", "minimum": 0}}
+            }},
+            "derivatives": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/expression"}},
+            "initial": {"type": "array", "minItems": 1, "items": {"type": "number"}}
+          }
+        }
+      ]
+    },
+    "condition": {
+      "description": "A piecewise case's condition: a relation of two real values (eq holds where they differ by at most 1e-9 of the larger magnitude, ne where eq does not), all or any of conditions, or not a condition. A relation of a value that is not real gives no point.",
+      "oneOf": [
+        {"type": "object", "additionalProperties": false, "required": ["relation", "args"], "properties": {
+          "relation": {"enum": ["eq", "ne", "lt", "le", "gt", "ge"]},
+          "args": {"type": "array", "minItems": 2, "maxItems": 2, "items": {"$ref": "#/$defs/expression"}}
+        }},
+        {"type": "object", "additionalProperties": false, "required": ["all"], "properties": {"all": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/condition"}}}},
+        {"type": "object", "additionalProperties": false, "required": ["any"], "properties": {"any": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/condition"}}}},
+        {"type": "object", "additionalProperties": false, "required": ["not"], "properties": {"not": {"$ref": "#/$defs/condition"}}}
       ]
     },
     "plottedExpression": {
