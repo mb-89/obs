@@ -302,7 +302,7 @@
       "sankey": {
         "type": "object", "additionalProperties": false, "required": ["graph"],
         "properties": {
-          "graph": {"description": "The Sankey graph (input-model, Figure input direction); an adapter checks the shape it draws.", "type": "object"},
+          "graph": {"description": "The Sankey graph (input-model, Figure input direction); the core also checks that its links name its nodes.", "$ref": "figure.schema.json#/$defs/sankeyGraph"},
           "countLabels": {"$ref": "figure.schema.json#/$defs/countLabels"}
         }
       },
