@@ -6,11 +6,11 @@ Reader: whoever changes how a diagram figure is drawn, or adds a diagram rendere
 Both renderers are JavaScript libraries, pinned in ``diagrams/package-lock.json``; the package's
 build installs them from it and ships their files as package data, ``VENDOR``, which this module
 reads only through ``importlib.resources`` (hatch_build.py); nothing is fetched while building. They
-run in one headless Chromium page that a Playwright session on its own thread holds for the
-whole process (Playwright's sync API allows one session per thread, and a caller may hold its
-own), started by the first diagram and closed at exit. The page's origin is a fake host whose
-every request this module answers from the installed files; any other request is refused, so a
-diagram never reaches the network. A diagram's SVG depends only on its kind and its text: the
+run in one headless Chromium page (``_launch`` names which) that a Playwright session on its own
+thread holds for the whole process (Playwright's sync API allows one session per thread, and a
+caller may hold its own), started by the first diagram and closed at exit. The page's origin is a
+fake host whose every request this module answers from the installed files; any other request is
+refused, so a diagram never reaches the network. A diagram's SVG depends only on its kind and its text: the
 same text gives the same SVG, and is drawn once per process.
 """
 from __future__ import annotations
@@ -123,8 +123,32 @@ RENDERERS: dict[str, Renderer] = {
 """The diagram languages, by figure kind; the libraries are in diagrams/package.json."""
 
 
+def _launch(chromium):
+    """The browser that draws: Playwright's headless shell, the one its own launch starts, where
+    the installed Playwright starts it; else an installed Chrome, Edge or Chromium (``_executable``).
+
+    The shell drew the fixture diagrams' SVG byte for byte as an installed Chrome did, for less
+    CPU: one process drawing test_diagram_figures' Mermaid and PlantUML diagrams took 1.28-1.42 s
+    of child CPU with the shell, 1.60-1.66 s with Chrome (Playwright 1.64, three runs each). Python's
+    Playwright names no path for its shell, so its launch decides whether that shell exists."""
+    from playwright.sync_api import Error as BrowserError
+
+    remedy = f"Use an installed Chrome, Edge or Chromium, or install the Playwright browser with '{BROWSER_INSTALL}'"
+    try:
+        return chromium.launch()
+    except BrowserError as error:
+        installed, failed = _executable(), error
+    if installed is not None:
+        try:
+            return chromium.launch(executable_path=installed)
+        except BrowserError as error:
+            failed = error
+    problem = f"cannot be drawn: no browser starts ({str(failed).strip().splitlines()[0]})"
+    raise DiagramError(problem, remedy) from failed
+
+
 def _executable() -> str | None:
-    """A local Chrome, Edge or Chromium, or None for Playwright's own Chromium."""
+    """A local Chrome, Edge or Chromium, or None where none is installed."""
     candidates = [
         Path(r"C:\Program Files\Google\Chrome\Application\chrome.exe"),
         Path(r"C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe"),
@@ -187,17 +211,11 @@ _SESSION = _Session()
 def _page(state: dict[str, object], kind: str):
     """The session's page with ``kind``'s library loaded, started on first use."""
     if "page" not in state:
-        from playwright.sync_api import Error as BrowserError
         # Playwright's own session class, not ``sync_playwright``, which a caller may replace.
         from playwright.sync_api._context_manager import PlaywrightContextManager
 
         state["playwright"] = PlaywrightContextManager().start()
-        try:
-            state["browser"] = state["playwright"].chromium.launch(executable_path=_executable())
-        except BrowserError as error:
-            raise DiagramError(f"cannot be drawn: no browser starts ({str(error).strip().splitlines()[0]})",
-                               "Use an installed Chrome, Edge or Chromium, or install the Playwright "
-                               f"browser with '{BROWSER_INSTALL}'") from error
+        state["browser"] = _launch(state["playwright"].chromium)
         page = state["browser"].new_page()
         served = {path: VENDOR.joinpath(*file.split("/"))
                   for renderer in RENDERERS.values() for path, file in renderer.files.items()}
