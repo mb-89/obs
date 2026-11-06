@@ -1,5 +1,6 @@
-"""The complete suite installs its Node test packages itself, before its parts run, and only when a
-package's `node_modules` is missing or was installed from another lockfile. npm is faked: no test
+"""The complete suite's setup (`test/suite.py --setup`, se.toml's `[tests] setup`) installs its Node
+test packages, only when a package's `node_modules` is missing or was installed from another
+lockfile; the suite itself installs nothing and refuses to run without them. npm is faked: no test
 reaches the network."""
 import hashlib
 import subprocess
@@ -99,27 +100,59 @@ def test_without_npm_the_install_names_the_lockfile_and_the_command(tmp_path, mo
     assert f"npm --prefix {package} ci" in str(raised.value)
 
 
-def test_the_install_runs_before_the_parts_and_is_reported_apart_from_their_time(monkeypatch, capsys) -> None:
-    order = []
-    ticks = iter([0.0, 7.0, 7.0, 10.0])
-    monkeypatch.setattr(suite, "install_node_packages",
-                        lambda packages: order.append("install") or list(packages))
-    monkeypatch.setattr(suite, "run_part", lambda part, arguments: order.append("part") or (0, ""))
+def test_setup_installs_the_node_packages_and_runs_no_part(monkeypatch, capsys) -> None:
+    ticks = iter([0.0, 7.0])
+    monkeypatch.setattr(suite, "install_node_packages", lambda packages: list(packages))
+    monkeypatch.setattr(suite, "run_part", lambda part, arguments: pytest.fail("a part ran"))
 
-    assert suite.main([], clock=lambda: next(ticks)) == 0
+    assert suite.main(["--setup"], clock=lambda: next(ticks)) == 0
 
-    assert order == ["install", *["part"] * len(suite.PARTS)]
-    output = capsys.readouterr().out
-    assert "installed Node test packages test/browser, adapters/html/test/browser in 7.0 s" in output
-    assert "parts took 3.0 s" in output
+    assert "installed Node test packages test/browser, adapters/html/test/browser in 7.0 s" in (
+        capsys.readouterr().out)
 
 
-def test_a_failed_install_runs_no_part(monkeypatch, capsys) -> None:
+def test_setup_takes_no_other_arguments(monkeypatch, capsys) -> None:
+    monkeypatch.setattr(suite, "install_node_packages", lambda packages: pytest.fail("installed"))
+
+    assert suite.main(["--setup", "-x"]) == 2
+    assert "test/suite.py --setup" in capsys.readouterr().err
+
+
+def test_a_failed_setup_names_the_lockfile(monkeypatch, capsys) -> None:
     def install(packages):
         raise suite.InstallError("npm ci failed for /x/package-lock.json")
 
     monkeypatch.setattr(suite, "install_node_packages", install)
+
+    assert suite.main(["--setup"]) == 1
+    assert "/x/package-lock.json" in capsys.readouterr().err
+
+
+def test_the_suite_installs_nothing_and_runs_its_parts_when_set_up(monkeypatch) -> None:
+    order = []
+    monkeypatch.setattr(suite, "is_installed", lambda package: True)
+    monkeypatch.setattr(suite, "install_node_packages", lambda packages: pytest.fail("installed"))
+    monkeypatch.setattr(suite, "run_part", lambda part, arguments: order.append("part") or (0, ""))
+
+    assert suite.main([]) == 0
+    assert order == ["part"] * len(suite.PARTS)
+
+
+def test_the_suite_without_setup_runs_no_part_and_names_the_setup_command(monkeypatch, capsys) -> None:
+    stale = suite.NODE_PACKAGES[-1]
+    monkeypatch.setattr(suite, "is_installed", lambda package: package != stale)
+    monkeypatch.setattr(suite, "install_node_packages", lambda packages: pytest.fail("installed"))
     monkeypatch.setattr(suite, "run_part", lambda part, arguments: pytest.fail("a part ran"))
 
     assert suite.main([]) == 1
-    assert "/x/package-lock.json" in capsys.readouterr().err
+    error = capsys.readouterr().err
+    assert str(stale / "package-lock.json") in error
+    assert "uv run python test/suite.py --setup" in error
+    assert "[tests] setup" in error
+
+
+def test_se_runs_the_setup_command_before_the_suite() -> None:
+    import tomllib
+
+    tests = tomllib.loads((suite.ROOT / "se.toml").read_text(encoding="utf-8"))["tests"]
+    assert tests["setup"] == ["uv", "run", "python", "test/suite.py", "--setup"]
