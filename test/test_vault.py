@@ -51,7 +51,7 @@ def recognized_capability_vault(tmp_path) -> Path:
     (vault / "chapter.md").write_text(
         "# Chapter\n\nBefore [[target#Heading|Label]] ![[target]] #mark/risk/watch.\n\n"
         "> [!warning] Be careful\n> Callout body.\n\n"
-        "```base\nviews: []\n```\n\n```figure\ncaption: Diagram\n```\n\n```cmd\necho example\n```\n",
+        "```base\nviews: []\n```\n\n```figure\nversion: 1\nkind: svg\ncaption: Diagram\ncontent: '<svg xmlns=\"http://www.w3.org/2000/svg\"/>'\n```\n\n```cmd\necho example\n```\n",
         encoding="utf-8",
     )
     return vault
@@ -79,7 +79,7 @@ def additional_capability_vault(tmp_path) -> Path:
         "reference: https://example.test/source\n---\n"
         "![Source](source.csv)\n\n![[register.base#Open]]\n\n"
         "```cards\nversion: 1\ncards: [{title: Coverage, body: Current state.}]\n```\n\n"
-        "```figure\n"
+        "```figure\nversion: 1\nkind: plot\ncontent: "
         '{"schemaVersion": 1, "id": "comparison", "data": {}, "panels": [{"id": "overview", '
         '"bounds": {"x": 0, "y": 0, "width": 1, "height": 1}, '
         '"grid": {"row": 0, "column": 0, "rowSpan": 1, "columnSpan": 1}, '
@@ -164,7 +164,9 @@ def test_core_places_recognized_capabilities_in_content_nodes(tmp_path) -> None:
         "children": [{"type": "text", "attrs": {}, "children": [], "text": "Callout body."}],
     }]
     assert content[7]["attrs"] == {"source": "views: []\n", "spec": {"views": []}}
-    assert content[8]["attrs"] == {"source": "caption: Diagram\n", "spec": {"caption": "Diagram"}}
+    assert content[8]["attrs"]["kind"] == "svg"
+    assert content[8]["children"] == [{"type": "svg", "attrs": {"svg": '<svg xmlns="http://www.w3.org/2000/svg"/>'},
+                                       "children": []}]
     assert content[9]["attrs"] == {"source": "echo example\n", "output": "example\n"}
     assert set(document["capabilities"]) == {
         "bases", "callouts", "chapter-inclusion", "command-fences", "embeds", "figures",
@@ -244,7 +246,7 @@ def test_a_card_body_arrives_as_parsed_nodes_with_its_capability_fences(tmp_path
         "See [[target|Target]].\n\n"
         "```base\nfilters: 'status == \"open\"'\nviews: []\n```\n\n"
         "```cmd\necho card\n```\n\n"
-        "```figure\ncaption: Diagram\n```\n\n"
+        "```figure\nversion: 1\nkind: svg\ncaption: Diagram\ncontent: '<svg xmlns=\"http://www.w3.org/2000/svg\"/>'\n```\n\n"
         f"```cards\n{inner_cards}\n```\n\n"
         "```property-editor\nversion: 1\nfield: status\nlabel: Status\n```\n"
     )
@@ -332,15 +334,15 @@ def test_core_emits_data_only_nodes_for_additional_input_capabilities(tmp_path) 
     assert [node["type"] for node in emitted] == [
         "markdown-frontmatter", "profiles", "quantities", "queries", "count-query",
         "references", "chapter-inclusion", "markdown", "attachments", "registers",
-        "cards-metrics", "figure-descriptor", "property-editors",
+        "cards-metrics", "figures", "property-editors",
     ]
-    assert emitted[-2]["attrs"]["descriptor"]["id"] == "comparison"
+    assert emitted[-2]["children"][0]["attrs"]["descriptor"]["id"] == "comparison"
     assert emitted[-1]["attrs"] == {
         "source": "version: 1\nfield: source\nlabel: Source\n",
         "spec": {"version": 1, "field": "source", "label": "Source"},
     }
     assert {
-        "attachments", "cards-metrics", "count-query", "figure-descriptor",
+        "attachments", "cards-metrics", "count-query", "figures",
         "markdown-frontmatter", "profiles", "property-editors", "quantities", "queries",
         "references", "registers",
     } <= set(document["capabilities"])
@@ -675,8 +677,11 @@ def test_core_parses_the_spec_vault_as_neutral_document(tmp_path, spec_document)
         item["id"] for item in reference["capabilities"]
         if coverage[item["source"].removesuffix("]]").split("#", 1)[1]] == "input"
     }
-    emitted = types | node_types(recognized_capability_document(tmp_path)) | node_types(
-        additional_capability_document(tmp_path),
+    recognized, additional = recognized_capability_document(tmp_path), additional_capability_document(tmp_path)
+    # A capability is emitted as a node type, or, like figure-descriptor, as a contract a node's
+    # body carries (a plot figure's descriptor), which the Document's capabilities list.
+    emitted = types | node_types(recognized) | node_types(additional) | (
+        set(recognized["capabilities"]) | set(additional["capabilities"])
     )
     assert input_ids <= emitted | INPUT_CAPABILITY_GAPS
     assert INPUT_CAPABILITY_GAPS == {"extensions"}

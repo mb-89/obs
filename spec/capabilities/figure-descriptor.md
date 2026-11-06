@@ -3,20 +3,25 @@ kind: capability
 capability:
   id: figure-descriptor
   summary: Describe neutral multi-panel figure data and provenance.
-  authoring: Produce a schema-valid FigureDescriptor with panel geometry, axes, and provenance.
+  authoring: Produce a schema-valid FigureDescriptor with panel geometry, axes, and provenance, and show it as a figure of kind plot.
   dependsOn: []
   source: "[[input-model#Figure descriptor]]"
 ---
 
 ## What it does
 
-Describes neutral figure data, panel geometry, axes, and reproducible provenance.
+Describes neutral figure data, panel geometry, axes, and reproducible provenance. A figure fence
+of kind `plot` ([[capabilities/figures]]) shows one, from its source JSON file or inline under
+`content`.
 
 ## Authoring example
 
 ````markdown
 ```figure
-{
+version: 1
+kind: plot
+caption: Measured response over time.
+content: {
   "schemaVersion": 1,
   "id": "comparison",
   "data": {},

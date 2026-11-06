@@ -116,7 +116,9 @@ def test_figure_descriptor_capability_example_is_schema_valid() -> None:
     example = re.search(r"```figure\n(.*?)\n```", note, flags=re.DOTALL)
 
     assert example is not None
-    validate_figure_descriptor(json.loads(example.group(1)))
+    fence = yaml.safe_load(example.group(1))
+    assert fence["kind"] == "plot"
+    validate_figure_descriptor(fence["content"])
 
 
 def test_adapter_notes_can_depend_on_a_supplied_reference(tmp_path) -> None:
