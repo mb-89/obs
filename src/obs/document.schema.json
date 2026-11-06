@@ -36,8 +36,8 @@
     },
     "sourceArchive": {
       "description": "The vault's source files, present only when the build was asked to disclose them (architecture.md, Source archive).",
-      "type": "object", "additionalProperties": false, "required": ["files"],
-      "properties": {"files": {"type": "array", "items": {"$ref": "#/$defs/sourceFile"}}}
+      "type": "object", "additionalProperties": false, "required": ["files", "build"],
+      "properties": {"files": {"type": "array", "items": {"$ref": "#/$defs/sourceFile"}}, "build": {"$ref": "#/$defs/sourceBuild"}}
     },
     "capabilities": {"type": "array", "items": {"$ref": "#/$defs/id"}, "uniqueItems": true}
   },
@@ -471,6 +471,16 @@
         "name": {"type": "string", "minLength": 1},
         "path": {"type": "string", "pattern": "^(?!/)(?!.*(^|/)\\.\\.?(/|$)).+\\.css$"},
         "text": {"type": "string"}
+      }
+    },
+    "sourceBuild": {
+      "description": "What rebuilds the artifact: obs's public repository, the commit of the checkout obs ran from, the package versions of every lockfile Git tracks there by repository-relative path, and the obs-document arguments of the call without the build machine's paths (architecture.md, Source archive).",
+      "type": "object", "additionalProperties": false, "required": ["repository", "commit", "lockfiles", "arguments"],
+      "properties": {
+        "repository": {"type": "string", "minLength": 1},
+        "commit": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+        "lockfiles": {"type": "object", "additionalProperties": {"type": "object", "additionalProperties": {"type": "string"}}},
+        "arguments": {"type": "array", "items": {"type": "string"}, "contains": {"const": "--embed-source"}}
       }
     },
     "sourceFile": {
