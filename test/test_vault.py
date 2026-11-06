@@ -20,11 +20,14 @@ def capability_reference() -> dict[str, object]:
     )
 
 
-def node_types(document: dict[str, object]) -> set[str]:
-    def descend(node: dict[str, object]):
-        yield node["type"]
+def node_types(document: dict[str, object], bodies: bool = True) -> set[str]:
+    """Every node type in the Document; without ``bodies``, not the type of a figure's body node,
+    which is the figure's kind (document.schema.json, figures), though still the types inside it."""
+    def descend(node: dict[str, object], body: bool = False):
+        if bodies or not body:
+            yield node["type"]
         for child in node["children"]:
-            yield from descend(child)
+            yield from descend(child, node["type"] == "figures")
 
     def chapters(items: list[dict[str, object]]):
         for chapter in items:
@@ -671,7 +674,7 @@ def test_core_parses_the_spec_vault_as_neutral_document(tmp_path, spec_document)
     structural = STRUCTURAL_NODE_TYPES
     references = {item["id"] for item in reference["capabilities"]}
     types = node_types(document)
-    assert types <= structural | references
+    assert node_types(document, bodies=False) <= structural | references
     assert {"wikilinks", "bases", "command-fences", "marks"} <= types
     assert set(document["capabilities"]) <= references
     assert set(document["capabilities"]) == types & references
