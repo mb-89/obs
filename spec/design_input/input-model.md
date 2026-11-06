@@ -1169,8 +1169,9 @@ the per-kind register is the `marks` [register](#registers).
 
   The declaration, not the data producer, owns this query and whether/where
   these metrics exist. Optional `link: {note, groupProperty}`
-  routes the label to that authored note's matching table group without a
-  generated table ordinal; `tone`/`toneRules` use the existing metric contracts.
+  routes each label to its drill-down in that authored note's table
+  ([[capabilities/cards-metrics#Drill-downs]]); `tone`/`toneRules` use the
+  existing metric contracts.
 
   This is a typed presentation projection, not string interpolation, arbitrary
   template syntax, a new predicate evaluator or a numeric/formula engine.
