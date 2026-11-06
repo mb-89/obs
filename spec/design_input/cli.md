@@ -39,6 +39,26 @@ the core run the vault's command fences from the vault root and put
 their captured output into the Document; without it, a command fence fails the build naming its
 note and the flag ([[capabilities/command-fences#Authorization]]).
 
+## Several documents per call
+
+One `obs-document` call builds several artifacts: each `--source` pairs, in argument order, with
+the `--destination` that follows it, and `--adapter` builds each of them:
+
+```sh
+uv run obs-document --adapter html --source a/manifest.md --destination a.html --source b/manifest.md --destination b.html
+```
+
+The call builds the documents one after the other, in argument order. Every other option
+(`--execute-commands`, `--embed-source`, `--config`, `--adapter-option`) applies to each of them,
+and each Document goes to a temporary file, so `--document` names none. A failure stops the call
+and names the source it failed on; artifacts built before it stay written.
+
+Repeated pairs were chosen over a job file, as the interim CLI chose them: callers already
+assemble argument arrays, and a job file would be a second input format with its own schema and
+path rules. The call pays the core's start once, and the adapter once per document: the
+[[architecture#Adapter call|adapter call]] hands an adapter one Document and one destination, and
+a call that hands it several would change that contract for every adapter.
+
 ## Adapter options
 
 `--adapter-option NAME=VALUE`, repeatable, passes an option to the adapter without the core naming

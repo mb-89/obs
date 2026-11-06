@@ -86,6 +86,10 @@ it, so they read `spec/manifest.md: …`. ROOT is for messages only: the Documen
 machine-independent and never carries it, and neither does the artifact. Without the argument, on
 a direct adapter call on a Document, messages name paths relative to the vault.
 
+A call that builds several documents ([[cli#Several documents per call]]) starts the adapter once
+per document, each with its own Document, destination and vault root: the call shape stays one
+Document to one artifact for every adapter, and the core's start is what the call shares.
+
 ### Asset bytes
 
 The Document embeds the bytes of every vault file it references as an image or a
@@ -119,6 +123,53 @@ source machine's vault, which embedding assets avoids ([Asset bytes](#asset-byte
 
 An adapter therefore has no command options: it renders the node's `output`, and a node
 without one fails naming the remedy.
+
+### Source archive
+
+A source archive discloses the vault's source data, so the Document carries it only when the
+build asks for it: `obs-document --source <manifest> --embed-source` adds the Document's
+`sourceArchive`, the vault's source files, each with its vault-relative `path`. An adapter that
+offers a source archive packages these files, embeds them and attaches them to a PDF from the
+Document alone; one that offers none ignores them. Without the option the Document has no
+`sourceArchive`, and nothing in it says what the vault holds beyond what the chapters use.
+
+The files are the vault's explicit directory snapshot: every file below the manifest's folder,
+scripts and data outside the chapters included, except hidden files and folders (a name that
+starts with a dot), installed dependency and generated folders (`__pycache__`, `node_modules`,
+`site-packages`, `__pypackages__`, `data_output`, `design_output`, `*.egg-info`, `*.dist-info`),
+Python environments (a folder holding `pyvenv.cfg`) and compiled files (`.pyc`, `.pyo`, `.exe`,
+`.dll`, `.so`, `.dylib`, `.o`, `.obj`, `.class`). The vault's [CSS snippets](#css-snippets) are
+source files despite their hidden folder. A symlink fails the build, naming its path and the
+remedy, so the archive never reaches outside the vault. The core detects no secrets: the author
+inspects what the option discloses.
+
+A file the Document already holds as an asset carries that asset's `id` instead of its bytes, so
+the Document holds each file's bytes once ([Asset bytes](#asset-bytes)); every other file carries
+its bytes as base64 `data`.
+
+Carrying the files was chosen over carrying a finished ZIP or a reference the adapter may read:
+a ZIP would hold a second copy of every asset's bytes and fix a packaging an adapter may want
+otherwise (compression, a rebuild script, its own sources beside the vault's), and a reference ties
+the adapter to the source machine's vault, as an asset root would. The archive holds the vault
+only: what rebuilds an artifact beyond the vault (the core's and the adapter's sources, their
+settings) is the adapter's to add.
+
+### CSS snippets
+
+An Obsidian vault keeps its CSS snippets in its snippet folder, `.obsidian/snippets` unless core
+configuration's `input.cssSnippetFolder` names another (`src/obs/config.schema.json`). The
+Document's `cssSnippets` carries every `.css` file directly in that folder, in name order, each
+with its `name` (the file name without `.css`), its vault-relative `path` and its `text`; a vault
+without the folder has none. A snippet that is not UTF-8 text, or that resolves outside the vault,
+fails the build naming its path. An adapter applies the snippets its own namespace declares, by
+name, from the Document alone; the core states nothing about how they style an artifact.
+
+Carrying every snippet was chosen over reading which ones a document declares: the declaration is
+a presentation choice in an adapter's namespace, which the core never reads
+([[input-model#Core and adapter namespaces]]), and Obsidian's own list of enabled snippets is a
+per-device appearance setting, not part of the document. Snippets are small, so carrying the
+undeclared ones costs little. The source archive carries the snippet files despite their hidden
+folder: they are inputs of the documents that declare them.
 
 ## Input contracts
 
