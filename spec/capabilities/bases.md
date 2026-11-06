@@ -16,7 +16,10 @@ Define declarative Base views over canonical note records.
 
 The Document's `records` carry one record of type `note` per vault note outside hidden folders,
 the manifest included. Each record holds an `id` derived from its path, its vault-relative
-`path` and its frontmatter as `fields`. The record of an ignored note also carries
+`path`, its frontmatter as `fields` and as parsed `fieldNodes`
+([[capabilities/markdown-frontmatter#Document node]]). A row a note owns finds its parsed values
+on that note's record: a glossary term on its `note`, the manifest's metadata and history rows
+on the manifest's. The record of an ignored note also carries
 `ignored: true`; a Base never selects it ([[capabilities/markdown-frontmatter#Ignored notes]]).
 
 An adapter evaluates a Base filter on these records,

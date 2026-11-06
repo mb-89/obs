@@ -82,3 +82,53 @@ def test_note_outside_the_vault_is_refused_with_its_source_and_remedy(tmp_path) 
         pytest.skip("symbolic links are unavailable")
     with pytest.raises(VaultError, match=r"Note path escapes the vault: linked\.md \(vault .*\); replace"):
         build_vault_document(vault / "manifest.md")
+
+
+RECORD_BADGES = (
+    "https://img.shields.io/badge/Obsidian-7C3AED?style=for-the-badge",
+    "https://img.shields.io/badge/HTML5-E34F26?style=for-the-badge",
+)
+
+
+def _record_vault(tmp_path: Path, capability: str) -> Path:
+    """A manifest listing x, with a two-badge subtitle, and a record-only capability note."""
+    vault = tmp_path / "vault"
+    vault.mkdir()
+    subtitle = f"![Obsidian]({RECORD_BADGES[0]}) → ![HTML5]({RECORD_BADGES[1]})"
+    (vault / "manifest.md").write_text(f"---\nsubtitle: '{subtitle}'\n---\n- [[x]]\n", encoding="utf-8")
+    (vault / "x.md").write_text("# X\n", encoding="utf-8")
+    (vault / "cap.md").write_text(f"---\nkind: capability\ncapability:\n{capability}---\n# Cap\n",
+                                  encoding="utf-8")
+    return vault
+
+
+def _record_document(vault: Path, remote_images) -> dict[str, object]:
+    from obs.document import build_document as build_checked_document
+    from test_vault import capability_reference
+
+    served, _ = remote_images
+    for href in RECORD_BADGES:
+        served[href] = (b'<svg xmlns="http://www.w3.org/2000/svg"/>', "image/svg+xml")
+    return build_checked_document(vault / "manifest.md", capability_reference())
+
+
+def _record_fields(document: dict[str, object], path: str) -> dict[str, list[dict[str, object]]]:
+    [record] = [item for item in document["records"] if item.get("path") == path]
+    return {node["attrs"]["name"]: node["children"] for node in record["fieldNodes"]}
+
+
+def test_a_record_only_note_s_wikilink_arrives_as_a_resolved_field_node(tmp_path, remote_images) -> None:
+    document = _record_document(_record_vault(tmp_path, '  dependsOn: ["[[x]]"]\n'), remote_images)
+
+    [link] = _record_fields(document, "cap.md")["capability.dependsOn.0"]
+    assert link["type"] == "wikilinks"
+    assert (link["attrs"]["target"], link["attrs"]["chapter"]) == ("x", "x")
+    assert [chapter["id"] for chapter in document["chapters"]] == ["x"]
+
+
+def test_the_manifest_record_s_subtitle_arrives_as_image_nodes_of_its_two_assets(tmp_path, remote_images) -> None:
+    document = _record_document(_record_vault(tmp_path, "  id: cap\n"), remote_images)
+
+    images = [node for node in _record_fields(document, "manifest.md")["subtitle"] if node["type"] == "attachments"]
+    assets = {asset["id"]: asset["href"] for asset in document["assets"]}
+    assert [assets[node["attrs"]["asset"]] for node in images] == list(RECORD_BADGES)

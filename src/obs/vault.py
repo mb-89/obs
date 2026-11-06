@@ -179,6 +179,13 @@ def build_document(
     capabilities: set[str] = set()
     included: set[Path] = {manifest_path}
 
+    def context_of(path: Path) -> _Context:
+        """What parsing one note's Markdown reads and adds to."""
+        return _Context(
+            path, vault, links, assets, link_ids, asset_ids, capability_ids or set(), capabilities,
+            command_runner,
+        )
+
     def parse_chapter(chapter: dict[str, object]) -> None:
         path = chapter.pop("_path")
         included.add(path)
@@ -187,10 +194,7 @@ def build_document(
         _metadata_links(chapter_metadata, path, vault)
         _query_selection(chapter_metadata.get("query"), path, vault)
         chapter["metadata"] = _json_value(chapter_metadata)
-        context = _Context(
-            path, vault, links, assets, link_ids, asset_ids, capability_ids or set(), capabilities,
-            command_runner,
-        )
+        context = context_of(path)
         content = _frontmatter_nodes(chapter_metadata, context)
         if "chapter-inclusion" in (capability_ids or set()):
             content.append({
@@ -209,10 +213,7 @@ def build_document(
     for chapter in chapters:
         parse_chapter(chapter)
     _metadata_links(metadata, manifest_path, vault)
-    manifest_context = _Context(
-        manifest_path, vault, links, assets, link_ids, asset_ids, capability_ids or set(),
-        capabilities, command_runner,
-    )
+    manifest_context = context_of(manifest_path)
     abstract_nodes = _nodes(body[abstract:], manifest_context)
     manifest_nodes = _frontmatter_nodes(metadata, manifest_context)
     unlisted: list[dict[str, object]] = []
@@ -226,6 +227,12 @@ def build_document(
     chapters.extend(sorted(unlisted, key=lambda chapter: chapter["_relative"].casefold()))
     for chapter in unlisted:
         del chapter["_relative"]
+    # Inclusion is final: an included note's frontmatter links were followed with its chapter,
+    # and a note outside the Document includes nothing (capabilities/bases#Note records).
+    for path, (fields, _) in vault.notes.items():
+        record = vault.notes_by_id[vault.identities[path]][1]
+        record["fieldNodes"] = _field_nodes(fields, "", context_of(path))
+    vault.reached.clear()
     for attrs, target in vault.links:
         attrs["chapter"] = HOME if target == manifest_path else vault.identities.get(target)
     if "manifest" in (capability_ids or set()):
