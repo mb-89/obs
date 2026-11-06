@@ -17,7 +17,9 @@ diagram inline under `content` or from `source`, a `.mmd` file relative to the n
 The core draws the diagram as SVG while it builds the Document, on the build machine and
 without the network, with the Mermaid library pinned in the core's diagram renderers. The
 figure's body carries both the diagram's text, for review, and the SVG, so every output shows
-the same picture and none needs Mermaid. A diagram Mermaid cannot read, or a build without a
+the same picture and none needs Mermaid.
+
+A diagram Mermaid cannot read, or a build without a
 browser, is an input error that names the note, its line and the remedy: Mermaid's own message,
 or the command that installs the browser; the renderers are package data of the core
 ([[input-model#Remaining chapter content]], Figure input direction).

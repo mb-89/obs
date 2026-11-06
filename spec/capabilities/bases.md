@@ -17,7 +17,9 @@ Define declarative Base views over canonical note records.
 The Document's `records` carry one record of type `note` per vault note outside hidden folders,
 the manifest included. Each record holds an `id` derived from its path, its vault-relative
 `path`, its frontmatter as `fields` and as parsed `fieldNodes`
-([[capabilities/markdown-frontmatter#Document node]]). A row a note owns finds its parsed values
+([[capabilities/markdown-frontmatter#Document node]]).
+
+A row a note owns finds its parsed values
 on that note's record: a glossary term on its `note`, the manifest's metadata and history rows
 on the manifest's. The record of an ignored note also carries
 `ignored: true`; a Base never selects it ([[capabilities/markdown-frontmatter#Ignored notes]]).
@@ -38,12 +40,16 @@ Obsidian's [[obsidian-bases-syntax|Bases syntax]] is the reference for `==` and 
 this rule set differs, a good system comes before full compatibility, and the rule says so.
 
 - **Case:** text equals text when the two differ at most in letter case: `"Open"` equals
-  `"open"`. Ignoring case means comparing case foldings by one Unicode rule, full case
+  `"open"`.
+
+  Ignoring case means comparing case foldings by one Unicode rule, full case
   folding (Unicode's `CaseFolding.txt`, statuses C and F, without the Turkic mappings), held
-  in one table, `src/obs/case-folding.json`, that every evaluator reads: `"Straße"` equals
-  `"STRASSE"`, `"ΟΔΟΣ"` equals `"οδος"` with or without its final sigma, `"İ"` equals an
-  `i` followed by U+0307 COMBINING DOT ABOVE but not `"i"`, and the dotless `"ı"` equals only
-  itself, never `"I"`.
+  in one table, `src/obs/case-folding.json`, that every evaluator reads:
+
+  - `"Straße"` equals `"STRASSE"`,
+  - `"ΟΔΟΣ"` equals `"οδος"` with or without its final sigma,
+  - `"İ"` equals an `i` followed by U+0307 COMBINING DOT ABOVE but not `"i"`, and
+  - the dotless `"ı"` equals only itself, never `"I"`.
 
   Obsidian compares text case-sensitively; this rule set does not, because a reader selects
   by meaning, not by spelling. A query condition asks for the exact case with its flag

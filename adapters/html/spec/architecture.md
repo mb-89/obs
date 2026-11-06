@@ -5,6 +5,7 @@ Reader: whoever changes how the HTML adapter, or the interim adapter it replaces
 obs's architecture, part of obs's specification, owns the flow from vault to Document, the
 repository layout and the Document-adapter contract. This note owns the HTML adapter's rendering
 and runtime architecture; its sections moved here from obs's architecture note with their text.
+
 Domain adapters own their evidence parsing, calculations, and artifact content; obs-html owns
 reusable rendering and interaction behavior. An adapter's migrated artifact must provide its
 required interactions within the obs-html edition.
@@ -31,17 +32,22 @@ sum to at most its total.
 Per-stage baselines live in one tracked data file, `src/obs_html/timing-baselines.json`, package
 data read through `importlib.resources` and validated by its adjacent
 `timing-baselines.schema.json`: an object of stage name to baseline seconds. A stage without a
-baseline is not compared. Each baseline is the median of five runs, on the machine of the
+baseline is not compared.
+
+Each baseline is the median of five runs, on the machine of the
 change that sets it, on the adapter's own specification, each run into a new file:
 `uv run obs-html --build-own-spec spec.html --timings` for render and write, the same with
-`spec.pdf` for print, and `uv run obs-html --check-rendered spec.html --timings` for open. The
-specification has no figure, so figures has no baseline. Whoever changes a stage's cost measures
+`spec.pdf` for print, and `uv run obs-html --check-rendered spec.html --timings` for open.
+
+The specification has no figure, so figures has no baseline. Whoever changes a stage's cost measures
 it so and writes the new median there; there is no command for it, as the interim had none.
 
 With `--timings`, a stage that exceeds its baseline by both the relative and the absolute
 threshold of the [[configuration]] `timings` section prints a warning to stderr through the
 adapter's one message form: the baseline file, `stages.<stage>`, the stage's time and baseline,
-and the remedy. It never fails the call. Either threshold alone stays silent, so small stages
+and the remedy. It never fails the call.
+
+Either threshold alone stays silent, so small stages
 and small absolute changes do not cause noise. The interim adapter keeps its own registry and
 baselines in `src/obs_html_interim` until the cutover.
 
@@ -145,18 +151,28 @@ or authorization.
 Every browser asset the renderer embeds (its scripts and styles, the icons, the vendored Plotly,
 pdf-lib and js-yaml, and the maths library) is package data of `obs_html`, and the renderer reads
 it only through `importlib.resources`, so an installed wheel renders what a checkout renders.
-Most are tracked files in `src/obs_html`. An asset that comes from a lockfile is built into the
+Most are tracked files in `src/obs_html`.
+
+An asset that comes from a lockfile is built into the
 package by the adapter's build hook, `hatch_build.py`, on every build of the package, editable ones
-included: it unpacks math.js and its licences from the mathjs tarball `maths/package-lock.json`
+included.
+
+It unpacks math.js and its licences from the mathjs tarball `maths/package-lock.json`
 pins (that package alone, checked against the lockfile's integrity) in a temporary folder and
-writes them to `src/obs_html/vendor/maths/`. Those files are
-generated beside the package that ships them, as the core's capability reference is
-(obs's cli.md, One-call build), and ignored. The hook's `PACKAGED` table names each generated
-folder of the package and what fills it, so another one is one entry. Besides the browser assets
+writes them to `src/obs_html/vendor/maths/`.
+
+Those files are generated beside the package that ships them, as the core's capability reference is
+(obs's cli.md, One-call build), and ignored.
+
+The hook's `PACKAGED` table names each generated
+folder of the package and what fills it, so another one is one entry.
+
+Besides the browser assets
 it copies this specification, `spec/`, into `src/obs_html/spec/`, which `obs-html
 --build-own-spec` builds ([[cli#Building its own specification]]). uv builds the package again
-when the hook, the lockfile or a file of this specification changes (`[tool.uv] cache-keys`). A build without npm, whose
-`npm pack` fails or whose tarball is not the pinned one, stops and names the lockfile and the remedy. `test/test_installed_wheel.py`
+when the hook, the lockfile or a file of this specification changes (`[tool.uv] cache-keys`).
+
+A build without npm, whose `npm pack` fails or whose tarball is not the pinned one, stops and names the lockfile and the remedy. `test/test_installed_wheel.py`
 renders and builds this specification with the installed wheel and fails when anything is read
 from the repository tree.
 

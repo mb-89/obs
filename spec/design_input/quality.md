@@ -40,7 +40,9 @@ definitions alike. Keeping the same fact in two places is an anti-pattern (user,
   owner rather than serializing parallel copies.
 - Each runtime has one selection resolver, and every count, distinct value and drill-down
   reads a note's property through it, never through a lookup of its own, so all of them follow
-  [[capabilities/bases#Comparisons]]. The core's is `obs.selection.note_value` (with the
+  [[capabilities/bases#Comparisons]].
+
+  The core's is `obs.selection.note_value` (with the
   note's marks for a query condition, `obs.selection.conditions_select`); the browser's is
   `obsQuery.propertyTexts`, which the adapter's specification that ships it owns.
 
@@ -89,7 +91,9 @@ definitions alike. Keeping the same fact in two places is an anti-pattern (user,
   adapter startup within a selected module; do not require the end-to-end scenario to test a
   local interaction. Prefer extracting pure transformations only when they have a cohesive owner.
 - The complete suite (`test/suite.py`) runs its parts side by side and each part's tests in
-  parallel worker processes, one per CPU (pytest-xdist). A module's tests share a worker, so its module fixtures are built
+  parallel worker processes, one per CPU (pytest-xdist).
+
+  A module's tests share a worker, so its module fixtures are built
   once per run; each worker starts one browser and leases every test a page from its pool, made
   blank between tests as a fresh context shows it. The adapter's browsers keep their frame rate
   capped: uncapped, every frame wait draws as fast as the CPU allows, which the parallel suite
@@ -97,14 +101,18 @@ definitions alike. Keeping the same fact in two places is an anti-pattern (user,
 - The adapter's browser tests run on Playwright's `chromium-headless-shell`, which costs about half
   the CPU of full Chromium per page. The checks whose behaviour can differ in the shell run on
   full Chromium, the browser the PDF path finds, as a small named set: print and PDF export, the
-  viewer fixture's sandboxed frame and the startup marks. A test states its engine by the fixture
+  viewer fixture's sandboxed frame and the startup marks.
+
+  A test states its engine by the fixture
   it takes; the adapter's `test/structure/test_quality.py` names the set and refuses a
   full-Chromium test outside it, and its `test/conftest.py` names the shell and fails, with the
   remedy, where it is not installed.
 - A browser test opens what shared fixtures give it: a leased page, and an artifact built once (by
   a fixture through `built_once`, or by the adapter's `test/artifacts.py`); several read-only
   checks of one artifact share one page load. It neither builds an artifact nor starts
-  Playwright or a browser itself. It adds no init script, since in the preview's srcdoc frames
+  Playwright or a browser itself.
+
+  It adds no init script, since in the preview's srcdoc frames
   one can run after the artifact's own scripts, and reads the artifact's timings from the
   artifact's own performance marks. The adapter's `test/structure/test_quality.py` refuses a
   test that does otherwise.
@@ -130,8 +138,9 @@ definitions alike. Keeping the same fact in two places is an anti-pattern (user,
   `test/structure/test_<note>.py`, one file per note, so changes to different notes touch
   different test files.
 - A bare `uv run pytest`, and so the complete suite, runs the unit and dom tiers and every
-  browser or e2e test that does not reach the interim adapter. The interim
-  adapter's browser and e2e tests run only with `uv run pytest --gate`: the adapter's parity gate
+  browser or e2e test that does not reach the interim adapter.
+
+  The interim adapter's browser and e2e tests run only with `uv run pytest --gate`: the adapter's parity gate
   compares the interim adapter, and the cutover removes them with it. `test/tiers.py` decides
   what reaches the interim adapter from the same source evidence as the tiers.
 - The browser tier needs `OBS_HTML_TEST_NATIVE_BROWSER`

@@ -17,11 +17,15 @@ of kind `plantuml` adds a caption, `alt` and a block id, and takes the diagram i
 The core draws the diagram as SVG while it builds the Document, on the build machine and never
 through a PlantUML server, with PlantUML's JavaScript build pinned in the core's diagram
 renderers; no Java runtime is needed. The figure's body carries both the diagram's text, for
-review, and the SVG, so every output shows the same picture. A diagram PlantUML cannot read, or
+review, and the SVG, so every output shows the same picture.
+
+A diagram PlantUML cannot read, or
 a build without a browser, is an input error that names the note, its line and the remedy:
 PlantUML's own message, or the command that installs the browser; the renderers are package
 data of the core
-([[input-model#Remaining chapter content]], Figure input direction). A diagram includes no
+([[input-model#Remaining chapter content]], Figure input direction).
+
+A diagram includes no
 other file and no standard-library sprite: the renderer reads nothing but the diagram.
 
 A `[[note]]` link on an element links it to a note like a prose link
