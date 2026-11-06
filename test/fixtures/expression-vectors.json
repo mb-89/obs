@@ -484,6 +484,40 @@
    "expected": 1.5
   },
   {
+   "name": "Heaviside step with its value at zero given",
+   "tree": {
+    "op": "heaviside",
+    "args": [
+     {
+      "number": 0
+     },
+     {
+      "number": 0.5
+     }
+    ]
+   },
+   "values": {},
+   "expected": 0.5
+  },
+  {
+   "name": "Heaviside step with a value at zero of one",
+   "tree": {
+    "op": "heaviside",
+    "args": [
+     {
+      "symbol": "a"
+     },
+     {
+      "number": 1
+     }
+    ]
+   },
+   "values": {
+    "a": 0
+   },
+   "expected": 1.0
+  },
+  {
    "name": "torque branch",
    "tree": {
     "op": "mul",
