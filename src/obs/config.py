@@ -22,6 +22,11 @@ DEFAULT_FIGURE_LABELS: tuple[str, ...] = tuple(
     _SCHEMA["properties"]["input"]["properties"]["figureReferences"]["properties"]["labels"]["default"]
 )
 """The typed-figure-number labels of a build without core configuration; the schema owns them."""
+_LONG_PARAGRAPHS = _SCHEMA["properties"]["input"]["properties"]["longParagraphs"]["properties"]
+DEFAULT_LONG_PARAGRAPHS: tuple[int, int] = (
+    _LONG_PARAGRAPHS["warningLines"]["default"], _LONG_PARAGRAPHS["lineCharacters"]["default"])
+"""The long-paragraph lint's line limit and line width where core configuration names none; the
+schema owns them."""
 
 
 class CoreConfigError(ValueError):
@@ -35,6 +40,8 @@ class CoreConfig:
     command_timeout_seconds: int
     css_snippet_folder: str = DEFAULT_CSS_SNIPPET_FOLDER
     figure_labels: tuple[str, ...] = DEFAULT_FIGURE_LABELS
+    long_paragraphs: tuple[int, int] = DEFAULT_LONG_PARAGRAPHS
+    """The long-paragraph lint's warningLines and lineCharacters."""
 
 
 def load_core_config(path: Path) -> CoreConfig:
@@ -44,11 +51,16 @@ def load_core_config(path: Path) -> CoreConfig:
         raise CoreConfigError(f"Invalid core configuration: {path}: {error}") from error
     errors = list(Draft202012Validator(_SCHEMA).iter_errors(value))
     if errors:
-        raise CoreConfigError(f"Invalid core configuration: {errors[0].message}")
+        error = errors[0]
+        field = ".".join(str(part) for part in error.absolute_path) or "(root)"
+        raise CoreConfigError(f"Invalid core configuration: {path}: {field}: {error.message}; "
+                              "see the core's config.schema.json")
     return CoreConfig(
         manifest_filename=value["input"]["manifestFilename"],
         project_config_filename=value["input"]["projectConfigFilename"],
         command_timeout_seconds=value["execution"]["commandTimeoutSeconds"],
         css_snippet_folder=value["input"].get("cssSnippetFolder", DEFAULT_CSS_SNIPPET_FOLDER),
         figure_labels=tuple(value["input"].get("figureReferences", {}).get("labels", DEFAULT_FIGURE_LABELS)),
+        long_paragraphs=(value["input"].get("longParagraphs", {}).get("warningLines", DEFAULT_LONG_PARAGRAPHS[0]),
+                         value["input"].get("longParagraphs", {}).get("lineCharacters", DEFAULT_LONG_PARAGRAPHS[1])),
     )
