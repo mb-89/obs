@@ -17,6 +17,10 @@ dependencies = [
     "sympy>=1.14.0",
 ]
 
+[project.urls]
+# The public repository a source archive's reproduce.py installs obs from (architecture.md, Source archive).
+Repository = "https://github.com/mb-89/obs"
+
 [project.scripts]
 obs-html-interim = "obs_html_interim.cli:main"
 obs-document = "obs.document:main"
