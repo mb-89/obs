@@ -5,6 +5,7 @@ from pathlib import Path
 
 import pytest
 
+import bounds
 import browser_pool
 import network_guard
 import spec_build
@@ -29,6 +30,7 @@ def pytest_addoption(parser):
 @pytest.hookimpl(tryfirst=True)
 def pytest_collection_modifyitems(config, items):
     tiers.modify_items(config, items)
+    bounds.mark(items)
     group_by_module(items)
 
 
@@ -42,7 +44,7 @@ def group_by_module(items) -> None:
 
 @pytest.hookimpl(wrapper=True)
 def pytest_runtest_protocol(item, nextitem):
-    with network_guard.running(item.nodeid):
+    with network_guard.running(item.nodeid), bounds.running(item, os.environ.get(spec_build.RUN_FOLDER)):
         return (yield)
 
 
@@ -50,6 +52,7 @@ def pytest_runtest_protocol(item, nextitem):
 def pytest_runtest_makereport(item, call):
     report = yield
     network_guard.fail(report)
+    bounds.explain(item, report)
     tiers.make_report(item, report)
     return report
 

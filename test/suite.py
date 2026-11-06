@@ -16,8 +16,10 @@ output is printed when it ends. Every part runs to its end even when another fai
 code is non-zero when any part failed. The parts share one build of obs's spec: the suite makes a
 folder for the run, names it in `OBS_SPEC_BUILD` for every part, prints how often
 test/spec_build.py built each kind there, fails where one kind was built twice, and removes the
-folder at the end. Arguments are passed on to every part's pytest, for
-example `--durations=20`. Where `SE_TEST_REPORTS` names a directory, each part writes its JUnit
+folder at the end. Each test has its timeout (test/bounds.py); the whole run has a cap,
+CAP_SECONDS, at which a part still running is stopped, with every process it started, and the
+suite names the part and the tests it was running and fails. Arguments are passed on to every
+part's pytest, for example `--durations=20`. Where `SE_TEST_REPORTS` names a directory, each part writes its JUnit
 XML report there as `<part>.xml` (`core.xml`, `adapters-html.xml`), from which se's
 `work_tickets.py suite` names the slowest tests.
 
@@ -58,6 +60,9 @@ REPORTS_VARIABLE = "SE_TEST_REPORTS"
 # Each part's Node test package, where it has one.
 NODE_PACKAGES = [part / "test" / "browser" for part in PARTS
                  if (part / "test" / "browser" / "package-lock.json").is_file()]
+# The run's cap, in seconds: past any run that ends ([tests] limit_seconds in se.toml) and past
+# every test's timeout (test/bounds.py), so a hanging test fails by its own timeout first.
+CAP_SECONDS = 300
 # In node_modules: the SHA-256 of the lockfile it was installed from.
 INSTALLED_LOCKFILE = ".obs-installed-lockfile"
 
@@ -131,12 +136,35 @@ def set_up_focused_run(config, packages: list[Path] | None = None, run=None) -> 
     return installed
 
 
-def run_part(part: Path, arguments: list[str]) -> tuple[int, str]:
-    """Run one part's pytest; its exit code and its output, headed by its command."""
+def run_part(part: Path, arguments: list[str], run_folder: Path) -> tuple[int, str]:
+    """Run one part's pytest; its exit code and its output, headed by its command. A part still
+    running at the cap (CAP_SECONDS) is stopped, and its output ends naming the tests it ran then."""
     command = part_command(part, arguments, os.environ)
-    result = subprocess.run(command, cwd=part, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
-                            text=True, encoding="utf-8", errors="replace")
-    return result.returncode, f"== {part_name(part)}: {' '.join(command[1:])} in {part}\n{result.stdout}"
+    process = subprocess.Popen(command, cwd=part, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+                               text=True, encoding="utf-8", errors="replace", start_new_session=os.name != "nt")
+    head = f"== {part_name(part)}: {' '.join(command[1:])} in {part}\n"
+    try:
+        output, _ = process.communicate(timeout=CAP_SECONDS)
+    except subprocess.TimeoutExpired:
+        import bounds  # Only here: an adapter's conftest.py loads this module without test/ on its path.
+
+        running = ", ".join(bounds.running_tests(run_folder, part)) or "no test (collecting, or ending its session)"
+        stop(process)
+        output, _ = process.communicate()
+        return 1, (f"{head}{output}test/suite.py: {part_name(part)} reached the suite's cap of {CAP_SECONDS} s "
+                   f"(CAP_SECONDS) and was stopped while running {running}. Remedy: run that test alone in "
+                   f"{part} with `uv run pytest <test>` and find what it waits for.\n")
+    return process.returncode, head + output
+
+
+def stop(process: subprocess.Popen) -> None:
+    """Stop the process and every process it started: its xdist workers, their browsers and drivers."""
+    if os.name == "nt":
+        subprocess.run(["taskkill", "/F", "/T", "/PID", str(process.pid)], capture_output=True)
+    else:
+        import signal
+
+        os.killpg(process.pid, signal.SIGKILL)
 
 
 def setup(arguments: list[str], clock) -> int:
@@ -179,7 +207,7 @@ def main(arguments: list[str], clock=time.monotonic) -> int:
         os.environ[spec_build.RUN_FOLDER] = shared  # Each part, and each of its workers, inherits it.
         try:
             with ThreadPoolExecutor(len(PARTS)) as pool:
-                running = {pool.submit(run_part, part, arguments): part for part in PARTS}
+                running = {pool.submit(run_part, part, arguments, Path(shared)): part for part in PARTS}
                 for finished in as_completed(running):
                     code, output = finished.result()
                     print(output, end="" if output.endswith("\n") else "\n", flush=True)
