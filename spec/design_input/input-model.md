@@ -34,7 +34,9 @@ is owned by [[cli]]; the core's runtime defaults by its configuration schema,
   ([Obsidian comments](#chapter-content)), and the list continues at the depth of the next
   visible line. The table
   of contents and previous/next walk exactly the chapters, in manifest order (depth first,
-  after Home), so they always match. A note reached only through a link is not a chapter, gets
+  after Home), so they always match.
+
+  A note reached only through a link is not a chapter, gets
   no previous/next, and stays reachable through its link.
 - Duplicate, unresolved, external, and non-Markdown manifest links are errors.
 - The manifest owns document metadata, authored navigation, and abstract prose. It is not
@@ -43,11 +45,15 @@ is owned by [[cli]]; the core's runtime defaults by its configuration schema,
 ## Core and adapter namespaces
 
 Decided by the user, 5 Nov 2026: obs makes no statement about an adapter; it treats an adapter
-like any other outside specification. Every key the core reads lives in the core's namespace
+like any other outside specification.
+
+Every key the core reads lives in the core's namespace
 `obs`, and the core validates every key there: a Base's and a view's `obs.records`, a view's
 `obs.members` ([[#Base files and members]]), a card's `obs.metricsFrom` and a metric's `obs.projection`
 ([[capabilities/cards-metrics#Fields]]), and a note's `obs.document`
-([[capabilities/profiles]]). An adapter's options live in its own namespace, `obs` followed
+([[capabilities/profiles]]).
+
+An adapter's options live in its own namespace, `obs` followed
 by its name in camelCase ([[#Adapter extensions]]); the core
 neither reads nor validates it, and keeps it out of document metadata rows. A key the core
 used to read in an adapter's namespace is an input error naming the note, the old key and the
@@ -92,6 +98,7 @@ An optional metric `link` is an internal fragment using the existing chapter/hea
 route syntax; the adapter adds the drill-down filter derived from the metric's conditions
 ([[capabilities/cards-metrics#Drill-downs]]) and applies it to the table named by a table-group
 anchor, or to the target chapter's first table when the link has no group anchor.
+
 Table-group anchors use the table's generated key and grouped property/value path.
 
 No authored script, expressions, callbacks or domain classifications are accepted. A card
@@ -180,7 +187,9 @@ Unmarked links are never embedded. There is no manifest setting for this.
 A wikilink target with a file extension other than `.md` is a vault file; a `.base` file, which
 names a register, is one too. It resolves like a note name: next to the linking note, then from
 the vault root, then by its case-insensitive file name, which must match exactly one non-hidden
-vault file. A bare name that matches several fails the build naming the linking note and the
+vault file.
+
+A bare name that matches several fails the build naming the linking note and the
 candidates, as does an embedded `.base` name that matches none; the remedy is the vault path. A marked image
 (`![[figure.png]]`, `![label](figure.png)`) is document content as above, not an attachment.
 
@@ -234,7 +243,9 @@ records; they never execute artifact-owned algorithms in the converter.
   It starts as the build time; a rebuild whose content equals the existing output keeps
   that output and its timestamp. Each committed canonical change in the artifact (for example
   an evidence replacement or a description edit) sets it to the time of that change, and a saved
-  artifact keeps that time. A change that returns the content to its state when opened or
+  artifact keeps that time.
+
+  A change that returns the content to its state when opened or
   when last saved restores that state's timestamp, so reverting an edit is not a change.
 
   The adapter owns which edits are content changes.
@@ -388,7 +399,9 @@ Generation time remains separate from document revision dates.
   reads it, so comment text never renders and a commented manifest line is no chapter. A `%%`
   outside code opens a comment and the next `%%` closes it, on the same line (inline) or a
   later one (a block, usually `%%` on its own line); a `%%` in a fenced code block or a code
-  span is text. A line that held only comment text goes with it. A `%%` no `%%` closes is an
+  span is text.
+
+  A line that held only comment text goes with it. A `%%` no `%%` closes is an
   error naming the note and the line it opens on, as an unclosed frontmatter is (worker
   decision, 5 Nov 2026; Obsidian hides the rest of the note instead).
 - Every part of the core reads a note through one reader, `src/obs/note.py`, which also owns
@@ -411,11 +424,15 @@ Generation time remains separate from document revision dates.
   index still requires every note's frontmatter to parse as a YAML mapping.
 
   A contract failure names where it comes from and its remedy, in one form:
-  `<note path>: <field path>: <what is wrong>. <remedy>`. The field path is the frontmatter
+  `<note path>: <field path>: <what is wrong>. <remedy>`.
+
+  The field path is the frontmatter
   field (`obs.document`, `query.where[0].field`), or the fence, numbered by kind within
   the note, followed by the field inside it (`cards fence 1, cards[0].title`); a file's own
   top level is `top level`. The remedy says what to write and names the note that owns the
-  contract. One formatter in the core turns every schema validation failure, of
+  contract.
+
+  One formatter in the core turns every schema validation failure, of
   frontmatter, fences, `.base` files and project configuration, into this message; the
   interim adapter uses it too, so no JSON Schema library text reaches the person (the
   person's rule that every error names its origin and, where possible, a remedy; decided
@@ -428,7 +445,9 @@ Generation time remains separate from document revision dates.
   A frontmatter `query`, and a cards metric, selects the notes whose record has every
   `where` condition ([[capabilities/queries#Conditions]]), narrowed by its `from` owner's
   selection; the `from` and `secondary` owner notes
-  are included too. A metric's `denominator` selects its population the same way, and a
+  are included too.
+
+  A metric's `denominator` selects its population the same way, and a
   card's `obs.metricsFrom.where` the records its series counts. A card's
   `obs.metricsFrom.sourceNote` and `obs.metricsFrom.link.note`
   ([[capabilities/cards-metrics#Fields]]) are explicit references, included like links.
@@ -481,7 +500,9 @@ Generation time remains separate from document revision dates.
   explicitly. Link examples inside code remain literal.
 
   A link's `attrs.chapter` names the chapter of its target; a link to the manifest names
-  `home`, which no chapter identifier takes. Name lookup skips the manifest. `null` follows
+  `home`, which no chapter identifier takes. Name lookup skips the manifest.
+
+  `null` follows
   [[capabilities/wikilinks#Document node]]. For a target that does not exist the build warns,
   naming the source note, the target and the remedy (decided 5 Nov 2026), and for a link in a
   frontmatter value also its field, by the dotted path its field node names.
@@ -520,6 +541,7 @@ callouts are the one system for marked content.
 Obsidian is the reference syntax. A blockquote is a callout when the first line of its
 first paragraph is `[!type]`, optionally followed directly by a fold marker `+` or `-`
 and then by a space and an inline-Markdown title: `> [!warning]- Check the limits`.
+
 The type is case-insensitive. Later lines of the blockquote, including nested blocks and
 callouts, are the callout body. Presentation is the adapter's.
 
@@ -682,6 +704,7 @@ pinned unit library. A quantity may carry a `range`, its domain, which holds its
 
 In the Document every quantity carries its value, its display unit, its value in SI base units
 and its dimension, so an adapter converts between units without a unit library of its own.
+
 Values of one dimension convert between units and add or subtract across units; combining
 different dimensions is an input error naming both notes. [[capabilities/quantities]] owns the
 fields, the Document node and the arithmetic. Tolerance stack-up is a candidate to move live.
@@ -707,6 +730,7 @@ are not exempt: a system of record and its items link to their internal record n
 Link text: the text written in the link wins. An unlabelled link renders by the target's kind:
 a numeric-value note shows its value and unit (and range or tolerance once typed), and any other
 note shows its title. There is no placeholder syntax such as `$value` in link text.
+
 "Unlabelled" means a wikilink without `|label`: `[[alias]]` and `[[note-name]]` show the
 target's title, not the alias or file name written; a Markdown link always has its own text.
 An unlabelled heading or block link shows the note's title and the heading
@@ -731,8 +755,9 @@ equations, geometry and engineering logic stay outside the converter.
 
 Every figure is one generic figure of a kind. A `figure` fence contains a YAML mapping with
 `version: 1`, a `kind`, the attributes every kind shares (`caption` and `alt`, below) and the
-kind's content: inline under `content`, or from `source`, a vault-relative file. Exactly one of
-the two; a fence with neither or both is an input error that names the note, the fence and the
+kind's content: inline under `content`, or from `source`, a vault-relative file.
+
+Exactly one of the two; a fence with neither or both is an input error that names the note, the fence and the
 remedy. A kind's own options sit beside them in the fence. The kinds and their content:
 
 - `image`: a raster image or an SVG image. `source` names the image file; inline `content` is
@@ -756,23 +781,32 @@ An optional `caption` supplies visible figure prose; omission renders no caption
 The core emits every figure as one `figures` Document node, whatever its kind. Its attrs hold
 what every kind shares: `kind`, `caption` (paragraph nodes, parsed like note content), `alt` and
 `block` (the block id, below). Its one child holds the kind's content and is typed by the kind;
-inline and external content give the same node, and no kind repeats a shared attribute. A
-figure's number is not in the node: numbering is an adapter's presentation decision (below).
+inline and external content give the same node, and no kind repeats a shared attribute.
+
+A figure's number is not in the node: numbering is an adapter's presentation decision (below).
 The kinds are one registry, `FIGURE_KINDS` in `src/obs/figure.py`: adding a kind is one entry
 there (its parser) and one body schema in `src/obs/document.schema.json` (`$defs/figureBodies`).
 
 A diagram becomes SVG when the core builds the Document, on the build machine and with no
 network: the core runs the diagram's library (Mermaid, or PlantUML's JavaScript build) in a
 local headless browser, the one the project's tests already use, and refuses every request
-the library makes. The libraries are pinned in `src/obs/diagrams/package-lock.json`; every build
+the library makes.
+
+The libraries are pinned in `src/obs/diagrams/package-lock.json`. Every build
 of the core's package unpacks the files it serves from the tarballs the lockfile pins (only
 those packages' own, checked against the lockfile's integrity) and ships them as package data,
-which the core reads only through `importlib.resources` (`hatch_build.py`); a package build
+which the core reads only through `importlib.resources` (`hatch_build.py`).
+
+A package build
 without npm, whose `npm pack` fails or whose tarball is not the pinned one, fails naming the
-lockfile and the remedy. Building a Document never fetches them. The
+lockfile and the remedy. Building a Document never fetches them.
+
+The
 figure's body holds the diagram's text as authored, for review, and the SVG, which every
 adapter shows as the figure's picture, so none needs a diagram library and print shows the
-same drawing. The same text gives the same SVG, whether inline or from a file. A diagram its
+same drawing. The same text gives the same SVG, whether inline or from a file.
+
+A diagram its
 library cannot read is an input error that names the note, the note's line the library names
 (for a `source` file: the fence's line and the file's line) and the library's own message; a
 build without a browser, a program the package cannot carry, is an input error that names the
@@ -780,7 +814,9 @@ note, the fence's line and the browser's install command. No diagram is ever an 
 
 Paths are relative to the note, confined to the vault, and files are read-only
 inputs. Rendering/checking never runs
-producers. Existing explicit command authorization remains unchanged. Authored SVG is
+producers.
+
+Existing explicit command authorization remains unchanged. Authored SVG is
 never executable: an output that shows a figure's SVG inline, so its links can be followed,
 shows no script, event handler or other executable content of it. A link inside a figure's SVG
 is a link like one in prose ([[capabilities/wikilinks#Links inside a figure]]).
@@ -894,8 +930,9 @@ Core and adapter, 6 Nov 2026:
 - The core runs the figure lint on every build: a figure fence without caption, a figure fence
   without block id (its remedy names the `^name` line, so a reference can be offered), an image file
   alone in its paragraph (`![...]` of another file is an attachment), a caption outside the
-  figure and a typed figure number, each a Document diagnostic with its note line. It knows no
-  numbers and reads no adapter's options: typed numbers are recognised after the labels of the
+  figure and a typed figure number, each a Document diagnostic with its note line.
+
+  It knows no numbers and reads no adapter's options: typed numbers are recognised after the labels of the
   core configuration (`input.figureReferences.labels`, whose default
   `src/obs/config.schema.json` owns), and the suggested link is the note's figure at the
   position the number's last component gives.
@@ -913,7 +950,9 @@ Confirmed defaults, same date:
 
 For `svg`, the fence's optional `panels` list (the interim reference renderer reads it from a
 source JSON with `version: 1`) declares per panel `id`, `title`,
-and `box: [x, y, width, height]` in SVG viewBox coordinates. Optional grid/span/aspect/axis
+and `box: [x, y, width, height]` in SVG viewBox coordinates.
+
+Optional grid/span/aspect/axis
 metadata documents the producer's composition. The complete exact SVG remains the default
 and print view; an inspector selects a panel for independent uniform vector viewport
 zoom, pan and reset.
@@ -930,11 +969,13 @@ the
 generator and project adapters add nothing. Panel boxes are in SVG viewBox units.
 
 For `sankey`, the graph (its source JSON or inline `content`) has `version: 1`, `nodes`, and `links`.
+
 The core checks every graph at build time, a `sankey` figure's and a `plot` descriptor's
 `data.sankey`, static or a dynamic projection: against `figure.schema.json` `$defs/sankeyGraph`,
 which the Document's `sankey` figure body references, and then, in code, that each link's `source`
-and `target` names a node of the graph, a cross-reference no schema states. An adapter checks the
-other rules below as it draws. Each node has a unique
+and `target` names a node of the graph, a cross-reference no schema states.
+
+An adapter checks the other rules below as it draws. Each node has a unique
 nonempty `id`, display `label`, and integer `stage` from 0 through 15; each link names existing
 `source` and `target` node ids and a finite positive `value`.
 
@@ -1020,7 +1061,9 @@ or reintroduce label/bar collisions.
 
 Node membership is the union of incident links' conditions, restricted by `data.where`
 and, for a counted node, by its own `records.where`; a strand uses its own conditions
-restricted by that population. Equality clauses are anchored exact values, not substring
+restricted by that population.
+
+Equality clauses are anchored exact values, not substring
 matches; existence requires a nonempty value. A dynamic node's count and its drill-down
 are one selection over its visible incident links: the label counts what that expression
 matches, and the drill-down selects it.
@@ -1033,8 +1076,9 @@ incoming contribution fields, the node's existing `unique` field remains the def
 
 A counted node shows two lines below its label: `<n> <unit>` and `<n> <unique>`. The first
 counts the node's selected rows, the rows its drill-down shows; the second counts the distinct
-`unique` items over those same rows, so a row holding several items can make it the larger. The fence's
-optional `countLabels: {unit: <noun>, unique: <word>}` names them; the neutral defaults are
+`unique` items over those same rows, so a row holding several items can make it the larger.
+
+The fence's optional `countLabels: {unit: <noun>, unique: <word>}` names them; the neutral defaults are
 `records` and `unique`. Domain vocabulary is authored in the
 fence, never built into the converter.
 
@@ -1087,12 +1131,16 @@ An equation figure is a `figure` fence of `kind: equations`. Its content, inline
   any other grid variable gets 5 steps.
 - `plot.computed`, optional: computed axes after the grid's, each with an optional `name` (its
   label; else its expression or `summary(of)`). `{expression}` is an expression of the
-  variables without the x sweep, its unknowns or functions. `{summary, of}` summarizes the
-  curve of the expression `of` over the full x range: `maximum`, `minimum`, `xAtMaximum`,
-  `xAtMinimum`, `final` (its last value), `area` (under the curve, over x), `absoluteArea`
-  (under its absolute value), `valueAt` with `at` (an x in x's unit, inside its range), and
-  `settlingTime` with `tolerance` (a fraction between 0 and 1): the first x after which the
-  curve stays within `tolerance` times its change, |final − first value|, of its final value.
+  variables without the x sweep, its unknowns or functions.
+
+  `{summary, of}` summarizes the curve of the expression `of` over the full x range:
+
+  - `maximum`, `minimum`, `xAtMaximum`, `xAtMinimum`;
+  - `final` (its last value);
+  - `area` (under the curve, over x), `absoluteArea` (under its absolute value);
+  - `valueAt` with `at` (an x in x's unit, inside its range);
+  - `settlingTime` with `tolerance` (a fraction between 0 and 1): the first x after which the
+    curve stays within `tolerance` times its change, |final − first value|, of its final value.
 
 Range rule: a variable's range is where it can move. A quantity note's `range` and the fence's
 `range` intersect; with one of them, that one is the range; with neither, the variable is fixed
@@ -1112,7 +1160,9 @@ The core resolves the symbolics once, with SymPy (`src/obs/equations.py`):
 - Where a denominator of a solution vanishes at a value inside a variable's range (the
   oscillator's critical damping, ζ = 1, where its general solution is 0/0), the branch is
   piecewise: at that value it is SymPy's limit there, elsewhere the general solution; at a pole
-  there is no point. Where SymPy finds no limit, or the tree cannot carry it, and the variable is
+  there is no point.
+
+  Where SymPy finds no limit, or the tree cannot carry it, and the variable is
   not the x sweep, the solution marks the value and carries the numeric system below as well,
   and a curve at a marked value is solved numerically. No curve inside a range is empty.
 - Where it cannot, the Document carries the system for numeric solving: algebraic equations as
@@ -1128,15 +1178,18 @@ tree evaluated with SI values yields SI values.
 
 A tree evaluates in complex arithmetic with principal branches. A result is a point of the
 plot where its imaginary part vanishes, so an exact solution with complex intermediates (an
-underdamped oscillator) plots for every parameter. A piecewise tree's value is that of its first
+underdamped oscillator) plots for every parameter.
+
+A piecewise tree's value is that of its first
 case whose condition holds; an equality holds within the shared vectors' relative tolerance, so
 a value that a unit conversion rounds still meets its case. `src/obs/document.schema.json` owns the tree
 (`$defs/expression`) and the figure's body (`$defs/figureBodies/equations`).
 
 The Document's `plot.parallelCoordinates` carries `shown` and the axes: a grid variable's
 values in its unit and in SI, a computed expression's tree, and a summary's kind, the `of`
-expression's tree, `at` in SI and `tolerance`, each with its dimension. The core computes the
-grid; the adapter evaluates the curves, so it computes every computed axis's values, applies
+expression's tree, `at` in SI and `tolerance`, each with its dimension.
+
+The core computes the grid; the adapter evaluates the curves, so it computes every computed axis's values, applies
 its own cap on the number of combinations and draws the plot.
 
 The shared test vectors, `test/fixtures/expression-vectors.json`, hold expression trees,
@@ -1210,9 +1263,11 @@ the per-kind register is the `marks` [register](#registers).
 - References to marked open points use their existing stable mark identity, never a
   position-derived number or a copied question as the reference label. Preserve existing
   source anchors and resolve the identity to the same canonical marked record.
+
   Mark identities and heading slugs share a note's fragment namespace: a fragment resolves to
   a mark only when that mark exists, otherwise to the heading, so a heading such as
   "Mark tags" stays reachable at generation and at runtime.
+
   The marked paragraph alone carries the mark identity as its element id. Tag-table rows
   and other projections are addressed by their table row key, never by a second element id.
   Backlinks are derived from resolved references in included note bodies and frontmatter,
@@ -1276,7 +1331,9 @@ the per-kind register is the `marks` [register](#registers).
   `obs.records`. View filters intersect global Base filters during discovery and rendering.
 
   Filter syntax and comparison semantics are owned by the
-  [[#Bases filter grammar]]. An adapter's notion of an assigned
+  [[#Bases filter grammar]].
+
+  An adapter's notion of an assigned
   value is not a redefinition of standard Base equality.
   Standard views have at most one `groupBy` property; multi-property sorting is
   supported, but multi-property grouping is not reinterpreted as native syntax.
@@ -1355,8 +1412,9 @@ the per-kind register is the `marks` [register](#registers).
   what the core reads lives under `obs` ([[#Core and adapter namespaces]]).
 
   For a view whose membership or order cannot be expressed by canonical note properties,
-  `obs.members` is an ordered list of `{path, label?}` entries. `path` is a unique,
-  vault-relative Markdown filename; `label` is optional view-local display text, exposed only
+  `obs.members` is an ordered list of `{path, label?}` entries.
+
+  `path` is a unique, vault-relative Markdown filename; `label` is optional view-local display text, exposed only
   as a derived cell. The list belongs to the view's `obs`; a Base-level
   `obs.members` fails the build, naming the note, with the remedy to move it into the view.
 
@@ -1386,7 +1444,9 @@ the per-kind register is the `marks` [register](#registers).
 - A view may declare ordered `obs.members` entries containing a vault-relative note `path`
   and optional view-local `label`. This set intersects the ordinary Base query; its order is the
   initial row order, in which the core emits the view's rows, and its labels are projected as a derived cell without modifying canonical
-  note records. Missing, duplicate, absolute, or vault-escaping member paths, and paths that are
+  note records.
+
+  Missing, duplicate, absolute, or vault-escaping member paths, and paths that are
   not Markdown notes, are input errors naming the note, the view, the entry
   (`views[<view>].obs.members[<entry>].path`) and the remedy.
   Members belong to their view: each view selects its own members, and a Base-level
@@ -1447,7 +1507,9 @@ frontmatter text or tag backlinks, are never filter values.
 
 Document metadata rows (`recordType` `documentMetadata`: `key`, `value`) and history rows
 (`documentHistory`: `version`, `date`, `author`, `change`) never include a note; all their
-fields are own fields. [[#Cover metadata and history]] owns their content. The core emits a manifest metadata
+fields are own fields.
+
+[[#Cover metadata and history]] owns their content. The core emits a manifest metadata
 row per frontmatter key other than `history`, `obs` and an adapter's namespace
 ([[#Core and adapter namespaces]]), with its value as authored; the
 adapter adds the rows of its own generation provenance.

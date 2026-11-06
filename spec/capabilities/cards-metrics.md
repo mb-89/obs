@@ -80,13 +80,18 @@ its path without `.md`.
 A metric's drill-down shows exactly the rows its value counts, so it is derived, never
 written: an adapter filters the linked table by the metric's conditions, those of its `from`
 quantity's query chain followed by its `where`, and a `secondaryLink` by the `secondary`
-quantity's query chain. A linked series metric's conditions are the series' `where` followed
+quantity's query chain.
+
+A linked series metric's conditions are the series' `where` followed
 by an `equals` condition of `link.groupProperty` on its label; its count and its drill-down
 both select them. Each condition selects as [[capabilities/queries#Conditions]] says, so the
-label is compared by the one case folding. A metric with `obs.projection` counts the records as
+label is compared by the one case folding.
+
+A metric with `obs.projection` counts the records as
 that projection shows them; its drill-down selects through the same projection, so while the
 projection is active the table shows the rows the value counts, not those its canonical
 fields would select.
+
 The core refuses a `link` or `secondaryLink` that writes its own `?tableFilter=`, naming the
 card and the field, because a hand-written filter can contradict the conditions it stands for.
 
@@ -99,7 +104,9 @@ Its `children` are one `document` node per card, in the order of `spec.cards`. E
 card's `body` parsed like chapter content, and in its `attrs` the card's `title` and its
 metrics' `labels` (one per metric of `metrics`, in their order) as inline nodes, parsed like a
 paragraph's text: a wikilink in them carries the one link label
-([[capabilities/wikilinks#Link text]]). An adapter renders titles and labels from these nodes
+([[capabilities/wikilinks#Link text]]).
+
+An adapter renders titles and labels from these nodes
 and parses no title or label text. A series metric's label is the frontmatter value it counts
 by, and shows as that text.
 

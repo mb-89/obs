@@ -63,6 +63,7 @@ Every place that holds Markdown yields these nodes: chapter and abstract text, l
 callout, quote and card bodies, table cells, frontmatter values
 ([[capabilities/markdown-frontmatter#Document node]]), and as inline nodes callout titles
 ([[capabilities/callouts#Document node]]), card titles and metric labels
-([[capabilities/cards-metrics#Document node]]) and figure captions. An adapter renders them
-from the nodes and parses no source text. A list item holds any block, including a
+([[capabilities/cards-metrics#Document node]]) and figure captions.
+
+An adapter renders them from the nodes and parses no source text. A list item holds any block, including a
 callout.

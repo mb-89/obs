@@ -40,7 +40,9 @@ reads nothing from the vault. Its attributes are defined by `src/obs/document.sc
   none and embeds all views with a selector ([[input-model#Registers]]).
 - `rows`: one entry per view of `base.views`, in order: the ids of the records the view
   selects, in `records` order, or, where the view declares `obs.members`, in member order
-  ([[input-model#Base files and members]]); a row without a note follows the members' rows. The core's one selection evaluator selects them by the
+  ([[input-model#Base files and members]]); a row without a note follows the members' rows.
+
+  The core's one selection evaluator selects them by the
   rules of [[capabilities/bases#Comparisons]], the same that decide which notes the Document
   includes.
 
