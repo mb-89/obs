@@ -105,3 +105,66 @@ def test_the_option_needs_a_source_to_archive(tmp_path) -> None:
               "--destination", str(tmp_path / "out.json"), "--embed-source"])
 
     assert "--embed-source" in str(refused.value.code) and "--source" in str(refused.value.code)
+
+
+def snippet_vault(tmp_path: Path, folder: str = ".obsidian/snippets") -> Path:
+    vault = tmp_path / "vault"
+    (vault / folder).mkdir(parents=True)
+    (vault / "manifest.md").write_text("- [[chapter]]\n", encoding="utf-8")
+    (vault / "chapter.md").write_text("# Chapter\n", encoding="utf-8")
+    (vault / folder / "wide.css").write_text(".wide { width: 100%; }\n", encoding="utf-8")
+    (vault / folder / "house-style.css").write_text("body { font-family: serif; }\n", encoding="utf-8")
+    (vault / folder / "notes.txt").write_text("not a snippet\n", encoding="utf-8")
+    return vault
+
+
+def test_the_document_carries_the_vault_s_css_snippets_in_name_order(tmp_path) -> None:
+    document = build_document(snippet_vault(tmp_path) / "manifest.md", capability_reference())
+
+    assert document["cssSnippets"] == [
+        {"name": "house-style", "path": ".obsidian/snippets/house-style.css",
+         "text": "body { font-family: serif; }\n"},
+        {"name": "wide", "path": ".obsidian/snippets/wide.css", "text": ".wide { width: 100%; }\n"},
+    ]
+
+
+def test_a_vault_without_a_snippet_folder_carries_no_snippets(tmp_path) -> None:
+    vault = snippet_vault(tmp_path)
+    for path in (vault / ".obsidian" / "snippets").iterdir():
+        path.unlink()
+    (vault / ".obsidian" / "snippets").rmdir()
+
+    assert build_document(vault / "manifest.md", capability_reference())["cssSnippets"] == []
+
+
+def test_core_configuration_names_another_snippet_folder(tmp_path) -> None:
+    vault = snippet_vault(tmp_path, "styles/snippets")
+    configuration = tmp_path / "core.json"
+    configuration.write_text(json.dumps({
+        "input": {"manifestFilename": "manifest.md", "projectConfigFilename": "project.json",
+                  "cssSnippetFolder": "styles/snippets"},
+        "execution": {"commandTimeoutSeconds": 15},
+    }), encoding="utf-8")
+
+    snippets = build_document(vault / "manifest.md", capability_reference(), configuration)["cssSnippets"]
+
+    assert [snippet["path"] for snippet in snippets] == ["styles/snippets/house-style.css",
+                                                         "styles/snippets/wide.css"]
+
+
+def test_a_snippet_that_is_not_utf8_text_names_its_path(tmp_path) -> None:
+    vault = snippet_vault(tmp_path)
+    (vault / ".obsidian" / "snippets" / "broken.css").write_bytes(b"\xff\xfe")
+
+    with pytest.raises(DocumentError) as refused:
+        build_document(vault / "manifest.md", capability_reference())
+
+    assert ".obsidian/snippets/broken.css" in str(refused.value)
+    assert "architecture.md (CSS snippets)" in str(refused.value)
+
+
+def test_the_source_archive_carries_the_snippets_despite_their_hidden_folder(tmp_path) -> None:
+    document = build_document(snippet_vault(tmp_path) / "manifest.md", capability_reference(), embed_source=True)
+
+    assert sorted(_files(document)) == [".obsidian/snippets/house-style.css", ".obsidian/snippets/wide.css",
+                                        "chapter.md", "manifest.md"]

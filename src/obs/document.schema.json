@@ -4,7 +4,7 @@
   "description": "A neutral Document. Node types are the structural types $defs/structuralType lists, or capability identifiers from the supplied capability reference.",
   "type": "object",
   "additionalProperties": false,
-  "required": ["schemaVersion", "manifest", "chapters", "links", "assets", "records", "semanticResources", "diagnostics", "capabilities"],
+  "required": ["schemaVersion", "manifest", "chapters", "links", "assets", "records", "semanticResources", "diagnostics", "capabilities", "cssSnippets"],
   "properties": {
     "schemaVersion": {"const": 1},
     "manifest": {
@@ -29,6 +29,10 @@
         "type": "object", "additionalProperties": false, "required": ["level", "message"],
         "properties": {"level": {"enum": ["error", "warning", "info"]}, "message": {"type": "string", "minLength": 1}}
       }
+    },
+    "cssSnippets": {
+      "description": "The vault's CSS snippets, every .css file of its snippet folder in name order (architecture.md, CSS snippets).",
+      "type": "array", "items": {"$ref": "#/$defs/cssSnippet"}
     },
     "sourceArchive": {
       "description": "The vault's source files, present only when the build was asked to disclose them (architecture.md, Source archive).",
@@ -418,6 +422,15 @@
     "link": {
       "type": "object", "additionalProperties": false, "required": ["id", "href", "label"],
       "properties": {"id": {"$ref": "#/$defs/id"}, "href": {"type": "string", "minLength": 1}, "label": {"type": "string", "minLength": 1}}
+    },
+    "cssSnippet": {
+      "description": "One CSS snippet: its name (the file name without .css), its vault-relative POSIX path and its text.",
+      "type": "object", "additionalProperties": false, "required": ["name", "path", "text"],
+      "properties": {
+        "name": {"type": "string", "minLength": 1},
+        "path": {"type": "string", "pattern": "^(?!/)(?!.*(^|/)\\.\\.?(/|$)).+\\.css$"},
+        "text": {"type": "string"}
+      }
     },
     "sourceFile": {
       "description": "One source file of the vault: its vault-relative POSIX path and either its bytes as base64 data or the id of the asset that holds them (architecture.md, Source archive).",
