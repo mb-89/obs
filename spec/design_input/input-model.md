@@ -993,10 +993,12 @@ its complete labels and controls. Avoid an artificially narrow centered drawing
 with large unused horizontal margins; filling the width must not compress glyphs
 or reintroduce label/bar collisions.
 
-Node membership is the union of incident links' conditions, restricted by `data.where`;
-a strand uses its own conditions restricted by that population. Equality clauses are
-anchored exact values, not substring matches; existence requires a nonempty value.
-Dynamic node counts use that same visible incident-link union.
+Node membership is the union of incident links' conditions, restricted by `data.where`
+and, for a counted node, by its own `records.where`; a strand uses its own conditions
+restricted by that population. Equality clauses are anchored exact values, not substring
+matches; existence requires a nonempty value. A dynamic node's count and its drill-down
+are one selection over its visible incident links: the label counts what that expression
+matches, and the drill-down selects it.
 
 An optional link `unique` names a canonical field containing its distinct target-item
 identities.
