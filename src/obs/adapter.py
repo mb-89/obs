@@ -16,7 +16,8 @@ def load_adapter(name: str, configuration_path: Path) -> dict[str, object]:
     try:
         configuration = json.loads(configuration_path.read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError) as error:
-        raise AdapterError(f"Cannot read adapter configuration {configuration_path}: {error}") from error
+        raise AdapterError(f"Cannot read adapter configuration {configuration_path}: {error}. Run from the "
+                           f"folder that holds it, or name it with --adapter-config.") from error
     adapters = configuration.get("adapters") if isinstance(configuration, dict) else None
     manifest_name = adapters.get(name) if isinstance(adapters, dict) else None
     if not isinstance(manifest_name, str) or not manifest_name:
