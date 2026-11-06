@@ -92,6 +92,8 @@ The Document carries the capability identifiers it uses and references the versi
 JSON capability reference for their definitions and dependencies. Its schema and the
 adapter-manifest schema are the executable owners of the exchanged shape.
 Its `records` are owned by [[capabilities/bases#Note records|Note records]].
+Its `manifest.path` is the manifest note's vault-relative path, so an adapter's message about the
+manifest names that note, as one about a chapter names the chapter's note.
 
 An adapter never parses Markdown: what the author wrote arrives as nodes, metadata values
 included ([[capabilities/markdown#Document nodes]],
