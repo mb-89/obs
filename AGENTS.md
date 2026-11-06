@@ -25,6 +25,8 @@ Do not copy the shared process guidance into this repository.
 - Generated content belongs in `data/data_output` or `spec/design_output` and is ignored; the
   exceptions, package data a package's build writes beside the package that ships it, are the
   core's capability reference, owned by [One-call build](spec/design_input/cli.md#one-call-build),
+  the core's diagram renderers, owned by
+  [Figure input direction](spec/design_input/input-model.md#figure-input-direction),
   and the html adapter's browser assets built from lockfiles, owned by
   [Packaged browser assets](adapters/html/spec/architecture.md#packaged-browser-assets).
 - One owner owns each fact; other locations link to it.

@@ -36,7 +36,8 @@ dev = [
 [tool.uv]
 # Build the core again when what hatch_build.py generates from changes.
 cache-keys = [{ file = "pyproject.toml" }, { file = "hatch_build.py" }, { file = "spec/capabilities/**" },
-              { file = "src/obs/capabilities.py" }]
+              { file = "src/obs/capabilities.py" }, { file = "src/obs/diagrams/package-lock.json" },
+              { file = "src/obs/diagram.py" }]
 
 [tool.uv.workspace]
 members = ["adapters/html"]
@@ -53,7 +54,8 @@ build-backend = "hatchling.build"
 packages = ["src/obs_html_interim", "src/obs"]
 
 [tool.hatch.build.targets.wheel.hooks.custom]
-# hatch_build.py: the packaged capability reference, src/obs/capability-reference.json.
+# hatch_build.py: the packaged capability reference, src/obs/capability-reference.json, and the
+# diagram renderers, src/obs/vendor/diagrams.
 
 [tool.hatch.build]
 directory = "data/data_output/dist"
