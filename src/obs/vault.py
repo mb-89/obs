@@ -875,7 +875,7 @@ def _callout(
     context.capabilities.add("callouts")
     return {
         "type": "callouts",
-        "attrs": {"kind": callout["type"], "title": callout["title"]},
+        "attrs": {"kind": callout["type"], "title": _inline_text(callout["title"], context)},
         "children": _blocks(body_tokens, 0, len(body_tokens), context),
     }
 
@@ -908,9 +908,11 @@ def _fence_node(token: Token, context: _Context) -> dict[str, object]:
             body_context = replace(context, capabilities=set(), fences={}, first_line=None)
             for card in specification["cards"]:
                 _card_selection(card, source_path, vault)
-                card_bodies.append({
-                    "type": "document", "attrs": {}, "children": _nodes(card["body"], body_context),
-                })
+                card_bodies.append({"type": "document", "attrs": {
+                    "title": _inline_text(card["title"], body_context),
+                    "labels": [_inline_text(metric["label"], body_context)
+                               for metric in card.get("metrics", [])],
+                }, "children": _nodes(card["body"], body_context)})
         elif language == "property-editor":
             specification = parse_property_editor(token.content, source_path, context.frontmatter, place)
         elif language == "cmd":
@@ -1194,6 +1196,12 @@ def _inline_nodes(token: Token, context: _Context) -> list[dict[str, object]]:
             else:
                 output.extend(_semantic_text_nodes(text, context))
     return result
+
+
+def _inline_text(text: str, context: _Context) -> list[dict[str, object]]:
+    """The inline nodes of a string the author wrote as inline Markdown: a callout title, a card
+    title or a metric label (capabilities/callouts, capabilities/cards-metrics)."""
+    return _inline_nodes(parser().parseInline(text)[0], context) if text else []
 
 
 def _field_nodes(value: object, name: str, context: _Context) -> list[dict[str, object]]:

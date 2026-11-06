@@ -26,7 +26,11 @@ capabilities. A callout is not an [[capabilities/extensions|extension]]: it adds
 
 The node's `attrs` hold the canonical type as `kind` and the title as `title`: the authored
 title, or without one the default title [[input-model#Callouts]] names, so every adapter shows
-the same title; `document.schema.json` owns the node's shape.
+the same title; `document.schema.json` owns the node's shape. The title is inline nodes, parsed
+like a paragraph's text: a wikilink in it carries the one link label
+([[capabilities/wikilinks#Link text]]), so `> [!note] See [[command-fences#Authorization]]`
+shows "Command Fences > Authorization". An adapter renders the title from these nodes and
+parses no title text.
 
 Its `children` are the callout body parsed like chapter content: paragraphs, lists, code,
 links, wikilinks (with `attrs.chapter`), marks and nested callouts arrive as the same node

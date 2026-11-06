@@ -49,3 +49,28 @@ def test_an_unaliased_heading_link_shows_the_note_title_and_the_heading(tmp_path
         ("missing > Part", "Part", None),
     ]
     assert field == [("Command Fences > Authorization", "Authorization", "command-fences")]
+
+
+def test_a_callout_title_and_a_card_title_and_metric_label_link_by_the_same_rule(tmp_path) -> None:
+    """Callout titles and card and metric labels are inline nodes (capabilities/callouts,
+    capabilities/cards-metrics), so their links carry the one link label."""
+    (tmp_path / "manifest.md").write_text("- [[one]]\n- [[command-fences]]\n", encoding="utf-8")
+    (tmp_path / "command-fences.md").write_text("# Commands\n\n## Authorization\n", encoding="utf-8")
+    cards = ('{"version": 1, "cards": [{"title": "See [[command-fences#Authorization]]", "body": "Body.", '
+             '"metrics": [{"label": "*Open* [[command-fences#Authorization]]", "where": []}]}]}')
+    (tmp_path / "one.md").write_text(
+        "# One\n\n> [!note] See [[command-fences#Authorization]]\n> Body.\n\n> [!tip]\n> Untitled.\n\n"
+        f"```cards\n{cards}\n```\n", encoding="utf-8")
+
+    document = build_document(tmp_path / "manifest.md", capability_reference())
+
+    callout, untitled, cards_node = (node for node in document["chapters"][0]["content"]
+                                     if node["type"] in {"callouts", "cards-metrics"})
+    link = ("Command Fences > Authorization", "Authorization", "command-fences")
+    assert callout["attrs"]["title"][0] == {"type": "text", "attrs": {}, "children": [], "text": "See "}
+    assert labels(callout["attrs"]["title"]) == [link]
+    assert untitled["attrs"]["title"] == [{"type": "text", "attrs": {}, "children": [], "text": "Tip"}]
+    [card] = cards_node["children"]
+    assert labels(card["attrs"]["title"]) == [link]
+    [label] = card["attrs"]["labels"]
+    assert label[0]["type"] == "emphasis" and labels(label) == [link]
