@@ -27,7 +27,12 @@
         "required": ["type", "summary"],
         "properties": {
           "type": {"enum": ["boolean", "vault-file"]},
-          "summary": {"type": "string", "minLength": 1}
+          "summary": {"type": "string", "minLength": 1},
+          "repeats": {
+            "description": "Whether --adapter-option may give this option more than once; a single-valued option given twice fails the call (spec/design_input/cli.md, Adapter options).",
+            "type": "boolean",
+            "default": false
+          }
         }
       }
     }

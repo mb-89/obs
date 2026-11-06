@@ -14,7 +14,7 @@ from referencing import Registry, Resource
 from obs.adapter import (ADAPTER_OPTIONS_OWNER, AdapterError, VaultFile, adapter_manifest_path, load_adapter,
                          option_arguments)
 from obs.discriminator import discriminating_validator
-from obs.input import schema_error
+from obs.input import InputError, schema_error
 from obs.output import write_output
 from obs.sources import SourceError, source_archive, validate_source_archive
 from obs.vault import VaultError, build_document as _build_document, manifest_note
@@ -321,7 +321,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                 _build(options, source, destination, reference, adapter, arguments, f"--source {source}: ")
             except (AdapterError, DocumentError) as error:
                 raise DocumentError(f"--source {source}: {error}") from error
-    except (AdapterError, DocumentError) as error:
+    except (AdapterError, DocumentError, InputError) as error:
         raise SystemExit(f"obs-document: {error}") from error
     return 0
 
