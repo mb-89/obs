@@ -54,3 +54,42 @@ def test_an_invalid_projection_names_the_note_the_field_and_the_owner(
     message = str(failure.value)
     assert message.startswith(f"{tmp_path / 'chapter.md'}: property-editor fence 1, {field}"), message
     assert "; see capabilities/property-editors." in message
+
+
+
+def _refused(tmp_path: Path, projection: str, field: str) -> None:
+    """The build fails naming the note, the editor, the field and the owner of the rule."""
+    with pytest.raises(DocumentError) as failure:
+        _build(tmp_path, projection)
+
+    message = str(failure.value)
+    assert message.startswith(f"{tmp_path / 'chapter.md'}: property-editor fence 1, {field}: "), message
+    assert "; see capabilities/property-editors." in message
+
+
+@pytest.mark.parametrize("name", [
+    "title", "kind", "aliases", "term", "definition", "__proto__", "constructor", "prototype", "Title", "KiNd",
+])
+@pytest.mark.parametrize("branch", ["blank", "nonblank"])
+def test_a_projection_never_targets_a_protected_field(tmp_path: Path, name: str, branch: str) -> None:
+    other = "nonblank" if branch == "blank" else "blank"
+    _refused(tmp_path, f"projection:\n  {branch}: {{{name}: Changed}}\n  {other}: {{status: explained}}\n",
+             f"projection.{branch}.{name}")
+
+
+@pytest.mark.parametrize(("projection", "field"), [
+    ("projection:\n  blank: {missing: value}\n  nonblank: {status: explained}\n", "projection.blank.missing"),
+    ("projection:\n  blank: {status: 5}\n  nonblank: {status: explained}\n", "projection.blank.status"),
+    ("projection:\n  blank: {status: finding}\n  nonblank: {outputs: [1]}\n", "projection.nonblank.outputs"),
+    ("projection:\n  blank: {outputs: System}\n  nonblank: {status: explained}\n", "projection.blank.outputs"),
+    ("projection:\n  blank: {outputs: [System, 2]}\n  nonblank: {status: explained}\n", "projection.blank.outputs"),
+])
+def test_a_projection_target_is_an_existing_field_of_the_same_type(
+    tmp_path: Path, projection: str, field: str,
+) -> None:
+    _refused(tmp_path, projection, field)
+
+
+def test_a_projection_never_writes_the_edited_field(tmp_path: Path) -> None:
+    _refused(tmp_path, "projection:\n  blank: {explanation: Replaced}\n  nonblank: {status: explained}\n",
+             "projection.blank.explanation")

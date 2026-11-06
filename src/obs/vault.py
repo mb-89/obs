@@ -178,11 +178,11 @@ def build_document(
     capabilities: set[str] = set()
     included: set[Path] = {manifest_path}
 
-    def context_of(path: Path) -> _Context:
+    def context_of(path: Path, frontmatter: dict[str, object]) -> _Context:
         """What parsing one note's Markdown reads and adds to."""
         return _Context(
             path, vault, links, assets, link_ids, asset_ids, capability_ids or set(), capabilities,
-            command_runner,
+            command_runner, frontmatter=frontmatter,
         )
 
     def parse_chapter(chapter: dict[str, object]) -> None:
@@ -193,7 +193,7 @@ def build_document(
         _metadata_links(chapter_metadata, path, vault)
         _query_selection(chapter_metadata.get("query"), path, vault)
         chapter["metadata"] = _json_value(chapter_metadata)
-        context = context_of(path)
+        context = context_of(path, chapter_metadata)
         content = _frontmatter_nodes(chapter_metadata, context)
         if "chapter-inclusion" in (capability_ids or set()):
             content.append({
@@ -212,7 +212,7 @@ def build_document(
     for chapter in chapters:
         parse_chapter(chapter)
     _metadata_links(metadata, manifest_path, vault)
-    manifest_context = context_of(manifest_path)
+    manifest_context = context_of(manifest_path, metadata)
     abstract_nodes = _nodes(body[abstract:], manifest_context)
     manifest_nodes = _frontmatter_nodes(metadata, manifest_context)
     unlisted: list[dict[str, object]] = []
@@ -230,7 +230,7 @@ def build_document(
     # and a note outside the Document includes nothing (capabilities/bases#Note records).
     for path, (fields, _) in vault.notes.items():
         record = vault.notes_by_id[vault.identities[path]][1]
-        record["fieldNodes"] = _field_nodes(fields, "", context_of(path))
+        record["fieldNodes"] = _field_nodes(fields, "", context_of(path, fields))
     vault.reached.clear()
     for attrs, target in vault.links:  # Only an included note is a chapter a link can name.
         attrs["chapter"] = HOME if target == manifest_path else (
@@ -636,6 +636,7 @@ class _Context:
     command_runner: Callable[[str], str] | None = None
     fences: dict[str, int] = field(default_factory=dict)
     field_path: str = ""
+    frontmatter: dict[str, object] = field(default_factory=dict)
 
 
 def _nodes(source: str, context: _Context) -> list[dict[str, object]]:
@@ -838,7 +839,7 @@ def _fence_node(token: Token, context: _Context) -> dict[str, object]:
                     "type": "document", "attrs": {}, "children": _nodes(card["body"], body_context),
                 })
         elif language == "property-editor":
-            specification = parse_property_editor(token.content, source_path, place)
+            specification = parse_property_editor(token.content, source_path, context.frontmatter, place)
         elif language == "cmd":
             try:
                 validate_command(token.content)
