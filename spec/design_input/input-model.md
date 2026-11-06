@@ -629,6 +629,16 @@ members are omitted as well.
 
 They are not proof of approval or legal status.
 
+The core validates these fields and `history` against its `coverMetadata` schema
+(`src/obs/cover-metadata.schema.json`) once unassigned values are omitted; a failure is an input
+error naming the manifest, the field path and the remedy.
+
+Unknown fields inside `product` and a `history` entry are input errors. The manifest's other
+frontmatter (title, subtitle, `obs`, an adapter's namespace and any further field) is not cover
+metadata: other contracts own it.
+
+A further field stays a residual metadata row, open to queries (worker decision, 6 Nov 2026).
+
 Title/subtitle and
 cover fields are excluded from the residual Key / Value table to avoid repeating their presentation.
 

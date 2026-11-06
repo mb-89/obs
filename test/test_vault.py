@@ -813,7 +813,7 @@ def test_a_manifest_metadata_value_arrives_as_inline_nodes_by_field_path(tmp_pat
     vault = tmp_path / "vault"
     vault.mkdir()
     (vault / "manifest.md").write_text(
-        "---\ntitle: Fixture\nproduct: {name: '*Name*'}\nauthors: ['**One**', 2]\n"
+        "---\ntitle: Fixture\nproduct: {name: '*Name*'}\ncontributors: ['**One**', 2]\n"
         "date: 2026-11-05\n---\n- [[chapter]]\n",
         encoding="utf-8",
     )
@@ -829,7 +829,7 @@ def test_a_manifest_metadata_value_arrives_as_inline_nodes_by_field_path(tmp_pat
         {"type": "field", "attrs": {"name": "product.name"}, "children": [
             {"type": "emphasis", "attrs": {}, "children": [_text("Name")]},
         ]},
-        {"type": "field", "attrs": {"name": "authors.0"}, "children": [
+        {"type": "field", "attrs": {"name": "contributors.0"}, "children": [
             {"type": "strong", "attrs": {}, "children": [_text("One")]},
         ]},
     ]

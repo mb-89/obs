@@ -1,6 +1,7 @@
 """Validate data-only source contracts used to construct a Document."""
 from __future__ import annotations
 
+from datetime import date, datetime
 from functools import cache
 from importlib.resources import files
 import json
@@ -337,6 +338,68 @@ def refuse_moved_keys(mapping: object, contract: str, source_path: object, field
                               f"Rename it to {new}; see {reference}")
 
 
+COVER_METADATA_OWNER = "input-model#Cover metadata and history"
+
+
+@cache
+def _cover_metadata_schema() -> dict[str, object]:
+    return json.loads(files("obs").joinpath("cover-metadata.schema.json").read_text(encoding="utf-8"))
+
+
+def _assigned(value: object) -> bool:
+    """Whether a cover value is assigned: empty strings, nulls and empty lists or mappings are not."""
+    return not (value is None or isinstance(value, (str, list, dict)) and not (
+        value.strip() if isinstance(value, str) else value))
+
+
+def _assigned_cover(metadata: dict[str, object]) -> dict[str, object]:
+    """The manifest's cover metadata with unassigned values and product members omitted, and each
+    YAML history date written as YYYY-MM-DD, as the coverMetadata schema reads it."""
+    cover: dict[str, object] = {}
+    for field in _cover_metadata_schema()["properties"]:
+        value = metadata.get(field)
+        if isinstance(value, dict) and field == "product":
+            value = {key: member for key, member in value.items() if _assigned(member)}
+        if isinstance(value, list) and field == "history":
+            value = [{key: item.isoformat() if key == "date" and isinstance(item, date)
+                      and not isinstance(item, datetime) else item
+                      for key, item in entry.items() if key != "date" or item not in (None, "")}
+                     if isinstance(entry, dict) else entry for entry in value]
+        if _assigned(value):
+            cover[field] = value
+    return cover
+
+
+def validate_cover_metadata(metadata: dict[str, object], source_path: object) -> None:
+    """Check the manifest's cover metadata and history; see input-model#Cover metadata and history."""
+    refuse_renamed_manifest_fields(metadata, source_path)
+    cover = _assigned_cover(metadata)
+    error = schema_error(list(Draft202012Validator(_cover_metadata_schema()).iter_errors(cover)),
+                         source_path, COVER_METADATA_OWNER)
+    if error:
+        raise error
+    versions: dict[str, int] = {}
+    history = cover.get("history", [])
+    for index, entry in enumerate(history):
+        version, field = entry["version"], f"history[{index}]"
+        if version in versions:
+            raise input_error(source_path, f"{field}.version",
+                              f"repeats the version {version!r} of history[{versions[version]}]",
+                              f"Give each entry its own version label; see {COVER_METADATA_OWNER}")
+        versions[version] = index
+        if version.endswith("*") and index != len(history) - 1:
+            raise input_error(source_path, f"{field}.version",
+                              "ends in * as the working version but is not the last entry",
+                              f"Move the working version to the end or remove its *; see {COVER_METADATA_OWNER}")
+        if "date" in entry:
+            try:
+                date.fromisoformat(entry["date"])
+            except ValueError:
+                raise input_error(source_path, f"{field}.date", f"{entry['date']!r} is not a calendar date",
+                                  f"Write a real date as YYYY-MM-DD or omit it; see {COVER_METADATA_OWNER}"
+                                  ) from None
+
+
 RENAMED_MANIFEST_FIELDS = {"sap number": "document number"}
 """Each manifest field the core no longer reads and the field that replaced it, with the same
 meaning; the old field is an input error, never an alias (input-model#Cover metadata and history)."""
@@ -347,7 +410,7 @@ def refuse_renamed_manifest_fields(metadata: dict[str, object], source_path: obj
     for old, new in RENAMED_MANIFEST_FIELDS.items():
         if old in metadata:
             raise input_error(source_path, old, f"the manifest names this field {new}",
-                              f"Rename it to {new}; see input-model#Cover metadata and history")
+                              f"Rename it to {new}; see {COVER_METADATA_OWNER}")
 
 
 def validate_project_config(configuration: object, source_path: object) -> None:
