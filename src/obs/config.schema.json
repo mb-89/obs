@@ -22,6 +22,27 @@
           "default": ".obsidian/snippets",
           "pattern": "^(?!/)(?!.*(^|/)\\.\\.?(/|$))[^\\\\]+$"
         },
+        "longParagraphs": {
+          "description": "The long-paragraph lint, which warns about a paragraph whose estimated line count exceeds warningLines (input-model, Long paragraphs); each default applies where the core configuration names none.",
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "warningLines": {
+              "description": "Estimated prose lines above which the lint warns.",
+              "type": "integer",
+              "default": 5,
+              "minimum": 1,
+              "maximum": 30
+            },
+            "lineCharacters": {
+              "description": "Characters per line of the estimate.",
+              "type": "integer",
+              "default": 80,
+              "minimum": 20,
+              "maximum": 200
+            }
+          }
+        },
         "figureReferences": {
           "type": "object",
           "required": ["labels"],
