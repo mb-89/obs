@@ -66,6 +66,5 @@ markers = [
     "unit: in-process Python checks",
     "dom: Node.js + linkedom DOM contract checks",
     "browser: native Chrome via Playwright (needs OBS_HTML_TEST_NATIVE_BROWSER)",
-    "e2e: external integration, reproduction, PowerShell, or real browser pickers",
     "external: needs data outside both repositories; runs only when selected with -m external",
 ]
