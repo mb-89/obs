@@ -77,7 +77,10 @@ PARALLEL = ["-n", "auto", "--dist", "loadgroup", "--no-loadscope-reorder"]
 REPORTS_VARIABLE = "SE_TEST_REPORTS"
 # `--shard i/n`: run only the i-th of n shards of every part (keep_shard), named to the parts here.
 SHARD = "--shard"
-SHARD_VARIABLE = "OBS_SUITE_SHARD"
+# Every environment variable of the suite's own starts with this; no test of the suite inherits one
+# (test/conftest.py, suite_environment).
+VARIABLE_PREFIX = "OBS_SUITE_"
+SHARD_VARIABLE = f"{VARIABLE_PREFIX}SHARD"
 # Each part's Node test package, where it has one.
 NODE_PACKAGES = [part / "test" / "browser" for part in PARTS
                  if (part / "test" / "browser" / "package-lock.json").is_file()]
