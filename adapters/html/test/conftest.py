@@ -196,6 +196,7 @@ def pytest_collection_modifyitems(config, items):
     for item in rest:
         item.add_marker(pytest.mark.xdist_group(item.nodeid.split("::")[0]))
     items[:] = own + rest
+    suite.keep_shard(config, items, bounds)
     suite.heaviest_first(ROOT, items)
 
 
@@ -278,6 +279,11 @@ CONTEXT_MEDIA = {"media": "null", "color_scheme": "light", "reduced_motion": "no
                  "forced_colors": "none", "contrast": "no-preference"}
 
 
+# How long making a released page blank again may take: an answering page takes a fraction of a
+# second, so a release past it waits on a locked or lost page, and the pool ends its browser.
+RELEASE_TIMEOUT_MS = 2_000
+
+
 class PagePool:
     """The test process's open pages, each in a browser context of its own, leased to one test at a time.
 
@@ -294,7 +300,9 @@ class PagePool:
     sees what a new context shows, media emulation included (CONTEXT_MEDIA). Session storage,
     which lives in the tab, is cleared for the origins the page shows when the test ends; neither
     the artifact nor a test keeps any in an origin it navigates away from. A page the test
-    closed or changed another page setting on (PAGE_SETTINGS) is closed with its context instead.
+    closed or changed another page setting on (PAGE_SETTINGS) is closed with its context instead,
+    as is a page that fails while it is made blank; one that does not answer then ends the
+    browser (``release``).
     """
 
     def __init__(self, engine: str, launch, context: dict | None = None):
@@ -305,6 +313,7 @@ class PagePool:
         self._context = context or {}
         self._browser = None
         self._crashed = False
+        self._ended = False
         self._idle = []
         self._listeners: dict[object, list] = {}
         self._origins: dict[object, set[str]] = {}
@@ -329,9 +338,15 @@ class PagePool:
         return self._browser is not None and self._browser.is_connected()
 
     def warm(self) -> None:
-        """Launch the pool's browser where it is not up: a first launch, or one after its browser died."""
+        """Launch the pool's browser where it is not up: a first launch, or one after its browser
+        died. It draws one page, which the next lease takes: a cold browser's first page starts its
+        renderer and readies its fonts and graphics, which on a fresh CI runner took seconds."""
         if not self.launched():
             self._relaunch()
+            page = self._open()
+            page.set_content("<!doctype html><p>Warm.</p>")
+            page.evaluate("() => document.body.getBoundingClientRect().height")
+            self._idle.append(page)
 
     def _ready_page(self, viewport: dict | None):
         self.warm()
@@ -367,7 +382,7 @@ class PagePool:
 
     def _lost(self, browser) -> None:
         """The browser disconnected without the pool closing it: a crash, if a test holds one of its pages."""
-        if browser is self._browser and self._listeners:
+        if browser is self._browser and self._listeners and not self._ended:
             self._crashed = True
 
     def take_crash(self) -> bool:
@@ -397,21 +412,67 @@ class PagePool:
             self._changed.add(page)
 
     def release(self, page) -> None:
+        """Make the test's page blank again for the next lease. A page that fails is closed with its
+        context; one that does not answer within RELEASE_TIMEOUT_MS is not waited on: the pool ends
+        its browser, and the next lease launches a fresh one."""
+        from playwright.sync_api import Error as PlaywrightError
+
         if page not in self._listeners:  # The pool abandoned its browser.
             return
         listeners = self._listeners.pop(page)
         context = page.context
         if not context.browser.is_connected():
-            for each in (self._changed, self._emulated):
-                each.discard(page)
-            self._origins.pop(page, None)
+            self._forget(page)
             return
         if page.is_closed() or page in self._changed:
-            self._changed.discard(page)
-            self._emulated.discard(page)
-            self._origins.pop(page)
+            self._forget(page)
             context.close()
             return
+        import threading
+
+        # A page that does not answer, its main thread locked, would hold its release forever:
+        # past RELEASE_TIMEOUT_MS the watchdog ends the browser, the reset's call fails, and the
+        # next lease launches a fresh one.
+        watchdog = threading.Timer(RELEASE_TIMEOUT_MS / 1000, self._end_browser)
+        watchdog.start()
+        try:
+            self._reset(page, context, listeners)
+        except PlaywrightError:
+            self._forget(page)
+            if self._ended:
+                self._abandoned()
+            else:
+                context.close()
+            return
+        finally:
+            watchdog.cancel()
+        if self._ended:  # The watchdog ended the browser as the reset finished.
+            self._abandoned()
+            return
+        self._idle.append(page)
+
+    def _end_browser(self) -> None:
+        """From the release's watchdog thread: end the browser without asking it anything."""
+        import signal
+
+        self._ended = True
+        with contextlib.suppress(OSError):
+            os.kill(self._process, getattr(signal, "SIGKILL", signal.SIGTERM))
+
+    def _abandoned(self) -> None:
+        """Forget the browser the watchdog ended and every page of it."""
+        self._ended = False
+        self._browser = None
+        for each in (self._idle, self._origins, self._changed, self._emulated):
+            each.clear()
+
+    def _forget(self, page) -> None:
+        for each in (self._changed, self._emulated):
+            each.discard(page)
+        self._origins.pop(page, None)
+
+    def _reset(self, page, context, listeners) -> None:
+        """Make a released page show what a new context shows (the class's docstring)."""
         for event, handler in listeners:
             page.remove_listener(event, handler)
         for other in context.pages:
@@ -434,7 +495,6 @@ class PagePool:
         self._origins[page].clear()
         context.clear_cookies()
         page.mouse.move(0, 0)
-        self._idle.append(page)
 
     def close(self) -> None:
         browser, self._browser = self._browser, None

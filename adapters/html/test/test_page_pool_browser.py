@@ -161,16 +161,18 @@ import conftest
 @pytest.hookimpl(tryfirst=True)
 def pytest_timeout_set_timer(item, settings):
     item.user_properties.append(("launched", sorted(pool.engine for pool in conftest.POOLS if pool.launched())))
+    item.user_properties.append(("warm pages", [len(pool._idle) for pool in conftest.POOLS if pool.launched()]))
 """
 
 # A test that needs no browser, then the first test of the process that needs the shell's pages:
-# its pool's browser is up before its timeout starts, and no other pool's is.
+# its pool's browser is up, with one page drawn, before its timeout starts, and no other pool's is.
 FIRST_LEASE = """def test_needs_no_browser(request):
     assert dict(request.node.user_properties)["launched"] == []
 
 
 def test_first_to_need_the_shell(reader_browser, request):
     assert dict(request.node.user_properties)["launched"] == ["chromium-headless-shell"]
+    assert dict(request.node.user_properties)["warm pages"] == [1]
 """
 
 
@@ -178,3 +180,25 @@ def test_a_cold_browser_launch_is_done_before_the_timeout_of_the_first_test_that
     output = run_inner(tmp_path, FIRST_LEASE, {"timer_probe": TIMER_PROBE})
 
     assert "2 passed" in output, output
+
+# Locks its main thread as soon as anything clears its session storage, as the pool's release does.
+LOCKS_ON_RELEASE = """<!doctype html><meta charset="utf-8"><script>
+Storage.prototype.clear = () => { for (;;) {} };
+</script>"""
+
+
+def test_a_page_that_locks_while_it_is_released_is_replaced_without_waiting_on_it(tmp_path: Path,
+                                                                                  page_pool) -> None:
+    """The release gives up on the page after RELEASE_TIMEOUT_MS (test/conftest.py); a release that
+    waited on it would run until the test's tier timeout ends the test."""
+    path = tmp_path / "locks.html"
+    path.write_text(LOCKS_ON_RELEASE, encoding="utf-8")
+    page = page_pool.lease(None)
+    page.goto(path.as_uri())
+    page_pool.release(page)
+    again = page_pool.lease(None)
+    try:
+        assert again is not page, "test/conftest.py: the pool kept a page whose main thread is locked"
+        assert again.evaluate("1 + 1") == 2
+    finally:
+        page_pool.release(again)

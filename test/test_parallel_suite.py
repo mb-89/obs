@@ -4,6 +4,7 @@ from types import SimpleNamespace
 
 import pytest
 
+import bounds
 import suite
 import tiers
 from conftest import group_by_module
@@ -123,15 +124,15 @@ def test_a_part_whose_test_ran_over_its_tiers_cap_fails_naming_it(tmp_path, monk
 
     monkeypatch.setattr(suite, "WEIGHTS", tmp_path / "weights")
     report = tmp_path / "core.xml"
-    cap = bounds.CAP_FACTOR * bounds.COMMITTED["unit"]
-    _tiered_junit(report, [("slow", "unit", cap + 1, None), ("fine", "unit", cap - 1, None)])
+    cap = round(bounds.CAP_FACTOR * bounds.COMMITTED["unit"], 3)
+    _tiered_junit(report, [("slow", "unit", round(cap + 1, 3), None), ("fine", "unit", round(cap - 1, 3), None)])
     monkeypatch.setattr(suite, "part_command", lambda *_: [sys.executable, "-c", "pass"])
     monkeypatch.setattr(suite, "part_report", lambda *_: report)
 
     code, output = suite.run_part(suite.ROOT, [], tmp_path)
 
     assert code == 1
-    assert f"test/bounds.py: test.x::slow took {cap + 1} s, over the unit tier's cap of {cap} s" in output
+    assert f"test/bounds.py: test.x::slow took {round(cap + 1, 3)} s, over the unit tier's cap of {cap} s" in output
     assert "test.x::fine" not in output
 
 
@@ -244,3 +245,125 @@ def test_a_worker_or_a_run_without_a_report_writes_no_workers_property() -> None
     assert suite.record_workers(_xdist_config({"dist": "load", "tx": ["popen"] * 2}, report, workerinput={})) is None
     assert suite.record_workers(_xdist_config({"dist": "load", "tx": ["popen"] * 2})) is None
     assert report.properties == []
+
+
+@pytest.mark.parametrize("on_actions", [False, True])
+def test_the_suite_names_its_host_and_says_when_its_parts_took_longer_than_the_limit(monkeypatch, capsys,
+                                                                                    on_actions) -> None:
+    import os
+
+    monkeypatch.setattr(suite, "run_part", lambda part, arguments, run_folder: (0, ""))
+    monkeypatch.setattr(suite, "is_installed", lambda package: True)
+    monkeypatch.setenv("GITHUB_ACTIONS", "true") if on_actions else monkeypatch.delenv("GITHUB_ACTIONS", raising=False)
+    limit = suite.limit_seconds()
+    times = iter([0.0, limit + 5.0])
+
+    assert suite.main([], clock=lambda: next(times)) == 0
+    out = capsys.readouterr().out
+    assert f"test/suite.py: host: {os.cpu_count()} CPUs" in out
+    over = (f"test/suite.py: the parts took {limit + 5.0:.1f} s, over the suite's {limit:g} s limit "
+            "([tests] limit_seconds in se.toml)")
+    assert over in out
+    assert (f"::warning title=Suite over its time limit::{over}" in out) == on_actions
+
+
+def test_the_suite_says_nothing_of_the_limit_within_it(monkeypatch, capsys) -> None:
+    monkeypatch.setattr(suite, "run_part", lambda part, arguments, run_folder: (0, ""))
+    monkeypatch.setattr(suite, "is_installed", lambda package: True)
+    times = iter([0.0, suite.limit_seconds() - 1.0])
+
+    assert suite.main([], clock=lambda: next(times)) == 0
+    assert "limit" not in capsys.readouterr().out
+
+
+class _Tiered(_Grouped):
+    def __init__(self, nodeid, group, tier="unit"):
+        super().__init__(nodeid, group)
+        self.tier_mark = getattr(pytest.mark, tier).mark
+
+    def get_closest_marker(self, name):
+        return self.mark if name == "xdist_group" else self.tier_mark if name == self.tier_mark.name else None
+
+
+class _Deselecting:
+    def __init__(self, rootpath=suite.ROOT):
+        self.rootpath = rootpath
+        self.deselected = []
+        self.hook = SimpleNamespace(pytest_deselected=lambda items: self.deselected.extend(items))
+
+
+def _shard_items():
+    return [_Tiered("a.py::one", "a", "browser"), _Tiered("c.py::one", "c"), _Tiered("a.py::two", "a", "browser"),
+            _Tiered("d.py::one", "d"), _Tiered("c.py::two", "c"), _Tiered("b.py::one", "b", "browser"),
+            _Tiered("e.py::one", "e"), _Tiered("c.py::three", "c")]
+
+
+def test_each_shard_keeps_whole_groups_dealt_by_tier_then_size(monkeypatch) -> None:
+    """Groups are dealt to the shards in turn and back again (1, 2, 2, 1, ...), the most expensive
+    tier first and the larger group first within it, so the shards get alike mixes on any host."""
+    kept = {}
+    for shard in (1, 2):
+        monkeypatch.setenv(suite.SHARD_VARIABLE, f"{shard}/2")
+        items, config = _shard_items(), _Deselecting()
+        suite.keep_shard(config, items, bounds)
+        kept[shard] = [item.nodeid for item in items]
+        assert sorted(kept[shard] + [item.nodeid for item in config.deselected]) == sorted(
+            item.nodeid for item in _shard_items())
+    assert kept == {1: ["a.py::one", "a.py::two", "d.py::one", "e.py::one"],
+                    2: ["c.py::one", "c.py::two", "b.py::one", "c.py::three"]}
+
+
+def test_without_a_shard_every_test_is_kept(monkeypatch) -> None:
+    monkeypatch.delenv(suite.SHARD_VARIABLE, raising=False)
+    items, config = _shard_items(), _Deselecting()
+    suite.keep_shard(config, items, bounds)
+    assert len(items) == len(_shard_items()) and config.deselected == []
+
+
+def test_the_suite_runs_each_part_on_the_shard_it_names(monkeypatch, capsys) -> None:
+    import os
+
+    seen = []
+    monkeypatch.setattr(suite, "run_part", lambda part, arguments, run_folder:
+                        seen.append((os.environ.get(suite.SHARD_VARIABLE), arguments)) or (0, ""))
+    monkeypatch.setattr(suite, "is_installed", lambda package: True)
+    monkeypatch.delenv(suite.SHARD_VARIABLE, raising=False)
+
+    assert suite.main(["--shard", "2/3", "-x"]) == 0
+    assert seen == [("2/3", ["-x"])] * len(suite.PARTS)
+    assert "test/suite.py: shard 2 of 3" in capsys.readouterr().out
+    assert suite.SHARD_VARIABLE not in os.environ
+
+
+@pytest.mark.parametrize("shard", ["3/2", "0/2", "two", "1/0"])
+def test_a_shard_outside_its_count_is_refused(monkeypatch, capsys, shard) -> None:
+    monkeypatch.setattr(suite, "is_installed", lambda package: True)
+    assert suite.main(["--shard", shard]) == 2
+    assert f"test/suite.py: --shard {shard}" in capsys.readouterr().err
+
+
+def test_a_shards_run_is_checked_against_the_cap_but_not_recorded(tmp_path, monkeypatch) -> None:
+    """A shard's run holds part of the part's tests: recorded, it would lower its tiers' bounds."""
+    import sys
+
+    import bounds
+
+    monkeypatch.setattr(suite, "WEIGHTS", tmp_path / "weights")
+    monkeypatch.setenv(suite.SHARD_VARIABLE, "1/2")
+    report = tmp_path / "core.xml"
+    cap = bounds.CAP_FACTOR * bounds.COMMITTED["unit"]
+    _tiered_junit(report, [("slow@g", "unit", cap + 1, None)])
+    monkeypatch.setattr(suite, "part_command", lambda *_: [sys.executable, "-c", "raise SystemExit(5)"])
+    monkeypatch.setattr(suite, "part_report", lambda *_: report)
+
+    code, output = suite.run_part(suite.ROOT, [], tmp_path)
+
+    assert code == 1 and "test.x::slow@g" in output
+    assert not (tmp_path / "weights").exists()
+
+
+def test_a_pytest_a_test_starts_is_not_sharded(monkeypatch, tmp_path) -> None:
+    monkeypatch.setenv(suite.SHARD_VARIABLE, "2/2")
+    items, config = _shard_items(), _Deselecting(rootpath=tmp_path)
+    suite.keep_shard(config, items, bounds)
+    assert len(items) == len(_shard_items()) and config.deselected == []

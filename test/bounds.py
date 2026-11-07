@@ -26,13 +26,15 @@ from pathlib import Path
 import pytest
 
 # The committed slowest test of each tier, in seconds, keyed cheapest first as test/tiers.py
-# orders TIERS, which SLOWEST falls back to where a host has fewer recorded runs (derive). Measured
-# on the 4-CPU Linux container of 2026-11-06: unit, dom and browser from two runs of the complete
-# suite (`uv run python test/suite.py`, each part's JUnit report: setup, call and teardown), again
-# after the core's controller started the run's shared build of the spec as its session started; e2e,
-# which the complete suite leaves out, from the core's `uv run pytest -m "e2e or browser" -n 4 --durations=12` (call). The external tier needs
-# data outside the repository and was not measured; it takes the e2e tier's measurement.
-COMMITTED = {"unit": 10.9, "dom": 1.9, "browser": 6.0, "e2e": 22.8, "external": 22.8}
+# orders TIERS, which SLOWEST falls back to where a host has fewer recorded runs (derive): on a
+# fresh CI runner, always. So it is measured on two CPUs, as CI's runners give the suite about:
+# on the 4-CPU Linux container of 2026-11-07 (Intel Xeon @ 2.10GHz) pinned to two of them,
+# unit, dom and browser are the slowest test of each tier over two runs of the complete suite,
+# `SE_TEST_REPORTS=<folder> taskset -c 0,1 uv run python test/suite.py`, from each part's JUnit
+# report (setup, call and teardown), rounded up to a tenth of a second. No test has the e2e tier
+# (the core's `uv run pytest -m "e2e or browser"` selected none), so e2e keeps its measurement of
+# 2026-11-06; the external tier needs data outside the repository and takes e2e's.
+COMMITTED = {"unit": 9.2, "dom": 1.7, "browser": 5.5, "e2e": 22.8, "external": 22.8}
 # How many of a part's recorded runs (test/suite.py, record_durations) the suite keeps and SLOWEST
 # is derived from.
 RUNS = 10

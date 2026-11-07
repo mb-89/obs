@@ -30,6 +30,7 @@ def pytest_collection_modifyitems(config, items):
     tiers.modify_items(config, items)
     bounds.mark(items)
     group_by_module(items)
+    suite.keep_shard(config, items, bounds)
     suite.heaviest_first(suite.ROOT, items)
 
 
