@@ -22,6 +22,14 @@ jobs:
           node-version: 22
       - run: uv run python test/suite.py --setup
       - run: uv run python test/suite.py --shard ${{ matrix.shard }}/2
+        env:
+          SE_TEST_REPORTS: ${{ runner.temp }}/junit
+      # Each shard's JUnit reports, from which `test/suite.py --measure-weights` measures SHARD_WEIGHTS.
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: junit-shard-${{ matrix.shard }}
+          path: ${{ runner.temp }}/junit
   # One status for the whole suite, whichever shards it has.
   suite:
     needs: shard
