@@ -31,10 +31,10 @@ import pytest
 # on the 4-CPU Linux container of 2026-11-07 (Intel Xeon @ 2.10GHz) pinned to two of them,
 # unit, dom and browser are the slowest test of each tier over two runs of the complete suite,
 # `SE_TEST_REPORTS=<folder> taskset -c 0,1 uv run python test/suite.py`, from each part's JUnit
-# report (setup, call and teardown), rounded up to a tenth of a second. No test has the e2e tier
-# (the core's `uv run pytest -m "e2e or browser"` selected none), so e2e keeps its measurement of
-# 2026-11-06; the external tier needs data outside the repository and takes e2e's.
-COMMITTED = {"unit": 9.2, "dom": 1.7, "browser": 5.5, "e2e": 22.8, "external": 22.8}
+# report (setup, call and teardown), rounded up to a tenth of a second. External is unmeasured:
+# its tests need data outside the repository, so the complete suite never runs them; it keeps
+# 22.8, the slowest test once measured above the browser tier (2026-11-06).
+COMMITTED = {"unit": 9.2, "dom": 1.7, "browser": 5.5, "external": 22.8}
 # How many of a part's recorded runs (test/suite.py, record_durations) the suite keeps and SLOWEST
 # is derived from.
 RUNS = 10
@@ -48,12 +48,15 @@ MULTIPLIER = 3
 
 def derive(committed: dict[str, float], parts_runs: list[list[dict[str, list]]], runs: int, factor: float):
     """Each tier's slowest test over each part's last ``runs`` recorded runs (a run maps each test
-    to its tier and seconds), and where each came from, "recorded" or "committed". A tier recorded
-    in fewer than ``runs`` runs keeps its committed value where that is slower; no recorded value
-    exceeds ``factor`` times the committed one (over_cap fails the run that records one)."""
+    to its tier and seconds; a run with no test timed counts for nothing), and where each came from,
+    "recorded" or "committed". A tier recorded in fewer than ``runs`` runs keeps its committed value
+    where that is slower; no recorded value exceeds ``factor`` times the committed one (over_cap
+    fails the run that records one)."""
     samples = {tier: [] for tier in committed}
     for part_runs in parts_runs:
-        for run in part_runs[-runs:]:
+        # A run with no tests or no timings (an old one recorded from a crashed part) counts for nothing.
+        timed = [run for run in part_runs if any(seconds > 0 for _, seconds in run.values())]
+        for run in timed[-runs:]:
             slowest_in_run = {}
             for tier, seconds in run.values():
                 slowest_in_run[tier] = max(seconds, slowest_in_run.get(tier, 0.0))
