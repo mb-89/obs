@@ -347,7 +347,6 @@ def test_each_shard_keeps_whole_groups_dealt_by_tier_then_size(monkeypatch) -> N
 
 
 def test_without_a_shard_every_test_is_kept(monkeypatch) -> None:
-    monkeypatch.delenv(suite.SHARD_VARIABLE, raising=False)
     items, config = _shard_items(), _Deselecting()
     suite.keep_shard(config, items, bounds)
     assert len(items) == len(_shard_items()) and config.deselected == []
@@ -360,7 +359,6 @@ def test_the_suite_runs_each_part_on_the_shard_it_names(monkeypatch, capsys) -> 
     monkeypatch.setattr(suite, "run_part", lambda part, arguments, run_folder:
                         seen.append((os.environ.get(suite.SHARD_VARIABLE), arguments)) or (0, ""))
     monkeypatch.setattr(suite, "is_installed", lambda package: True)
-    monkeypatch.delenv(suite.SHARD_VARIABLE, raising=False)
 
     assert suite.main(["--shard", "2/3", "-x"]) == 0
     assert seen == [("2/3", ["-x"])] * len(suite.PARTS)
