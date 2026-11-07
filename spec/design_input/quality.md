@@ -164,6 +164,9 @@ definitions alike. Keeping the same fact in two places is an anti-pattern (user,
   the engine; where a test past its timeout held one, the pool ends that browser. Either way, the
   next test gets a fresh browser.
 
+  A page that does not answer while it is released, a locked page among them, is closed with
+  its context, not waited on, and the next lease opens a new one.
+
   `test/suite.py` caps the whole run: at its cap it stops each part still running and names the
   part and the tests it was running.
 - The adapter's chapter sweep (`test/chapter_sweep.py`) is the one browser check that does not
