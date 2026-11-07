@@ -166,6 +166,16 @@ definitions alike. Keeping the same fact in two places is an anti-pattern (user,
 
   `test/suite.py` caps the whole run: at its cap it stops each part still running and names the
   part and the tests it was running.
+- The adapter's chapter sweep (`test/chapter_sweep.py`) is the one browser check that does not
+  lease the pool's pages. It opens every chapter of an artifact and scrolls it, a step where a
+  page that locks its main thread is expected.
+
+  So each artifact runs in a child process with its
+  own headless shell and a hard timeout under the test's own: a locked page ends with its
+  process tree, the test names the chapter it was on, and no other test's browser is touched.
+
+  Its test sweeps every committed fixture Document, without and with reduced motion, in the
+  complete suite.
 - No test reaches the network. Each part's `test/network_guard.py` fails a test that opens a
   connection to anything but loopback, naming the test, the host and the remedy; a subprocess a
   test starts reads remote data from a fake too, as the parity gate's `obs-document` does.
