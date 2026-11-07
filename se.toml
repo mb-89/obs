@@ -10,7 +10,7 @@ authored_content = [
 identity = "mb <mb>"
 public_check = true
 release = "workflow"
-version = "1.11.4"
+version = "1.11.5"
 
 [tests]
 # The complete suite, its setup and its time budget; test/suite.py's docstring says what each runs.
