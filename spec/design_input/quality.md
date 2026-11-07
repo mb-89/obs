@@ -158,27 +158,44 @@ definitions alike. Keeping the same fact in two places is an anti-pattern (user,
   committed measurement while the host has too few, which also caps it: a test past a multiple
   of the committed measurement fails the suite.
 
+  `test/bounds.py` (COMMITTED) names how and where the committed measurement is taken.
+
   The adapter's page pools launch their browsers with an explicit timeout, before the timeout
-  of the first test that needs one starts: a cold launch is no test's time. Where a pool's
+  of the first test that needs one starts, and draw a first page: a cold launch is no test's time.
+
+  Where a pool's
   browser dies while a test holds one of its pages, that test fails, "browser crashed", naming
   the engine; where a test past its timeout held one, the pool ends that browser. Either way, the
   next test gets a fresh browser.
 
+  A page that does not answer while it is released, a locked page among them, is not waited on:
+  past a timeout the pool ends its browser, and the next lease gets a fresh one.
+
   `test/suite.py` caps the whole run: at its cap it stops each part still running and names the
   part and the tests it was running.
+
+  CI runs the complete suite on runners whose speed differs: one commit's parts took 104.6 s on
+  one run and 150.1 s on its re-run. So CI spreads the suite over shards, one job each
+  (`test/suite.py --shard`).
+
+  CI does not fail a run past the suite's time limit, which se's local gate enforces on the
+  whole suite; `test/suite.py` names the runner's CPUs and says in each job's log, as a warning
+  annotation, when its run is past the limit.
 - The adapter's chapter sweep (`test/chapter_sweep.py`) is the one browser check that does not
   lease the pool's pages. It opens every chapter of an artifact and scrolls it, a step where a
   page that locks its main thread is expected.
 
-  So each artifact runs in a child process with its
-  own headless shell and a hard timeout under the test's own: a locked page ends with its
-  process tree, the test names the chapter it was on, and no other test's browser is touched.
+  So the sweeps run in a child process with its
+  own headless shell, one per test process, kept from one sweep to the next, and each sweep has
+  a hard timeout under the test's own: a locked page ends the child's process tree, the test names
+  the chapter it was on, the next sweep starts a fresh child, and no other test's browser is
+  touched.
 
   Its test sweeps every committed fixture Document, at a desktop and a phone viewport, without
   and with reduced motion, in the complete suite.
 
-  Each artifact at each viewport is a test and a
-  child of its own, so one test's time is one viewport's, within its tier's measured bound. The
+  Each artifact at each viewport is a test of its
+  own, so one test's time is one viewport's, within its tier's measured bound. The
   phone draws at device scale 1: the sweep looks for a page that stops answering and for console
   errors, not at what a person reads.
 - No test reaches the network. Each part's `test/network_guard.py` fails a test that opens a

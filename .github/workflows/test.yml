@@ -5,8 +5,15 @@ on:
   pull_request:
 
 jobs:
-  suite:
+  # The complete suite in shards, one job each (test/suite.py, --shard): CI runners differ in speed,
+  # and one job per shard keeps each under the suite's time limit.
+  shard:
+    name: suite (shard ${{ matrix.shard }}/2)
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2]
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v6
@@ -14,4 +21,11 @@ jobs:
         with:
           node-version: 22
       - run: uv run python test/suite.py --setup
-      - run: uv run python test/suite.py
+      - run: uv run python test/suite.py --shard ${{ matrix.shard }}/2
+  # One status for the whole suite, whichever shards it has.
+  suite:
+    needs: shard
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - run: test "${{ needs.shard.result }}" = success

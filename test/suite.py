@@ -14,7 +14,11 @@ output is printed when it ends. Every part runs to its end even when another fai
 code is non-zero when any part failed. The parts share one build of obs's spec: the suite makes a
 folder for the run, names it in `OBS_SPEC_BUILD` for every part, prints how often
 test/spec_build.py built each kind there, fails where one kind was built twice, and removes the
-folder at the end. Each test has its timeout (test/bounds.py); the whole run has a cap,
+folder at the end. `--shard i/n` runs the i-th of n shards of every part, so CI can spread the
+suite over n jobs: each part keeps that shard of its xdist groups (keep_shard), and a shard's run
+is checked against the tiers' caps but not recorded. It names its host (its CPU count and model) as it starts, and where the parts
+took longer than `[tests] limit_seconds` it says so as it ends, on GitHub Actions also as a warning
+annotation; it does not fail on that (quality.md, Testing boundaries). Each test has its timeout (test/bounds.py); the whole run has a cap,
 CAP_SECONDS, at which a part still running is stopped, with every process it started, and the
 suite names the part and the tests it was running and fails. Arguments are passed on to every
 part's pytest, for example `--durations=20`. Each part writes its JUnit XML report as `<part>.xml`
@@ -45,7 +49,9 @@ does, every package not installed from its current lockfile, under a lock shared
 
     uv run python test/suite.py --setup
     uv run python test/suite.py
+    uv run python test/suite.py --shard 1/2
 """
+import contextlib
 import hashlib
 import json
 import math
@@ -68,6 +74,9 @@ SETUP = "--setup"
 SETUP_COMMAND = f"uv run python test/suite.py {SETUP}"
 PARALLEL = ["-n", "auto", "--dist", "loadgroup", "--no-loadscope-reorder"]
 REPORTS_VARIABLE = "SE_TEST_REPORTS"
+# `--shard i/n`: run only the i-th of n shards of every part (keep_shard), named to the parts here.
+SHARD = "--shard"
+SHARD_VARIABLE = "OBS_SUITE_SHARD"
 # Each part's Node test package, where it has one.
 NODE_PACKAGES = [part / "test" / "browser" for part in PARTS
                  if (part / "test" / "browser" / "package-lock.json").is_file()]
@@ -140,21 +149,72 @@ def record_durations(report: Path, keep: int) -> dict[str, list]:
     if not report.is_file():
         return {}
     runs = json.loads(record.read_text(encoding="utf-8")) if record.is_file() else []
-    run = {}
-    for case in ElementTree.parse(report).iter("testcase"):
-        tier = next((prop.get("value") for prop in case.iter("property")
-                     if prop.get("name") == bounds.TIER_PROPERTY), None)
-        if tier and not any(case.find(outcome) is not None for outcome in ("failure", "error", "skipped")):
-            run[f"{case.get('classname')}::{case.get('name')}"] = [tier, round(float(case.get("time") or 0), 3)]
+    run = measured_run(report)
     runs = [*runs, run][-keep:]
     WEIGHTS.mkdir(parents=True, exist_ok=True)
     record.write_text(json.dumps(runs, indent=0, sort_keys=True) + "\n", encoding="utf-8")
     return run
 
 
+def measured_run(report: Path) -> dict[str, list]:
+    """Each passed test's tier and time in a part's JUnit report, keyed by the case; none where
+    the part wrote no report."""
+    import bounds  # Only here: an adapter's conftest.py loads this module without test/ on its path.
+
+    if not report.is_file():
+        return {}
+    run = {}
+    for case in ElementTree.parse(report).iter("testcase"):
+        tier = next((prop.get("value") for prop in case.iter("property")
+                     if prop.get("name") == bounds.TIER_PROPERTY), None)
+        if tier and not any(case.find(outcome) is not None for outcome in ("failure", "error", "skipped")):
+            run[f"{case.get('classname')}::{case.get('name')}"] = [tier, round(float(case.get("time") or 0), 3)]
+    return run
+
+
 def recorded_runs() -> list[list[dict[str, list]]]:
     """Each part's recorded runs (record_durations), oldest first."""
     return [json.loads(record.read_text(encoding="utf-8")) for record in sorted(WEIGHTS.glob("*.runs.json"))]
+
+
+def shard() -> tuple[int, int] | None:
+    """The shard the parts run, (i, n), from SHARD_VARIABLE; None where they run every test."""
+    named = os.environ.get(SHARD_VARIABLE)
+    if not named:
+        return None
+    index, count = (int(number) for number in named.split("/"))
+    return index, count
+
+
+def keep_shard(config, items, bounds) -> None:
+    """From a part's ``pytest_collection_modifyitems``, after it named each test's xdist group: on a
+    shard, keep only its groups and deselect the rest. The groups are dealt to the n shards in
+    turn and back again (1, ..., n, n, ..., 1), the most expensive tier first (test/tiers.py's
+    order, as test/bounds.py's ``tier`` names it) and the group with more tests first within a
+    tier, then by name: the same split on every host, with or without recorded weights, which a
+    fresh CI runner has none of. ``bounds`` is test/bounds.py as the part's conftest.py loaded it."""
+    named = shard()
+    # A pytest a test starts inherits the variable; only a part's own run is sharded.
+    if named is None or config.rootpath.resolve() not in {part.resolve() for part in PARTS}:
+        return
+    index, count = named
+
+    def group(item) -> str:
+        mark = item.get_closest_marker("xdist_group")
+        return mark.args[0] if mark.args else mark.kwargs.get("name")
+
+    groups: dict[str, list] = {}
+    for item in items:
+        groups.setdefault(group(item), []).append(item)
+    order = list(bounds.TIMEOUTS)
+    ranked = sorted(groups, key=lambda name: (-max(order.index(bounds.tier(item)) for item in groups[name]),
+                                              -len(groups[name]), name))
+    turn = [*range(count), *reversed(range(count))]
+    ours = {name for number, name in enumerate(ranked) if turn[number % len(turn)] == index - 1}
+    deselected = [item for item in items if group(item) not in ours]
+    if deselected:
+        config.hook.pytest_deselected(items=deselected)
+    items[:] = [item for item in items if group(item) in ours]
 
 
 def heaviest_first(part: Path, items) -> None:
@@ -297,10 +357,16 @@ def run_part(part: Path, arguments: list[str], run_folder: Path) -> tuple[int, s
         return 1, (f"{head}{output}test/suite.py: {part_name(part)} reached the suite's cap of {CAP_SECONDS} s "
                    f"(CAP_SECONDS) and was stopped while running {running}. Remedy: run that test alone in "
                    f"{part} with `uv run pytest <test>` and find what it waits for.\n")
-    record_weights(part_report(part, os.environ, run_folder))
-    run = record_durations(part_report(part, os.environ, run_folder), keep=bounds.RUNS)
+    report = part_report(part, os.environ, run_folder)
+    if shard() is None:
+        record_weights(report)
+        run = record_durations(report, keep=bounds.RUNS)
+    else:  # A shard's run holds part of the part's tests: recorded, it would lower the derived bounds.
+        run = measured_run(report)
     capped = bounds.over_cap(run, bounds.COMMITTED, bounds.CAP_FACTOR)
-    return (1 if capped else process.returncode), head + output + "".join(f"{message}\n" for message in capped)
+    # A shard can hold no test of a part: pytest's "no tests ran" is no failure then.
+    code = 0 if process.returncode == 5 and shard() is not None else process.returncode
+    return (1 if capped else code), head + output + "".join(f"{message}\n" for message in capped)
 
 
 def stop(process: subprocess.Popen) -> None:
@@ -337,9 +403,49 @@ def setup(arguments: list[str], clock) -> int:
     return 0
 
 
+def limit_seconds() -> float:
+    """The suite's time limit, `[tests] limit_seconds` in se.toml, which owns it."""
+    import tomllib
+
+    return tomllib.loads((ROOT / "se.toml").read_text(encoding="utf-8"))["tests"]["limit_seconds"]
+
+
+def host() -> str:
+    """The CPUs this run has, and their model where the platform names it."""
+    import platform
+
+    model = platform.processor()
+    with contextlib.suppress(OSError):
+        model = next((line.split(":", 1)[1].strip() for line in open("/proc/cpuinfo", encoding="utf-8")
+                      if line.startswith("model name")), model)
+    return f"{os.cpu_count()} CPUs" + (f" ({model})" if model else "")
+
+
+def overrun(seconds: float, limit: float, environment) -> list[str]:
+    """The lines that say the parts took longer than the limit: one, and on GitHub Actions also
+    its warning annotation. The suite does not fail on it: CI runners differ in speed (quality.md,
+    Testing boundaries)."""
+    if seconds <= limit:
+        return []
+    line = (f"test/suite.py: the parts took {seconds:.1f} s, over the suite's {limit:g} s limit "
+            "([tests] limit_seconds in se.toml)")
+    annotation = f"::warning title=Suite over its time limit::{line}"
+    return [line, annotation] if environment.get("GITHUB_ACTIONS") == "true" else [line]
+
+
 def main(arguments: list[str], clock=time.monotonic) -> int:
     if SETUP in arguments:
         return setup(arguments, clock)
+    named = None
+    if SHARD in arguments:
+        at = arguments.index(SHARD)
+        named = arguments[at + 1] if at + 1 < len(arguments) else ""
+        arguments = arguments[:at] + arguments[at + 2:]
+        match = re.fullmatch(r"([1-9][0-9]*)/([1-9][0-9]*)", named)
+        if not match or int(match[1]) > int(match[2]):
+            print(f"test/suite.py: {SHARD} {named} names no shard. Remedy: name the i-th of n shards as "
+                  f"`{SHARD} i/n`, 1 <= i <= n.", file=sys.stderr)
+            return 2
     missing = [package for package in NODE_PACKAGES if not is_installed(package)]
     if missing:
         lockfiles = ", ".join(str(package / "package-lock.json") for package in missing)
@@ -349,6 +455,11 @@ def main(arguments: list[str], clock=time.monotonic) -> int:
         return 1
     started = clock()
     names = [part_name(part) for part in PARTS]
+    print(f"test/suite.py: host: {host()}.", flush=True)
+    if named:
+        index, count = named.split("/")
+        print(f"test/suite.py: shard {index} of {count}: each part runs that shard of its groups "
+              "(keep_shard).", flush=True)
     print(f"test/suite.py: running {', '.join(names)} side by side; each part's output follows "
           "when it ends.", flush=True)
     import spec_build  # Only here: an adapter's conftest.py loads this module without test/ on its path.
@@ -356,6 +467,8 @@ def main(arguments: list[str], clock=time.monotonic) -> int:
     failed = []
     with tempfile.TemporaryDirectory(prefix="obs-spec-build-") as shared:
         os.environ[spec_build.RUN_FOLDER] = shared  # Each part, and each of its workers, inherits it.
+        if named:
+            os.environ[SHARD_VARIABLE] = named
         try:
             with ThreadPoolExecutor(len(PARTS)) as pool:
                 running = {pool.submit(run_part, part, arguments, Path(shared)): part for part in PARTS}
@@ -366,8 +479,12 @@ def main(arguments: list[str], clock=time.monotonic) -> int:
                         failed.append(part_name(running[finished]))
         finally:
             del os.environ[spec_build.RUN_FOLDER]
+            os.environ.pop(SHARD_VARIABLE, None)
         builds = spec_build.counts(Path(shared))
-    print(f"test/suite.py: parts took {clock() - started:.1f} s.")
+    took = clock() - started
+    print(f"test/suite.py: parts took {took:.1f} s.")
+    for line in overrun(took, limit_seconds(), os.environ):
+        print(line)
     built = ", ".join(f"{kind} {builds[kind]}" for kind in spec_build.BUILDS)
     print(f"test/suite.py: obs's spec was built this run (test/spec_build.py): {built}.")
     if any(count > 1 for count in builds.values()):
