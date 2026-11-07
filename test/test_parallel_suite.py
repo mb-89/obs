@@ -355,7 +355,8 @@ def test_each_test_lands_in_exactly_one_shard_dealt_by_committed_weights_else_ti
     for shard in (1, 2):
         monkeypatch.setenv(suite.SHARD_VARIABLE, f"{shard}/2")
         items, config = _shard_items(), _Deselecting()
-        suite.keep_shard(config, items, bounds)
+        with pytest.warns(UserWarning, match="lacks the groups a, b, d;"):
+            suite.keep_shard(config, items, bounds)
         kept[shard] = [item.nodeid for item in items]
         assert sorted(kept[shard] + [item.nodeid for item in config.deselected]) == sorted(
             item.nodeid for item in _shard_items())
@@ -449,3 +450,45 @@ def test_each_committed_group_that_names_a_module_names_one_of_its_parts() -> No
     missing = [f"{part}: {group}" for part, groups in suite.SHARD_WEIGHTS.items() for group in groups
                if group.endswith(".py") and not (parts[part] / group).is_file()]
     assert missing == []
+
+
+def _report(path, cases) -> None:
+    """A JUnit report of (name, tier, seconds) cases, as a part's pytest writes it."""
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text("<testsuites><testsuite>" + "".join(
+        f'<testcase classname="test.x" name="{name}" time="{seconds}"><properties>'
+        f'<property name="{bounds.TIER_PROPERTY}" value="{tier}"/></properties></testcase>'
+        for name, tier, seconds in cases) + "</testsuite></testsuites>", encoding="utf-8")
+
+
+def test_the_weights_are_measured_from_ci_runs_reports_and_print_as_their_constants(tmp_path, capsys) -> None:
+    """Each group's time summed per run and averaged over the runs; each tier's mean time per test,
+    an unmeasured tier at the costliest measured one; printed as the source pasted over them."""
+    first, second = tmp_path / "run-1", tmp_path / "run-2"
+    _report(first / "junit-shard-1" / "core.xml", [("a@test/a.py", "unit", 1.0), ("b@test/a.py", "unit", 2.0)])
+    _report(first / "junit-shard-2" / "core.xml", [("c@own", "browser", 4.0)])
+    _report(first / "junit-shard-2" / "adapters-html.xml", [("d@test/d.py", "dom", 0.5)])
+    _report(second / "core.xml", [("a@test/a.py", "unit", 2.0), ("b@test/a.py", "unit", 1.0), ("c@own", "browser", 2.0)])
+
+    assert suite.main([suite.MEASURE, str(first), str(second)]) == 0
+    constants = {}
+    exec(capsys.readouterr().out, constants)  # The output is the source pasted into test/suite.py.
+
+    assert constants["SHARD_WEIGHTS"] == {"core": {"test/a.py": 3.0, "own": 3.0},
+                                          "adapters/html": {"test/d.py": 0.5}}
+    assert constants["TIER_WEIGHTS"] == {"unit": 1.5, "dom": 0.5, "browser": 3.0, "external": 3.0}
+
+
+def test_measuring_without_a_run_folder_is_refused(tmp_path, capsys) -> None:
+    assert suite.main([suite.MEASURE]) == 2
+    assert suite.main([suite.MEASURE, str(tmp_path / "missing")]) == 2
+    assert f"test/suite.py: {suite.MEASURE}" in capsys.readouterr().err
+
+
+def test_a_group_the_committed_weights_lack_is_dealt_by_tier_weights_with_a_warning(monkeypatch) -> None:
+    monkeypatch.setattr(suite, "SHARD_WEIGHTS", {"core": {"a": 1.0, "b": 1.0, "c": 1.0, "d": 1.0}})
+    monkeypatch.setenv(suite.SHARD_VARIABLE, "1/2")
+    items, config = _shard_items(), _Deselecting()
+    with pytest.warns(UserWarning, match=r"core: SHARD_WEIGHTS lacks the groups e;"):
+        suite.keep_shard(config, items, bounds)
+    assert len(items) + len(config.deselected) == len(_shard_items())

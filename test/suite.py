@@ -53,6 +53,10 @@ does, every package not installed from its current lockfile, under a lock shared
     uv run python test/suite.py --setup
     uv run python test/suite.py
     uv run python test/suite.py --shard 1/2
+    uv run python test/suite.py --measure-weights <run folder>...
+
+`--measure-weights` prints SHARD_WEIGHTS and TIER_WEIGHTS measured from the JUnit reports of the
+CI runs it names (measure_weights), to paste over them.
 """
 import contextlib
 import hashlib
@@ -65,6 +69,7 @@ import subprocess
 import sys
 import tempfile
 import time
+import warnings
 import xml.etree.ElementTree as ElementTree
 from collections import Counter
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -74,6 +79,8 @@ ROOT = Path(__file__).resolve().parents[1]
 # The core, then each integrated adapter folder under adapters/.
 PARTS = [ROOT, *sorted(path.parent for path in (ROOT / "adapters").glob("*/pyproject.toml"))]
 SETUP = "--setup"
+# `--measure-weights <run folder>...`: print SHARD_WEIGHTS and TIER_WEIGHTS measured from runs' reports.
+MEASURE = "--measure-weights"
 SETUP_COMMAND = f"uv run python test/suite.py {SETUP}"
 PARALLEL = ["-n", "auto", "--dist", "loadgroup", "--no-loadscope-reorder"]
 REPORTS_VARIABLE = "SE_TEST_REPORTS"
@@ -214,12 +221,11 @@ def shard() -> tuple[int, int] | None:
 
 # Each part's committed xdist-group weights, in seconds, by which keep_shard deals the groups to
 # the shards and heaviest_first orders them on a host without a record: a fresh CI runner, always.
-# So they are measured on CI: the `test` workflow with `--durations=0 --durations-min=0.05`
-# added to its shard step, run on 198df4b's tests (run 42349997373, 2026-11-07, two attempts on
-# AMD EPYC 7763 and 9V74 runners); each group's setup, call and teardown times from both shards'
-# logs, summed over its tests, averaged over the attempts and rounded to a tenth of a second. A group under 2.0 s is not named: it weighs its
-# tests' TIER_WEIGHTS, each tier's mean time per test over the tests of the groups not named.
-# External is unmeasured, since the suite never runs its tests; it weighs as browser.
+# So they are measured on CI, and pasted here from the output of
+# `uv run python test/suite.py --measure-weights <run folder>...` (measure_weights), each folder
+# holding the JUnit reports of both shards of one `test` workflow run, which CI uploads as the
+# artifacts `junit-shard-<i>`. TIER_WEIGHTS, each tier's mean time per test there, weighs a group
+# the table lacks; keep_shard warns of one, a nudge to measure again.
 SHARD_WEIGHTS = {
     "core": {
         "test/test_document_contract.py": 9.9,
@@ -323,6 +329,46 @@ SHARD_WEIGHTS = {
 TIER_WEIGHTS = {"unit": 0.035, "dom": 0.011, "browser": 0.835, "external": 0.835}
 
 
+def measure_weights(runs: list[Path]) -> str:
+    """SHARD_WEIGHTS and TIER_WEIGHTS as source, from the JUnit reports of runs, one folder per run
+    holding every shard's ``<part>.xml`` (in subfolders too): each xdist group's test time (a case's
+    name ends in ``@<group>``; its time is setup, call and teardown) summed per run and averaged over
+    the runs it ran in, and each tier's (TIER_PROPERTY) time per test over all of them. A tier no run
+    ran weighs as the most expensive one measured."""
+    import bounds  # Only here: an adapter's conftest.py loads this module without test/ on its path.
+
+    parts = {part_name(part).replace("/", "-"): part_name(part) for part in PARTS}
+    groups: dict[str, dict[str, list[float]]] = {name: {} for name in parts.values()}
+    tiers: dict[str, list[float]] = {}
+    for run in runs:
+        measured = {name: Counter() for name in parts.values()}
+        for report in sorted(run.rglob("*.xml")):
+            if report.stem not in parts:
+                continue
+            for case in ElementTree.parse(report).iter("testcase"):
+                name, seconds = case.get("name", ""), float(case.get("time") or 0)
+                if "@" in name:
+                    measured[parts[report.stem]][name.rsplit("@", 1)[1]] += seconds
+                tier = next((prop.get("value") for prop in case.iter("property")
+                             if prop.get("name") == bounds.TIER_PROPERTY), None)
+                if tier:
+                    tiers.setdefault(tier, []).append(seconds)
+        for part, times in measured.items():
+            for group, seconds in times.items():
+                groups[part].setdefault(group, []).append(seconds)
+    means = {tier: round(sum(times) / len(times), 3) for tier, times in tiers.items()}
+    costliest = max(means, key=list(bounds.TIMEOUTS).index, default=None)
+    tier_weights = {tier: means.get(tier, means.get(costliest, 0.0)) for tier in bounds.TIMEOUTS}
+    lines = ["SHARD_WEIGHTS = {"]
+    for part, measured in groups.items():
+        lines.append(f"    {json.dumps(part)}: {{")
+        lines += [f"        {json.dumps(group)}: {round(sum(times) / len(times), 2)},"
+                  for group, times in sorted(measured.items(), key=lambda item: (-sum(item[1]) / len(item[1]), item[0]))]
+        lines.append("    },")
+    lines += ["}", f"TIER_WEIGHTS = {json.dumps(tier_weights)}"]
+    return "\n".join(lines) + "\n"
+
+
 def xdist_group(item) -> str:
     """The test's xdist group, which its part's conftest.py named."""
     mark = item.get_closest_marker("xdist_group")
@@ -358,6 +404,16 @@ def shard_weights(part: str, groups: dict[str, list], bounds) -> dict[str, float
             for name, items in groups.items()}
 
 
+def warn_unweighed(part: str, groups) -> None:
+    """Warn, without failing, of each of a part's groups that SHARD_WEIGHTS lacks: it weighs its
+    tests' TIER_WEIGHTS until the weights are measured again."""
+    lacking = sorted(set(groups) - set(SHARD_WEIGHTS.get(part, {})))
+    if lacking:
+        warnings.warn(f"test/suite.py: {part}: SHARD_WEIGHTS lacks the groups {', '.join(lacking)}; they weigh "
+                      "their tests' TIER_WEIGHTS. Remedy: measure the weights again as SHARD_WEIGHTS's comment "
+                      f"names (`{MEASURE}`) and paste its output.", stacklevel=2)
+
+
 def keep_shard(config, items, bounds) -> None:
     """From a part's ``pytest_collection_modifyitems``, after it named each test's xdist group: on a
     shard, keep only its groups and deselect the rest. The groups are dealt by their committed
@@ -369,7 +425,9 @@ def keep_shard(config, items, bounds) -> None:
     if named is None or config.rootpath.resolve() not in {part.resolve() for part in PARTS}:
         return
     index, count = named
-    ours = deal(shard_weights(part_name(config.rootpath.resolve()), groups_of(items), bounds), count)[index - 1]
+    part, groups = part_name(config.rootpath.resolve()), groups_of(items)
+    warn_unweighed(part, groups)
+    ours = deal(shard_weights(part, groups, bounds), count)[index - 1]
     deselected = [item for item in items if xdist_group(item) not in ours]
     if deselected:
         config.hook.pytest_deselected(items=deselected)
@@ -597,6 +655,14 @@ def overrun(seconds: float, limit: float, environment) -> list[str]:
 def main(arguments: list[str], clock=time.monotonic) -> int:
     if SETUP in arguments:
         return setup(arguments, clock)
+    if MEASURE in arguments:
+        runs = [Path(folder) for folder in arguments[arguments.index(MEASURE) + 1:]]
+        if not runs or not all(run.is_dir() for run in runs):
+            print(f"test/suite.py: {MEASURE} names no run folder. Remedy: name one folder per CI run, each "
+                  "holding its shards' JUnit reports (the artifacts junit-shard-<i>).", file=sys.stderr)
+            return 2
+        print(measure_weights(runs), end="")
+        return 0
     named = None
     if SHARD in arguments:
         at = arguments.index(SHARD)
