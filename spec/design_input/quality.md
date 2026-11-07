@@ -158,6 +158,10 @@ definitions alike. Keeping the same fact in two places is an anti-pattern (user,
   committed measurement while the host has too few, which also caps it: a test past a multiple
   of the committed measurement fails the suite.
 
+  A run that did not complete (a module failed to collect, pytest stopped with an error, or no
+  test ran) records nothing, and the suite names it; a recorded run without a timed test counts
+  for nothing.
+
   `test/bounds.py` (COMMITTED) names how and where the committed measurement is taken.
 
   The adapter's page pools launch their browsers with an explicit timeout, before the timeout
@@ -222,9 +226,8 @@ definitions alike. Keeping the same fact in two places is an anti-pattern (user,
   fail with a message from `test/test_authored_artifact_browser.py` naming it.
 - Unit, dom and browser tiers run without a paired checkout: representative data comes from
   small vendored fixtures under `test/fixtures`.
-- Tests that call a paired application are e2e, including data it reads through
-  a snapshot named by an environment variable; tests that read hand-supplied data
-  such as that snapshot themselves are external.
+- Tests that call a paired application, or read hand-supplied data such as a snapshot named by
+  an environment variable, are external.
 
 ### Test feedback time
 
