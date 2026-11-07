@@ -15,7 +15,8 @@ code is non-zero when any part failed. The parts share one build of obs's spec: 
 folder for the run, names it in `OBS_SPEC_BUILD` for every part, prints how often
 test/spec_build.py built each kind there, fails where one kind was built twice, and removes the
 folder at the end. `--shard i/n` runs the i-th of n shards of every part, so CI can spread the
-suite over n jobs: each part keeps that shard of its xdist groups (keep_shard), and a shard's run
+suite over n jobs: each part keeps that shard of its xdist groups, dealt by their committed
+weights (keep_shard), and a shard's run
 is checked against the tiers' caps but not recorded. It names its host (its CPU count and model) as it starts, and where the parts
 took longer than `[tests] limit_seconds` it says so as it ends, on GitHub Actions also as a warning
 annotation; it does not fail on that (quality.md, Testing boundaries). Each test has its timeout (test/bounds.py); the whole run has a cap,
@@ -27,7 +28,8 @@ part's pytest, for example `--durations=20`. Each part writes its JUnit XML repo
 `conftest.py` names its worker count there as the `workers` testsuite property (record_workers),
 by which se divides the part's test time. From each report the suite records each xdist group's
 test time as the part's weights (WEIGHTS, record_weights); each part's `conftest.py` deals its
-groups heaviest first by them (heaviest_first), and keeps its own order where no record exists.
+groups heaviest first by them (heaviest_first), and by the committed weights (SHARD_WEIGHTS) where
+no record exists.
 Beside them it records each passed test's tier and time per run (record_durations), from which
 test/bounds.py derives each tier's timeout; a part whose test ran past its tier's cap fails. A run
 that did not complete (incomplete) records neither, and the suite names the part and the reason.
@@ -51,6 +53,10 @@ does, every package not installed from its current lockfile, under a lock shared
     uv run python test/suite.py --setup
     uv run python test/suite.py
     uv run python test/suite.py --shard 1/2
+    uv run python test/suite.py --measure-weights <run folder>...
+
+`--measure-weights` prints SHARD_WEIGHTS and TIER_WEIGHTS measured from the JUnit reports of the
+CI runs it names (measure_weights), to paste over them.
 """
 import contextlib
 import hashlib
@@ -63,6 +69,7 @@ import subprocess
 import sys
 import tempfile
 import time
+import warnings
 import xml.etree.ElementTree as ElementTree
 from collections import Counter
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -72,6 +79,8 @@ ROOT = Path(__file__).resolve().parents[1]
 # The core, then each integrated adapter folder under adapters/.
 PARTS = [ROOT, *sorted(path.parent for path in (ROOT / "adapters").glob("*/pyproject.toml"))]
 SETUP = "--setup"
+# `--measure-weights <run folder>...`: print SHARD_WEIGHTS and TIER_WEIGHTS measured from runs' reports.
+MEASURE = "--measure-weights"
 SETUP_COMMAND = f"uv run python test/suite.py {SETUP}"
 PARALLEL = ["-n", "auto", "--dist", "loadgroup", "--no-loadscope-reorder"]
 REPORTS_VARIABLE = "SE_TEST_REPORTS"
@@ -210,53 +219,335 @@ def shard() -> tuple[int, int] | None:
     return index, count
 
 
+# Each part's committed xdist-group weights, in seconds, by which keep_shard deals the groups to
+# the shards and heaviest_first orders them on a host without a record: a fresh CI runner, always.
+# So they are measured on CI, and pasted here from the output of
+# `uv run python test/suite.py --measure-weights <run folder>...` (measure_weights), each folder
+# holding the JUnit reports of both shards of one `test` workflow run, which CI uploads as the
+# artifacts `junit-shard-<i>`. TIER_WEIGHTS, each tier's mean time per test there, weighs a group
+# the table lacks; keep_shard warns of one, a nudge to measure again. Measured on the four attempts
+# of run 42351892874 (fd2513d, 2026-11-07), on GitHub's 4-CPU ubuntu-latest runners: shard 1 on
+# AMD EPYC 9V45, 9V45, 9V74 and 9V74, shard 2 on EPYC 7763, 7763, 7763 and Intel Xeon Platinum 8370C.
+SHARD_WEIGHTS = {
+    "core": {
+        "test/test_vault.py": 11.25,
+        "test/test_capability_examples.py": 9.89,
+        "test/test_figure_node.py": 8.34,
+        "test/test_document_contract.py": 8.19,
+        "test/test_parallel_suite.py": 7.5,
+        "test/test_equation_figures.py": 6.23,
+        "test/test_diagram_figures.py": 5.51,
+        "test/test_capabilities.py": 4.6,
+        "test/structure/test_public_spec.py": 3.98,
+        "test/test_pugh_figure.py": 3.65,
+        "test/test_document_sources.py": 3.27,
+        "test/test_hatch_build.py": 2.22,
+        "test/structure/test_spec_builds.py": 1.98,
+        "test/test_bounds.py": 1.74,
+        "test/test_property_editor_projection.py": 1.31,
+        "test/test_document_assets.py": 1.26,
+        "test/test_bless.py": 1.22,
+        "test/test_note_inclusion.py": 1.04,
+        "test/test_quantity_units.py": 0.97,
+        "test/test_vault_file_options.py": 0.93,
+        "test/test_command_fences.py": 0.92,
+        "test/test_figure_descriptor_contract.py": 0.89,
+        "test/test_core_input_contracts.py": 0.89,
+        "test/test_cover_metadata.py": 0.8,
+        "test/test_paragraph_lint.py": 0.77,
+        "test/test_project_config.py": 0.64,
+        "test/test_bases_filter_conformance.py": 0.58,
+        "test/test_expression_vectors.py": 0.56,
+        "test/test_figure_warnings.py": 0.55,
+        "test/test_document_style.py": 0.5,
+        "test/test_core_namespace.py": 0.46,
+        "test/test_obsidian_comments.py": 0.38,
+        "test/test_note_records.py": 0.38,
+        "test/test_note_reader.py": 0.3,
+        "test/structure/test_command_fences_stay_in_vault.py": 0.28,
+        "test/test_figure_references.py": 0.27,
+        "test/test_ignored_notes.py": 0.25,
+        "test/test_link_labels.py": 0.24,
+        "test/test_repeated_adapter_options.py": 0.24,
+        "test/structure/test_manifest.py": 0.21,
+        "test/structure/test_core_spec_names_no_adapter.py": 0.21,
+        "test/test_adapter_spec_reference.py": 0.16,
+        "test/test_spec_build.py": 0.16,
+        "test/test_inline_round_trip.py": 0.14,
+        "test/test_protected_fields_one_owner.py": 0.14,
+        "test/test_suite_node_packages.py": 0.08,
+        "test/test_validation_once.py": 0.08,
+        "test/structure/test_input_model.py": 0.06,
+        "test/test_record_projections.py": 0.04,
+        "test/test_attachment_date.py": 0.02,
+        "test/test_tiers.py": 0.02,
+        "test/structure/test_architecture.py": 0.02,
+        "test/test_producers.py": 0.01,
+        "test/structure/test_node_modules.py": 0.01,
+        "test/test_network_guard.py": 0.01,
+        "test/structure/test_quality.py": 0.01,
+        "test/test_diagram_browser.py": 0.01,
+        "test/structure/test_registers.py": 0.01,
+        "test/test_adapter_extensions.py": 0.01,
+        "test/structure/test_profiles.py": 0.01,
+        "test/structure/test_cover_metadata.py": 0.0,
+        "test/structure/test_product.py": 0.0,
+        "test/structure/test_queries.py": 0.0,
+        "test/structure/test_reviewed_copies.py": 0.0,
+        "test/test_authored_artifact_browser.py": 0.0,
+    },
+    "adapters/html": {
+        "test/test_installed_wheel.py": 23.21,
+        "test/test_bless_browser.py": 19.59,
+        "test/test_page_pool_browser.py": 17.88,
+        "test/test_equation_figures_browser.py": 17.57,
+        "test/test_sandboxed_preview_browser.py": 14.77,
+        "test/test_render.py": 13.91,
+        "parity-null-origin": 11.8,
+        "test/test_fixture_documents.py": 11.62,
+        "test/test_serve.py": 11.17,
+        "test/test_pugh_phone_browser.py": 9.98,
+        "test/test_artifact_browser.py": 7.82,
+        "test/test_spec_archive_rebuild.py": 7.31,
+        "test/test_pugh_solutions_browser.py": 7.2,
+        "test/test_pdf.py": 6.38,
+        "test/test_reading_shell_browser.py": 6.09,
+        "chapter-sweep-features-desktop": 5.84,
+        "coverage-null-origin-1100": 5.54,
+        "parity-same-origin": 5.23,
+        "chapter-sweep-features-phone": 5.11,
+        "test/test_cards_counts_quantities_browser.py": 5.06,
+        "coverage-null-origin-360": 5.04,
+        "test/test_features_browser.py": 4.95,
+        "test/test_bars.py": 4.88,
+        "coverage-null-origin-1600": 4.84,
+        "test/test_chapter_sweep_browser.py": 4.83,
+        "test/test_features.py": 4.74,
+        "test/test_pugh_figures_browser.py": 4.69,
+        "coverage-same-origin-1100": 4.68,
+        "test/test_trusted_runtime_through_the_core.py": 4.38,
+        "chapter-sweep-equations-desktop": 4.36,
+        "test/test_figure_frame.py": 4.29,
+        "test/test_moved_dom_contracts.py": 4.18,
+        "test/test_artifact_harness.py": 4.07,
+        "coverage-same-origin-700": 3.82,
+        "coverage-same-origin-1600": 3.82,
+        "coverage-same-origin-360": 3.72,
+        "chapter-sweep-document-desktop": 3.57,
+        "chapter-sweep-equations-phone": 3.49,
+        "test/test_parity_browser.py": 3.46,
+        "chapter-sweep-document-phone": 3.38,
+        "coverage-null-origin-700": 3.37,
+        "chapter-sweep-complete-phone": 3.25,
+        "test/test_cli.py": 3.19,
+        "test/test_content_model.py": 3.15,
+        "test/test_pdf_inspect.py": 3.15,
+        "test/test_base_records.py": 2.99,
+        "test/test_appearance_browser.py": 2.95,
+        "chapter-sweep-figures-phone": 2.86,
+        "chapter-sweep-figures-desktop": 2.85,
+        "test/test_node_units.py": 2.82,
+        "test/test_feature_layout_browser.py": 2.74,
+        "test/test_shipped_features_browser.py": 2.61,
+        "test/test_answers_browser.py": 2.61,
+        "test/test_errors.py": 2.59,
+        "test/test_selection_rule_set_browser.py": 2.48,
+        "chapter-sweep-complete-desktop": 2.38,
+        "test/test_property_editors_browser.py": 2.23,
+        "test/structure/test_quality.py": 2.21,
+        "test/test_attachment_editions.py": 2.1,
+        "chapter-sweep-cards-phone": 2.1,
+        "test/test_dom.py": 2.09,
+        "test/test_notice_center_browser.py": 2.09,
+        "chapter-sweep-cards-desktop": 2.08,
+        "test/test_registers.py": 1.95,
+        "chapter-sweep-registers-desktop": 1.79,
+        "chapter-sweep-pugh-phone": 1.7,
+        "test/test_startup_browser.py": 1.66,
+        "chapter-sweep-registers-phone": 1.63,
+        "test/test_images_from_assets.py": 1.61,
+        "chapter-sweep-figure-references-desktop": 1.56,
+        "chapter-sweep-self-link-phone": 1.45,
+        "test/test_vault_settings.py": 1.43,
+        "test/test_timings.py": 1.42,
+        "chapter-sweep-projections-desktop": 1.42,
+        "chapter-sweep-projections-phone": 1.29,
+        "chapter-sweep-figure-references-phone": 1.27,
+        "test/test_document_number_browser.py": 1.26,
+        "test/parity/test_parity_table.py": 1.26,
+        "chapter-sweep-pugh-desktop": 1.25,
+        "test/test_callouts_embeds_attachments.py": 1.21,
+        "chapter-sweep-table-help-phone": 1.2,
+        "test/test_figure_links.py": 1.2,
+        "test/test_source_archive.py": 1.19,
+        "chapter-sweep-artifact-change-desktop": 1.18,
+        "test/test_styles.py": 1.15,
+        "test/test_references_extensions_editors.py": 1.15,
+        "test/test_reader_text.py": 1.15,
+        "chapter-sweep-callouts-desktop": 1.14,
+        "chapter-sweep-artifact-change-phone": 1.12,
+        "test/test_structural_nodes.py": 1.11,
+        "chapter-sweep-self-link-desktop": 1.07,
+        "test/test_cards_counts_quantities.py": 1.05,
+        "chapter-sweep-source-archive-phone": 1.04,
+        "chapter-sweep-callouts-phone": 0.99,
+        "chapter-sweep-table-help-desktop": 0.98,
+        "test/test_references_browser.py": 0.97,
+        "test/test_metadata_fields.py": 0.93,
+        "chapter-sweep-source-archive-desktop": 0.92,
+        "test/test_commands.py": 0.87,
+        "test/test_long_paragraphs.py": 0.86,
+        "chapter-sweep-property-editor-projection-phone": 0.84,
+        "chapter-sweep-structural-phone": 0.83,
+        "chapter-sweep-property-editor-projection-desktop": 0.83,
+        "test/test_adapter_manifest.py": 0.77,
+        "test/test_attachment_replacement_browser.py": 0.75,
+        "chapter-sweep-structural-desktop": 0.69,
+        "test/test_figure_svg.py": 0.67,
+        "test/test_figures.py": 0.59,
+        "test/test_figure_references.py": 0.57,
+        "test/test_icons.py": 0.46,
+        "test/test_comments.py": 0.2,
+        "test/test_worker_groups.py": 0.14,
+        "test/test_browser_engine.py": 0.09,
+        "test/structure/test_artifact_ui.py": 0.07,
+        "test/structure/test_manifest.py": 0.06,
+        "test/test_core_property_editor_projection.py": 0.04,
+        "test/structure/test_sharepoint_preview.py": 0.04,
+        "test/test_bounds.py": 0.01,
+        "test/structure/test_input_model.py": 0.0,
+        "test/structure/test_configuration.py": 0.0,
+        "test/test_network_guard.py": 0.0,
+        "test/structure/test_mixed_notes.py": 0.0,
+        "test/structure/test_one_short_name_rule.py": 0.0,
+        "test/structure/test_artifact_presentation.py": 0.0,
+        "test/test_focused_run.py": 0.0,
+        "test/test_bless_record.py": 0.0,
+    },
+}
+TIER_WEIGHTS = {"unit": 0.12, "dom": 0.185, "browser": 1.167, "external": 1.167}
+
+
+def measure_weights(runs: list[Path]) -> str:
+    """SHARD_WEIGHTS and TIER_WEIGHTS as source, from the JUnit reports of runs, one folder per run
+    holding every shard's ``<part>.xml`` (in subfolders too): each xdist group's test time (a case's
+    name ends in ``@<group>``; its time is setup, call and teardown) summed per run and averaged over
+    the runs it ran in, and each tier's (TIER_PROPERTY) time per test over all of them. A tier no run
+    ran weighs as the most expensive one measured."""
+    import bounds  # Only here: an adapter's conftest.py loads this module without test/ on its path.
+
+    parts = {part_name(part).replace("/", "-"): part_name(part) for part in PARTS}
+    groups: dict[str, dict[str, list[float]]] = {name: {} for name in parts.values()}
+    tiers: dict[str, list[float]] = {}
+    for run in runs:
+        measured = {name: Counter() for name in parts.values()}
+        for report in sorted(run.rglob("*.xml")):
+            if report.stem not in parts:
+                continue
+            for case in ElementTree.parse(report).iter("testcase"):
+                name, seconds = case.get("name", ""), float(case.get("time") or 0)
+                if "@" in name:
+                    measured[parts[report.stem]][name.rsplit("@", 1)[1]] += seconds
+                tier = next((prop.get("value") for prop in case.iter("property")
+                             if prop.get("name") == bounds.TIER_PROPERTY), None)
+                if tier:
+                    tiers.setdefault(tier, []).append(seconds)
+        for part, times in measured.items():
+            for group, seconds in times.items():
+                groups[part].setdefault(group, []).append(seconds)
+    means = {tier: round(sum(times) / len(times), 3) for tier, times in tiers.items()}
+    costliest = max(means, key=list(bounds.TIMEOUTS).index, default=None)
+    tier_weights = {tier: means.get(tier, means.get(costliest, 0.0)) for tier in bounds.TIMEOUTS}
+    lines = ["SHARD_WEIGHTS = {"]
+    for part, measured in groups.items():
+        lines.append(f"    {json.dumps(part)}: {{")
+        lines += [f"        {json.dumps(group)}: {round(sum(times) / len(times), 2)},"
+                  for group, times in sorted(measured.items(), key=lambda item: (-sum(item[1]) / len(item[1]), item[0]))]
+        lines.append("    },")
+    lines += ["}", f"TIER_WEIGHTS = {json.dumps(tier_weights)}"]
+    return "\n".join(lines) + "\n"
+
+
+def xdist_group(item) -> str:
+    """The test's xdist group, which its part's conftest.py named."""
+    mark = item.get_closest_marker("xdist_group")
+    return mark.args[0] if mark.args else mark.kwargs.get("name")
+
+
+def groups_of(items) -> dict[str, list]:
+    """The tests by their xdist group, in the order they come."""
+    groups: dict[str, list] = {}
+    for item in items:
+        groups.setdefault(xdist_group(item), []).append(item)
+    return groups
+
+
+def deal(weights: dict[str, float], count: int) -> list[set[str]]:
+    """Deal the groups, each with its weight in seconds, to ``count`` shards: the heaviest first,
+    each onto the shard with the least weight so far, ties to the lower-numbered shard, and groups of
+    equal weight by name. The same weights always give the same shards, and each group lands in
+    exactly one."""
+    loads, shards = [0.0] * count, [set() for _ in range(count)]
+    for name in sorted(weights, key=lambda name: (-weights[name], name)):
+        lightest = min(range(count), key=lambda number: (loads[number], number))
+        loads[lightest] += weights[name]
+        shards[lightest].add(name)
+    return shards
+
+
+def shard_weights(part: str, groups: dict[str, list], bounds) -> dict[str, float]:
+    """Each of a part's xdist groups' weight for the deal: its committed measurement (SHARD_WEIGHTS),
+    else the sum of its tests' tier weights (TIER_WEIGHTS, by test/bounds.py's ``tier``)."""
+    committed = SHARD_WEIGHTS.get(part, {})
+    return {name: committed.get(name, sum(TIER_WEIGHTS[bounds.tier(item)] for item in items))
+            for name, items in groups.items()}
+
+
+def warn_unweighed(part: str, groups) -> None:
+    """Warn, without failing, of each of a part's groups that SHARD_WEIGHTS lacks: it weighs its
+    tests' TIER_WEIGHTS until the weights are measured again."""
+    lacking = sorted(set(groups) - set(SHARD_WEIGHTS.get(part, {})))
+    if lacking:
+        warnings.warn(f"test/suite.py: {part}: SHARD_WEIGHTS lacks the groups {', '.join(lacking)}; they weigh "
+                      "their tests' TIER_WEIGHTS. Remedy: measure the weights again as SHARD_WEIGHTS's comment "
+                      f"names (`{MEASURE}`) and paste its output.", stacklevel=2)
+
+
 def keep_shard(config, items, bounds) -> None:
     """From a part's ``pytest_collection_modifyitems``, after it named each test's xdist group: on a
-    shard, keep only its groups and deselect the rest. The groups are dealt to the n shards in
-    turn and back again (1, ..., n, n, ..., 1), the most expensive tier first (test/tiers.py's
-    order, as test/bounds.py's ``tier`` names it) and the group with more tests first within a
-    tier, then by name: the same split on every host, with or without recorded weights, which a
-    fresh CI runner has none of. ``bounds`` is test/bounds.py as the part's conftest.py loaded it."""
+    shard, keep only its groups and deselect the rest. The groups are dealt by their committed
+    weights (shard_weights, deal), not by what this host recorded: every shard's job computes the
+    deal for itself, so all of them must read the same input, and a fresh CI runner has no record.
+    ``bounds`` is test/bounds.py as the part's conftest.py loaded it."""
     named = shard()
     # A pytest a test starts inherits the variable; only a part's own run is sharded.
     if named is None or config.rootpath.resolve() not in {part.resolve() for part in PARTS}:
         return
     index, count = named
-
-    def group(item) -> str:
-        mark = item.get_closest_marker("xdist_group")
-        return mark.args[0] if mark.args else mark.kwargs.get("name")
-
-    groups: dict[str, list] = {}
-    for item in items:
-        groups.setdefault(group(item), []).append(item)
-    order = list(bounds.TIMEOUTS)
-    ranked = sorted(groups, key=lambda name: (-max(order.index(bounds.tier(item)) for item in groups[name]),
-                                              -len(groups[name]), name))
-    turn = [*range(count), *reversed(range(count))]
-    ours = {name for number, name in enumerate(ranked) if turn[number % len(turn)] == index - 1}
-    deselected = [item for item in items if group(item) not in ours]
+    part, groups = part_name(config.rootpath.resolve()), groups_of(items)
+    warn_unweighed(part, groups)
+    ours = deal(shard_weights(part, groups, bounds), count)[index - 1]
+    deselected = [item for item in items if xdist_group(item) not in ours]
     if deselected:
         config.hook.pytest_deselected(items=deselected)
-    items[:] = [item for item in items if group(item) in ours]
+    items[:] = [item for item in items if xdist_group(item) in ours]
 
 
-def heaviest_first(part: Path, items) -> None:
+def heaviest_first(part: Path, items, bounds) -> None:
     """From a part's ``pytest_collection_modifyitems``, after it named each test's xdist group:
-    order the tests by their group's recorded weight, heaviest first, since xdist deals the groups
-    in the order the tests come. A group without a weight comes first, in its order; without a
-    record of the part the order stays as it is."""
+    order the tests by their group's weight, heaviest first, since xdist deals the groups in the
+    order the tests come. The weight is the one this host recorded, where it recorded the part, and
+    a group without one comes first; on a host without a record of the part, a fresh CI runner
+    among them, it is the committed one (shard_weights). ``bounds`` is test/bounds.py as the part's
+    conftest.py loaded it."""
+    groups = groups_of(items)
     record = WEIGHTS / f"{part_name(part.resolve()).replace('/', '-')}.json"
-    if not record.is_file():
-        return
-    weights = json.loads(record.read_text(encoding="utf-8"))
-
-    def weight(item) -> float:
-        mark = item.get_closest_marker("xdist_group")
-        group = mark.args[0] if mark.args else mark.kwargs.get("name")
-        return weights.get(group, math.inf)
-
-    items.sort(key=lambda item: -weight(item))
+    if record.is_file():
+        recorded = json.loads(record.read_text(encoding="utf-8"))
+        weights = {name: recorded.get(name, math.inf) for name in groups}
+    else:
+        weights = shard_weights(part_name(part.resolve()), groups, bounds)
+    items.sort(key=lambda item: -weights[xdist_group(item)])
 
 
 def lockfile_hash(package: Path) -> str:
@@ -463,6 +754,14 @@ def overrun(seconds: float, limit: float, environment) -> list[str]:
 def main(arguments: list[str], clock=time.monotonic) -> int:
     if SETUP in arguments:
         return setup(arguments, clock)
+    if MEASURE in arguments:
+        runs = [Path(folder) for folder in arguments[arguments.index(MEASURE) + 1:]]
+        if not runs or not all(run.is_dir() for run in runs):
+            print(f"test/suite.py: {MEASURE} names no run folder. Remedy: name one folder per CI run, each "
+                  "holding its shards' JUnit reports (the artifacts junit-shard-<i>).", file=sys.stderr)
+            return 2
+        print(measure_weights(runs), end="")
+        return 0
     named = None
     if SHARD in arguments:
         at = arguments.index(SHARD)

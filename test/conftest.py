@@ -31,7 +31,7 @@ def pytest_collection_modifyitems(config, items):
     bounds.mark(items)
     group_by_module(items)
     suite.keep_shard(config, items, bounds)
-    suite.heaviest_first(suite.ROOT, items)
+    suite.heaviest_first(suite.ROOT, items, bounds)
 
 
 def group_by_module(items) -> None:
