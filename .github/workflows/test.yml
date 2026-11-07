@@ -21,7 +21,7 @@ jobs:
         with:
           node-version: 22
       - run: uv run python test/suite.py --setup
-      - run: uv run python test/suite.py --shard ${{ matrix.shard }}/2
+      - run: uv run python test/suite.py --shard ${{ matrix.shard }}/2 --durations=0 --durations-min=0.05
   # One status for the whole suite, whichever shards it has.
   suite:
     needs: shard
