@@ -29,7 +29,8 @@ by which se divides the part's test time. From each report the suite records eac
 test time as the part's weights (WEIGHTS, record_weights); each part's `conftest.py` deals its
 groups heaviest first by them (heaviest_first), and keeps its own order where no record exists.
 Beside them it records each passed test's tier and time per run (record_durations), from which
-test/bounds.py derives each tier's timeout; a part whose test ran past its tier's cap fails.
+test/bounds.py derives each tier's timeout; a part whose test ran past its tier's cap fails. A run
+that did not complete (incomplete) records neither, and the suite names the part and the reason.
 
 The parts depend on Node packages: each part's `test/browser/package-lock.json`
 (today `adapters/html/test/browser` alone); the core's diagram renderers and the html
@@ -170,6 +171,26 @@ def measured_run(report: Path) -> dict[str, list]:
         if tier and not any(case.find(outcome) is not None for outcome in ("failure", "error", "skipped")):
             run[f"{case.get('classname')}::{case.get('name')}"] = [tier, round(float(case.get("time") or 0), 3)]
     return run
+
+
+# pytest's exit codes of a run that did not complete: interrupted, internal error, usage error.
+INCOMPLETE_EXIT_CODES = (2, 3, 4)
+
+
+def incomplete(returncode: int, report: Path) -> str | None:
+    """Why a part's run is no measurement of its tests, so record_durations does not record it:
+    it wrote no report, pytest did not complete (INCOMPLETE_EXIT_CODES), a test module failed to
+    collect, or it ran no tests; None for a complete run."""
+    if not report.is_file():
+        return "it wrote no JUnit report"
+    if returncode in INCOMPLETE_EXIT_CODES:
+        return f"pytest exited with code {returncode}"
+    cases = list(ElementTree.parse(report).iter("testcase"))
+    if any(error.get("message") == "collection failure" for case in cases for error in case.iter("error")):
+        return "a test module failed to collect"
+    if not cases:
+        return "it ran no tests"
+    return None
 
 
 def recorded_runs() -> list[list[dict[str, list]]]:
@@ -358,11 +379,14 @@ def run_part(part: Path, arguments: list[str], run_folder: Path) -> tuple[int, s
                    f"(CAP_SECONDS) and was stopped while running {running}. Remedy: run that test alone in "
                    f"{part} with `uv run pytest <test>` and find what it waits for.\n")
     report = part_report(part, os.environ, run_folder)
-    if shard() is None:
+    unrecorded = incomplete(process.returncode, report)
+    if shard() is None and unrecorded is None:
         record_weights(report)
         run = record_durations(report, keep=bounds.RUNS)
     else:  # A shard's run holds part of the part's tests: recorded, it would lower the derived bounds.
         run = measured_run(report)
+    if shard() is None and unrecorded is not None:
+        output += f"test/suite.py: {part_name(part)}: this run is not recorded: {unrecorded}.\n"
     capped = bounds.over_cap(run, bounds.COMMITTED, bounds.CAP_FACTOR)
     # A shard can hold no test of a part: pytest's "no tests ran" is no failure then.
     code = 0 if process.returncode == 5 and shard() is not None else process.returncode
