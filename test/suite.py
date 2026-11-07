@@ -503,14 +503,21 @@ def shard_weights(part: str, groups: dict[str, list], bounds) -> dict[str, float
             for name, items in groups.items()}
 
 
-def warn_unweighed(part: str, groups) -> None:
-    """Warn, without failing, of each of a part's groups that SHARD_WEIGHTS lacks: it weighs its
-    tests' TIER_WEIGHTS until the weights are measured again."""
-    lacking = sorted(set(groups) - set(SHARD_WEIGHTS.get(part, {})))
+def warn_stale_weights(config, part: str, groups) -> None:
+    """Warn, without failing, where SHARD_WEIGHTS no longer fits a part: of each group it lacks, which
+    weighs its tests' TIER_WEIGHTS, and, where the run collected the part's whole testpaths (no path
+    named), of each group it names that the part no longer has. Either is a nudge to measure again."""
+    named = set(SHARD_WEIGHTS.get(part, {}))
+    lacking = sorted(set(groups) - named)
+    whole = config.args_source.name != "ARGS"  # pytest's Config.ArgsSource: testpaths, not named paths.
+    gone = sorted(named - set(groups)) if whole else []
+    remedy = f"Remedy: measure the weights again as SHARD_WEIGHTS's comment names (`{MEASURE}`) and paste its output."
     if lacking:
         warnings.warn(f"test/suite.py: {part}: SHARD_WEIGHTS lacks the groups {', '.join(lacking)}; they weigh "
-                      "their tests' TIER_WEIGHTS. Remedy: measure the weights again as SHARD_WEIGHTS's comment "
-                      f"names (`{MEASURE}`) and paste its output.", stacklevel=2)
+                      f"their tests' TIER_WEIGHTS. {remedy}", stacklevel=2)
+    if gone:
+        warnings.warn(f"test/suite.py: {part}: SHARD_WEIGHTS names groups the part no longer has: "
+                      f"{', '.join(gone)}. {remedy}", stacklevel=2)
 
 
 def keep_shard(config, items, bounds) -> None:
@@ -525,7 +532,7 @@ def keep_shard(config, items, bounds) -> None:
         return
     index, count = named
     part, groups = part_name(config.rootpath.resolve()), groups_of(items)
-    warn_unweighed(part, groups)
+    warn_stale_weights(config, part, groups)
     ours = deal(shard_weights(part, groups, bounds), count)[index - 1]
     deselected = [item for item in items if xdist_group(item) not in ours]
     if deselected:

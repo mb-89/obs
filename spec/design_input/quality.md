@@ -187,6 +187,10 @@ definitions alike. Keeping the same fact in two places is an anti-pattern (user,
   name, never what a host recorded. `test/suite.py` (SHARD_WEIGHTS) names how and where it is
   measured.
 
+  The measurement is pasted from `test/suite.py --measure-weights`, which reads the JUnit reports
+  each shard's job uploads. Where it no longer fits the tests, a group it lacks or names in vain,
+  the shard's run warns and does not fail.
+
   The heaviest group goes first, onto the lightest shard, so the shards take about the same time
   and each test runs in exactly one. A host without a record starts its heaviest groups first by
   the same weights.

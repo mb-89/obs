@@ -1,4 +1,5 @@
 """The complete suite runs in parallel workers without losing its tier summary or module sharing."""
+import warnings
 from collections import Counter
 from types import SimpleNamespace
 
@@ -323,8 +324,9 @@ class _Tiered(_Grouped):
 
 
 class _Deselecting:
-    def __init__(self, rootpath=suite.ROOT):
+    def __init__(self, rootpath=suite.ROOT, args_source="TESTPATHS"):
         self.rootpath = rootpath
+        self.args_source = SimpleNamespace(name=args_source)
         self.deselected = []
         self.hook = SimpleNamespace(pytest_deselected=lambda items: self.deselected.extend(items))
 
@@ -492,3 +494,15 @@ def test_a_group_the_committed_weights_lack_is_dealt_by_tier_weights_with_a_warn
     with pytest.warns(UserWarning, match=r"core: SHARD_WEIGHTS lacks the groups e;"):
         suite.keep_shard(config, items, bounds)
     assert len(items) + len(config.deselected) == len(_shard_items())
+
+
+def test_a_committed_group_the_part_no_longer_has_warns_only_where_the_whole_part_was_collected(monkeypatch) -> None:
+    """A run that names its paths collects part of a part, so a group missing from it is no sign."""
+    monkeypatch.setattr(suite, "SHARD_WEIGHTS", {"core": dict.fromkeys(["a", "b", "c", "d", "e", "gone"], 1.0)})
+    monkeypatch.setenv(suite.SHARD_VARIABLE, "1/2")
+    with pytest.warns(UserWarning, match=r"core: SHARD_WEIGHTS names groups the part no longer has: gone\."):
+        suite.keep_shard(_Deselecting(), _shard_items(), bounds)
+    items, config = _shard_items(), _Deselecting(args_source="ARGS")
+    with warnings.catch_warnings():
+        warnings.simplefilter("error")
+        suite.keep_shard(config, items, bounds)
