@@ -65,7 +65,8 @@ The renderer emits the nested table of contents and ordered chapter data once;
 client-side navigation shows exactly one chapter and manages previous/next controls, URL
 fragments, browser history, scroll reset, and docked-bar state.
 
-One embedded central stylesheet owns the component rules described in [[artifact-ui]].
+One embedded central stylesheet owns the component rules described in [[artifact-ui]]: `base.css`,
+followed by the shares of it that the artifact's features ship.
 The [[semantic-assets]] index owns named presentation values and their inheritance;
 stylesheet variables and DOM are derived views of that owner.
 
@@ -88,6 +89,21 @@ data-table runtime, Bases schema or YAML library, one without a figure no figure
 figure kind's own script (the Sankey drawing, the decision engine) ships only with that kind. A
 runtime that calls into a feature's script does so only where the feature's content is on the
 page, so a script left out leaves no call behind.
+
+The reader's own Base-table code (a note's tables, their saved presentation and their rows in
+search) is the tables feature's script, `tables.js`. The reader's core (`artifact.js`) reaches it
+through one hook: it calls `globalThis.obsTables.attach(core)` once, where `core` holds what the
+tables read of the reader (its records, notes and helpers, and getters for the active filter and
+the visible chapters, which change as the reader filters), and uses only the object `attach`
+returns: `definition`, `states`, `render`, `searchHits` and `shown`. Without the feature the hook
+is absent, no note has a table, and each call the core makes into it is guarded.
+
+A feature whose rules only its own elements match ships them as its share of the structural styles
+(`Feature.base_styles`, for example `tables.css`). These follow `base.css` inside the artifact
+styles, in registry order and before the style module, so a style module overrides them as it
+overrides `base.css`. Moving a rule there moves it after the rules of `base.css` that followed it;
+a rule whose order against such a rule decides an element's style (the same property, equal
+specificity, an element both match) stays in `base.css`.
 
 The Markdown parser adapts each `base` fence into a declarative table definition attached to
 its ordinary chapter; the runtime has no Appendix or named-register knowledge.
