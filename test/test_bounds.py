@@ -66,6 +66,16 @@ def test_a_tier_with_fewer_recorded_runs_falls_back_to_its_committed_bound() -> 
     assert sources == {"unit": "committed", "browser": "recorded"}
 
 
+def test_a_recorded_run_with_no_tests_or_no_timings_counts_for_nothing() -> None:
+    """An old run recorded from a crashed part (empty, or every time zero) neither lowers a bound nor
+    fills the window of last runs."""
+    good = [_run(browser=4.0, unit=1.0), _run(browser=3.0, unit=2.0)]
+    slowest, sources = bounds.derive(COMMITTED, [[*good, {}, _run(browser=0.0, unit=0.0)]], runs=2,
+                                     factor=bounds.CAP_FACTOR)
+    assert slowest == {"unit": 2.0, "browser": 4.0}
+    assert sources == {"unit": "recorded", "browser": "recorded"}
+
+
 def test_records_above_the_cap_raise_the_bound_no_further_than_the_cap() -> None:
     slowest, sources = bounds.derive(COMMITTED, [[_run(browser=30.0)]], runs=10, factor=bounds.CAP_FACTOR)
     assert slowest["browser"] == 18.0 and sources["browser"] == "recorded"

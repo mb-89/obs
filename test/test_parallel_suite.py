@@ -136,6 +136,39 @@ def test_a_part_whose_test_ran_over_its_tiers_cap_fails_naming_it(tmp_path, monk
     assert "test.x::fine" not in output
 
 
+_COLLECTION_ERROR = ('<testcase classname="" name="test.test_broken" time="0.0">'
+                     '<error message="collection failure">ImportError</error></testcase>')
+
+
+@pytest.mark.parametrize(("exit_code", "cases", "reason"), [
+    (1, _COLLECTION_ERROR, "a test module failed to collect"),
+    (2, '<testcase classname="test.x" name="one" time="1.0"/>', "pytest exited with code 2"),
+    (3, '<testcase classname="test.x" name="one" time="1.0"/>', "pytest exited with code 3"),
+    (5, "", "it ran no tests"),
+    (0, None, "it wrote no JUnit report"),
+], ids=["collection-error", "interrupted", "internal-error", "no-tests", "no-report"])
+def test_a_part_whose_run_did_not_complete_records_no_run_and_says_so(tmp_path, monkeypatch, exit_code, cases,
+                                                                        reason) -> None:
+    """A crashed, interrupted or empty run is no measurement: recorded, it would shift the derived bounds."""
+    import sys
+
+    monkeypatch.setattr(suite, "WEIGHTS", tmp_path / "weights")
+    report = tmp_path / "core.xml"
+    _tiered_junit(report, [("one@g", "unit", 1.5, None)])
+    suite.record_durations(report, keep=2)
+    before = suite.recorded_runs()
+    report.unlink()
+    if cases is not None:
+        report.write_text(f"<testsuites><testsuite>{cases}</testsuite></testsuites>", encoding="utf-8")
+    monkeypatch.setattr(suite, "part_command", lambda *_: [sys.executable, "-c", f"raise SystemExit({exit_code})"])
+    monkeypatch.setattr(suite, "part_report", lambda *_: report)
+
+    _, output = suite.run_part(suite.ROOT, [], tmp_path)
+
+    assert suite.recorded_runs() == before
+    assert f"test/suite.py: core: this run is not recorded: {reason}" in output
+
+
 def test_without_records_no_runs_are_recorded(tmp_path, monkeypatch) -> None:
     monkeypatch.setattr(suite, "WEIGHTS", tmp_path / "missing")
     assert suite.recorded_runs() == []
