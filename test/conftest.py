@@ -96,6 +96,14 @@ def remote_images(monkeypatch):
     return served, fetched
 
 
+@pytest.fixture(autouse=True)
+def unsharded(monkeypatch):
+    """No test sees the shard its own run was dealt (test/suite.py, SHARD_VARIABLE): a test of the
+    suite that inherited it would take the shard's path, and suite.main's end would remove it from
+    the worker's environment. A test that needs a shard names one."""
+    monkeypatch.delenv(suite.SHARD_VARIABLE, raising=False)
+
+
 SPEC_MANIFEST = Path(__file__).parents[1] / "spec" / "manifest.md"
 # What the spec's producers write (spec/appendix/references/obs-html-specification.md builds the
 # HTML adapter's specification into it); a test that reads the spec without running them gets a
