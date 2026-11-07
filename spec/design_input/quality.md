@@ -158,6 +158,8 @@ definitions alike. Keeping the same fact in two places is an anti-pattern (user,
   committed measurement while the host has too few, which also caps it: a test past a multiple
   of the committed measurement fails the suite.
 
+  `test/bounds.py` (COMMITTED) names how and where the committed measurement is taken.
+
   The adapter's page pools launch their browsers with an explicit timeout, before the timeout
   of the first test that needs one starts: a cold launch is no test's time. Where a pool's
   browser dies while a test holds one of its pages, that test fails, "browser crashed", naming

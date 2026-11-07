@@ -124,15 +124,15 @@ def test_a_part_whose_test_ran_over_its_tiers_cap_fails_naming_it(tmp_path, monk
 
     monkeypatch.setattr(suite, "WEIGHTS", tmp_path / "weights")
     report = tmp_path / "core.xml"
-    cap = bounds.CAP_FACTOR * bounds.COMMITTED["unit"]
-    _tiered_junit(report, [("slow", "unit", cap + 1, None), ("fine", "unit", cap - 1, None)])
+    cap = round(bounds.CAP_FACTOR * bounds.COMMITTED["unit"], 3)
+    _tiered_junit(report, [("slow", "unit", round(cap + 1, 3), None), ("fine", "unit", round(cap - 1, 3), None)])
     monkeypatch.setattr(suite, "part_command", lambda *_: [sys.executable, "-c", "pass"])
     monkeypatch.setattr(suite, "part_report", lambda *_: report)
 
     code, output = suite.run_part(suite.ROOT, [], tmp_path)
 
     assert code == 1
-    assert f"test/bounds.py: test.x::slow took {cap + 1} s, over the unit tier's cap of {cap} s" in output
+    assert f"test/bounds.py: test.x::slow took {round(cap + 1, 3)} s, over the unit tier's cap of {cap} s" in output
     assert "test.x::fine" not in output
 
 
