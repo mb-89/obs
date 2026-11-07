@@ -169,6 +169,11 @@ definitions alike. Keeping the same fact in two places is an anti-pattern (user,
 
   `test/suite.py` caps the whole run: at its cap it stops each part still running and names the
   part and the tests it was running.
+
+  CI runs the complete suite on runners whose speed differs: one commit's parts took 104.6 s on
+  one run and 150.1 s on its re-run. So CI does not fail a run past the suite's time limit,
+  which se's local gate enforces; `test/suite.py` names the runner's CPUs and says in the log,
+  as a warning annotation, when a run is past the limit.
 - The adapter's chapter sweep (`test/chapter_sweep.py`) is the one browser check that does not
   lease the pool's pages. It opens every chapter of an artifact and scrolls it, a step where a
   page that locks its main thread is expected.
