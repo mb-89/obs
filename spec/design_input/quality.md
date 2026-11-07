@@ -182,6 +182,15 @@ definitions alike. Keeping the same fact in two places is an anti-pattern (user,
   one run and 150.1 s on its re-run. So CI spreads the suite over shards, one job each
   (`test/suite.py --shard`).
 
+  Each shard's job deals the tests to the shards itself, so every job reads the same input: a
+  committed measurement of each group's time, and committed tier weights for a group it does not
+  name, never what a host recorded. `test/suite.py` (SHARD_WEIGHTS) names how and where it is
+  measured.
+
+  The heaviest group goes first, onto the lightest shard, so the shards take about the same time
+  and each test runs in exactly one. A host without a record starts its heaviest groups first by
+  the same weights.
+
   CI does not fail a run past the suite's time limit, which se's local gate enforces on the
   whole suite; `test/suite.py` names the runner's CPUs and says in each job's log, as a warning
   annotation, when its run is past the limit.

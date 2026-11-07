@@ -184,18 +184,22 @@ class _Grouped:
 
 
 def test_groups_are_dealt_heaviest_first_by_their_recorded_weights(tmp_path, monkeypatch) -> None:
-    """xdist deals the groups in the order the tests come; an unrecorded group comes first and a
-    part without a record keeps its order."""
+    """xdist deals the groups in the order the tests come; an unrecorded group comes first, and a
+    part without a record, as on a fresh CI runner, is ordered by the committed weights, a group
+    they do not name by its tests' tier weights, keeping its order among equals."""
     monkeypatch.setattr(suite, "WEIGHTS", tmp_path)
+    monkeypatch.setattr(suite, "SHARD_WEIGHTS", {"core": {"test/c.py": 9.0, "test/new.py": 0.5}})
+    monkeypatch.setattr(suite, "TIER_WEIGHTS", {"unit": 1.0, "dom": 2.0, "browser": 3.0, "external": 4.0})
     items = [_Grouped("test/a.py::one", "test/a.py"), _Grouped("test/b.py::two", "test/b.py"),
              _Grouped("test/a.py::three", "test/a.py"), _Grouped("test/new.py::four", "test/new.py"),
-             _Grouped("test/c.py::five", "own")]
-    unchanged = list(items)
-    suite.heaviest_first(suite.ROOT, items)
-    assert items == unchanged, "without a record the order stays"
+             _Grouped("test/c.py::five", "test/c.py")]
+    suite.heaviest_first(suite.ROOT, items, bounds)
+    assert [item.nodeid for item in items] == ["test/c.py::five", "test/a.py::one", "test/a.py::three",
+                                               "test/b.py::two", "test/new.py::four"], "committed, then tiers"
 
-    (tmp_path / "core.json").write_text('{"test/a.py": 1.0, "test/b.py": 7.5, "own": 3.0}', encoding="utf-8")
-    suite.heaviest_first(suite.ROOT, items)
+    (tmp_path / "core.json").write_text('{"test/a.py": 1.0, "test/b.py": 7.5, "test/c.py": 3.0}',
+                                        encoding="utf-8")
+    suite.heaviest_first(suite.ROOT, items, bounds)
 
     assert [item.nodeid for item in items] == ["test/new.py::four", "test/b.py::two", "test/c.py::five",
                                                "test/a.py::one", "test/a.py::three"]
@@ -331,9 +335,22 @@ def _shard_items():
             _Tiered("e.py::one", "e"), _Tiered("c.py::three", "c")]
 
 
-def test_each_shard_keeps_whole_groups_dealt_by_tier_then_size(monkeypatch) -> None:
-    """Groups are dealt to the shards in turn and back again (1, 2, 2, 1, ...), the most expensive
-    tier first and the larger group first within it, so the shards get alike mixes on any host."""
+def test_the_deal_puts_the_heaviest_group_on_the_lightest_shard_and_is_the_same_for_the_same_input() -> None:
+    """Greedy largest-first: each group, heaviest first, goes to the shard with the least weight so
+    far, ties to the lower-numbered shard and, among equal weights, by name; the order the groups
+    come in changes nothing."""
+    weights = {"a": 5.0, "b": 4.0, "c": 3.0, "d": 3.0, "e": 1.0, "f": 1.0}
+    shards = suite.deal(weights, 2)
+    assert shards == [{"a", "d", "f"}, {"b", "c", "e"}]
+    assert suite.deal(dict(reversed(weights.items())), 2) == shards
+    assert sorted(name for shard in suite.deal(weights, 3) for name in shard) == sorted(weights)
+
+
+def test_each_test_lands_in_exactly_one_shard_dealt_by_committed_weights_else_tier_weights(monkeypatch) -> None:
+    """A group with a committed weight is dealt by it (SHARD_WEIGHTS); one without, by its tests'
+    tier weights (TIER_WEIGHTS). Every shard's job computes the same deal, so each test runs once."""
+    monkeypatch.setattr(suite, "SHARD_WEIGHTS", {"core": {"c": 10.0, "e": 4.0}})
+    monkeypatch.setattr(suite, "TIER_WEIGHTS", {"unit": 1.0, "dom": 2.0, "browser": 3.0, "external": 4.0})
     kept = {}
     for shard in (1, 2):
         monkeypatch.setenv(suite.SHARD_VARIABLE, f"{shard}/2")
@@ -342,8 +359,11 @@ def test_each_shard_keeps_whole_groups_dealt_by_tier_then_size(monkeypatch) -> N
         kept[shard] = [item.nodeid for item in items]
         assert sorted(kept[shard] + [item.nodeid for item in config.deselected]) == sorted(
             item.nodeid for item in _shard_items())
-    assert kept == {1: ["a.py::one", "a.py::two", "d.py::one", "e.py::one"],
-                    2: ["c.py::one", "c.py::two", "b.py::one", "c.py::three"]}
+    # c 10 (committed) -> 1; a 6 (two browser tests) -> 2; e 4 (committed) -> 2, now 10 each;
+    # b 3 (one browser test) -> 1, the lower-numbered of equals; d 1 (one unit test) -> 2.
+    assert kept == {1: ["c.py::one", "c.py::two", "b.py::one", "c.py::three"],
+                    2: ["a.py::one", "a.py::two", "d.py::one", "e.py::one"]}
+    assert not set(kept[1]) & set(kept[2])
 
 
 def test_without_a_shard_every_test_is_kept(monkeypatch) -> None:
@@ -421,3 +441,11 @@ def test_the_suites_tests_pass_in_a_run_that_was_dealt_a_shard(tmp_path) -> None
 
     # Only this test is deselected (-k): no shard took the others away.
     assert result.returncode == 0 and " passed, 1 deselected" in result.stdout, result.stdout[-3000:]
+
+
+def test_each_committed_group_that_names_a_module_names_one_of_its_parts() -> None:
+    """A renamed or removed test module would leave its committed weight unused (SHARD_WEIGHTS)."""
+    parts = {suite.part_name(part): part for part in suite.PARTS}
+    missing = [f"{part}: {group}" for part, groups in suite.SHARD_WEIGHTS.items() for group in groups
+               if group.endswith(".py") and not (parts[part] / group).is_file()]
+    assert missing == []
