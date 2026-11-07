@@ -10,10 +10,6 @@ def _needs_nothing():
     return "unit"
 
 
-def _runs_powershell():
-    return ["powershell", "-File", "RUNME.ps1"]
-
-
 def _needs_only_a_browser():
     return "OBS_HTML_TEST_NATIVE_BROWSER"
 
@@ -37,7 +33,6 @@ def _config(args=()):
 def _items():
     """Helpers named by a test count as its evidence: the tests below are marked as they are."""
     return [_item("unit", _needs_nothing),
-            _item("e2e", _runs_powershell),
             _item("browser", _needs_only_a_browser),
             _item("external", _needs_only_a_browser, "external")]
 
@@ -47,10 +42,10 @@ def test_a_bare_run_keeps_every_test_but_the_external_ones() -> None:
     items = _items()
     tiers.modify_items(_config(), items)
 
-    assert [item.nodeid.split("::")[1] for item in items] == ["unit", "e2e", "browser"]
+    assert [item.nodeid.split("::")[1] for item in items] == ["unit", "browser"]
     assert [name for item in items for name in (getattr(marker, "name", marker) for marker in item.markers)
             if name in tiers.TIERS] == [
-        "unit", "e2e", "browser"]
+        "unit", "browser"]
 
 
 @pytest.mark.unit
@@ -58,7 +53,7 @@ def test_an_external_test_named_by_its_node_id_runs() -> None:
     items = _items()
     tiers.modify_items(_config(["test/test_example.py::external"]), items)
 
-    assert [item.nodeid.split("::")[1] for item in items] == ["unit", "e2e", "browser", "external"]
+    assert [item.nodeid.split("::")[1] for item in items] == ["unit", "browser", "external"]
 
 
 def _decorated(function):
@@ -81,7 +76,7 @@ def test_every_worker_parses_each_test_module_once_however_many_tests_it_holds(m
     tiers.modify_items(_config(), items)
 
     assert read == [tiers.sys.modules[__name__]]
-    assert [item.nodeid.split("::")[1] for item in items] == ["unit", "e2e", "browser", "decorated"]
+    assert [item.nodeid.split("::")[1] for item in items] == ["unit", "browser", "decorated"]
 
 
 @pytest.mark.unit

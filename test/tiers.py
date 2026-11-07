@@ -1,6 +1,6 @@
 """Test tiers, strict environment mode and the skip summary.
 
-Tiers (highest wins): external > e2e > browser > dom > unit. A test gets the tier of the
+Tiers (highest wins): external > browser > dom > unit. A test gets the tier of the
 most expensive dependency found in its own source, the test-module helpers and constants it
 references, and its test-module fixtures. An explicit ``@pytest.mark.<tier>`` always wins.
 
@@ -18,11 +18,10 @@ from pathlib import Path
 
 import pytest
 
-TIERS = ("unit", "dom", "browser", "e2e", "external")
+TIERS = ("unit", "dom", "browser", "external")
 STRICT_VARIABLE = "OBS_HTML_STRICT"
 EVIDENCE = {
     "external": re.compile(r"OBS_HTML_TEST_AUTHORED_ARTIFACT|OBS_HTML_ARTIFACT_DATA_PROOF|OBS_HTML_TEST_IMPORTED_SNAPSHOT"),
-    "e2e": re.compile(r"REFERENCE_EVIDENCE_WORKTREE|REFERENCE_LEVEL_TEST_ROOT|reproduce\.py|[\"']powershell[\"']"),
     "browser": re.compile(r"OBS_HTML_TEST_NATIVE_BROWSER|sync_playwright|\.chromium\b"),
     "dom": re.compile(
         r"OBS_HTML_TEST_DOM_MODULE|linkedom|which\([\"']node[\"']\)|[\[(][\"']node[\"']"
