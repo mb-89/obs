@@ -97,11 +97,12 @@ def remote_images(monkeypatch):
 
 
 @pytest.fixture(autouse=True)
-def unsharded(monkeypatch):
-    """No test sees the shard its own run was dealt (test/suite.py, SHARD_VARIABLE): a test of the
-    suite that inherited it would take the shard's path, and suite.main's end would remove it from
-    the worker's environment. A test that needs a shard names one."""
-    monkeypatch.delenv(suite.SHARD_VARIABLE, raising=False)
+def suite_environment(monkeypatch):
+    """No test inherits a variable of the suite's own (test/suite.py, VARIABLE_PREFIX), such as the
+    shard its run was dealt: a test of the suite would take that path, and suite.main's end would
+    remove it from the worker's environment. A test that needs one sets it."""
+    for name in [name for name in os.environ if name.startswith(suite.VARIABLE_PREFIX)]:
+        monkeypatch.delenv(name)
 
 
 SPEC_MANIFEST = Path(__file__).parents[1] / "spec" / "manifest.md"

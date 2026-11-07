@@ -398,3 +398,26 @@ def test_a_pytest_a_test_starts_is_not_sharded(monkeypatch, tmp_path) -> None:
     items, config = _shard_items(), _Deselecting(rootpath=tmp_path)
     suite.keep_shard(config, items, bounds)
     assert len(items) == len(_shard_items()) and config.deselected == []
+
+
+def test_the_suites_tests_pass_in_a_run_that_was_dealt_a_shard(tmp_path) -> None:
+    """CI runs the suite with --shard, whose variable every test process inherits; the tests of the
+    suite and its bounds do not see it (test/conftest.py, suite_environment). Rooted outside the
+    parts, the inner pytest itself is not sharded (keep_shard) and runs every test named."""
+    import os
+    import subprocess
+    import sys
+    from pathlib import Path
+
+    import spec_build
+
+    environment = {**os.environ, suite.SHARD_VARIABLE: "1/2"}
+    environment.pop(spec_build.RUN_FOLDER, None)
+    environment.pop(suite.REPORTS_VARIABLE, None)
+    tests = [str(Path(__file__).with_name(name)) for name in ("test_parallel_suite.py", "test_bounds.py")]
+    result = subprocess.run([sys.executable, "-m", "pytest", "-q", "-p", "no:xdist", "-p", "no:cacheprovider",
+                             f"--rootdir={tmp_path}", "-k", "not dealt_a_shard", *tests],
+                            cwd=tmp_path, env=environment, capture_output=True, text=True, timeout=120)
+
+    # Only this test is deselected (-k): no shard took the others away.
+    assert result.returncode == 0 and " passed, 1 deselected" in result.stdout, result.stdout[-3000:]
