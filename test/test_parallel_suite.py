@@ -244,3 +244,32 @@ def test_a_worker_or_a_run_without_a_report_writes_no_workers_property() -> None
     assert suite.record_workers(_xdist_config({"dist": "load", "tx": ["popen"] * 2}, report, workerinput={})) is None
     assert suite.record_workers(_xdist_config({"dist": "load", "tx": ["popen"] * 2})) is None
     assert report.properties == []
+
+
+@pytest.mark.parametrize("on_actions", [False, True])
+def test_the_suite_names_its_host_and_says_when_its_parts_took_longer_than_the_limit(monkeypatch, capsys,
+                                                                                    on_actions) -> None:
+    import os
+
+    monkeypatch.setattr(suite, "run_part", lambda part, arguments, run_folder: (0, ""))
+    monkeypatch.setattr(suite, "is_installed", lambda package: True)
+    monkeypatch.setenv("GITHUB_ACTIONS", "true") if on_actions else monkeypatch.delenv("GITHUB_ACTIONS", raising=False)
+    limit = suite.limit_seconds()
+    times = iter([0.0, limit + 5.0])
+
+    assert suite.main([], clock=lambda: next(times)) == 0
+    out = capsys.readouterr().out
+    assert f"test/suite.py: host: {os.cpu_count()} CPUs" in out
+    over = (f"test/suite.py: the parts took {limit + 5.0:.1f} s, over the suite's {limit:g} s limit "
+            "([tests] limit_seconds in se.toml)")
+    assert over in out
+    assert (f"::warning title=Suite over its time limit::{over}" in out) == on_actions
+
+
+def test_the_suite_says_nothing_of_the_limit_within_it(monkeypatch, capsys) -> None:
+    monkeypatch.setattr(suite, "run_part", lambda part, arguments, run_folder: (0, ""))
+    monkeypatch.setattr(suite, "is_installed", lambda package: True)
+    times = iter([0.0, suite.limit_seconds() - 1.0])
+
+    assert suite.main([], clock=lambda: next(times)) == 0
+    assert "limit" not in capsys.readouterr().out

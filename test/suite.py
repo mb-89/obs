@@ -14,7 +14,9 @@ output is printed when it ends. Every part runs to its end even when another fai
 code is non-zero when any part failed. The parts share one build of obs's spec: the suite makes a
 folder for the run, names it in `OBS_SPEC_BUILD` for every part, prints how often
 test/spec_build.py built each kind there, fails where one kind was built twice, and removes the
-folder at the end. Each test has its timeout (test/bounds.py); the whole run has a cap,
+folder at the end. It names its host (its CPU count and model) as it starts, and where the parts
+took longer than `[tests] limit_seconds` it says so as it ends, on GitHub Actions also as a warning
+annotation; it does not fail on that (quality.md, Testing boundaries). Each test has its timeout (test/bounds.py); the whole run has a cap,
 CAP_SECONDS, at which a part still running is stopped, with every process it started, and the
 suite names the part and the tests it was running and fails. Arguments are passed on to every
 part's pytest, for example `--durations=20`. Each part writes its JUnit XML report as `<part>.xml`
@@ -46,6 +48,7 @@ does, every package not installed from its current lockfile, under a lock shared
     uv run python test/suite.py --setup
     uv run python test/suite.py
 """
+import contextlib
 import hashlib
 import json
 import math
@@ -337,6 +340,36 @@ def setup(arguments: list[str], clock) -> int:
     return 0
 
 
+def limit_seconds() -> float:
+    """The suite's time limit, `[tests] limit_seconds` in se.toml, which owns it."""
+    import tomllib
+
+    return tomllib.loads((ROOT / "se.toml").read_text(encoding="utf-8"))["tests"]["limit_seconds"]
+
+
+def host() -> str:
+    """The CPUs this run has, and their model where the platform names it."""
+    import platform
+
+    model = platform.processor()
+    with contextlib.suppress(OSError):
+        model = next((line.split(":", 1)[1].strip() for line in open("/proc/cpuinfo", encoding="utf-8")
+                      if line.startswith("model name")), model)
+    return f"{os.cpu_count()} CPUs" + (f" ({model})" if model else "")
+
+
+def overrun(seconds: float, limit: float, environment) -> list[str]:
+    """The lines that say the parts took longer than the limit: one, and on GitHub Actions also
+    its warning annotation. The suite does not fail on it: CI runners differ in speed (quality.md,
+    Testing boundaries)."""
+    if seconds <= limit:
+        return []
+    line = (f"test/suite.py: the parts took {seconds:.1f} s, over the suite's {limit:g} s limit "
+            "([tests] limit_seconds in se.toml)")
+    annotation = f"::warning title=Suite over its time limit::{line}"
+    return [line, annotation] if environment.get("GITHUB_ACTIONS") == "true" else [line]
+
+
 def main(arguments: list[str], clock=time.monotonic) -> int:
     if SETUP in arguments:
         return setup(arguments, clock)
@@ -349,6 +382,7 @@ def main(arguments: list[str], clock=time.monotonic) -> int:
         return 1
     started = clock()
     names = [part_name(part) for part in PARTS]
+    print(f"test/suite.py: host: {host()}.", flush=True)
     print(f"test/suite.py: running {', '.join(names)} side by side; each part's output follows "
           "when it ends.", flush=True)
     import spec_build  # Only here: an adapter's conftest.py loads this module without test/ on its path.
@@ -367,7 +401,10 @@ def main(arguments: list[str], clock=time.monotonic) -> int:
         finally:
             del os.environ[spec_build.RUN_FOLDER]
         builds = spec_build.counts(Path(shared))
-    print(f"test/suite.py: parts took {clock() - started:.1f} s.")
+    took = clock() - started
+    print(f"test/suite.py: parts took {took:.1f} s.")
+    for line in overrun(took, limit_seconds(), os.environ):
+        print(line)
     built = ", ".join(f"{kind} {builds[kind]}" for kind in spec_build.BUILDS)
     print(f"test/suite.py: obs's spec was built this run (test/spec_build.py): {built}.")
     if any(count > 1 for count in builds.values()):
