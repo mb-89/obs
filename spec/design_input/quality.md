@@ -173,15 +173,17 @@ definitions alike. Keeping the same fact in two places is an anti-pattern (user,
   lease the pool's pages. It opens every chapter of an artifact and scrolls it, a step where a
   page that locks its main thread is expected.
 
-  So each artifact runs in a child process with its
-  own headless shell and a hard timeout under the test's own: a locked page ends with its
-  process tree, the test names the chapter it was on, and no other test's browser is touched.
+  So the sweeps run in a child process with its
+  own headless shell, one per test process, kept from one sweep to the next, and each sweep has
+  a hard timeout under the test's own: a locked page ends the child's process tree, the test names
+  the chapter it was on, the next sweep starts a fresh child, and no other test's browser is
+  touched.
 
   Its test sweeps every committed fixture Document, at a desktop and a phone viewport, without
   and with reduced motion, in the complete suite.
 
-  Each artifact at each viewport is a test and a
-  child of its own, so one test's time is one viewport's, within its tier's measured bound. The
+  Each artifact at each viewport is a test of its
+  own, so one test's time is one viewport's, within its tier's measured bound. The
   phone draws at device scale 1: the sweep looks for a page that stops answering and for console
   errors, not at what a person reads.
 - No test reaches the network. Each part's `test/network_guard.py` fails a test that opens a
