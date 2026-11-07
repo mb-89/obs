@@ -174,8 +174,8 @@ definitions alike. Keeping the same fact in two places is an anti-pattern (user,
   own headless shell and a hard timeout under the test's own: a locked page ends with its
   process tree, the test names the chapter it was on, and no other test's browser is touched.
 
-  Its test sweeps every committed fixture Document, without and with reduced motion, in the
-  complete suite.
+  Its test sweeps every committed fixture Document, at a desktop and a phone viewport, without
+  and with reduced motion, in the complete suite.
 - No test reaches the network. Each part's `test/network_guard.py` fails a test that opens a
   connection to anything but loopback, naming the test, the host and the remedy; a subprocess a
   test starts reads remote data from a fake too, as the parity gate's `obs-document` does.
