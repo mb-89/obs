@@ -176,6 +176,11 @@ definitions alike. Keeping the same fact in two places is an anti-pattern (user,
 
   Its test sweeps every committed fixture Document, at a desktop and a phone viewport, without
   and with reduced motion, in the complete suite.
+
+  Each artifact at each viewport is a test and a
+  child of its own, so one test's time is one viewport's, within its tier's measured bound. The
+  phone draws at device scale 1: the sweep looks for a page that stops answering and for console
+  errors, not at what a person reads.
 - No test reaches the network. Each part's `test/network_guard.py` fails a test that opens a
   connection to anything but loopback, naming the test, the host and the remedy; a subprocess a
   test starts reads remote data from a fake too, as the parity gate's `obs-document` does.
