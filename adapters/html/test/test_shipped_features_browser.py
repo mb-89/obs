@@ -40,6 +40,28 @@ def test_a_document_without_a_feature_ships_none_of_it(name: str) -> None:
         assert f'id="canary-{feature.key}"' not in html, (feature.key, name)
 
 
+def test_the_reader_reaches_table_code_only_through_the_tables_feature() -> None:
+    """The reader's Base-table code is the tables feature's script (tables.js): a Document without a
+    Base table carries none of it, and one with a table carries it once, attached by the reader's
+    core (architecture.md, Rendering and runtime)."""
+    without, with_table = (render(source, load_config()) for source in (plain(), with_guided_card()))
+    for name in ("renderChapterTables", "tableSearchHits", "savedPresentations", "richMetadata"):
+        assert name not in without, name
+        assert with_table.count(f"const {name} = ") == 1, name
+    assert "globalThis.obsTables = " not in without
+    assert with_table.count("globalThis.obsTables = ") == 1
+
+
+def test_a_document_without_tables_cards_bless_or_popups_carries_none_of_their_styles() -> None:
+    """The structural styles a feature alone uses ship with it (features.py, Feature.base_styles):
+    a plain Document's styles hold no rule of a Base table, a record card, the bless controls, a
+    guided card or the options menu."""
+    styles = render(plain(), load_config()).split('<style id="artifact-styles">', 1)[1].split("</style>", 1)[0]
+    for selector in (".data-table-footer", ".record-metric", ".bless-pill", ".guided-card-window",
+                     ".options-menu[hidden]", ".tab-badge-flag"):
+        assert selector not in styles, selector
+
+
 @pytest.mark.parametrize("name", DOCUMENTS)
 def test_an_artifact_without_some_features_opens_without_errors(name: str, tmp_path, reader_browser) -> None:
     build, drawn = DOCUMENTS[name]
