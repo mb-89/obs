@@ -225,13 +225,32 @@ def comment_state(comment: dict[str, Any], states: list[dict[str, Any]]) -> str:
                key=lambda entry: (entry["author"], entry["id"]))["state"]
 
 
-def import_comments(manifest_path: Path, returned_path: Path, principal: str) -> Path:
-    """Write ``principal``'s overlay file from the comments an adapter returned (input-model#Comments and
-    reviews, Adapter contract): every entry no other principal's file holds with the same payload. An
-    edit of another principal's comment body is refused; the reader's resolves and reopens are its own
-    state entries. Every written entry is under one of the returned file's ``names``, which become the
-    principal's. The file is written only when the union of every overlay file with it passes the
-    union's checks."""
+def import_comments(manifest_path: Path, imports: list[tuple[Path, str]]) -> list[Path]:
+    """Write each principal's overlay file from the comments an adapter returned for it (input-model#Comments
+    and reviews, Adapter contract): every entry no other file holds with the same payload, the files on disk
+    of the principals not imported and the other returned files. An edit of another principal's comment body
+    is refused; the reader's resolves and reopens are its own state entries. Every written entry is under one
+    of its returned file's ``names``, which become the principal's. The files are written only when the union
+    of every overlay file with all of them passes the union's checks, all of them or none."""
+    manifest_path = manifest_path.resolve()
+    returned = [(path, principal, _returned_file(path, principal)) for path, principal in imports]
+    paths = [manifest_path.with_name(overlay_name(manifest_path, _KIND, principal)) for _, principal, _ in returned]
+    others = [(other, _read(other)) for other in overlay_files(manifest_path, _KIND) if other not in paths]
+    overlays = []
+    for index, ((returned_path, principal, copy), path) in enumerate(zip(returned, paths)):
+        held = {entry["id"]: (other, f"{kind}[{position}]", entry)
+                for other, overlay in [*others, *((source, data) for number, (source, _, data) in enumerate(returned)
+                                                  if number != index)]
+                for kind in _KINDS for position, entry in enumerate(overlay.get(kind, []))}
+        overlays.append((path, _principal_overlay(copy, returned_path, principal, path, held)))
+    _check_union([*others, *((source, overlay) for (source, _, _), (_, overlay) in zip(returned, overlays))])
+    for path, overlay in overlays:
+        write_output(path, json.dumps(overlay, indent=2, ensure_ascii=False) + "\n")
+    return paths
+
+
+def _returned_file(returned_path: Path, principal: str) -> dict[str, Any]:
+    """A returned file, once the core's schema accepts it, with its times at milliseconds."""
     try:
         returned = json.loads(returned_path.read_text(encoding="utf-8"))
     except (OSError, UnicodeError, json.JSONDecodeError) as error:
@@ -243,7 +262,6 @@ def import_comments(manifest_path: Path, returned_path: Path, principal: str) ->
     error = schema_error(list(_returned().iter_errors(returned)), returned_path, OWNER)
     if error:
         raise error
-    manifest_path = manifest_path.resolve()
     if not _PRINCIPAL.fullmatch(principal):
         raise input_error(returned_path, "principal", f"is {principal!r}, not {_PRINCIPAL.pattern}",
                           f"Name the principal whose file it is with --principal; see {OWNER}")
@@ -251,11 +269,12 @@ def import_comments(manifest_path: Path, returned_path: Path, principal: str) ->
         raise input_error(returned_path, "names", "is missing: the reader's names, which the import holds the "
                           "principal's entries to", f"Export the comments with an adapter that writes the reader's "
                           f"names; see {OWNER}")
-    returned = _in_ms(returned)
-    path = manifest_path.with_name(overlay_name(manifest_path, _KIND, principal))
-    others = [(other, _read(other)) for other in overlay_files(manifest_path, _KIND) if other != path]
-    held = {entry["id"]: (other, f"{kind}[{index}]", entry) for other, overlay in others
-            for kind in _KINDS for index, entry in enumerate(overlay.get(kind, []))}
+    return _in_ms(returned)
+
+
+def _principal_overlay(returned: dict[str, Any], returned_path: Path, principal: str, path: Path,
+                       held: dict[str, tuple[Path, str, dict[str, Any]]]) -> dict[str, Any]:
+    """The principal's overlay file from its returned file: every entry ``held`` lacks, under its names."""
     names = returned["names"]
     overlay: dict[str, Any] = {"version": VERSION, "principal": principal, "names": names, "comments": [],
                                "decisions": [], "states": []}
@@ -281,6 +300,4 @@ def import_comments(manifest_path: Path, returned_path: Path, principal: str) ->
     if not overlay["states"]:
         del overlay["states"]
     validate_overlay(overlay, path)
-    _check_union([*others, (returned_path, overlay)])
-    write_output(path, json.dumps(overlay, indent=2, ensure_ascii=False) + "\n")
-    return path
+    return overlay

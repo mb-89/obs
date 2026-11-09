@@ -1902,6 +1902,9 @@ interchange format. An adapter contributes only a thin mapping:
   `obs-document --source <manifest> --import-comments <file> --principal <name>` validates the
   file and writes that principal's overlay file before it builds.
 
+  The pair repeats, one per file, each principal once: the core imports every file of the call
+  together and writes all their principals' files, or none where one is refused.
+
   The overlay file holds every entry no other principal's file holds with the same payload, and
   is written only when its union with the others passes the checks of [[#Union and resolution]].
   An entry that changes another principal's is an input error naming the file, its field path and
@@ -1918,12 +1921,12 @@ interchange format. An adapter contributes only a thin mapping:
 
   A copy several readers worked on in turn holds every reader's entries, so the adapter exports
   it as one file per author: each holds only that author's entries, under `names` of that author
-  alone. The copy is imported one file at a time, one `--import-comments <file> --principal <name>`
-  per file, each file after the files whose comments its replies and state entries name.
+  alone. The copy is imported in one call with a pair per file.
 
-  Entries that refer to each other across authors before any of them is in an overlay file (Alice
-  comments, Bob replies, Alice replies to him, all in one copy) have no such order: the second
-  import refuses the reply or state entry whose comment no overlay file has yet.
+  The files of one call are one import: an entry another file of the call holds with the same
+  payload is held, as one on disk is, and the union's checks run once over the files on disk
+  and every file of the call. Replies and state entries may so name comments of any file of the
+  call, both ways (Alice comments, Bob replies, Alice replies to him, all in one copy).
 
 Each adapter's specification documents its mapping and links here for the format and the meaning.
 
