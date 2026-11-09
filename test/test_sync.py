@@ -104,12 +104,12 @@ def test_a_duplicate_claim_is_refused_naming_both_records_and_leaves_the_file_un
     manifest = _vault(tmp_path)
     path = _records(manifest, [_record("page-1")])
     before = path.read_text(encoding="utf-8")
+    result = _result(tmp_path / "result.json", created=[_record("page-1", node="flow")])
 
-    message = _refused(apply_result, manifest,
-                       _result(tmp_path / "result.json", created=[_record("page-1", node="flow")]))
+    message = _refused(apply_result, manifest, result)
 
-    assert message.startswith(f"{path}: records[1].external[0]:"), message
-    assert "records[0].external[0]" in message and OWNER in message
+    assert message.startswith(f"{result}: created[0].external[0]:"), message
+    assert f"{path} records[0].external[0]" in message and OWNER in message
     assert path.read_text(encoding="utf-8") == before
 
 
