@@ -1,0 +1,23 @@
+{
+  "$comment": "Review states, input-model#Comments and reviews (Review semantics): test/test_comments.py runs each case through obs.comments.review_state, adapters/html/test/comment-model.test.js through the HTML adapter's browser mapping. A case without a reviewer asks for the aggregate.",
+  "decisions": [
+    {"id": "d1", "reviewer": "Alice", "created": "2026-11-09T10:00:00Z", "target": {"chapter": "one", "node": "paragraph-1"}, "state": "accepted"},
+    {"id": "d2", "reviewer": "Bob", "created": "2026-11-09T10:01:00Z", "target": {"chapter": "one", "node": "paragraph-1"}, "state": "rejected"},
+    {"id": "d3", "reviewer": "Alice", "created": "2026-11-09T10:02:00Z", "target": {"node": "list-item-1", "chapter": "one"}, "state": "accepted"},
+    {"id": "d4", "reviewer": "Bob", "created": "2026-11-09T10:03:00Z", "target": {"chapter": "one"}, "state": "accepted"},
+    {"id": "d5", "reviewer": "Carol", "created": "2026-11-09T10:04:00Z", "target": {}, "state": "rejected"}
+  ],
+  "cases": [
+    {"target": {"chapter": "one", "node": "paragraph-1"}, "expected": "rejected"},
+    {"target": {"chapter": "one", "node": "paragraph-1"}, "reviewer": "Alice", "expected": "accepted"},
+    {"target": {"chapter": "one", "node": "paragraph-1"}, "reviewer": "Bob", "expected": "rejected"},
+    {"target": {"chapter": "one", "node": "paragraph-1"}, "reviewer": "Carol", "expected": "waiting"},
+    {"target": {"chapter": "one", "node": "list-item-1"}, "expected": "accepted"},
+    {"target": {"chapter": "one", "node": "list-item-1"}, "reviewer": "Bob", "expected": "waiting"},
+    {"target": {"chapter": "one", "node": "list-item-2"}, "expected": "waiting"},
+    {"target": {"chapter": "one"}, "expected": "accepted"},
+    {"target": {"chapter": "two"}, "expected": "waiting"},
+    {"target": {}, "expected": "rejected"},
+    {"target": {}, "reviewer": "Alice", "expected": "waiting"}
+  ]
+}
