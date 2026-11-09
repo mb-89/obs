@@ -1916,6 +1916,15 @@ interchange format. An adapter contributes only a thin mapping:
   another is an input error naming the returned file, the field path, the entry, its author and
   the principal's file. A returned file without `names` is an input error naming `names`.
 
+  A copy several readers worked on in turn holds every reader's entries, so the adapter exports
+  it as one file per author: each holds only that author's entries, under `names` of that author
+  alone. The copy is imported one file at a time, one `--import-comments <file> --principal <name>`
+  per file, each file after the files whose comments its replies and state entries name.
+
+  Entries that refer to each other across authors before any of them is in an overlay file (Alice
+  comments, Bob replies, Alice replies to him, all in one copy) have no such order: the second
+  import refuses the reply or state entry whose comment no overlay file has yet.
+
 Each adapter's specification documents its mapping and links here for the format and the meaning.
 
 ## Sync records
