@@ -45,6 +45,7 @@ from obs.input import (
     validate_project_config,
     validate_quantity,
 )
+from obs.node_ids import block_names
 from obs.note import IGNORED, Note, VaultError, lines, parser, read_note
 from obs import svg_links
 from obs.figure_lint import figure_warnings
@@ -327,16 +328,20 @@ def build_document(
     for attrs, target in vault.links:  # Only an included note is a chapter a link can name.
         attrs["chapter"] = HOME if target == manifest_path else (
             vault.identities.get(target) if target in included else None)
+    contents = {HOME: abstract_nodes, **_chapter_contents(chapters)}
+    names: dict[str, set[str]] = {}
     for attrs, source_path, target, syntax in vault.block_links:
         if attrs["chapter"] is None:
             continue
-        if attrs["heading"][1:] not in vault.blocks.get(target, set()):
+        if attrs["chapter"] not in names:
+            names[attrs["chapter"]] = block_names(contents[attrs["chapter"]], vault.relative(target))
+        if attrs["heading"][1:] not in names[attrs["chapter"]]:
             raise VaultError(str(input_error(
-                source_path, f"link {syntax}", f"names the block id {attrs['heading']}, which no figure in "
+                source_path, f"link {syntax}", f"names the block id {attrs['heading']}, which no block in "
                 f"{vault.relative(target)} carries",
-                f"Link the block id of a figure there (the ^name line after its fence) or add that line; "
-                "see capabilities/wikilinks")))
-        attrs["figure"] = attrs["heading"][1:]
+                f"Link the block id of a block there (a ^name at its end, or the ^name line after it) or add "
+                "it; see capabilities/wikilinks")))
+        attrs["block"] = attrs["heading"][1:]
     if "manifest" in (capability_ids or set()):
         manifest_nodes.append({"type": "manifest", "attrs": {}, "children": []})
         capabilities.add("manifest")
@@ -1440,11 +1445,17 @@ def _semantic_text_nodes(text: str, context: _Context) -> list[dict[str, object]
     return nodes
 
 
+def _chapter_contents(chapters: list[dict[str, object]]) -> dict[str, list[dict[str, object]]]:
+    """Each chapter's content, by chapter id, its children's included."""
+    return {key: value for chapter in chapters
+            for key, value in [(chapter["id"], chapter["content"]), *_chapter_contents(chapter["children"]).items()]}
+
+
 def _wikilink(target: str, heading: str, label: str, resolved: Path | None, syntax: str, context: _Context,
               **written: str) -> dict[str, object]:
     """A wikilinks node to a resolved target, labelled by the link text rule
     (capabilities/wikilinks#Link text); its chapter is set once inclusion is final, and a block
-    link's figure once every block id is known. ``syntax`` is the link as written; ``written`` is
+    link's block once every block id is known. ``syntax`` is the link as written; ``written`` is
     the ``svg`` attribute of a link inside a figure (capabilities/wikilinks)."""
     if not label:
         note = target if resolved is None else _shown_title(resolved, context.vault)
