@@ -1808,7 +1808,8 @@ the core that reads it (version 1):
   `target` and a `state`, `accepted` or `rejected`.
 
 A target is the document (`{}`), a chapter (`chapter`, its Document id) or a node (`chapter`
-and `node`). A node is a block node's id or a keyed row's ([[#Block node ids]]).
+and `node`). A node is a block node's id or a keyed row's ([[#Block node ids]]). A keyed row's
+target may name a `field`, the record field whose shown value its quote marks.
 
 ### Review semantics
 
@@ -1851,7 +1852,9 @@ interchange format. An adapter contributes only a thin mapping:
 - **Export:** it renders the Document's `comments` in its own output, as its native comments and
   review controls, with the review semantics above.
 - **Import:** it turns the native comments and decisions a reader returns into the overlay file
-  of that reader's principal, which `obs.comments.validate_overlay` checks before it is written.
+  of that reader's principal, which `src/obs/comments.schema.json` checks before it is written and
+  the core checks again when it reads it. An adapter imports no core module; it reads the schema
+  as the core's package data.
 
 Each adapter's specification documents its mapping and links here for the format and the meaning.
 

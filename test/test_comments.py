@@ -225,3 +225,11 @@ def test_the_cli_writes_the_resolved_comments_into_the_document(tmp_path) -> Non
     assert main(["--source", str(manifest), "--document", str(document)]) == 0
     assert [comment["id"] for comment in json.loads(document.read_text(encoding="utf-8"))["comments"]["comments"]] \
         == ["c-1"]
+
+
+def test_the_shared_review_state_fixture_holds_for_the_core() -> None:
+    """The cases adapters/html/test/comment-model.test.js runs against the HTML adapter's browser mapping."""
+    fixture = json.loads((Path(__file__).parent / "fixtures" / "review-state-conformance.json").read_text(
+        encoding="utf-8"))
+    for case in fixture["cases"]:
+        assert review_state(fixture["decisions"], case["target"], case.get("reviewer")) == case["expected"], case
