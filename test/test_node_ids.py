@@ -263,3 +263,25 @@ def test_a_comment_can_target_any_block_and_an_unknown_one_still_warns(tmp_path:
     assert len(warnings) == 1
     assert f"comments[{len(targets)}].target.node" in warnings[0]
     assert "input-model#Comments and reviews" in warnings[0]
+
+
+def test_a_sync_record_can_key_any_block_and_a_keyed_row_like_a_comment_target(tmp_path: Path) -> None:
+    """Sync's record key is the comment target's key (sync.schema.json), resolved by the same targets."""
+    note = "# Design\n\nA paragraph.\n\n- an item\n\n![[notes.base#All]]\n"
+    (tmp_path / "a").mkdir()
+    document = _build(tmp_path / "a", note, {"notes.base": REGISTER})
+    [register] = [node for node in document["chapters"][0]["content"] if node["type"] == "registers"]
+    nodes = [_by_text(document, "A paragraph.")["id"], next(node["id"] for node in _blocks(document["chapters"][0]["content"]) if node["type"] == "list-item"),
+             f"{register['id']}:{register['attrs']['rows'][0][0]}", "paragraph-00000000"]
+    vault = tmp_path / "b"
+    vault.mkdir()
+    records = [{"node": {"chapter": "design", "node": node}, "external": [f"page-{index}"], "revision": "1",
+                "hash": "sha256:" + "0" * 64, "links": [], "base": {"type": "paragraph"}}
+               for index, node in enumerate(nodes)]
+    (vault / "manifest.sync.example.json").write_text(json.dumps(
+        {"version": 1, "namespace": "example", "manifest": "manifest.md", "records": records, "conflicts": []}),
+        encoding="utf-8")
+    warned = _build(vault, note, {"notes.base": REGISTER})
+    warnings = [item["message"] for item in warned["diagnostics"] if item["level"] == "warning"]
+    assert len(warnings) == 1
+    assert "records[3].node.node" in warnings[0]
