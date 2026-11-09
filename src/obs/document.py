@@ -347,12 +347,14 @@ def build_parser() -> argparse.ArgumentParser:
                         help="With one --source: a sync result an adapter returned, which the core applies to its "
                              "namespace's record file next to the manifest before it builds the Document "
                              "(input-model#Sync results).")
-    parser.add_argument("--import-comments", type=Path, metavar="FILE",
+    parser.add_argument("--import-comments", type=Path, action="append", metavar="FILE",
                         help="With one --source and --principal: the comments an adapter exported from a reviewed "
                              "copy, which the core writes into that principal's overlay file next to the manifest "
-                             "before it builds the Document (input-model#Comments and reviews).")
-    parser.add_argument("--principal", metavar="NAME",
-                        help="With --import-comments: the principal whose overlay file the comments go into.")
+                             "before it builds the Document; repeatable, each with its own --principal, and all "
+                             "written or none (input-model#Comments and reviews).")
+    parser.add_argument("--principal", action="append", metavar="NAME",
+                        help="With --import-comments: the principal whose overlay file the comments go into; the "
+                             "n-th --principal pairs with the n-th --import-comments.")
     parser.add_argument("--adapter-option", action="append", default=[], metavar="NAME=VALUE",
                         help="Pass an option the adapter declares in its adapter.json (options); "
                              "repeatable. A boolean option takes true or false; a vault-file option ID=PATH, "
@@ -394,9 +396,14 @@ def main(argv: Sequence[str] | None = None) -> int:
         if options.import_comments and not options.source:
             raise DocumentError("--import-comments is only used with --source: the core writes the comments into an "
                                 "overlay file next to the manifest. Build it with --source.")
-        if bool(options.import_comments) != bool(options.principal):
-            raise DocumentError("--import-comments and --principal go together: the comments go into that "
-                                "principal's overlay file. Give both, or neither.")
+        if len(options.import_comments or []) != len(options.principal or []):
+            raise DocumentError(f"--principal is given {len(options.principal or [])} times for "
+                                f"{len(options.import_comments or [])} --import-comments: each file goes into the "
+                                "overlay file of the principal it pairs with. Give one --principal per "
+                                "--import-comments.")
+        if len(set(options.principal or [])) != len(options.principal or []):
+            raise DocumentError("--principal names one principal twice: each principal's file is written from "
+                                "one returned file. Give each principal once.")
         if options.adapter_option and not options.adapter:
             raise DocumentError("--adapter-option is only used with --adapter.")
         if options.wait and not options.serve:
@@ -499,7 +506,7 @@ def _build(options: argparse.Namespace, source: Path, destination: Path | None, 
     if options.sync_result is not None:
         apply_result(source, options.sync_result)
     if options.import_comments is not None:
-        import_comments(source, options.import_comments, options.principal)
+        import_comments(source, list(zip(options.import_comments, options.principal)))
     document = build_document(source, reference, options.config, options.execute_commands, options.embed_source,
                               delivery, files, options.answers)
     for diagnostic in document["diagnostics"]:
