@@ -1,5 +1,5 @@
 {
-  "$comment": "Review and comment states, input-model#Comments and reviews (Review semantics): test/test_comments.py runs each case through obs.comments.review_state, and each comment case through obs.comments.comment_state, adapters/html/test/comment-model.test.js both through the HTML adapter's browser mapping. A case without a reviewer asks for the aggregate. The comment cases hold the latest state entry, its tie-break by author, then id, and a comment without state entries.",
+  "$comment": "Review and comment states, input-model#Comments and reviews (Review semantics): test/test_comments.py runs each case through obs.comments.review_state, and each comment case through obs.comments.comment_state, adapters/html/test/comment-model.test.js both through the HTML adapter's browser mapping. A case without a reviewer asks for the aggregate. The comment cases hold the latest state entry, its tie-break by author, then id, a comment without state entries, and two state entries under a millisecond apart, of one time at the millisecond the times compare at.",
   "decisions": [
     {"id": "d1", "reviewer": "Alice", "created": "2026-11-09T10:00:00Z", "target": {"chapter": "one", "node": "paragraph-1"}, "state": "accepted"},
     {"id": "d2", "reviewer": "Bob", "created": "2026-11-09T10:01:00Z", "target": {"chapter": "one", "node": "paragraph-1"}, "state": "rejected"},
@@ -27,7 +27,8 @@
     {"id": "c1", "author": "Alice", "created": "2026-11-09T09:00:00Z", "body": {"mediaType": "text/plain", "text": "Resolved, then reopened."}, "state": "open", "target": {"chapter": "one"}},
     {"id": "c2", "author": "Alice", "created": "2026-11-09T09:00:00Z", "body": {"mediaType": "text/plain", "text": "Two at once."}, "state": "open", "target": {"chapter": "one"}},
     {"id": "c3", "author": "Bob", "created": "2026-11-09T09:00:00Z", "body": {"mediaType": "text/plain", "text": "One author, twice at once."}, "state": "resolved", "target": {"chapter": "one"}},
-    {"id": "c4", "author": "Bob", "created": "2026-11-09T09:00:00Z", "body": {"mediaType": "text/plain", "text": "Never changed."}, "state": "resolved", "target": {"chapter": "one"}}
+    {"id": "c4", "author": "Bob", "created": "2026-11-09T09:00:00Z", "body": {"mediaType": "text/plain", "text": "Never changed."}, "state": "resolved", "target": {"chapter": "one"}},
+    {"id": "c5", "author": "Bob", "created": "2026-11-09T09:00:00Z", "body": {"mediaType": "text/plain", "text": "Two within a millisecond."}, "state": "open", "target": {"chapter": "one"}}
   ],
   "states": [
     {"id": "s1", "author": "Bob", "created": "2026-11-09T10:00:00Z", "target": "c1", "state": "resolved"},
@@ -35,12 +36,15 @@
     {"id": "s3", "author": "Bob", "created": "2026-11-09T10:00:00Z", "target": "c2", "state": "open"},
     {"id": "s4", "author": "Alice", "created": "2026-11-09T11:00:00+01:00", "target": "c2", "state": "resolved"},
     {"id": "s6", "author": "Bob", "created": "2026-11-09T10:00:00Z", "target": "c3", "state": "resolved"},
-    {"id": "s5", "author": "Bob", "created": "2026-11-09T10:00:00Z", "target": "c3", "state": "open"}
+    {"id": "s5", "author": "Bob", "created": "2026-11-09T10:00:00Z", "target": "c3", "state": "open"},
+    {"id": "s7", "author": "Bob", "created": "2026-11-09T10:00:00.000900Z", "target": "c5", "state": "resolved"},
+    {"id": "s8", "author": "Alice", "created": "2026-11-09T10:00:00.000100Z", "target": "c5", "state": "open"}
   ],
   "commentCases": [
     {"comment": "c1", "expected": "open"},
     {"comment": "c2", "expected": "resolved"},
     {"comment": "c3", "expected": "open"},
-    {"comment": "c4", "expected": "resolved"}
+    {"comment": "c4", "expected": "resolved"},
+    {"comment": "c5", "expected": "open"}
   ]
 }

@@ -1812,6 +1812,8 @@ by the dispatcher, work issue `feat/comment-abstract-target-and-state-entries-20
 the core that reads it (version 1):
 
 - `version`: `1`. `principal`: the file name's principal.
+- `names`: the author names the principal writes under, at least one. Every entry of the file is
+  under one of them: a comment's and a state entry's `author`, a decision's `reviewer`.
 - `comments`: comments, threads and annotations. Each has an immutable `id` (any text without
   whitespace, unique across all overlay files of the manifest), an `author`, its `created` time and
   an optional `modified` time (RFC 3339), a `body` (`mediaType` `text/plain` or `text/markdown`,
@@ -1830,6 +1832,11 @@ the core that reads it (version 1):
   by its author or anyone else. Each has an immutable `id`, an `author`, its `created` time, a
   `target`, the id of the comment it changes, in any file, and the `state` it gives it, `open` or
   `resolved`.
+
+Times are milliseconds: the core reads a finer `created` or `modified` time, in an overlay file
+or a returned copy, as its millisecond, cutting the digits after the third, and stores and
+compares it so, as a browser does (decided by the dispatcher, work issue
+`fix/comment-principal-names-and-precision-20261109`).
 
 A target is the document (`{}`), the manifest abstract (`abstract`: `true`), a chapter
 (`chapter`, its Document id) or a node of the abstract or of a chapter (`abstract` or `chapter`,
@@ -1865,6 +1872,8 @@ The core reads the overlay files in file-name order and forms their union by id:
 - An id in several files with the same payload is one entry. An id with different payloads is an
   input error naming both files and the field path of each (`comments[0]`).
 - Two decisions of one reviewer on one target, in one file or two, are an input error naming both.
+- An entry under a name its file's `names` lacks is an input error naming the file, the field path
+  (`comments[0].author`, `decisions[0].reviewer`), the entry and the name.
 - A reply's `inReplyTo` resolves across files; one naming no comment, or a chain of replies that
   reaches no root, is an input error naming the file and the field path (`comments[1].inReplyTo`).
   So does a state entry's `target`; one naming no comment is the same input error
@@ -1902,9 +1911,10 @@ interchange format. An adapter contributes only a thin mapping:
   comment, its author and the importing principal, the editor. A reader's resolve or reopen is
   the reader's own state entry, which the import writes into the reader's file.
 
-  A state entry's `author` must be a name the principal's own comments or decisions carry
-  (`author`, `reviewer`); another is an input error naming `states[0].author`. A principal whose
-  file has neither names no author, and its state entries are written as they are.
+  The returned file's `names`, the reader's names, become the principal's `names`; the adapter
+  writes them. Every entry the import writes into the principal's file must be under one of them:
+  another is an input error naming the returned file, the field path, the entry, its author and
+  the principal's file. A returned file without `names` is an input error naming `names`.
 
 Each adapter's specification documents its mapping and links here for the format and the meaning.
 
