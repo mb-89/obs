@@ -930,9 +930,9 @@ Implementation decisions, same date:
 Core and adapter, 6 Nov 2026:
 
 - The core resolves a block link, written as a wikilink (`[[#^name]]`, `[[note#^name]]`) or in
-  the Markdown form (`[](note.md#^name)`, `[label](note.md#^name)`), to the figure that carries
-  the block id, as [[capabilities/wikilinks]] owns; an unknown block id and a block id two
-  figures of one note carry are build errors that name the note and the link or figure.
+  the Markdown form (`[](note.md#^name)`, `[label](note.md#^name)`), to the block that carries
+  the block id, a figure or any other, as [[capabilities/wikilinks]] owns, which also owns its
+  build errors.
 - The core runs the figure lint on every build: a figure fence without caption, a figure fence
   without block id (its remedy names the `^name` line, so a reference can be offered), an image file
   alone in its paragraph (`![...]` of another file is an attachment), a caption outside the
@@ -1698,7 +1698,8 @@ every adapter alike.
 An Obsidian block reference is the block's id, unchanged, and is not shown:
 
 - `^name` at the end of a paragraph names that paragraph, and in a list item's first paragraph
-  names the list item.
+  names the list item. At the end of a heading it names the heading, as in Obsidian; the heading's
+  text, and so its `[[#Heading]]` anchor, is the text before it.
 - A paragraph that is only `^name`, after a block, names that block: a table, a list, a quote, a
   code block. A figure's `^name` line is its block id ([[#Figure captions and references]]), and
   so its node id.
@@ -1721,10 +1722,25 @@ are numbered among themselves, in document order: the first keeps `<type>-<hash>
 get `-2`, `-3`, and so on. A derived id that equals an explicit id of the chapter takes the next
 number too.
 
-The trade-off: a block's id changes when its own text changes, and a container's (a list's, a
-table's, a quote's) when any text inside it changes. A comment on such a block becomes an unmapped
-target, a warning and no error ([[#Comments and reviews]]). An author keeps the target across edits by
-pinning the block with `^name`. An identical block inserted before a block takes its number.
+A container (a list, a table, a quote, a callout, a cards fence, a card) is anchored, not hashed
+over its children. Its normalized text is its own authored attributes (a list's `ordered`, a
+callout's kind and title, a card's title) and the id of the heading it sits under, none before a
+chapter's first heading.
+
+Its children's text is not part of it, nor is a cards fence's source, which holds its cards.
+
+A list item is no container here: its first paragraph is its own text. Children keep their own
+ids.
+
+The trade-off: a block's id changes when its own text changes. A comment on such a block becomes
+an unmapped target, a warning and no error ([[#Comments and reviews]]). An author keeps the target
+across edits by pinning the block with `^name`. An identical block inserted before a block takes
+its number.
+
+A container's id survives any edit of its children, which a comment on a whole list or table
+needs, but it moves with its anchor: editing its heading's text, or inserting a new heading
+above it, changes it (a `^name` on the heading keeps the first), and another container of the
+same type and attributes inserted before it under the same heading takes its number.
 
 ### Keyed rows
 

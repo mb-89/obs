@@ -4,6 +4,7 @@
 The core assigns them after the note reader, so every adapter gets the same ids; comments and sync
 records target them. ``document.schema.json`` (``$defs/identifiedType``) owns which types carry one.
 """
+import copy
 import hashlib
 import json
 import re
@@ -19,6 +20,9 @@ IDENTIFIED = frozenset(json.loads(Path(__file__).with_name("document.schema.json
                        ["$defs"]["identifiedType"]["enum"])
 CONTAINERS = frozenset({"list", "list-item", "quote", "callouts", "table", "cards-metrics", "document"})
 """The block nodes whose children are blocks in turn; any other node's children are its content."""
+ANCHORED = CONTAINERS - {"list-item"}
+"""The containers whose derived id is anchored on their heading, not hashed over their children; a
+list item's first paragraph is its own text (input-model#Derived ids)."""
 KEYED_TABLES = frozenset({"registers", "bases"})
 """The tables whose rows are records, each keyed ``<table id>:<record id>``."""
 AUTHORED_ATTRS = ("source", "target", "heading", "label", "kind", "caption", "alt", "title", "level",
@@ -37,6 +41,14 @@ def assign_ids(document: dict[str, Any]) -> None:
         _assign(manifest["abstract"], manifest["path"])
     for chapter in _chapters(document["chapters"]):
         _assign(chapter["content"], paths.get(chapter["id"], f"chapter {chapter['id']}"))
+
+
+def block_names(nodes: list[dict[str, Any]], source: str) -> set[str]:
+    """The explicit ids of a chapter's or the abstract's blocks, its block link targets
+    (capabilities/wikilinks), read as ``assign_ids`` reads them, leaving ``nodes`` as they are."""
+    explicit: dict[int, str] = {}
+    _read_references(copy.deepcopy(nodes), None, explicit, source)
+    return set(explicit.values())
 
 
 def chapter_targets(document: dict[str, Any]) -> dict[str, set[str]]:
@@ -80,27 +92,35 @@ def _blocks(nodes: list[dict[str, Any]]) -> Iterator[dict[str, Any]]:
 def _assign(nodes: list[dict[str, Any]], source: str) -> None:
     explicit: dict[str, str] = {}
     _read_references(nodes, None, explicit, source)
-    taken, seen = set(explicit.values()), Counter()
+    taken, seen, heading = set(explicit.values()), Counter(), ""
     for node in _blocks(nodes):
         if node["type"] not in IDENTIFIED:
             continue
         if id(node) in explicit:
             node["id"] = explicit[id(node)]
-            continue
-        base = f"{node['type']}-{hashlib.sha256(_normalized(node).encode()).hexdigest()[:8]}"
-        identifier = base
-        while identifier in taken:
-            seen[base] += 1
-            identifier = f"{base}-{seen[base] + 1}"
-        taken.add(identifier)
-        node["id"] = identifier
+        else:
+            text = f"{_own(node)}\0heading={heading}" if node["type"] in ANCHORED else _normalized(node)
+            node["id"] = _derived(f"{node['type']}-{hashlib.sha256(text.encode()).hexdigest()[:8]}", taken, seen)
+        if node["type"] == "section":
+            heading = node["id"]
+
+
+def _derived(base: str, taken: set[str], seen: Counter) -> str:
+    """``base``, or numbered after the identical blocks before it and any explicit id it equals."""
+    identifier = base
+    while identifier in taken:
+        seen[base] += 1
+        identifier = f"{base}-{seen[base] + 1}"
+    taken.add(identifier)
+    return identifier
 
 
 def _read_references(nodes: list[dict[str, Any]], item: dict[str, Any] | None, explicit: dict[int, str],
                      source: str) -> None:
     """Take each Obsidian block reference out of the text into ``explicit`` (block -> name): a
     paragraph's trailing ``^name`` names it, or ``item`` for a list item's first paragraph; a
-    paragraph that is only ``^name`` names the block before it. A figure's ``^name`` is its block."""
+    heading's names the heading; a paragraph that is only ``^name`` names the block before it. A
+    figure's ``^name`` is its block."""
     index = 0
     while index < len(nodes):
         node = nodes[index]
@@ -111,10 +131,11 @@ def _read_references(nodes: list[dict[str, Any]], item: dict[str, Any] | None, e
             continue
         if node["type"] == "figures" and "block" in node["attrs"]:
             _name(node, node["attrs"]["block"], explicit, source)
-        elif node["type"] == "paragraph":
+        elif node["type"] in ("paragraph", "section"):
             name = _strip_trailing(node)
             if name:
-                _name(item if item is not None and index == 0 else node, name, explicit, source)
+                named = item if item is not None and index == 0 and node["type"] == "paragraph" else node
+                _name(named, name, explicit, source)
         if node["type"] in CONTAINERS:
             _read_references(node["children"], node if node["type"] == "list-item" else None, explicit, source)
         index += 1
@@ -135,9 +156,9 @@ def _alone(node: dict[str, Any]) -> str | None:
     return match[1] if match else None
 
 
-def _strip_trailing(paragraph: dict[str, Any]) -> str | None:
-    """Remove a trailing ``^name`` from a paragraph's last text node; its name."""
-    children = paragraph["children"]
+def _strip_trailing(block: dict[str, Any]) -> str | None:
+    """Remove a trailing ``^name`` from a paragraph's or heading's last text node; its name."""
+    children = block["children"]
     if not children or children[-1]["type"] != "text":
         return None
     last = children[-1]
@@ -153,6 +174,13 @@ def _strip_trailing(paragraph: dict[str, Any]) -> str | None:
 def _normalized(node: dict[str, Any]) -> str:
     """A block's authored content with whitespace runs collapsed (input-model#Block node ids)."""
     return " ".join(_content(node).split())
+
+
+def _own(node: dict[str, Any]) -> str:
+    """A container's own authored content: its attributes, none of its children's text, which a
+    cards fence's ``source`` holds too."""
+    attrs = {key: value for key, value in node["attrs"].items() if key != "source"}
+    return " ".join(_content({**node, "attrs": attrs, "children": []}).split())
 
 
 def _content(node: dict[str, Any]) -> str:
