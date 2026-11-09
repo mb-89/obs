@@ -31,12 +31,16 @@ by `src/obs/document.schema.json`.
 A link names its own note by its heading alone: `[[#Heading]]` and `[[#^name]]` have an empty
 `target`, and `chapter` is the chapter they sit in.
 
-A block link (`[[#^name]]` within its note, `[[note#^name]]` across notes) targets a figure:
-`figure` is the block id of the `figures` node in `chapter` that carries it
-([[input-model#Figure captions and references]]).
+A block link (`[[#^name]]` within its note, `[[note#^name]]` across notes) targets any block
+that carries `^name` as its explicit id ([[input-model#Explicit ids]]): a paragraph, a list item,
+a heading, a list, a table, a quote, a figure ([[input-model#Figure captions and references]]).
 
-A block id that no figure in the target note carries is a build error that names the note, the
-link and this page; so is a block id two figures of one note carry. A link to a missing note stays the missing-note warning.
+`block` is that block's id in `chapter`; an adapter tells a figure from another block by the
+node that carries the id.
+
+A block id that no block in the target note carries is a build error that names the note, the
+link and this page; so is a block id two blocks of one note carry. A derived id is no link
+target. A link to a missing note stays the missing-note warning.
 
 The Markdown form is the same block link and the same `wikilinks` node:
 `[label](note.md#^name)` keeps `note.md` as its `target` and its link text as its `label`;
