@@ -269,7 +269,7 @@
               "target": {"description": "The note as written; empty for a link within its own note ([[#Heading]], [[#^name]]).", "type": "string"},
               "chapter": {"$ref": "#/$defs/chapterReference"},
               "heading": {"type": "string"}, "label": {"description": "The text an adapter shows (capabilities/wikilinks#Link text).", "type": "string", "minLength": 1},
-              "figure": {"description": "A block link's target: the block id, without its ^, of the figures node in chapter that carries it (capabilities/wikilinks).", "type": "string", "pattern": "^[A-Za-z0-9-]+$"},
+              "block": {"description": "A block link's target: the explicit id, without its ^, of the block node in chapter that carries it, a figure or any other block (capabilities/wikilinks).", "type": "string", "pattern": "^[A-Za-z0-9-]+$"},
               "svg": {"description": "Only on a link inside a figure, a child of the figure's body: the link exactly as the figure's SVG holds it, an a element's href or the wikilink text with its brackets (capabilities/wikilinks#Links inside a figure).", "type": "string", "minLength": 1}
             }
           }}}
