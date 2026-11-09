@@ -16,6 +16,7 @@ from typing import Any, Iterator
 from jsonschema import Draft202012Validator
 
 from obs.input import InputError, input_error, schema_error
+from obs.node_ids import chapter_targets
 
 
 SCHEMA_PATH = Path(__file__).with_name("comments.schema.json")
@@ -119,19 +120,6 @@ def _check_replies(comments: list[_Entry]) -> None:
             current = answered.payload
 
 
-def _block_ids(nodes: list[dict[str, Any]]) -> Iterator[str]:
-    for node in nodes:
-        if node["type"] == "figures" and "block" in node["attrs"]:
-            yield node["attrs"]["block"]
-        yield from _block_ids(node["children"])
-
-
-def _chapters(chapters: list[dict[str, Any]]) -> Iterator[dict[str, Any]]:
-    for chapter in chapters:
-        yield chapter
-        yield from _chapters(chapter["children"])
-
-
 def _targets(entry: _Entry) -> Iterator[tuple[str, dict[str, Any]]]:
     if "target" in entry.payload:
         yield f"{entry.field}.target", entry.payload["target"]
@@ -164,7 +152,7 @@ def apply_comments(document: dict[str, Any], manifest_path: Path) -> None:
     comments, decisions = (_union(overlays, kind) for kind in _KINDS)
     _check_decisions(decisions)
     _check_replies(comments)
-    nodes = {chapter["id"]: set(_block_ids(chapter["content"])) for chapter in _chapters(document["chapters"])}
+    nodes = chapter_targets(document)
     document["diagnostics"].extend({"level": "warning", "message": message}
                                    for message in _unmapped([*comments, *decisions], nodes))
     document["comments"] = {"version": VERSION, "files": [path.name for path in paths],
