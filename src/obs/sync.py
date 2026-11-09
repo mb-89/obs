@@ -13,8 +13,9 @@ from typing import Any, Iterator
 from jsonschema import Draft202012Validator
 from referencing import Registry, Resource
 
-from obs.comments import SCHEMA_PATH as COMMENTS_SCHEMA_PATH, document_nodes, unresolved
+from obs.comments import SCHEMA_PATH as COMMENTS_SCHEMA_PATH, unresolved
 from obs.input import input_error, schema_error
+from obs.node_ids import chapter_targets
 from obs.output import write_output
 from obs.overlay import overlay_files, overlay_name, overlay_owner, read_overlay
 
@@ -124,7 +125,7 @@ def apply_sync(document: dict[str, Any], manifest_path: Path) -> None:
     paths = overlay_files(manifest_path, _KIND)
     if not paths:
         return
-    nodes = document_nodes(document)
+    nodes = chapter_targets(document)
     document["sync"] = {}
     for path in paths:
         records = _read(path, manifest_path.name)

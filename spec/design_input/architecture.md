@@ -361,7 +361,7 @@ and the input/execution subset of cross-cutting configuration. Document construc
 validates every recognized fence and applicable frontmatter field with these contracts.
 
 Document chapter content is a recursive node tree with `type`, `attrs`, `children`,
-and optional `text`.
+optional `text` and, on a block node, its `id` ([[input-model#Block node ids]]).
 
 Its fixed structural types are the Markdown blocks and inline marks every adapter renders,
 listed by `document.schema.json` (`structuralType`) and described in
