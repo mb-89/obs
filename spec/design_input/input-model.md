@@ -1706,9 +1706,94 @@ through a derived projection. [[capabilities/property-editors#Projection rules]]
 constraint for the edited field and a projection; at the runtime transaction boundary the adapter
 writes only the fields the editor's node declares ([[capabilities/property-editors#Document node]]).
 
-How an adapter saves a reviewed copy, with its review comments, decisions and reader state, and
-how its runtime commits an edit, is that adapter's; its specification is listed in
+A reviewed copy's comments and review decisions have the core's format and meaning
+([[#Comments and reviews]]). How an adapter saves a reviewed copy, with its reader state, and how
+its runtime commits an edit, is that adapter's; its specification is listed in
 [[appendix/references|References]].
+
+## Comments and reviews
+
+Decided by the owner, 9 Nov 2026 (work issue `feat/core-comment-format-20261109`): comments are how
+information flows back from any output to the vault, so their format and the meaning of a review
+are the core's, once, and every adapter maps onto them.
+
+### Overlay files
+
+A principal's comments and review decisions live in one overlay file next to the manifest:
+`<manifest stem>.comments.<principal>.json` (for `manifest.md` and the principal `alice`,
+`manifest.comments.alice.json`). A principal is lower-case letters, digits and hyphens, starting
+with a letter or digit. The core discovers every overlay file of the manifest when it builds the
+Document; a file whose name matches the pattern but names no valid principal is an input error.
+A principal writes only its own file: a reply goes into the responder's file, not the file of
+the comment it answers.
+
+`src/obs/comments.schema.json` owns the file's fields, once, for the adapters that write it and
+the core that reads it (version 1):
+
+- `version`: `1`. `principal`: the file name's principal.
+- `comments`: comments, threads and annotations. Each has an immutable `id` (any text without
+  whitespace, unique across all overlay files of the manifest), an `author`, its `created` time and
+  an optional `modified` time (RFC 3339), a `body` (`mediaType` `text/plain` or `text/markdown`,
+  and its `text`) and a `state`, `open` or `resolved`.
+
+  A thread's root names its `target`; a reply names the comment it answers, in any file, as
+  `inReplyTo` and has no target of its own (it is its root's). An annotation is a comment whose
+  target marks text: an exact `quote` with optional `prefix` and `suffix`, and optional `start`
+  and `end` positions in the target's text.
+
+  A root may carry a `batch`: the `scope` of a decision made on many items at once (`section`,
+  `chapter` or `document`) and the `items` (targets) it was made on.
+- `decisions`: review decisions. Each has an immutable `id`, a `reviewer`, its `created` time, a
+  `target` and a `state`, `accepted` or `rejected`.
+
+A target is the document (`{}`), a chapter (`chapter`, its Document id) or a node (`chapter`
+and `node`). A node's stable Document id is a figure's block id ([[#Figure captions and
+references]]); it is the only node identity the Document carries.
+
+### Review semantics
+
+- An item, a node or a chapter, is waiting for a reviewer while the reviewer has no decision on
+  it; a reviewer has at most one decision per target. Changing a decision changes the reviewer's
+  own decision; withdrawing it removes the decision, so the item waits again.
+- Decisions belong to their reviewer: one reviewer's decision never changes another's.
+- An item's aggregate state is rejected if any reviewer rejected it, otherwise accepted if any
+  reviewer accepted it, otherwise waiting.
+- A batch decision is one decision per item it covers, made only on items still waiting for that
+  reviewer; its comment keeps the batch's scope and items.
+
+`src/obs/comments.py` (`review_state`) owns this computation for every adapter.
+
+### Union and resolution
+
+The core reads the overlay files in file-name order and forms their union by id:
+
+- An id in several files with the same payload is one entry. An id with different payloads is an
+  input error naming both files and the field path of each (`comments[0]`).
+- Two decisions of one reviewer on one target, in one file or two, are an input error naming both.
+- A reply's `inReplyTo` resolves across files; one naming no comment, or a chain of replies that
+  reaches no root, is an input error naming the file and the field path (`comments[1].inReplyTo`).
+- A target resolves through the Document: its chapter must be one of the Document's chapters and
+  its node a block id in that chapter. A target that does not resolve is no error, since comments
+  outlive the text they were made on: the Document carries a warning diagnostic that names the
+  overlay file, the field path (`comments[0].target.node`), the comment or decision id, the missing
+  target and this section.
+
+The union is the Document's `comments`: the `version`, the overlay `files` by name, and the
+`comments` and `decisions`, each ordered by `created` time, then id. A Document built without
+overlay files has none. A file the schema refuses is an input error naming the file and the
+field path.
+
+### Adapter contract
+
+Every adapter receives the same resolved model, the Document's `comments`, and keeps no private
+interchange format. An adapter contributes only a thin mapping:
+
+- **Export:** it renders the Document's `comments` in its own output, as its native comments and
+  review controls, with the review semantics above.
+- **Import:** it turns the native comments and decisions a reader returns into the overlay file
+  of that reader's principal, which `obs.comments.validate_overlay` checks before it is written.
+
+Each adapter's specification documents its mapping and links here for the format and the meaning.
 
 ## One count query
 
