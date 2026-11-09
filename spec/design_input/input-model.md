@@ -1847,9 +1847,12 @@ target may name a `field`, the record field whose shown value its quote marks.
 - A batch decision is one decision per item it covers, made only on items still waiting for that
   reviewer; its comment keeps the batch's scope and items.
 - A comment's state is its latest state entry's, or without one the `state` it was created with.
-  Of state entries with the same `created` time, the one whose `author` sorts first wins, then the
-  lower id; so every reader of the same files sees the same state. A comment's `state` field never
-  changes after it is created: every resolve or reopen, the author's own too, is a new state entry.
+  A comment's `state` field never changes after it is created: every resolve or reopen, the
+  author's own too, is a new state entry.
+- Of state entries with the same `created` time, the one whose `author` sorts first wins, then the
+  lower id, so every reader of the same files sees the same state. The tie-break uses the entry's
+  `author`, not its file's principal, because an adapter's reader knows a name but no principal
+  until the import names one.
 
 `src/obs/comments.py` owns both computations for every adapter: `review_state` an item's review
 state, `comment_state` a comment's state. Every adapter that computes them itself holds to the
@@ -1898,6 +1901,10 @@ interchange format. An adapter contributes only a thin mapping:
   Only a comment's author edits its body: a changed body is an input error that names the
   comment, its author and the importing principal, the editor. A reader's resolve or reopen is
   the reader's own state entry, which the import writes into the reader's file.
+
+  A state entry's `author` must be a name the principal's own comments or decisions carry
+  (`author`, `reviewer`); another is an input error naming `states[0].author`. A principal whose
+  file has neither names no author, and its state entries are written as they are.
 
 Each adapter's specification documents its mapping and links here for the format and the meaning.
 
