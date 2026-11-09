@@ -4,18 +4,23 @@
   "$comment": "One principal's comments, review decisions and state entries, in its overlay file next to the manifest, and the resolved union of every overlay file the Document carries as comments (input-model#Comments and reviews): the one definition adapters write and the core reads.",
   "type": "object",
   "additionalProperties": false,
-  "required": ["version", "principal", "comments", "decisions"],
+  "required": ["version", "principal", "names", "comments", "decisions"],
   "properties": {
     "version": {"const": 1},
     "principal": {"$ref": "#/$defs/principal"},
+    "names": {"$ref": "#/$defs/names"},
     "comments": {"type": "array", "items": {"$ref": "#/$defs/comment"}},
     "decisions": {"type": "array", "items": {"$ref": "#/$defs/decision"}},
     "states": {"type": "array", "items": {"$ref": "#/$defs/state"}}
   },
   "$defs": {
     "principal": {"type": "string", "pattern": "^[a-z0-9][a-z0-9-]*$"},
+    "names": {
+      "$comment": "The author names the principal writes under: every comment's and state entry's author, and every decision's reviewer, of its file is one of them; a returned copy's are the reader's, which the import writes as the principal's.",
+      "type": "array", "minItems": 1, "uniqueItems": true, "items": {"type": "string", "minLength": 1}
+    },
     "id": {"$comment": "An immutable id, unique across every overlay file of the manifest.", "type": "string", "pattern": "^\\S+$"},
-    "time": {"$comment": "An RFC 3339 date and time.", "type": "string",
+    "time": {"$comment": "An RFC 3339 date and time; the core reads a finer one as its millisecond.", "type": "string",
              "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\\.[0-9]+)?(Z|[+-][0-9]{2}:[0-9]{2})$"},
     "target": {
       "$comment": "The document ({}), the manifest abstract (abstract) or a chapter (chapter), or a node of either (abstract or chapter, and node: a block node's id or a keyed row's <table id>:<record id>, input-model#Block node ids); a quote marks text in it, and in a keyed row's field where field names one.",
@@ -90,13 +95,14 @@
       }
     },
     "resolved": {
-      "$comment": "The Document's comments: the union of every overlay file, each list ordered by created time, then id.",
+      "$comment": "The Document's comments: the union of every overlay file, each list ordered by created time, then id. A returned copy adds the reader's names.",
       "type": "object",
       "additionalProperties": false,
       "required": ["version", "files", "comments", "decisions"],
       "properties": {
         "version": {"const": 1},
         "files": {"type": "array", "items": {"type": "string", "minLength": 1}},
+        "names": {"$ref": "#/$defs/names"},
         "comments": {"type": "array", "items": {"$ref": "#/$defs/comment"}},
         "decisions": {"type": "array", "items": {"$ref": "#/$defs/decision"}},
         "states": {"type": "array", "items": {"$ref": "#/$defs/state"}}
