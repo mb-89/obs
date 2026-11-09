@@ -120,6 +120,28 @@ def test_an_insertion_or_removal_elsewhere_leaves_ids_unchanged(tmp_path: Path) 
         <= after.items()
 
 
+def test_a_paragraph_and_a_list_item_inserted_mid_note_leave_every_text_hashed_id_unchanged(tmp_path: Path) -> None:
+    """Insertion stability for text-hashed blocks: only a container (node_ids.ANCHORED) may take a new id."""
+    from obs.node_ids import ANCHORED
+
+    (tmp_path / "a").mkdir()
+    (tmp_path / "b").mkdir()
+    edited = NOTE.replace("The second paragraph.\n\n- one item\n",
+                          "The second paragraph.\n\nAn inserted paragraph.\n\n- an inserted item\n- one item\n")
+    assert edited != NOTE
+
+    def blocks(document: dict) -> dict[str, tuple[str, str]]:
+        return {node["id"]: (node["type"], _text(node))
+                for node in _blocks(document["chapters"][0]["content"]) if "id" in node}
+
+    before, after = blocks(_build(tmp_path / "a")), blocks(_build(tmp_path / "b", edited))
+    hashed = {identifier: block for identifier, block in before.items() if block[0] not in ANCHORED}
+    assert {"paragraph", "list-item", "code", "math", "rule", "table-row"} <= {kind for kind, _ in hashed.values()}
+    assert hashed.items() <= after.items()
+    assert {block for block in after.values() if block not in before.values()} >= {
+        ("paragraph", "An inserted paragraph."), ("list-item", "an inserted item")}
+
+
 def test_an_edited_block_gets_a_new_id_and_the_others_keep_theirs(tmp_path: Path) -> None:
     (tmp_path / "a").mkdir()
     (tmp_path / "b").mkdir()

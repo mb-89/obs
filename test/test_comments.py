@@ -360,6 +360,23 @@ def test_an_import_writes_a_readers_resolve_of_another_principals_comment_as_the
     assert comment_state(resolved["comments"][0], resolved["states"]) == "resolved"
 
 
+def test_an_import_refuses_a_state_entry_under_another_name_than_the_principals_own_entries(tmp_path) -> None:
+    (tmp_path / "vault").mkdir()
+    manifest = _vault(tmp_path / "vault")
+    theirs = _comment("b-1", author="Bob")
+    _overlay(manifest, "bob", [theirs])
+    returned = _returned(tmp_path / "returned.json", [theirs, _comment("a-1")], [_decision("d-1")],
+                         [_state("s-1", "b-1", "resolved", "2026-11-09T09:00:00Z", "Bob")])
+
+    with pytest.raises(InputError) as failure:
+        import_comments(manifest, returned, "alice")
+
+    message = str(failure.value)
+    assert message.split(": ")[:2] == [str(returned), "states[0].author"], message
+    assert all(name in message for name in ("'Bob'", "'alice'", "'Alice'", OWNER)), message
+    assert not manifest.with_name("manifest.comments.alice.json").exists()
+
+
 def test_an_import_refuses_a_body_edit_to_another_principals_comment(tmp_path) -> None:
     (tmp_path / "vault").mkdir()
     manifest = _vault(tmp_path / "vault")

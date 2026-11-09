@@ -2,8 +2,9 @@
 
 Each principal's comments, review decisions and state entries live in one overlay file next to the
 manifest. The core reads them all, forms their union by immutable id, resolves replies and state
-entries across files and targets through the Document, and puts the resolved model in the Document's ``comments``; every adapter
-renders that model and maps its native comments onto the overlay format.
+entries across files and targets through the Document, and puts the resolved model in the
+Document's ``comments``; every adapter renders that model and maps its native comments onto the
+overlay format.
 """
 import json
 import re
@@ -137,7 +138,8 @@ def unresolved(target: dict[str, Any], nodes: dict[str, set[str]], abstract: fro
     if chapter is not None and chapter not in nodes:
         return "chapter", f"the chapter {chapter!r}"
     if node is not None and node not in (abstract if target.get("abstract") else nodes[chapter]):
-        return "node", f"the node {node!r} in {'the abstract' if target.get('abstract') else f'the chapter {chapter!r}'}"
+        place = "the abstract" if target.get("abstract") else f"the chapter {chapter!r}"
+        return "node", f"the node {node!r} in {place}"
     return None
 
 
@@ -192,6 +194,18 @@ def comment_state(comment: dict[str, Any], states: list[dict[str, Any]]) -> str:
                key=lambda entry: (entry["author"], entry["id"]))["state"]
 
 
+def _check_state_authors(overlay: dict[str, Any], returned_path: Path) -> None:
+    """Refuse a state entry under a name none of the principal's own comments and decisions carries;
+    a principal with neither names no author to hold its state entries to."""
+    names = {entry["author"] for entry in overlay["comments"]} | {entry["reviewer"] for entry in overlay["decisions"]}
+    for index, entry in enumerate(overlay["states"]):
+        if names and entry["author"] not in names:
+            known = ", ".join(map(repr, sorted(names)))
+            raise input_error(returned_path, f"states[{index}].author", f"is {entry['author']!r}, a name none of "
+                              f"{overlay['principal']!r}'s own comments and decisions carries ({known})",
+                              f"Record a state entry under the importing principal's own name; see {OWNER}")
+
+
 def import_comments(manifest_path: Path, returned_path: Path, principal: str) -> Path:
     """Write ``principal``'s overlay file from the comments an adapter returned (input-model#Comments and
     reviews, Adapter contract): every entry no other principal's file holds with the same payload. An
@@ -233,6 +247,7 @@ def import_comments(manifest_path: Path, returned_path: Path, principal: str) ->
                                   f"{known[1]}; a principal writes only its own file",
                                   f"Record a resolve or reopen as a state entry, any other change as a new entry; "
                                   f"see {OWNER}")
+    _check_state_authors(overlay, returned_path)
     if not overlay["states"]:
         del overlay["states"]
     validate_overlay(overlay, path)
