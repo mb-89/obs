@@ -119,5 +119,5 @@ def test_a_block_link_inside_a_figure_targets_its_figure_like_prose(tmp_path) ->
     document = build_document(_vault(tmp_path, chapter), capability_reference())
 
     first = _figure_links(document)[0][0]
-    assert (first["target"], first["chapter"], first["figure"], first["svg"]) == (
+    assert (first["target"], first["chapter"], first["block"], first["svg"]) == (
         "", "chapter", "drawing", "[[#^drawing]]")

@@ -12,7 +12,7 @@ from pathlib import Path
 
 import pytest
 
-from obs.document import build_document
+from obs.document import DocumentError, build_document
 from obs.input import InputError
 from test_vault import capability_reference
 
@@ -111,8 +111,9 @@ def test_an_insertion_or_removal_elsewhere_leaves_ids_unchanged(tmp_path: Path) 
     (tmp_path / "b").mkdir()
     before = _ids(_build(tmp_path / "a"))
     assert len(before) > 10
+    # A table inserted before the table under the same heading would take its number (input-model#Derived ids).
     edited = NOTE.replace("The second paragraph.\n\n", "").replace(
-        "# Design\n", "# Design\n\nAn inserted paragraph.\n\n| X |\n|---|\n| y |\n")
+        "# Design\n", "# Design\n\nAn inserted paragraph.\n") + "\n| X |\n|---|\n| y |\n"
     after = _ids(_build(tmp_path / "b", edited))
     removed = {identifier for identifier, text in before.items() if text == "The second paragraph."}
     assert {identifier: text for identifier, text in before.items() if identifier not in removed}.items() \
@@ -285,3 +286,65 @@ def test_a_sync_record_can_key_any_block_and_a_keyed_row_like_a_comment_target(t
     warnings = [item["message"] for item in warned["diagnostics"] if item["level"] == "warning"]
     assert len(warnings) == 1
     assert "records[3].node.node" in warnings[0]
+
+
+def _links(nodes: list[dict]) -> list[dict]:
+    found = []
+    for node in nodes:
+        if node["type"] == "wikilinks":
+            found.append(node["attrs"])
+        found.extend(_links(node.get("children", [])))
+    return found
+
+
+def test_a_link_to_a_paragraphs_block_reference_targets_that_paragraph(tmp_path: Path) -> None:
+    document = _build(tmp_path, "# Design\n\nA pinned paragraph. ^pinned\n\nSee [[#^pinned]] and [[other#^there]].\n",
+                      {"other.md": "# Other\n\nOver there. ^there\n"})
+    [same, other] = _links(document["chapters"][0]["content"])
+    assert same["block"] == "pinned" and same["chapter"] == "design"
+    assert other["block"] == "there" and other["chapter"] == "other"
+    assert _by_text(document, "A pinned paragraph.")["id"] == "pinned"
+
+
+def test_a_link_to_a_list_items_block_reference_targets_that_item(tmp_path: Path) -> None:
+    document = _build(tmp_path, "# Design\n\n- an item ^the-item\n- another\n\nSee [[#^the-item]].\n")
+    [link] = _links(document["chapters"][0]["content"])
+    assert link["block"] == "the-item"
+    [item] = [node for node in _blocks(document["chapters"][0]["content"]) if node.get("id") == "the-item"]
+    assert item["type"] == "list-item"
+
+
+def test_a_link_to_an_unknown_block_reference_names_the_note_the_link_and_the_owner(tmp_path: Path) -> None:
+    with pytest.raises(DocumentError) as failure:
+        _build(tmp_path, "# Design\n\nA paragraph. ^known\n\nSee [[#^missing]].\n")
+    message = str(failure.value)
+    assert message.startswith(f"{tmp_path / 'design.md'}: link [[#^missing]]: "), message
+    assert "see capabilities/wikilinks." in message
+
+
+def test_a_headings_block_reference_is_its_id_and_a_link_target(tmp_path: Path) -> None:
+    document = _build(tmp_path, "# Design\n\n## Details ^details\n\nText. See [[#^details]] and [[#Details]].\n")
+    [heading] = [node for node in document["chapters"][0]["content"] if node.get("id") == "details"]
+    assert heading["type"] == "section"
+    assert _text(heading) == "Details"
+    [block, by_heading] = _links(document["chapters"][0]["content"])
+    assert block["block"] == "details"
+    assert "block" not in by_heading
+
+
+def test_a_containers_id_is_unchanged_when_one_child_is_edited(tmp_path: Path) -> None:
+    note = ("# Design\n\n- one item\n- another item\n\n> A quotation.\n>\n> Its second paragraph.\n\n"
+            "| K | V |\n|---|---|\n| a | 1 |\n\n> [!note] Title\n> Body.\n\n"
+            '```cards\n{"version": 1, "cards": [{"title": "Coverage", "body": "Current state."}]}\n```\n')
+    edited = (note.replace("another item", "another item, edited").replace("second paragraph", "edited paragraph")
+              .replace("| a | 1 |", "| a | 2 |").replace("Body.", "Body, edited.").replace("Current", "Edited"))
+    (tmp_path / "a").mkdir()
+    (tmp_path / "b").mkdir()
+    before, after = (_build(tmp_path / name, text)["chapters"][0]["content"]
+                     for name, text in (("a", note), ("b", edited)))
+    kinds = ("list", "quote", "table", "callouts", "cards-metrics", "document")
+    containers = {node["type"]: node["id"] for node in _blocks(before) if node["type"] in kinds}
+    assert set(containers) == set(kinds)
+    assert containers == {node["type"]: node["id"] for node in _blocks(after) if node["type"] in kinds}
+    children = {node["id"] for node in _blocks(before) if node["type"] in {"list-item", "paragraph", "table-row"}}
+    assert children - {node.get("id") for node in _blocks(after)}  # The edited children got new ids.
