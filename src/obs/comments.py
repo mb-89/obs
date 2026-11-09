@@ -16,7 +16,8 @@ from jsonschema import Draft202012Validator
 
 from obs.input import input_error, schema_error
 from obs.node_ids import chapter_targets
-from obs.overlay import overlay_files, overlay_owner, read_overlay
+from obs.output import write_output
+from obs.overlay import overlay_files, overlay_name, overlay_owner, read_overlay
 
 
 SCHEMA_PATH = Path(__file__).with_name("comments.schema.json")
@@ -31,6 +32,12 @@ _KIND = "comments"
 @cache
 def _validator() -> Draft202012Validator:
     return Draft202012Validator(_SCHEMA)
+
+
+@cache
+def _returned() -> Draft202012Validator:
+    """A returned copy's comments: the resolved shape (``$defs/resolved``), which an adapter hands back."""
+    return Draft202012Validator({"$defs": _SCHEMA["$defs"], "$ref": "#/$defs/resolved"})
 
 
 def validate_overlay(overlay: object, path: Path) -> None:
@@ -148,3 +155,45 @@ def review_state(decisions: list[dict[str, Any]], target: dict[str, Any], review
     states = {decision["state"] for decision in decisions
               if decision["target"] == target and reviewer in (None, decision["reviewer"])}
     return next((state for state in ("rejected", "accepted") if state in states), "waiting")
+
+
+def import_comments(manifest_path: Path, returned_path: Path, principal: str) -> Path:
+    """Write ``principal``'s overlay file from the comments an adapter returned (input-model#Comments and
+    reviews, Adapter contract): every entry no other principal's file holds with the same payload. The
+    file is written only when the union of every overlay file with it passes the union's checks."""
+    try:
+        returned = json.loads(returned_path.read_text(encoding="utf-8"))
+    except (OSError, UnicodeError, json.JSONDecodeError) as error:
+        raise input_error(returned_path, "", f"cannot be read as JSON ({error})",
+                          f"Pass the comments file an adapter exported; see {OWNER}") from error
+    if not isinstance(returned, dict) or returned.get("version") != VERSION:
+        raise input_error(returned_path, "version", f"is {returned.get('version') if isinstance(returned, dict) else None!r}, "
+                          f"not {VERSION}", f"Export the comments with an adapter of this core; see {OWNER}")
+    error = schema_error(list(_returned().iter_errors(returned)), returned_path, OWNER)
+    if error:
+        raise error
+    manifest_path = manifest_path.resolve()
+    if not _PRINCIPAL.fullmatch(principal):
+        raise input_error(returned_path, "principal", f"is {principal!r}, not {_PRINCIPAL.pattern}",
+                          f"Name the principal whose file it is with --principal; see {OWNER}")
+    path = manifest_path.with_name(overlay_name(manifest_path, _KIND, principal))
+    others = [(other, _read(other)) for other in overlay_files(manifest_path, _KIND) if other != path]
+    held = {entry["id"]: (other, f"{kind}[{index}]", entry) for other, overlay in others
+            for kind in _KINDS for index, entry in enumerate(overlay[kind])}
+    overlay: dict[str, Any] = {"version": VERSION, "principal": principal, "comments": [], "decisions": []}
+    for kind in _KINDS:
+        for index, entry in enumerate(returned[kind]):
+            known = held.get(entry["id"])
+            if known is None:
+                overlay[kind].append(entry)
+            elif known[2] != entry:
+                raise input_error(returned_path, f"{kind}[{index}]", f"changes {entry['id']!r} of {known[0]} "
+                                  f"{known[1]}; a principal writes only its own file",
+                                  f"Give the changed entry a new id, or keep the other principal's; see {OWNER}")
+    validate_overlay(overlay, path)
+    overlays = [*others, (returned_path, overlay)]
+    comments, decisions = (_union(overlays, kind) for kind in _KINDS)
+    _check_decisions(decisions)
+    _check_replies(comments)
+    write_output(path, json.dumps(overlay, indent=2, ensure_ascii=False) + "\n")
+    return path
