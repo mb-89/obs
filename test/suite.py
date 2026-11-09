@@ -264,6 +264,7 @@ SHARD_WEIGHTS = {
         "test/test_obsidian_comments.py": 0.38,
         "test/test_note_records.py": 0.38,
         "test/test_note_reader.py": 0.3,
+        "test/test_node_ids.py": 0.3,
         "test/structure/test_command_fences_stay_in_vault.py": 0.28,
         "test/test_figure_references.py": 0.27,
         "test/test_ignored_notes.py": 0.25,
