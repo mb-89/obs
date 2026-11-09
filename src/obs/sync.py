@@ -40,34 +40,40 @@ def _key(node: dict[str, Any]) -> str:
     return json.dumps(node, sort_keys=True)
 
 
-def _check_records(records: dict[str, Any], path: Path, manifest: str) -> None:
-    """Refuse a record file the schema refuses, or whose name, manifest, keys or claims disagree."""
+def _check_file(records: dict[str, Any], path: Path, manifest: str) -> None:
+    """Refuse a record file the schema refuses, or whose namespace or manifest disagree with its place."""
     error = schema_error(list(_validator().iter_errors(records)), path, OWNER)
     if error:
         raise error
     for field, expected in (("namespace", overlay_owner(path, _KIND)), ("manifest", manifest)):
         if records[field] != expected:
-            raise input_error(path, field, f"is {records[field]!r}, not {expected!r}, the file name's",
+            raise input_error(path, field, f"is {records[field]!r}, not {expected!r}, where the file is",
                               f"Keep each namespace's records in its own file next to its manifest; see {OWNER}")
-    keys: dict[str, int] = {}
+
+
+def _check_claims(entries: list[tuple[Path, str, dict[str, Any]]]) -> None:
+    """Refuse two records of one node, or two records claiming one external object; each entry is a
+    record with the file and field it comes from."""
+    keys: dict[str, str] = {}
     claims: dict[str, str] = {}
-    for index, record in enumerate(records["records"]):
+    for path, field, record in entries:
         key = _key(record["node"])
         if key in keys:
-            raise input_error(path, f"records[{index}].node", f"is the node of records[{keys[key]}]",
-                              f"Keep one record per node; see {OWNER}")
-        keys[key] = index
+            raise input_error(path, f"{field}.node", f"is the node of {keys[key]}", f"Keep one record per node; "
+                              f"see {OWNER}")
+        keys[key] = f"{path} {field}"
         for position, external in enumerate(record["external"]):
-            field = f"records[{index}].external[{position}]"
             if external in claims:
-                raise input_error(path, field, f"claims {external!r}, which {claims[external]} claims for another "
-                                  "node", f"Map each external object to one node; see {OWNER}")
-            claims[external] = field
+                raise input_error(path, f"{field}.external[{position}]", f"claims {external!r}, which "
+                                  f"{claims[external]} claims for another node", f"Map each external object to one "
+                                  f"node; see {OWNER}")
+            claims[external] = f"{path} {field}.external[{position}]"
 
 
 def _read(path: Path, manifest: str) -> dict[str, Any]:
     records = read_overlay(path, _KIND, _NAMESPACE, "namespace", OWNER)
-    _check_records(records, path, manifest)
+    _check_file(records, path, manifest)
+    _check_claims([(path, f"records[{index}]", record) for index, record in enumerate(records["records"])])
     return records
 
 
@@ -87,17 +93,18 @@ def apply_result(manifest_path: Path, result_path: Path) -> None:
     empty = {"version": VERSION, "namespace": result["namespace"], "manifest": manifest_path.name, "records": [],
              "conflicts": []}
     stored = _read(path, manifest_path.name) if path.exists() else empty
-    records = {_key(record["node"]): record for record in stored["records"]}
+    entries = {_key(record["node"]): (path, f"records[{index}]", record)
+               for index, record in enumerate(stored["records"])}
     for change, exists, remedy in (("created", False, "it has a record: report it as updated"),
                                    ("updated", True, "it has no record: report it as created")):
         for index, record in enumerate(result[change]):
             key = _key(record["node"])
-            if (key in records) != exists:
-                raise input_error(result_path, f"{change}[{index}].node", f"names {_key(record['node'])}, but {remedy}",
+            if (key in entries) != exists:
+                raise input_error(result_path, f"{change}[{index}].node", f"names {key}, but {remedy}",
                                   f"Return each node in the list its record file calls for; see {OWNER}")
-            records[key] = record
-    applied = {**stored, "records": list(records.values()), "conflicts": result["conflicts"]}
-    _check_records(applied, path, manifest_path.name)
+            entries[key] = (result_path, f"{change}[{index}]", record)
+    _check_claims(list(entries.values()))
+    applied = {**stored, "records": [record for _, _, record in entries.values()], "conflicts": result["conflicts"]}
     write_output(path, json.dumps(applied, indent=2, ensure_ascii=False) + "\n")
 
 

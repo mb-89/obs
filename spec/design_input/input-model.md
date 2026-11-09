@@ -1858,7 +1858,8 @@ record file before it builds the Document, so the Document carries the records a
   input error naming the field path (`updated[0].node`): it is a creation.
 - The result's `conflicts` replace the file's; records not named keep their values.
 - The applied records must pass the record file's checks, so a duplicate claim refuses the
-  whole result and leaves the file unchanged.
+  whole result, naming the result's field (`created[0].external[0]`) and the record it collides
+  with, and leaves the file unchanged.
 
 The core writes the file atomically and only where it changed, as every core output.
 
