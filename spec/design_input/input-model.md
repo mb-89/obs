@@ -1713,19 +1713,20 @@ its runtime commits an edit, is that adapter's; its specification is listed in
 
 ## Comments and reviews
 
-Decided by the owner, 9 Nov 2026 (work issue `feat/core-comment-format-20261109`): comments are how
-information flows back from any output to the vault, so their format and the meaning of a review
-are the core's, once, and every adapter maps onto them.
+Decided by the owner, 9 Nov 2026 (work issue `feat/core-comment-review-format-20261109`):
+comments are how information flows back from any output to the vault, so their format and the
+meaning of a review are the core's, once, and every adapter maps onto them.
 
 ### Overlay files
 
 A principal's comments and review decisions live in one overlay file next to the manifest:
 `<manifest stem>.comments.<principal>.json` (for `manifest.md` and the principal `alice`,
 `manifest.comments.alice.json`). A principal is lower-case letters, digits and hyphens, starting
-with a letter or digit. The core discovers every overlay file of the manifest when it builds the
-Document; a file whose name matches the pattern but names no valid principal is an input error.
-A principal writes only its own file: a reply goes into the responder's file, not the file of
-the comment it answers.
+with a letter or digit.
+
+The core discovers every overlay file of the manifest when it builds the Document; a file whose
+name matches the pattern but names no valid principal is an input error. A principal writes only
+its own file: a reply goes into the responder's file, not the file of the comment it answers.
 
 `src/obs/comments.schema.json` owns the file's fields, once, for the adapters that write it and
 the core that reads it (version 1):
@@ -1747,8 +1748,8 @@ the core that reads it (version 1):
   `target` and a `state`, `accepted` or `rejected`.
 
 A target is the document (`{}`), a chapter (`chapter`, its Document id) or a node (`chapter`
-and `node`). A node's stable Document id is a figure's block id ([[#Figure captions and
-references]]); it is the only node identity the Document carries.
+and `node`). A node's stable Document id is a figure's block id
+([[#Figure captions and references]]); it is the only node identity the Document carries.
 
 ### Review semantics
 
@@ -1773,10 +1774,10 @@ The core reads the overlay files in file-name order and forms their union by id:
 - A reply's `inReplyTo` resolves across files; one naming no comment, or a chain of replies that
   reaches no root, is an input error naming the file and the field path (`comments[1].inReplyTo`).
 - A target resolves through the Document: its chapter must be one of the Document's chapters and
-  its node a block id in that chapter. A target that does not resolve is no error, since comments
-  outlive the text they were made on: the Document carries a warning diagnostic that names the
-  overlay file, the field path (`comments[0].target.node`), the comment or decision id, the missing
-  target and this section.
+  its node a block id in that chapter.
+- A target that does not resolve is no error, since comments outlive the text they were made on.
+  The Document carries a warning that names the overlay file, the field path
+  (`comments[0].target.node`), the comment or decision id, the missing target and this section.
 
 The union is the Document's `comments`: the `version`, the overlay `files` by name, and the
 `comments` and `decisions`, each ordered by `created` time, then id. A Document built without
