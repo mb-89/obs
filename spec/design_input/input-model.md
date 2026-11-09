@@ -1724,6 +1724,8 @@ A principal's comments and review decisions live in one overlay file next to the
 `manifest.comments.alice.json`). A principal is lower-case letters, digits and hyphens, starting
 with a letter or digit.
 
+[[#Record files]] share this naming and discovery; `src/obs/overlay.py` owns both.
+
 The core discovers every overlay file of the manifest when it builds the Document; a file whose
 name matches the pattern but names no valid principal is an input error. A principal writes only
 its own file: a reply goes into the responder's file, not the file of the comment it answers.
@@ -1795,6 +1797,74 @@ interchange format. An adapter contributes only a thin mapping:
   of that reader's principal, which `obs.comments.validate_overlay` checks before it is written.
 
 Each adapter's specification documents its mapping and links here for the format and the meaning.
+
+## Sync records
+
+Decided by the owner, 9 Nov 2026 (work issue `feat/core-sync-records-20261109`): an adapter that
+synchronizes a vault with an external system remembers, per Document node, which external object
+it became, so a re-sync updates in place and never duplicates. That memory is the core's, once,
+and every such adapter uses it instead of keeping its own files.
+
+### Record files
+
+A namespace's sync records live in one record file next to the manifest,
+`<manifest stem>.sync.<namespace>.json` (for `manifest.md` and the namespace `example`,
+`manifest.sync.example.json`), discovered as [[#Overlay files]] are.
+
+A namespace is lower-case letters, digits and hyphens, starting with a letter; obs makes no
+statement about which adapter uses it ([[#Core and adapter namespaces]]). A file whose name
+matches the pattern but names no valid namespace is an input error.
+
+`src/obs/sync.schema.json` owns the file's fields, once (version 1). The record file is the one
+place a sync's result persists, and only the core writes it ([[#Sync results]]):
+
+- `version`: `1`. `namespace`: the file name's namespace. `manifest`: the manifest's file name,
+  its identity among the manifests of one folder.
+- `records`: one record per synchronized node. A record's `node` is its key: a chapter
+  (`chapter`, its Document id) or a node in it (`chapter` and `node`, a figure's block id), the
+  same key a comment's target uses ([[#Overlay files]]); the document itself is `{}`. A record
+  has:
+  - `external`: the ids of the external objects the node became, at least one;
+  - `revision`: the external revision last observed;
+  - `hash`: the content hash of the last synchronized rendering, `sha256:` and 64 hex digits;
+  - `links`: link records, each the `node` key a link of this node points to and the `external`
+    id it was rendered as;
+  - `base`: the canonical base snapshot, the Document node as last synchronized, which the core
+    does not interpret, so an adapter can merge three ways (base, vault, external).
+- `conflicts`: the conflicts the last sync result reported, each a `node` key, its `external` id
+  and a `message`.
+
+Two records with one key, or two records claiming one external id, are an input error naming
+both field paths (`records[0].external[0]` and `records[1].external[0]`). A record whose key the
+Document does not have is no error, since the vault may have dropped the node; the Document
+carries a warning naming the file, the field path (`records[0].node.chapter`) and this section.
+
+The Document's `sync` holds every record file, by namespace: its `file` name, `records` and
+`conflicts`. A Document built without record files has none.
+
+### Sync results
+
+An adapter never writes the record file and never edits a source note; it returns a sync result,
+and the core persists it. A sync result has the fields `src/obs/sync.schema.json` owns
+(`$defs/result`): `version` `1`, the `namespace`, and the lists `created`, `updated` (records)
+and `conflicts`.
+
+`obs-document --source <manifest> --sync-result <file>` applies the result to the namespace's
+record file before it builds the Document, so the Document carries the records as applied:
+
+- A created record's key must have no record yet; one that has is an input error naming the
+  result's field path (`created[0].node`): it is an update.
+- An updated record replaces the record of its key, which must exist; a missing record is an
+  input error naming the field path (`updated[0].node`): it is a creation.
+- The result's `conflicts` replace the file's; records not named keep their values.
+- The applied records must pass the record file's checks, so a duplicate claim refuses the
+  whole result and leaves the file unchanged.
+
+The core writes the file atomically and only where it changed, as every core output.
+
+Displaying an external id in a note's frontmatter is deferred: source files are read-only
+([[architecture#Safety boundaries]]), so the core would need a writer of authored notes, and the
+record file already holds the id for every node kind, not only for chapters.
 
 ## One count query
 
