@@ -28,6 +28,33 @@ _SCHEMA = json.loads(SCHEMA_PATH.read_text(encoding="utf-8"))
 _PRINCIPAL = re.compile(_SCHEMA["$defs"]["principal"]["pattern"])
 _KINDS = ("comments", "decisions", "states")
 _KIND = "comments"
+_NAME = {"comments": "author", "decisions": "reviewer", "states": "author"}
+"""The field of each kind's entries that holds a name of the file's ``names``."""
+_FINER = re.compile(r"(\.[0-9]{3})[0-9]+")
+
+
+def _ms(time: str) -> str:
+    """A time at milliseconds, its digits after the third cut, as a browser reads it."""
+    return _FINER.sub(r"\1", time, count=1)
+
+
+def _moment(time: str) -> datetime:
+    return datetime.fromisoformat(_ms(time))
+
+
+def _in_ms(model: dict[str, Any]) -> dict[str, Any]:
+    """``model`` with every entry's times at milliseconds (input-model#Comments and reviews, Overlay files)."""
+    return {**model, **{kind: [{**entry, **{field: _ms(entry[field]) for field in ("created", "modified")
+                                            if field in entry}} for entry in model[kind]]
+                        for kind in _KINDS if kind in model}}
+
+
+def _unnamed(model: dict[str, Any], names: list[str]) -> Iterator[tuple[str, dict[str, Any], str]]:
+    """The field path, entry and name of each entry of ``model`` under a name ``names`` lacks."""
+    for kind in _KINDS:
+        for index, entry in enumerate(model.get(kind, [])):
+            if entry[_NAME[kind]] not in names:
+                yield f"{kind}[{index}].{_NAME[kind]}", entry, entry[_NAME[kind]]
 
 
 @cache
@@ -50,12 +77,16 @@ def validate_overlay(overlay: object, path: Path) -> None:
     if overlay["principal"] != principal:
         raise input_error(path, "principal", f"is {overlay['principal']!r}, not {principal!r}, the file name's",
                           f"Write each principal's comments into its own file; see {OWNER}")
+    for field, entry, name in _unnamed(overlay, overlay["names"]):
+        raise input_error(path, field, f"is {name!r} for {entry['id']!r}, not one of this file's names "
+                          f"({', '.join(map(repr, overlay['names']))})",
+                          f"Write each entry under one of the principal's names; see {OWNER}")
 
 
 def _read(path: Path) -> dict[str, Any]:
     overlay = read_overlay(path, _KIND, _PRINCIPAL, "principal", OWNER)
     validate_overlay(overlay, path)
-    return overlay
+    return _in_ms(overlay)
 
 
 class _Entry:
@@ -75,8 +106,7 @@ def _union(overlays: list[tuple[Path, dict[str, Any]]], kind: str) -> list[_Entr
             elif known.payload != payload:
                 raise input_error(path, field, f"has the id {payload['id']!r} of {known.path} {known.field}, with a "
                                   "different payload", f"Give a changed entry a new id, or keep one payload; see {OWNER}")
-    return sorted(entries.values(), key=lambda entry: (datetime.fromisoformat(entry.payload["created"]),
-                                                       entry.payload["id"]))
+    return sorted(entries.values(), key=lambda entry: (_moment(entry.payload["created"]), entry.payload["id"]))
 
 
 def _check_decisions(decisions: list[_Entry]) -> None:
@@ -184,33 +214,23 @@ def review_state(decisions: list[dict[str, Any]], target: dict[str, Any], review
 
 
 def comment_state(comment: dict[str, Any], states: list[dict[str, Any]]) -> str:
-    """A comment's state: its latest state entry's, of one time the one whose author, then id, sorts
-    first; without one the state it was created with (input-model#Comments and reviews, Review semantics)."""
+    """A comment's state: its latest state entry's, at milliseconds, of one time the one whose author,
+    then id, sorts first; without one the state it was created with (input-model#Comments and reviews,
+    Review semantics)."""
     entries = [entry for entry in states if entry["target"] == comment["id"]]
     if not entries:
         return comment["state"]
-    latest = max(datetime.fromisoformat(entry["created"]) for entry in entries)
-    return min((entry for entry in entries if datetime.fromisoformat(entry["created"]) == latest),
+    latest = max(_moment(entry["created"]) for entry in entries)
+    return min((entry for entry in entries if _moment(entry["created"]) == latest),
                key=lambda entry: (entry["author"], entry["id"]))["state"]
-
-
-def _check_state_authors(overlay: dict[str, Any], returned_path: Path) -> None:
-    """Refuse a state entry under a name none of the principal's own comments and decisions carries;
-    a principal with neither names no author to hold its state entries to."""
-    names = {entry["author"] for entry in overlay["comments"]} | {entry["reviewer"] for entry in overlay["decisions"]}
-    for index, entry in enumerate(overlay["states"]):
-        if names and entry["author"] not in names:
-            known = ", ".join(map(repr, sorted(names)))
-            raise input_error(returned_path, f"states[{index}].author", f"is {entry['author']!r}, a name none of "
-                              f"{overlay['principal']!r}'s own comments and decisions carries ({known})",
-                              f"Record a state entry under the importing principal's own name; see {OWNER}")
 
 
 def import_comments(manifest_path: Path, returned_path: Path, principal: str) -> Path:
     """Write ``principal``'s overlay file from the comments an adapter returned (input-model#Comments and
     reviews, Adapter contract): every entry no other principal's file holds with the same payload. An
     edit of another principal's comment body is refused; the reader's resolves and reopens are its own
-    state entries. The file is written only when the union of every overlay file with it passes the
+    state entries. Every written entry is under one of the returned file's ``names``, which become the
+    principal's. The file is written only when the union of every overlay file with it passes the
     union's checks."""
     try:
         returned = json.loads(returned_path.read_text(encoding="utf-8"))
@@ -227,15 +247,26 @@ def import_comments(manifest_path: Path, returned_path: Path, principal: str) ->
     if not _PRINCIPAL.fullmatch(principal):
         raise input_error(returned_path, "principal", f"is {principal!r}, not {_PRINCIPAL.pattern}",
                           f"Name the principal whose file it is with --principal; see {OWNER}")
+    if "names" not in returned:
+        raise input_error(returned_path, "names", "is missing: the reader's names, which the import holds the "
+                          "principal's entries to", f"Export the comments with an adapter that writes the reader's "
+                          f"names; see {OWNER}")
+    returned = _in_ms(returned)
     path = manifest_path.with_name(overlay_name(manifest_path, _KIND, principal))
     others = [(other, _read(other)) for other in overlay_files(manifest_path, _KIND) if other != path]
     held = {entry["id"]: (other, f"{kind}[{index}]", entry) for other, overlay in others
             for kind in _KINDS for index, entry in enumerate(overlay.get(kind, []))}
-    overlay: dict[str, Any] = {"version": VERSION, "principal": principal, "comments": [], "decisions": [],
-                               "states": []}
+    names = returned["names"]
+    overlay: dict[str, Any] = {"version": VERSION, "principal": principal, "names": names, "comments": [],
+                               "decisions": [], "states": []}
     for kind in _KINDS:
         for index, entry in enumerate(returned.get(kind, [])):
             known = held.get(entry["id"])
+            if known is None and entry[_NAME[kind]] not in names:
+                raise input_error(returned_path, f"{kind}[{index}].{_NAME[kind]}", f"is {entry[_NAME[kind]]!r} for "
+                                  f"{entry['id']!r}, not one of the names ({', '.join(map(repr, names))}) of "
+                                  f"{path}, the file of {principal!r}", f"Import each reader's copy as that reader's "
+                                  f"principal, or export it under the name its entries carry; see {OWNER}")
             if known is None:
                 overlay[kind].append(entry)
             elif kind == "comments" and known[2]["body"] != entry["body"]:
@@ -247,7 +278,6 @@ def import_comments(manifest_path: Path, returned_path: Path, principal: str) ->
                                   f"{known[1]}; a principal writes only its own file",
                                   f"Record a resolve or reopen as a state entry, any other change as a new entry; "
                                   f"see {OWNER}")
-    _check_state_authors(overlay, returned_path)
     if not overlay["states"]:
         del overlay["states"]
     validate_overlay(overlay, path)

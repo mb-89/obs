@@ -239,7 +239,7 @@ def _overlay(tmp_path: Path, *targets: dict) -> None:
                  "body": {"mediaType": "text/plain", "text": "Comment."}, "state": "open",
                  "target": {"chapter": "design", **target}} for index, target in enumerate(targets)]
     (tmp_path / "manifest.comments.alice.json").write_text(json.dumps(
-        {"version": 1, "principal": "alice", "comments": comments, "decisions": []}), encoding="utf-8")
+        {"version": 1, "principal": "alice", "names": ["Alice"], "comments": comments, "decisions": []}), encoding="utf-8")
 
 
 def test_a_register_row_is_keyed_by_its_record_and_a_comment_can_target_it(tmp_path: Path) -> None:
