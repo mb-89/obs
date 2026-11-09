@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "title": "obs comments overlay",
-  "$comment": "One principal's comments and review decisions, in its overlay file next to the manifest, and the resolved union of every overlay file the Document carries as comments (input-model#Comments and reviews): the one definition adapters write and the core reads.",
+  "$comment": "One principal's comments, review decisions and state entries, in its overlay file next to the manifest, and the resolved union of every overlay file the Document carries as comments (input-model#Comments and reviews): the one definition adapters write and the core reads.",
   "type": "object",
   "additionalProperties": false,
   "required": ["version", "principal", "comments", "decisions"],
@@ -9,7 +9,8 @@
     "version": {"const": 1},
     "principal": {"$ref": "#/$defs/principal"},
     "comments": {"type": "array", "items": {"$ref": "#/$defs/comment"}},
-    "decisions": {"type": "array", "items": {"$ref": "#/$defs/decision"}}
+    "decisions": {"type": "array", "items": {"$ref": "#/$defs/decision"}},
+    "states": {"type": "array", "items": {"$ref": "#/$defs/state"}}
   },
   "$defs": {
     "principal": {"type": "string", "pattern": "^[a-z0-9][a-z0-9-]*$"},
@@ -17,10 +18,11 @@
     "time": {"$comment": "An RFC 3339 date and time.", "type": "string",
              "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\\.[0-9]+)?(Z|[+-][0-9]{2}:[0-9]{2})$"},
     "target": {
-      "$comment": "The document ({}), a chapter (chapter) or a node (chapter and node, a block node's id or a keyed row's <table id>:<record id>, input-model#Block node ids); a quote marks text in it, and in a keyed row's field where field names one.",
+      "$comment": "The document ({}), the manifest abstract (abstract) or a chapter (chapter), or a node of either (abstract or chapter, and node: a block node's id or a keyed row's <table id>:<record id>, input-model#Block node ids); a quote marks text in it, and in a keyed row's field where field names one.",
       "type": "object",
       "additionalProperties": false,
       "properties": {
+        "abstract": {"const": true},
         "chapter": {"type": "string", "minLength": 1},
         "node": {"type": "string", "pattern": "^[A-Za-z0-9-]+(:[a-z][a-z0-9-]*)?$"},
         "field": {"type": "string", "minLength": 1},
@@ -30,7 +32,9 @@
         "start": {"type": "integer", "minimum": 0},
         "end": {"type": "integer", "minimum": 0}
       },
-      "dependentRequired": {"node": ["chapter"], "field": ["node"], "prefix": ["quote"], "suffix": ["quote"], "start": ["end"], "end": ["start"]}
+      "dependentRequired": {"field": ["node"], "prefix": ["quote"], "suffix": ["quote"], "start": ["end"], "end": ["start"]},
+      "dependentSchemas": {"node": {"anyOf": [{"required": ["chapter"]}, {"required": ["abstract"]}]}},
+      "not": {"required": ["abstract", "chapter"]}
     },
     "comment": {
       "$comment": "A thread's root names its target; a reply names the comment it answers as inReplyTo, in any file.",
@@ -72,6 +76,19 @@
         "state": {"enum": ["accepted", "rejected"]}
       }
     },
+    "state": {
+      "$comment": "A resolve or reopen of the comment target names, in any file, after it was created; a comment's state is its latest state entry's (input-model#Comments and reviews, Review semantics).",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "author", "created", "target", "state"],
+      "properties": {
+        "id": {"$ref": "#/$defs/id"},
+        "author": {"type": "string"},
+        "created": {"$ref": "#/$defs/time"},
+        "target": {"$ref": "#/$defs/id"},
+        "state": {"$ref": "#/$defs/comment/properties/state"}
+      }
+    },
     "resolved": {
       "$comment": "The Document's comments: the union of every overlay file, each list ordered by created time, then id.",
       "type": "object",
@@ -81,7 +98,8 @@
         "version": {"const": 1},
         "files": {"type": "array", "items": {"type": "string", "minLength": 1}},
         "comments": {"type": "array", "items": {"$ref": "#/$defs/comment"}},
-        "decisions": {"type": "array", "items": {"$ref": "#/$defs/decision"}}
+        "decisions": {"type": "array", "items": {"$ref": "#/$defs/decision"}},
+        "states": {"type": "array", "items": {"$ref": "#/$defs/state"}}
       }
     }
   }

@@ -1804,6 +1804,10 @@ The core discovers every overlay file of the manifest when it builds the Documen
 name matches the pattern but names no valid principal is an input error. A principal writes only
 its own file: a reply goes into the responder's file, not the file of the comment it answers.
 
+A change to another principal's comment is the changer's own entry too, pointing at the comment's
+id: a resolve or a reopen is a state entry, and only the comment's author edits its body (decided
+by the dispatcher, work issue `feat/comment-abstract-target-and-state-entries-20261109`).
+
 `src/obs/comments.schema.json` owns the file's fields, once, for the adapters that write it and
 the core that reads it (version 1):
 
@@ -1822,8 +1826,13 @@ the core that reads it (version 1):
   `chapter` or `document`) and the `items` (targets) it was made on.
 - `decisions`: review decisions. Each has an immutable `id`, a `reviewer`, its `created` time, a
   `target` and a `state`, `accepted` or `rejected`.
+- `states` (optional): state entries, each a resolve or reopen of a comment after it was created,
+  by its author or anyone else. Each has an immutable `id`, an `author`, its `created` time, a
+  `target`, the id of the comment it changes, in any file, and the `state` it gives it, `open` or
+  `resolved`.
 
-A target is the document (`{}`), a chapter (`chapter`, its Document id) or a node (`chapter`
+A target is the document (`{}`), the manifest abstract (`abstract`: `true`), a chapter
+(`chapter`, its Document id) or a node of the abstract or of a chapter (`abstract` or `chapter`,
 and `node`). A node is a block node's id or a keyed row's ([[#Block node ids]]). A keyed row's
 target may name a `field`, the record field whose shown value its quote marks.
 
@@ -1837,8 +1846,17 @@ target may name a `field`, the record field whose shown value its quote marks.
   reviewer accepted it, otherwise waiting.
 - A batch decision is one decision per item it covers, made only on items still waiting for that
   reviewer; its comment keeps the batch's scope and items.
+- A comment's state is its latest state entry's, or without one the `state` it was created with.
+  A comment's `state` field never changes after it is created: every resolve or reopen, the
+  author's own too, is a new state entry.
+- Of state entries with the same `created` time, the one whose `author` sorts first wins, then the
+  lower id, so every reader of the same files sees the same state. The tie-break uses the entry's
+  `author`, not its file's principal, because an adapter's reader knows a name but no principal
+  until the import names one.
 
-`src/obs/comments.py` (`review_state`) owns this computation for every adapter.
+`src/obs/comments.py` owns both computations for every adapter: `review_state` an item's review
+state, `comment_state` a comment's state. Every adapter that computes them itself holds to the
+shared cases of `test/fixtures/review-state-conformance.json`.
 
 ### Union and resolution
 
@@ -1849,14 +1867,17 @@ The core reads the overlay files in file-name order and forms their union by id:
 - Two decisions of one reviewer on one target, in one file or two, are an input error naming both.
 - A reply's `inReplyTo` resolves across files; one naming no comment, or a chain of replies that
   reaches no root, is an input error naming the file and the field path (`comments[1].inReplyTo`).
+  So does a state entry's `target`; one naming no comment is the same input error
+  (`states[0].target`).
 - A target resolves through the Document: its chapter must be one of the Document's chapters and
-  its node an id in that chapter.
+  its node an id in that chapter. Every Document has its manifest's abstract, and an abstract
+  target's node must be an id in it.
 - A target that does not resolve is no error, since comments outlive the text they were made on.
   The Document carries a warning that names the overlay file, the field path
   (`comments[0].target.node`), the comment or decision id, the missing target and this section.
 
 The union is the Document's `comments`: the `version`, the overlay `files` by name, and the
-`comments` and `decisions`, each ordered by `created` time, then id. A Document built without
+`comments`, `decisions` and `states`, each ordered by `created` time, then id. A Document built without
 overlay files has none. A file the schema refuses is an input error naming the file and the
 field path.
 
@@ -1876,6 +1897,14 @@ interchange format. An adapter contributes only a thin mapping:
   is written only when its union with the others passes the checks of [[#Union and resolution]].
   An entry that changes another principal's is an input error naming the file, its field path and
   the other file. An adapter imports no core module and names no overlay file.
+
+  Only a comment's author edits its body: a changed body is an input error that names the
+  comment, its author and the importing principal, the editor. A reader's resolve or reopen is
+  the reader's own state entry, which the import writes into the reader's file.
+
+  A state entry's `author` must be a name the principal's own comments or decisions carry
+  (`author`, `reviewer`); another is an input error naming `states[0].author`. A principal whose
+  file has neither names no author, and its state entries are written as they are.
 
 Each adapter's specification documents its mapping and links here for the format and the meaning.
 
