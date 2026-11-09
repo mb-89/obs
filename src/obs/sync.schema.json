@@ -1,0 +1,86 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "obs sync records",
+  "$comment": "One namespace's sync records, in its record file next to the manifest, which only the core writes; $defs/result is the sync result an adapter returns and $defs/resolved the Document's sync (input-model#Sync records).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["version", "namespace", "manifest", "records", "conflicts"],
+  "properties": {
+    "version": {"const": 1},
+    "namespace": {"$ref": "#/$defs/namespace"},
+    "manifest": {"type": "string", "minLength": 1},
+    "records": {"type": "array", "items": {"$ref": "#/$defs/record"}},
+    "conflicts": {"type": "array", "items": {"$ref": "#/$defs/conflict"}}
+  },
+  "$defs": {
+    "namespace": {"type": "string", "pattern": "^[a-z][a-z0-9-]*$"},
+    "external": {"$comment": "An external object's id in the external system.", "type": "string", "minLength": 1},
+    "node": {
+      "$comment": "The key of a record: the document ({}), a chapter (chapter) or a node (chapter and node, a figure's block id), as a comment's target names them.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "chapter": {"$ref": "comments.schema.json#/$defs/target/properties/chapter"},
+        "node": {"$ref": "comments.schema.json#/$defs/target/properties/node"}
+      },
+      "dependentRequired": {"node": ["chapter"]}
+    },
+    "record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["node", "external", "revision", "hash", "links", "base"],
+      "properties": {
+        "node": {"$ref": "#/$defs/node"},
+        "external": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/external"}},
+        "revision": {"type": "string"},
+        "hash": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+        "links": {
+          "type": "array",
+          "items": {
+            "type": "object", "additionalProperties": false, "required": ["node", "external"],
+            "properties": {"node": {"$ref": "#/$defs/node"}, "external": {"$ref": "#/$defs/external"}}
+          }
+        },
+        "base": {"$comment": "The Document node as last synchronized, which the core does not interpret.", "type": "object"}
+      }
+    },
+    "conflict": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["node", "external", "message"],
+      "properties": {
+        "node": {"$ref": "#/$defs/node"},
+        "external": {"$ref": "#/$defs/external"},
+        "message": {"type": "string", "minLength": 1}
+      }
+    },
+    "result": {
+      "$comment": "What an adapter returns from one sync; obs-document --sync-result applies it to the namespace's record file.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["version", "namespace", "created", "updated", "conflicts"],
+      "properties": {
+        "version": {"const": 1},
+        "namespace": {"$ref": "#/$defs/namespace"},
+        "created": {"type": "array", "items": {"$ref": "#/$defs/record"}},
+        "updated": {"type": "array", "items": {"$ref": "#/$defs/record"}},
+        "conflicts": {"type": "array", "items": {"$ref": "#/$defs/conflict"}}
+      }
+    },
+    "resolved": {
+      "$comment": "The Document's sync: every record file of the manifest, by namespace.",
+      "type": "object",
+      "propertyNames": {"$ref": "#/$defs/namespace"},
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["file", "records", "conflicts"],
+        "properties": {
+          "file": {"type": "string", "minLength": 1},
+          "records": {"type": "array", "items": {"$ref": "#/$defs/record"}},
+          "conflicts": {"type": "array", "items": {"$ref": "#/$defs/conflict"}}
+        }
+      }
+    }
+  }
+}
