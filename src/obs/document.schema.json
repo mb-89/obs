@@ -60,6 +60,18 @@
   },
   "$defs": {
     "id": {"type": "string", "pattern": "^[a-z][a-z0-9-]*$"},
+    "nodeId": {
+      "description": "A block node's id, unique within its chapter or the abstract: an Obsidian block reference's name, else <type>-<hash> of its normalized text (input-model#Block node ids).",
+      "type": "string", "pattern": "^[A-Za-z0-9-]+$"
+    },
+    "identifiedType": {
+      "description": "The block node types the core gives an id wherever they stand in a block position (src/obs/node_ids.py; input-model#Block node ids).",
+      "enum": [
+        "section", "paragraph", "list", "list-item", "quote", "callouts", "table", "table-row", "code", "math",
+        "rule", "command-fences", "figures", "bases", "registers", "cards-metrics", "document", "property-editors",
+        "embeds"
+      ]
+    },
     "structuralType": {
       "description": "The node types every adapter renders, whatever capabilities it declares: Markdown's own blocks and inline marks (capabilities/markdown) and frontmatter fields (capabilities/markdown-frontmatter).",
       "enum": [
@@ -92,7 +104,8 @@
         "type": {"$ref": "#/$defs/id"},
         "attrs": {"type": "object"},
         "children": {"type": "array", "items": {"$ref": "#/$defs/node"}},
-        "text": {"type": "string"}
+        "text": {"type": "string"},
+        "id": {"$ref": "#/$defs/nodeId"}
       },
       "allOf": [
         {

@@ -91,6 +91,8 @@ def test_inline_and_external_content_give_the_same_node(tmp_path, kind) -> None:
     external, inline_node = _figures(document)
 
     assert inline_node["attrs"].pop("block") == f"{kind}-inline"  # One note's block ids are distinct.
+    assert inline_node.pop("id") == f"{kind}-inline"  # An explicit block id is the node's id.
+    assert external.pop("id") == f"{kind}-figure"
     assert {**external, "attrs": {key: value for key, value in external["attrs"].items() if key != "block"}} == inline_node
     assert external["attrs"]["kind"] == kind
     assert external["attrs"]["alt"] == "Alt text"

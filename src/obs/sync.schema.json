@@ -16,7 +16,7 @@
     "namespace": {"type": "string", "pattern": "^[a-z][a-z0-9-]*$"},
     "external": {"$comment": "An external object's id in the external system.", "type": "string", "minLength": 1},
     "node": {
-      "$comment": "The key of a record: the document ({}), a chapter (chapter) or a node (chapter and node, a figure's block id), as a comment's target names them.",
+      "$comment": "The key of a record: the document ({}), a chapter (chapter) or a node (chapter and node, its id, input-model#Block node ids), as a comment's target names them.",
       "type": "object",
       "additionalProperties": false,
       "properties": {

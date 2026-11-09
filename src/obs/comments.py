@@ -15,6 +15,7 @@ from typing import Any, Iterator
 from jsonschema import Draft202012Validator
 
 from obs.input import input_error, schema_error
+from obs.node_ids import chapter_targets
 from obs.overlay import overlay_files, overlay_owner, read_overlay
 
 
@@ -96,24 +97,6 @@ def _check_replies(comments: list[_Entry]) -> None:
             current = answered.payload
 
 
-def _block_ids(nodes: list[dict[str, Any]]) -> Iterator[str]:
-    for node in nodes:
-        if node["type"] == "figures" and "block" in node["attrs"]:
-            yield node["attrs"]["block"]
-        yield from _block_ids(node["children"])
-
-
-def _chapters(chapters: list[dict[str, Any]]) -> Iterator[dict[str, Any]]:
-    for chapter in chapters:
-        yield chapter
-        yield from _chapters(chapter["children"])
-
-
-def document_nodes(document: dict[str, Any]) -> dict[str, set[str]]:
-    """Each chapter id of the Document with the block ids of its figures: what a target can name."""
-    return {chapter["id"]: set(_block_ids(chapter["content"])) for chapter in _chapters(document["chapters"])}
-
-
 def unresolved(target: dict[str, Any], nodes: dict[str, set[str]]) -> tuple[str, str] | None:
     """The field of a target that names what the Document lacks, and what it names; None where it resolves."""
     chapter, node = target.get("chapter"), target.get("node")
@@ -151,7 +134,7 @@ def apply_comments(document: dict[str, Any], manifest_path: Path) -> None:
     comments, decisions = (_union(overlays, kind) for kind in _KINDS)
     _check_decisions(decisions)
     _check_replies(comments)
-    nodes = document_nodes(document)
+    nodes = chapter_targets(document)
     document["diagnostics"].extend({"level": "warning", "message": message}
                                    for message in _unmapped([*comments, *decisions], nodes))
     document["comments"] = {"version": VERSION, "files": [path.name for path in paths],
