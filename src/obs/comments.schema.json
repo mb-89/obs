@@ -1,0 +1,87 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "obs comments overlay",
+  "$comment": "One principal's comments and review decisions, in its overlay file next to the manifest, and the resolved union of every overlay file the Document carries as comments (input-model#Comments and reviews): the one definition adapters write and the core reads.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["version", "principal", "comments", "decisions"],
+  "properties": {
+    "version": {"const": 1},
+    "principal": {"$ref": "#/$defs/principal"},
+    "comments": {"type": "array", "items": {"$ref": "#/$defs/comment"}},
+    "decisions": {"type": "array", "items": {"$ref": "#/$defs/decision"}}
+  },
+  "$defs": {
+    "principal": {"type": "string", "pattern": "^[a-z0-9][a-z0-9-]*$"},
+    "id": {"$comment": "An immutable id, unique across every overlay file of the manifest.", "type": "string", "pattern": "^\\S+$"},
+    "time": {"$comment": "An RFC 3339 date and time.", "type": "string",
+             "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\\.[0-9]+)?(Z|[+-][0-9]{2}:[0-9]{2})$"},
+    "target": {
+      "$comment": "The document ({}), a chapter (chapter) or a node (chapter and node, a figure's block id); a quote marks text in it.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "chapter": {"type": "string", "minLength": 1},
+        "node": {"type": "string", "pattern": "^[A-Za-z0-9-]+$"},
+        "quote": {"type": "string", "minLength": 1},
+        "prefix": {"type": "string"},
+        "suffix": {"type": "string"},
+        "start": {"type": "integer", "minimum": 0},
+        "end": {"type": "integer", "minimum": 0}
+      },
+      "dependentRequired": {"node": ["chapter"], "prefix": ["quote"], "suffix": ["quote"], "start": ["end"], "end": ["start"]}
+    },
+    "comment": {
+      "$comment": "A thread's root names its target; a reply names the comment it answers as inReplyTo, in any file.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "author", "created", "body", "state"],
+      "properties": {
+        "id": {"$ref": "#/$defs/id"},
+        "author": {"type": "string"},
+        "created": {"$ref": "#/$defs/time"},
+        "modified": {"$ref": "#/$defs/time"},
+        "body": {
+          "type": "object", "additionalProperties": false, "required": ["mediaType", "text"],
+          "properties": {"mediaType": {"enum": ["text/plain", "text/markdown"]}, "text": {"type": "string"}}
+        },
+        "state": {"enum": ["open", "resolved"]},
+        "target": {"$ref": "#/$defs/target"},
+        "inReplyTo": {"$ref": "#/$defs/id"},
+        "batch": {
+          "type": "object", "additionalProperties": false, "required": ["scope", "items"],
+          "properties": {
+            "scope": {"enum": ["section", "chapter", "document"]},
+            "items": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/target"}}
+          }
+        }
+      },
+      "oneOf": [{"required": ["target"]}, {"required": ["inReplyTo"]}],
+      "dependentRequired": {"batch": ["target"]}
+    },
+    "decision": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "reviewer", "created", "target", "state"],
+      "properties": {
+        "id": {"$ref": "#/$defs/id"},
+        "reviewer": {"type": "string"},
+        "created": {"$ref": "#/$defs/time"},
+        "target": {"$ref": "#/$defs/target"},
+        "state": {"enum": ["accepted", "rejected"]}
+      }
+    },
+    "resolved": {
+      "$comment": "The Document's comments: the union of every overlay file, each list ordered by created time, then id.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["version", "files", "comments", "decisions"],
+      "properties": {
+        "version": {"const": 1},
+        "files": {"type": "array", "items": {"type": "string", "minLength": 1}},
+        "comments": {"type": "array", "items": {"$ref": "#/$defs/comment"}},
+        "decisions": {"type": "array", "items": {"$ref": "#/$defs/decision"}}
+      }
+    }
+  }
+}

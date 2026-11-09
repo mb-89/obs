@@ -14,6 +14,7 @@ from referencing import Registry, Resource
 
 from obs.adapter import (ADAPTER_OPTIONS_OWNER, AdapterError, VaultFile, adapter_manifest_path, load_adapter,
                          option_arguments)
+from obs.comments import SCHEMA_PATH as COMMENTS_SCHEMA_PATH, apply_comments
 from obs.discriminator import discriminating_validator
 from obs.input import InputError, input_error, schema_error
 from obs.output import write_output
@@ -60,6 +61,7 @@ def build_document(
             document["sourceArchive"] = source_archive(manifest_path.resolve().parent, document["assets"],
                                                         document["cssSnippets"], arguments, document.get("style"),
                                                         option_files)
+        apply_comments(document, manifest_path)
         if answers is not None:
             apply_answers(document, read_answers(answers), answers)
         validate_document(document, reference)
@@ -127,11 +129,13 @@ def read_capability_reference(path: Path) -> dict[str, object]:
 @cache
 def document_validators() -> tuple[Draft202012Validator, dict[str, Draft202012Validator]]:
     """document.schema.json's validator and one per figure body kind ($defs/figureBodies), compiled
-    once per process, with figure.schema.json and answers.schema.json registered."""
+    once per process, with figure.schema.json, answers.schema.json and comments.schema.json registered."""
     schema = json.loads(DOCUMENT_SCHEMA_PATH.read_text(encoding="utf-8"))
     registry = Registry().with_resources([
         (FIGURE_SCHEMA_PATH.name, Resource.from_contents(json.loads(FIGURE_SCHEMA_PATH.read_text(encoding="utf-8")))),
         (ANSWERS_SCHEMA_PATH.name, Resource.from_contents(json.loads(ANSWERS_SCHEMA_PATH.read_text(encoding="utf-8")))),
+        (COMMENTS_SCHEMA_PATH.name,
+         Resource.from_contents(json.loads(COMMENTS_SCHEMA_PATH.read_text(encoding="utf-8")))),
     ])
     bodies = {
         kind: Draft202012Validator({**body, "$defs": schema["$defs"]}, registry=registry)

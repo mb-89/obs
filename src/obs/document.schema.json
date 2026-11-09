@@ -48,7 +48,11 @@
       "type": "object", "additionalProperties": false, "required": ["files", "build"],
       "properties": {"files": {"type": "array", "items": {"$ref": "#/$defs/sourceFile"}}, "build": {"$ref": "#/$defs/sourceBuild"}}
     },
-    "capabilities": {"type": "array", "items": {"$ref": "#/$defs/id"}, "uniqueItems": true}
+    "capabilities": {"type": "array", "items": {"$ref": "#/$defs/id"}, "uniqueItems": true},
+    "comments": {
+      "description": "The union of the manifest's comment overlay files, present only where it has one (input-model#Comments and reviews).",
+      "$ref": "comments.schema.json#/$defs/resolved"
+    }
   },
   "$defs": {
     "id": {"type": "string", "pattern": "^[a-z][a-z0-9-]*$"},
