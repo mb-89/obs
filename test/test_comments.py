@@ -13,7 +13,7 @@ from pathlib import Path
 
 import pytest
 
-from obs.comments import import_comments, review_state, validate_overlay
+from obs.comments import comment_state, import_comments, review_state, validate_overlay
 from obs.document import build_document, main
 from obs.input import InputError
 from test_vault import capability_reference
@@ -21,8 +21,8 @@ from test_vault import capability_reference
 OWNER = "input-model#Comments and reviews"
 
 
-def _vault(tmp_path: Path) -> Path:
-    (tmp_path / "manifest.md").write_text("- [[design]]\n", encoding="utf-8")
+def _vault(tmp_path: Path, abstract: str = "") -> Path:
+    (tmp_path / "manifest.md").write_text(f"- [[design]]\n\n{abstract}", encoding="utf-8")
     (tmp_path / "design.md").write_text(
         "# Design\n\nThe design.\n\n```figure\nversion: 1\nkind: mermaid\ncaption: The flow.\nsource: flow.mmd\n```\n"
         "^flow\n", encoding="utf-8")
@@ -43,10 +43,14 @@ def _decision(identifier: str, reviewer: str = "Alice", state: str = "accepted",
             "target": {"chapter": "design", **target}, "state": state}
 
 
-def _overlay(manifest: Path, principal: str, comments=(), decisions=()) -> Path:
+def _state(identifier: str, comment: str, state: str, created: str, author: str = "Alice") -> dict:
+    return {"id": identifier, "author": author, "created": created, "target": comment, "state": state}
+
+
+def _overlay(manifest: Path, principal: str, comments=(), decisions=(), states=()) -> Path:
     path = manifest.with_name(f"{manifest.stem}.comments.{principal}.json")
-    path.write_text(json.dumps({"version": 1, "principal": principal, "comments": list(comments),
-                                "decisions": list(decisions)}), encoding="utf-8")
+    overlay = {"version": 1, "principal": principal, "comments": list(comments), "decisions": list(decisions)}
+    path.write_text(json.dumps({**overlay, "states": list(states)} if states else overlay), encoding="utf-8")
     return path
 
 
@@ -233,12 +237,80 @@ def test_the_shared_review_state_fixture_holds_for_the_core() -> None:
         encoding="utf-8"))
     for case in fixture["cases"]:
         assert review_state(fixture["decisions"], case["target"], case.get("reviewer")) == case["expected"], case
+    comments = {comment["id"]: comment for comment in fixture["comments"]}
+    for case in fixture["commentCases"]:
+        assert comment_state(comments[case["comment"]], fixture["states"]) == case["expected"], case
 
 
-def _returned(path: Path, comments=(), decisions=()) -> Path:
+def _warnings(document: dict) -> list[str]:
+    return [diagnostic["message"] for diagnostic in document["diagnostics"] if ".comments." in diagnostic["message"]]
+
+
+def test_a_target_in_the_manifest_abstract_resolves_and_one_it_lacks_warns(tmp_path) -> None:
+    manifest = _vault(tmp_path, "The abstract. ^summary\n")
+    path = _overlay(manifest, "alice", [
+        _comment("c-1", target={"abstract": True}),
+        _comment("c-2", target={"abstract": True, "node": "summary", "quote": "abstract"}),
+        _comment("c-3", target={"abstract": True, "node": "gone"}),
+    ], [{**_decision("d-1"), "target": {"abstract": True, "node": "summary"}}])
+
+    warnings = _warnings(_document(manifest))
+
+    assert len(warnings) == 1 and warnings[0].startswith(f"{path}: comments[2].target.node: "), warnings
+    assert "'c-3'" in warnings[0] and OWNER in warnings[0]
+
+
+@pytest.mark.parametrize("target, field", [
+    ({"abstract": True, "chapter": "design"}, "comments[0].target"),
+    ({"node": "summary"}, "comments[0].target"),
+    ({"abstract": False}, "comments[0].target.abstract"),
+])
+def test_a_target_is_in_the_abstract_or_a_chapter_never_both(tmp_path, target, field) -> None:
+    path = tmp_path / "manifest.comments.alice.json"
+    with pytest.raises(InputError) as failure:
+        validate_overlay({"version": 1, "principal": "alice", "comments": [_comment("c-1", target=target)],
+                          "decisions": []}, path)
+    assert str(failure.value).split(": ")[1] == field and OWNER in str(failure.value)
+
+
+def test_state_entries_across_files_resolve_then_reopen_a_comment(tmp_path) -> None:
+    manifest = _vault(tmp_path)
+    _overlay(manifest, "alice", [_comment("c-1")])
+    _overlay(manifest, "bob", states=[_state("s-bob", "c-1", "resolved", "2026-11-09T09:00:00Z", "Bob")])
+
+    resolved = _document(manifest)["comments"]
+    assert [state["id"] for state in resolved["states"]] == ["s-bob"]
+    assert comment_state(resolved["comments"][0], resolved["states"]) == "resolved"
+
+    _overlay(manifest, "carol", states=[_state("s-carol", "c-1", "open", "2026-11-09T10:00:00Z", "Carol")])
+    reopened = _document(manifest)["comments"]
+    assert [state["id"] for state in reopened["states"]] == ["s-bob", "s-carol"]
+    assert reopened["comments"][0]["state"] == "open"
+    assert comment_state(reopened["comments"][0], reopened["states"]) == "open"
+
+
+def test_state_entries_of_the_same_time_resolve_by_author_then_id() -> None:
+    comment, at = _comment("c-1"), "2026-11-09T09:00:00Z"
+    assert comment_state(comment, [_state("s-1", "c-1", "resolved", at, "Bob"),
+                                   _state("s-2", "c-1", "open", at, "Alice")]) == "open"
+    assert comment_state(comment, [_state("s-2", "c-1", "open", at), _state("s-1", "c-1", "resolved", at)]) \
+        == "resolved"
+    assert comment_state(comment, [_state("s-1", "c-2", "resolved", at)]) == "open"
+
+
+def test_a_state_entry_naming_no_comment_names_its_file_and_field(tmp_path) -> None:
+    manifest = _vault(tmp_path)
+    path = _overlay(manifest, "bob", states=[_state("s-1", "missing", "resolved", "2026-11-09T09:00:00Z")])
+
+    message = _failure(manifest)
+
+    assert message.startswith(f"{path}: states[0].target: ") and "'missing'" in message and OWNER in message
+
+
+def _returned(path: Path, comments=(), decisions=(), states=()) -> Path:
     """What an adapter returns: the comments of a reviewed copy in the core's resolved shape."""
     path.write_text(json.dumps({"version": 1, "files": [], "comments": list(comments),
-                                "decisions": list(decisions)}), encoding="utf-8")
+                                "decisions": list(decisions), "states": list(states)}), encoding="utf-8")
     return path
 
 
@@ -269,6 +341,55 @@ def test_an_import_that_changes_another_principals_entry_names_both_files(tmp_pa
 
     assert str(failure.value).startswith(f"{returned}: comments[0]: ") and str(other) in str(failure.value)
     assert OWNER in str(failure.value)
+    assert not manifest.with_name("manifest.comments.alice.json").exists()
+
+
+def test_an_import_writes_a_readers_resolve_of_another_principals_comment_as_their_own_entry(tmp_path) -> None:
+    (tmp_path / "vault").mkdir()
+    manifest = _vault(tmp_path / "vault")
+    theirs = _comment("b-1", author="Bob")
+    _overlay(manifest, "bob", [theirs])
+    resolve = _state("s-1", "b-1", "resolved", "2026-11-09T09:00:00Z")
+    returned = _returned(tmp_path / "returned.json", [theirs], states=[resolve])
+
+    import_comments(manifest, returned, "alice")
+
+    written = json.loads(manifest.with_name("manifest.comments.alice.json").read_text(encoding="utf-8"))
+    assert written == {"version": 1, "principal": "alice", "comments": [], "decisions": [], "states": [resolve]}
+    resolved = _document(manifest)["comments"]
+    assert comment_state(resolved["comments"][0], resolved["states"]) == "resolved"
+
+
+def test_an_import_refuses_a_state_entry_under_another_name_than_the_principals_own_entries(tmp_path) -> None:
+    (tmp_path / "vault").mkdir()
+    manifest = _vault(tmp_path / "vault")
+    theirs = _comment("b-1", author="Bob")
+    _overlay(manifest, "bob", [theirs])
+    returned = _returned(tmp_path / "returned.json", [theirs, _comment("a-1")], [_decision("d-1")],
+                         [_state("s-1", "b-1", "resolved", "2026-11-09T09:00:00Z", "Bob")])
+
+    with pytest.raises(InputError) as failure:
+        import_comments(manifest, returned, "alice")
+
+    message = str(failure.value)
+    assert message.split(": ")[:2] == [str(returned), "states[0].author"], message
+    assert all(name in message for name in ("'Bob'", "'alice'", "'Alice'", OWNER)), message
+    assert not manifest.with_name("manifest.comments.alice.json").exists()
+
+
+def test_an_import_refuses_a_body_edit_to_another_principals_comment(tmp_path) -> None:
+    (tmp_path / "vault").mkdir()
+    manifest = _vault(tmp_path / "vault")
+    _overlay(manifest, "bob", [_comment("b-1", author="Bob")])
+    edited = _comment("b-1", author="Bob", body={"mediaType": "text/plain", "text": "Alice's words."})
+    returned = _returned(tmp_path / "returned.json", [edited])
+
+    with pytest.raises(InputError) as failure:
+        import_comments(manifest, returned, "alice")
+
+    message = str(failure.value)
+    assert message.split(": ")[:2] == [str(returned), "comments[0].body"], message
+    assert all(name in message for name in ("'b-1'", "'Bob'", "'alice'", OWNER)), message
     assert not manifest.with_name("manifest.comments.alice.json").exists()
 
 

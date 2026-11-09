@@ -1,11 +1,12 @@
 {
-  "$comment": "Review states, input-model#Comments and reviews (Review semantics): test/test_comments.py runs each case through obs.comments.review_state, adapters/html/test/comment-model.test.js through the HTML adapter's browser mapping. A case without a reviewer asks for the aggregate.",
+  "$comment": "Review and comment states, input-model#Comments and reviews (Review semantics): test/test_comments.py runs each case through obs.comments.review_state, and each comment case through obs.comments.comment_state, adapters/html/test/comment-model.test.js both through the HTML adapter's browser mapping. A case without a reviewer asks for the aggregate. The comment cases hold the latest state entry, its tie-break by author, then id, and a comment without state entries.",
   "decisions": [
     {"id": "d1", "reviewer": "Alice", "created": "2026-11-09T10:00:00Z", "target": {"chapter": "one", "node": "paragraph-1"}, "state": "accepted"},
     {"id": "d2", "reviewer": "Bob", "created": "2026-11-09T10:01:00Z", "target": {"chapter": "one", "node": "paragraph-1"}, "state": "rejected"},
     {"id": "d3", "reviewer": "Alice", "created": "2026-11-09T10:02:00Z", "target": {"node": "list-item-1", "chapter": "one"}, "state": "accepted"},
     {"id": "d4", "reviewer": "Bob", "created": "2026-11-09T10:03:00Z", "target": {"chapter": "one"}, "state": "accepted"},
-    {"id": "d5", "reviewer": "Carol", "created": "2026-11-09T10:04:00Z", "target": {}, "state": "rejected"}
+    {"id": "d5", "reviewer": "Carol", "created": "2026-11-09T10:04:00Z", "target": {}, "state": "rejected"},
+    {"id": "d6", "reviewer": "Alice", "created": "2026-11-09T10:05:00Z", "target": {"abstract": true, "node": "paragraph-1"}, "state": "accepted"}
   ],
   "cases": [
     {"target": {"chapter": "one", "node": "paragraph-1"}, "expected": "rejected"},
@@ -18,6 +19,28 @@
     {"target": {"chapter": "one"}, "expected": "accepted"},
     {"target": {"chapter": "two"}, "expected": "waiting"},
     {"target": {}, "expected": "rejected"},
-    {"target": {}, "reviewer": "Alice", "expected": "waiting"}
+    {"target": {}, "reviewer": "Alice", "expected": "waiting"},
+    {"target": {"abstract": true, "node": "paragraph-1"}, "expected": "accepted"},
+    {"target": {"abstract": true}, "expected": "waiting"}
+  ],
+  "comments": [
+    {"id": "c1", "author": "Alice", "created": "2026-11-09T09:00:00Z", "body": {"mediaType": "text/plain", "text": "Resolved, then reopened."}, "state": "open", "target": {"chapter": "one"}},
+    {"id": "c2", "author": "Alice", "created": "2026-11-09T09:00:00Z", "body": {"mediaType": "text/plain", "text": "Two at once."}, "state": "open", "target": {"chapter": "one"}},
+    {"id": "c3", "author": "Bob", "created": "2026-11-09T09:00:00Z", "body": {"mediaType": "text/plain", "text": "One author, twice at once."}, "state": "resolved", "target": {"chapter": "one"}},
+    {"id": "c4", "author": "Bob", "created": "2026-11-09T09:00:00Z", "body": {"mediaType": "text/plain", "text": "Never changed."}, "state": "resolved", "target": {"chapter": "one"}}
+  ],
+  "states": [
+    {"id": "s1", "author": "Bob", "created": "2026-11-09T10:00:00Z", "target": "c1", "state": "resolved"},
+    {"id": "s2", "author": "Carol", "created": "2026-11-09T11:00:00.500+01:00", "target": "c1", "state": "open"},
+    {"id": "s3", "author": "Bob", "created": "2026-11-09T10:00:00Z", "target": "c2", "state": "open"},
+    {"id": "s4", "author": "Alice", "created": "2026-11-09T11:00:00+01:00", "target": "c2", "state": "resolved"},
+    {"id": "s6", "author": "Bob", "created": "2026-11-09T10:00:00Z", "target": "c3", "state": "resolved"},
+    {"id": "s5", "author": "Bob", "created": "2026-11-09T10:00:00Z", "target": "c3", "state": "open"}
+  ],
+  "commentCases": [
+    {"comment": "c1", "expected": "open"},
+    {"comment": "c2", "expected": "resolved"},
+    {"comment": "c3", "expected": "open"},
+    {"comment": "c4", "expected": "resolved"}
   ]
 }

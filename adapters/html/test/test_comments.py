@@ -7,7 +7,7 @@ from pathlib import Path
 
 import pytest
 
-from core_calls import chapter_targets, import_comments, unresolved_targets, validate_overlays, with_comments
+from core_calls import import_comments, unresolved_targets, validate_overlays, with_comments
 from obs_html.artifact_data import decode_artifact_data
 from obs_html.comments import OWNER, extract_comments
 from obs_html.config import load_config
@@ -89,6 +89,21 @@ def test_extract_comments_lists_anonymized_threads_deterministically(tmp_path: P
     assert "Alice" not in first and "throw new Error" not in first
 
 
+def test_extract_comments_lists_an_abstract_target_and_each_state_entry_under_its_comment(tmp_path: Path) -> None:
+    home = {**ROOT, "target": {"abstract": True, "node": "paragraph-8254a15d"}}
+    states = [{"id": "s1", "author": "Bob", "created": "2026-11-09T12:00:00Z", "target": "c1", "state": "resolved"},
+              {"id": "s2", "author": "Alice", "created": "2026-11-09T13:00:00Z", "target": "c1", "state": "open"}]
+    artifact = write_artifact(tmp_path / "reviewed.html", {**model(home, REPLY), "states": states})
+    assert extract_comments(artifact) == (
+        "comment candidates: 1\n"
+        "--- c1 [open] abstract node paragraph-8254a15d\n"
+        "reviewer-1: Clarify this.\n"
+        "reviewer-2 set it resolved\n"
+        "reviewer-1 set it open\n"
+        "  reviewer-2 [resolved]: Agreed.\n"
+    )
+
+
 def test_extract_comments_keeps_a_batch_scope_and_its_items(tmp_path: Path) -> None:
     extracted = extract_comments(write_artifact(tmp_path / "reviewed.html", model(BATCH)))
     assert "[Full chapter]" in extracted
@@ -167,11 +182,12 @@ def test_every_native_thread_fixture_maps_onto_core_targets_the_core_accepts(doc
          str(Path(__file__).parent / "fixtures" / "comment-threads.json")],
         capture_output=True, text=True, check=True)
     mapped = json.loads(result.stdout)
-    assert len(mapped) == 8
+    assert len(mapped) == 9
     validate_overlays([{"version": 1, "principal": "alice", "comments": core["comments"],
-                        "decisions": core["decisions"]} for core in mapped.values()],
+                        "decisions": core["decisions"], "states": core["states"]} for core in mapped.values()],
                       Path("manifest.comments.alice.json"))
     entries = [entry for core in mapped.values() for entry in [*core["comments"], *core["decisions"]]]
     targets = [entry["target"] for entry in entries if "target" in entry]
     targets += [item for entry in entries for item in entry.get("batch", {}).get("items", [])]
-    assert unresolved_targets(targets, chapter_targets(document)) == []
+    assert {"abstract": True, "node": "paragraph-8254a15d"} in targets
+    assert unresolved_targets(targets, document) == []

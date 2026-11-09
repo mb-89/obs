@@ -967,8 +967,13 @@ second schema.
 **Export.** The build writes the Document's `comments` into the `obs-comments` island
 unchanged; a Document without comments gets an empty model of the same version. The page's
 Comments bar maps it, in `comment-model.js`, onto the threads it shows: a root comment and its
-replies, nested by `inReplyTo`, and the decisions as they are. Saving the reviewed copy maps
-the threads back and writes the island in the core's format.
+replies, nested by `inReplyTo`, and the decisions and state entries as they are. Saving the
+reviewed copy maps the threads back and writes the island in the core's format.
+
+**Changes to a comment.** A comment shows the core's comment state. Resolving or reopening any
+comment, the reader's own too, adds a state entry by the reader; the comment itself keeps the
+state it was created with. Only a comment whose author is the reader offers its body for
+editing; another's shows its text read-only.
 
 **Review items are blocks.** A review item is a Document block, and its review id is the
 block's core id, which the rendered element carries as `data-node-id`.
@@ -983,14 +988,18 @@ block's core id, which the rendered element carries as `data-node-id`.
 - An element without a core id is no item: the hidden status paragraph of a data table is the
   adapter's own, not Document content.
 
-A decision and a whole-item comment target `{chapter, node}`. A text selection targets the
+A decision and a whole-item comment target `{chapter, node}`. The home page shows the
+manifest abstract: its items and selections target `{abstract: true, node}`, and the page itself
+`{abstract: true}`; inside the page they keep the home page's chapter key, `home`, which no
+Document chapter may have. A text selection targets the
 block it starts in: the nearest element with a core id, which headings, lists, quotes, callouts,
 tables and display maths carry too. Its positions count from the start of that block's text and
 run on past it where the selection does; one in a keyed row stays in the row, or in its detail's
 record `field`. Nothing targets a chapter and a quote in place of a node.
 
 **Import.** `obs-html --extract-comments HTML` reads the island as untrusted data, never runs
-the artifact, and prints a deterministic text list of its threads for triage. With
+the artifact, and prints a deterministic text list of its threads, each comment with its state
+entries, for triage. With
 `--comments-output FILE` it also writes the island's comments to FILE in the core's format;
 the core writes them into a principal's overlay file (obs's input model, Comments and reviews,
 Adapter contract). The adapter names no overlay file.
