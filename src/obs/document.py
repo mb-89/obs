@@ -15,6 +15,7 @@ from referencing import Registry, Resource
 from obs.adapter import (ADAPTER_OPTIONS_OWNER, AdapterError, VaultFile, adapter_manifest_path, load_adapter,
                          option_arguments)
 from obs.comments import SCHEMA_PATH as COMMENTS_SCHEMA_PATH, apply_comments
+from obs.sync import SCHEMA_PATH as SYNC_SCHEMA_PATH, apply_result, apply_sync
 from obs.discriminator import discriminating_validator
 from obs.input import InputError, input_error, schema_error
 from obs.output import write_output
@@ -62,6 +63,7 @@ def build_document(
                                                         document["cssSnippets"], arguments, document.get("style"),
                                                         option_files)
         apply_comments(document, manifest_path)
+        apply_sync(document, manifest_path)
         if answers is not None:
             apply_answers(document, read_answers(answers), answers)
         validate_document(document, reference)
@@ -129,13 +131,15 @@ def read_capability_reference(path: Path) -> dict[str, object]:
 @cache
 def document_validators() -> tuple[Draft202012Validator, dict[str, Draft202012Validator]]:
     """document.schema.json's validator and one per figure body kind ($defs/figureBodies), compiled
-    once per process, with figure.schema.json, answers.schema.json and comments.schema.json registered."""
+    once per process, with figure.schema.json, answers.schema.json, comments.schema.json and sync.schema.json
+    registered."""
     schema = json.loads(DOCUMENT_SCHEMA_PATH.read_text(encoding="utf-8"))
     registry = Registry().with_resources([
         (FIGURE_SCHEMA_PATH.name, Resource.from_contents(json.loads(FIGURE_SCHEMA_PATH.read_text(encoding="utf-8")))),
         (ANSWERS_SCHEMA_PATH.name, Resource.from_contents(json.loads(ANSWERS_SCHEMA_PATH.read_text(encoding="utf-8")))),
         (COMMENTS_SCHEMA_PATH.name,
          Resource.from_contents(json.loads(COMMENTS_SCHEMA_PATH.read_text(encoding="utf-8")))),
+        (SYNC_SCHEMA_PATH.name, Resource.from_contents(json.loads(SYNC_SCHEMA_PATH.read_text(encoding="utf-8")))),
     ])
     bodies = {
         kind: Draft202012Validator({**body, "$defs": schema["$defs"]}, registry=registry)
@@ -337,6 +341,10 @@ def build_parser() -> argparse.ArgumentParser:
                         help="With --source: a reader's answers file (what --serve --wait prints and the served "
                              "artifact's server writes); the chapters that ask carry their verdicts, so the artifact "
                              "is the decision record.")
+    parser.add_argument("--sync-result", type=Path,
+                        help="With one --source: a sync result an adapter returned, which the core applies to its "
+                             "namespace's record file next to the manifest before it builds the Document "
+                             "(input-model#Sync results).")
     parser.add_argument("--adapter-option", action="append", default=[], metavar="NAME=VALUE",
                         help="Pass an option the adapter declares in its adapter.json (options); "
                              "repeatable. A boolean option takes true or false; a vault-file option ID=PATH, "
@@ -372,6 +380,9 @@ def main(argv: Sequence[str] | None = None) -> int:
         if options.answers and not options.source:
             raise DocumentError("--answers is only used with --source: the answers go into the Document built from "
                                 "the manifest. Build it with --source.")
+        if options.sync_result and not options.source:
+            raise DocumentError("--sync-result is only used with --source: the core applies it to the record file "
+                                "next to the manifest. Build it with --source.")
         if options.adapter_option and not options.adapter:
             raise DocumentError("--adapter-option is only used with --adapter.")
         if options.wait and not options.serve:
@@ -438,6 +449,9 @@ def _check_several(options: argparse.Namespace, sources: list[Path], destination
     if options.document is not None:
         raise DocumentError("--document names one Document, but several --source build one each, each into a "
                             "temporary file. Drop --document, or give one --source to keep its Document.")
+    if options.sync_result is not None:
+        raise DocumentError("--sync-result belongs to one manifest, but several --source build several. Give one "
+                            "--source with --sync-result.")
     if len(destinations) != len(sources):
         raise DocumentError(f"{len(sources)} --source but {len(destinations)} --destination: each --source pairs "
                             f"with the --destination that follows it. Give one --destination per --source.")
@@ -468,6 +482,8 @@ def _build(options: argparse.Namespace, source: Path, destination: Path | None, 
             arguments.append(item)
     for option in options.adapter_option:  # The record names the vault file by its vault path only.
         delivery += ["--adapter-option", recorded.get(option, option)]
+    if options.sync_result is not None:
+        apply_result(source, options.sync_result)
     document = build_document(source, reference, options.config, options.execute_commands, options.embed_source,
                               delivery, files, options.answers)
     for diagnostic in document["diagnostics"]:

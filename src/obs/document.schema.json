@@ -52,6 +52,10 @@
     "comments": {
       "description": "The union of the manifest's comment overlay files, present only where it has one (input-model#Comments and reviews).",
       "$ref": "comments.schema.json#/$defs/resolved"
+    },
+    "sync": {
+      "description": "Every sync record file of the manifest, by namespace, present only where it has one (input-model#Sync records).",
+      "$ref": "sync.schema.json#/$defs/resolved"
     }
   },
   "$defs": {
