@@ -1851,10 +1851,15 @@ interchange format. An adapter contributes only a thin mapping:
 
 - **Export:** it renders the Document's `comments` in its own output, as its native comments and
   review controls, with the review semantics above.
-- **Import:** it turns the native comments and decisions a reader returns into the overlay file
-  of that reader's principal, which `src/obs/comments.schema.json` checks before it is written and
-  the core checks again when it reads it. An adapter imports no core module; it reads the schema
-  as the core's package data.
+- **Import:** it exports the native comments and decisions a reader returns as one file in the
+  core's format (the resolved shape of `src/obs/comments.schema.json`), and the core writes it:
+  `obs-document --source <manifest> --import-comments <file> --principal <name>` validates the
+  file and writes that principal's overlay file before it builds.
+
+  The overlay file holds every entry no other principal's file holds with the same payload, and
+  is written only when its union with the others passes the checks of [[#Union and resolution]].
+  An entry that changes another principal's is an input error naming the file, its field path and
+  the other file. An adapter imports no core module and names no overlay file.
 
 Each adapter's specification documents its mapping and links here for the format and the meaning.
 

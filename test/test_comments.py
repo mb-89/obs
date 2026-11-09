@@ -13,7 +13,7 @@ from pathlib import Path
 
 import pytest
 
-from obs.comments import review_state, validate_overlay
+from obs.comments import import_comments, review_state, validate_overlay
 from obs.document import build_document, main
 from obs.input import InputError
 from test_vault import capability_reference
@@ -233,3 +233,71 @@ def test_the_shared_review_state_fixture_holds_for_the_core() -> None:
         encoding="utf-8"))
     for case in fixture["cases"]:
         assert review_state(fixture["decisions"], case["target"], case.get("reviewer")) == case["expected"], case
+
+
+def _returned(path: Path, comments=(), decisions=()) -> Path:
+    """What an adapter returns: the comments of a reviewed copy in the core's resolved shape."""
+    path.write_text(json.dumps({"version": 1, "files": [], "comments": list(comments),
+                                "decisions": list(decisions)}), encoding="utf-8")
+    return path
+
+
+def test_an_import_writes_the_principals_file_without_what_other_files_hold(tmp_path) -> None:
+    (tmp_path / "vault").mkdir()
+    manifest = _vault(tmp_path / "vault")
+    reply = _comment("b-1", "2026-11-09T09:00:00Z", author="Bob", inReplyTo="a-1")
+    _overlay(manifest, "bob", [reply])
+    returned = _returned(tmp_path / "returned.json", [_comment("a-1"), reply], [_decision("d-1")])
+
+    assert main(["--source", str(manifest), "--import-comments", str(returned), "--principal", "alice",
+                 "--document", str(tmp_path / "doc.json")]) == 0
+
+    written = json.loads(manifest.with_name("manifest.comments.alice.json").read_text(encoding="utf-8"))
+    assert written == {"version": 1, "principal": "alice", "comments": [_comment("a-1")], "decisions": [_decision("d-1")]}
+    assert [comment["id"] for comment in json.loads((tmp_path / "doc.json").read_text())["comments"]["comments"]] \
+        == ["a-1", "b-1"]
+
+
+def test_an_import_that_changes_another_principals_entry_names_both_files(tmp_path) -> None:
+    (tmp_path / "vault").mkdir()
+    manifest = _vault(tmp_path / "vault")
+    other = _overlay(manifest, "bob", [_comment("b-1", author="Bob")])
+    returned = _returned(tmp_path / "returned.json", [_comment("b-1", author="Bob", state="resolved")])
+
+    with pytest.raises(InputError) as failure:
+        import_comments(manifest, returned, "alice")
+
+    assert str(failure.value).startswith(f"{returned}: comments[0]: ") and str(other) in str(failure.value)
+    assert OWNER in str(failure.value)
+    assert not manifest.with_name("manifest.comments.alice.json").exists()
+
+
+@pytest.mark.parametrize("returned, principal, field", [
+    ({"version": 1, "files": [], "comments": [_comment("c", state="done")], "decisions": []}, "alice",
+     "comments[0].state"),
+    ({"version": 2, "annotations": []}, "alice", "version"),
+    ({"version": 1, "files": [], "comments": [], "decisions": []}, "Alice Smith", "principal"),
+])
+def test_an_import_the_core_refuses_names_the_field_and_the_owner(tmp_path, returned, principal, field) -> None:
+    (tmp_path / "vault").mkdir()
+    manifest = _vault(tmp_path / "vault")
+    path = tmp_path / "returned.json"
+    path.write_text(json.dumps(returned), encoding="utf-8")
+
+    with pytest.raises(InputError) as failure:
+        import_comments(manifest, path, principal)
+
+    assert str(failure.value).split(": ")[1] == field and OWNER in str(failure.value)
+
+
+def test_a_keyed_rows_target_may_name_a_field_and_a_sync_key_may_not(tmp_path) -> None:
+    path = tmp_path / "manifest.comments.alice.json"
+    detail = _comment("c-1", target={"chapter": "design", "node": "registers-1:alpha", "field": "status"})
+    validate_overlay({"version": 1, "principal": "alice", "comments": [detail], "decisions": []}, path)
+    with pytest.raises(InputError) as failure:
+        validate_overlay({"version": 1, "principal": "alice", "decisions": [],
+                          "comments": [_comment("c-2", target={"chapter": "design", "field": "status"})]}, path)
+    assert str(failure.value).startswith(f"{path}: comments[0].target")
+    sync = json.loads((Path(__file__).parents[1] / "src" / "obs" / "sync.schema.json").read_text(encoding="utf-8"))
+    assert "field" not in sync["$defs"]["node"]["properties"]
+    assert sync["$defs"]["node"].get("additionalProperties") is False

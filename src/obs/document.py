@@ -14,7 +14,7 @@ from referencing import Registry, Resource
 
 from obs.adapter import (ADAPTER_OPTIONS_OWNER, AdapterError, VaultFile, adapter_manifest_path, load_adapter,
                          option_arguments)
-from obs.comments import SCHEMA_PATH as COMMENTS_SCHEMA_PATH, apply_comments
+from obs.comments import SCHEMA_PATH as COMMENTS_SCHEMA_PATH, apply_comments, import_comments
 from obs.sync import SCHEMA_PATH as SYNC_SCHEMA_PATH, apply_result, apply_sync
 from obs.discriminator import discriminating_validator
 from obs.input import InputError, input_error, schema_error
@@ -347,6 +347,12 @@ def build_parser() -> argparse.ArgumentParser:
                         help="With one --source: a sync result an adapter returned, which the core applies to its "
                              "namespace's record file next to the manifest before it builds the Document "
                              "(input-model#Sync results).")
+    parser.add_argument("--import-comments", type=Path, metavar="FILE",
+                        help="With one --source and --principal: the comments an adapter exported from a reviewed "
+                             "copy, which the core writes into that principal's overlay file next to the manifest "
+                             "before it builds the Document (input-model#Comments and reviews).")
+    parser.add_argument("--principal", metavar="NAME",
+                        help="With --import-comments: the principal whose overlay file the comments go into.")
     parser.add_argument("--adapter-option", action="append", default=[], metavar="NAME=VALUE",
                         help="Pass an option the adapter declares in its adapter.json (options); "
                              "repeatable. A boolean option takes true or false; a vault-file option ID=PATH, "
@@ -385,6 +391,12 @@ def main(argv: Sequence[str] | None = None) -> int:
         if options.sync_result and not options.source:
             raise DocumentError("--sync-result is only used with --source: the core applies it to the record file "
                                 "next to the manifest. Build it with --source.")
+        if options.import_comments and not options.source:
+            raise DocumentError("--import-comments is only used with --source: the core writes the comments into an "
+                                "overlay file next to the manifest. Build it with --source.")
+        if bool(options.import_comments) != bool(options.principal):
+            raise DocumentError("--import-comments and --principal go together: the comments go into that "
+                                "principal's overlay file. Give both, or neither.")
         if options.adapter_option and not options.adapter:
             raise DocumentError("--adapter-option is only used with --adapter.")
         if options.wait and not options.serve:
@@ -451,9 +463,9 @@ def _check_several(options: argparse.Namespace, sources: list[Path], destination
     if options.document is not None:
         raise DocumentError("--document names one Document, but several --source build one each, each into a "
                             "temporary file. Drop --document, or give one --source to keep its Document.")
-    if options.sync_result is not None:
-        raise DocumentError("--sync-result belongs to one manifest, but several --source build several. Give one "
-                            "--source with --sync-result.")
+    if options.sync_result is not None or options.import_comments is not None:
+        raise DocumentError("--sync-result and --import-comments belong to one manifest, but several --source "
+                            "build several. Give one --source with them.")
     if len(destinations) != len(sources):
         raise DocumentError(f"{len(sources)} --source but {len(destinations)} --destination: each --source pairs "
                             f"with the --destination that follows it. Give one --destination per --source.")
@@ -486,6 +498,8 @@ def _build(options: argparse.Namespace, source: Path, destination: Path | None, 
         delivery += ["--adapter-option", recorded.get(option, option)]
     if options.sync_result is not None:
         apply_result(source, options.sync_result)
+    if options.import_comments is not None:
+        import_comments(source, options.import_comments, options.principal)
     document = build_document(source, reference, options.config, options.execute_commands, options.embed_source,
                               delivery, files, options.answers)
     for diagnostic in document["diagnostics"]:
