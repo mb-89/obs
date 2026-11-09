@@ -348,7 +348,7 @@ def test_an_import_that_changes_another_principals_entry_names_both_files(tmp_pa
     returned = _returned(tmp_path / "returned.json", [_comment("b-1", author="Bob", state="resolved")])
 
     with pytest.raises(InputError) as failure:
-        import_comments(manifest, returned, "alice")
+        import_comments(manifest, [(returned, "alice")])
 
     assert str(failure.value).startswith(f"{returned}: comments[0]: ") and str(other) in str(failure.value)
     assert OWNER in str(failure.value)
@@ -363,7 +363,7 @@ def test_an_import_writes_a_readers_resolve_of_another_principals_comment_as_the
     resolve = _state("s-1", "b-1", "resolved", "2026-11-09T09:00:00Z")
     returned = _returned(tmp_path / "returned.json", [theirs], states=[resolve])
 
-    import_comments(manifest, returned, "alice")
+    import_comments(manifest, [(returned, "alice")])
 
     written = json.loads(manifest.with_name("manifest.comments.alice.json").read_text(encoding="utf-8"))
     assert written == {"version": 1, "principal": "alice", "names": ["Alice"], "comments": [], "decisions": [],
@@ -385,7 +385,7 @@ def test_an_import_refuses_an_entry_under_a_name_the_returned_names_lack(tmp_pat
     path = _returned(tmp_path / "returned.json", **returned)
 
     with pytest.raises(InputError) as failure:
-        import_comments(manifest, path, "alice")
+        import_comments(manifest, [(path, "alice")])
 
     message, written = str(failure.value), manifest.with_name("manifest.comments.alice.json")
     assert message.split(": ")[:2] == [str(path), field], message
@@ -402,7 +402,7 @@ def test_an_import_refuses_a_returned_file_without_names(tmp_path) -> None:
                     encoding="utf-8")
 
     with pytest.raises(InputError) as failure:
-        import_comments(manifest, path, "alice")
+        import_comments(manifest, [(path, "alice")])
 
     assert str(failure.value).split(": ")[:2] == [str(path), "names"] and OWNER in str(failure.value)
 
@@ -447,7 +447,7 @@ def test_an_import_stores_milliseconds_and_takes_a_browsers_copy_of_a_finer_time
     returned = _returned(tmp_path / "returned.json", [{**theirs, "created": "2026-11-09T08:00:00.123Z"}],
                          states=[resolve])
 
-    import_comments(manifest, returned, "alice")
+    import_comments(manifest, [(returned, "alice")])
 
     written = json.loads(manifest.with_name("manifest.comments.alice.json").read_text(encoding="utf-8"))
     assert written["comments"] == [] and written["states"] == [{**resolve, "created": "2026-11-09T09:00:00.987Z"}]
@@ -461,7 +461,7 @@ def test_an_import_refuses_a_body_edit_to_another_principals_comment(tmp_path) -
     returned = _returned(tmp_path / "returned.json", [edited])
 
     with pytest.raises(InputError) as failure:
-        import_comments(manifest, returned, "alice")
+        import_comments(manifest, [(returned, "alice")])
 
     message = str(failure.value)
     assert message.split(": ")[:2] == [str(returned), "comments[0].body"], message
@@ -482,7 +482,7 @@ def test_an_import_the_core_refuses_names_the_field_and_the_owner(tmp_path, retu
     path.write_text(json.dumps(returned), encoding="utf-8")
 
     with pytest.raises(InputError) as failure:
-        import_comments(manifest, path, principal)
+        import_comments(manifest, [(path, principal)])
 
     assert str(failure.value).split(": ")[1] == field and OWNER in str(failure.value)
 
@@ -498,3 +498,56 @@ def test_a_keyed_rows_target_may_name_a_field_and_a_sync_key_may_not(tmp_path) -
     sync = json.loads((Path(__file__).parents[1] / "src" / "obs" / "sync.schema.json").read_text(encoding="utf-8"))
     assert "field" not in sync["$defs"]["node"]["properties"]
     assert sync["$defs"]["node"].get("additionalProperties") is False
+
+
+def test_an_import_of_several_files_takes_replies_across_principals_both_ways_in_one_union(tmp_path) -> None:
+    """A copy Alice and Bob worked on in turn, none of it imported: Bob replies to Alice and Alice to
+    Bob, so neither file passes the union alone. One call imports both, each into its own file."""
+    (tmp_path / "vault").mkdir()
+    manifest = _vault(tmp_path / "vault")
+    first, second = _comment("a-1"), _comment("a-2", "2026-11-09T10:00:00Z", inReplyTo="b-1")
+    reply = _comment("b-1", "2026-11-09T09:00:00Z", author="Bob", inReplyTo="a-1")
+    resolve = _state("s-1", "a-1", "resolved", "2026-11-09T09:30:00Z", author="Bob")
+    alice = _returned(tmp_path / "returned.alice.json", [first, second])
+    bob = _returned(tmp_path / "returned.bob.json", [reply], states=[resolve], names=("Bob",))
+
+    assert main(["--source", str(manifest), "--import-comments", str(alice), "--principal", "alice",
+                 "--import-comments", str(bob), "--principal", "bob", "--document", str(tmp_path / "doc.json")]) == 0
+
+    assert json.loads(manifest.with_name("manifest.comments.alice.json").read_text(encoding="utf-8")) == {
+        "version": 1, "principal": "alice", "names": ["Alice"], "comments": [first, second], "decisions": []}
+    assert json.loads(manifest.with_name("manifest.comments.bob.json").read_text(encoding="utf-8")) == {
+        "version": 1, "principal": "bob", "names": ["Bob"], "comments": [reply], "decisions": [], "states": [resolve]}
+    comments = json.loads((tmp_path / "doc.json").read_text(encoding="utf-8"))["comments"]
+    assert [comment["id"] for comment in comments["comments"]] == ["a-1", "b-1", "a-2"]
+    assert comments["states"] == [resolve]
+
+
+def test_an_import_of_several_files_writes_none_when_one_is_refused(tmp_path) -> None:
+    (tmp_path / "vault").mkdir()
+    manifest = _vault(tmp_path / "vault")
+    kept = _overlay(manifest, "bob", [_comment("b-0", author="Bob")])
+    before = kept.read_bytes()
+    alice = _returned(tmp_path / "returned.alice.json", [_comment("a-1")])
+    bob = _returned(tmp_path / "returned.bob.json", [_comment("b-0", author="Bob"), _comment("b-1", author="Carol")],
+                    names=("Bob",))
+
+    with pytest.raises(InputError) as failure:
+        import_comments(manifest, [(alice, "alice"), (bob, "bob")])
+
+    assert str(failure.value).startswith(f"{bob}: comments[1].author: ") and OWNER in str(failure.value)
+    assert not manifest.with_name("manifest.comments.alice.json").exists()
+    assert kept.read_bytes() == before
+
+
+@pytest.mark.parametrize("pairs, field", [
+    (["--import-comments", "a.json", "--import-comments", "b.json", "--principal", "alice"], "--principal"),
+    (["--import-comments", "a.json", "--principal", "alice", "--import-comments", "b.json", "--principal", "alice"],
+     "--principal"),
+])
+def test_an_import_pairs_each_file_with_one_principal_of_its_own(tmp_path, pairs, field) -> None:
+    manifest = _vault(tmp_path)
+    with pytest.raises(SystemExit) as failure:
+        main(["--source", str(manifest), *pairs, "--document", str(tmp_path / "doc.json")])
+    assert str(failure.value).startswith(f"obs-document: {field} ")
+    assert not list(tmp_path.glob("manifest.comments.*"))
