@@ -1678,6 +1678,64 @@ refuses is an input error naming the answers file and the field path (`verdicts[
   contain arbitrary commands.
 - The CLI note uses this extension to embed help from the executable that owns it.
 
+## Block node ids
+
+Decided by the owner, 9 Nov 2026 (work issue `feat/stable-block-node-ids-20261109`): every block
+node carries a stable id, so a comment ([[#Comments and reviews]]) or a sync record can target any
+block. One id scheme in the core serves every adapter.
+
+The core gives an `id` to every block node of a chapter's content and of the manifest abstract
+whose type `document.schema.json` lists as identified (`$defs/identifiedType`): headings,
+paragraphs, lists and list items, quotes and callouts, tables and table rows, code, display math,
+rules, command fences, figures, cards and the blocks of a card's body, and the other fenced blocks.
+
+Inline nodes, a table's cells and the capability markers carry none. An id is unique within its
+chapter, or within the abstract. `src/obs/node_ids.py` assigns the ids after the note reader, for
+every adapter alike.
+
+### Explicit ids
+
+An Obsidian block reference is the block's id, unchanged, and is not shown:
+
+- `^name` at the end of a paragraph names that paragraph, and in a list item's first paragraph
+  names the list item.
+- A paragraph that is only `^name`, after a block, names that block: a table, a list, a quote, a
+  code block. A figure's `^name` line is its block id ([[#Figure captions and references]]), and
+  so its node id.
+- `name` is letters, digits and hyphens. Two blocks of one chapter with the same name are an input
+  error naming the chapter's note.
+
+### Derived ids
+
+A block without an explicit id gets `<type>-<hash>`: its node type and the first eight hex
+digits of the SHA-256 of its normalized text.
+
+The normalized text is the block's own authored content with whitespace runs collapsed: the text of its inline nodes, its formula or code, the
+authored attributes of its nodes (a link's target, a figure's kind and caption, a fence's source)
+and, for a table row, its cells in order. What a build computes, a command's output and a
+register's rows, is not part of it.
+
+So the id is the same in every build of the same source, and inserting, removing or editing
+another block leaves it unchanged. Blocks of one chapter with the same type and normalized text
+are numbered among themselves, in document order: the first keeps `<type>-<hash>`, the next ones
+get `-2`, `-3`, and so on. A derived id that equals an explicit id of the chapter takes the next
+number too.
+
+The trade-off: a block's id changes when its own text changes, and a container's (a list's, a
+table's, a quote's) when any text inside it changes. A comment on such a block becomes an unmapped
+target, a warning and no error ([[#Comments and reviews]]). An author keeps the target across edits by
+pinning the block with `^name`. An identical block inserted before a block takes its number.
+
+### Keyed rows
+
+A row of a register or of a Base view is a record, not a node, and its key is the record's id: its
+id is `<table id>:<record id>`, the table's node id and the Document record's id
+([[#Registers]]).
+
+A register's rows are the records the core selected; a Base fence's rows are selected by the
+adapter, so any record of the Document is a row of it. A Markdown table has no key column; its
+rows are table-row nodes with derived ids.
+
 ## Reviewed copy
 
 Explicitly enabled property editors modify a canonical note's designated frontmatter
@@ -1748,8 +1806,7 @@ the core that reads it (version 1):
   `target` and a `state`, `accepted` or `rejected`.
 
 A target is the document (`{}`), a chapter (`chapter`, its Document id) or a node (`chapter`
-and `node`). A node's stable Document id is a figure's block id
-([[#Figure captions and references]]); it is the only node identity the Document carries.
+and `node`). A node is a block node's id or a keyed row's ([[#Block node ids]]).
 
 ### Review semantics
 
@@ -1774,7 +1831,7 @@ The core reads the overlay files in file-name order and forms their union by id:
 - A reply's `inReplyTo` resolves across files; one naming no comment, or a chain of replies that
   reaches no root, is an input error naming the file and the field path (`comments[1].inReplyTo`).
 - A target resolves through the Document: its chapter must be one of the Document's chapters and
-  its node a block id in that chapter.
+  its node an id in that chapter.
 - A target that does not resolve is no error, since comments outlive the text they were made on.
   The Document carries a warning that names the overlay file, the field path
   (`comments[0].target.node`), the comment or decision id, the missing target and this section.

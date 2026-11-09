@@ -17,6 +17,7 @@ from obs.adapter import (ADAPTER_OPTIONS_OWNER, AdapterError, VaultFile, adapter
 from obs.comments import SCHEMA_PATH as COMMENTS_SCHEMA_PATH, apply_comments
 from obs.discriminator import discriminating_validator
 from obs.input import InputError, input_error, schema_error
+from obs.node_ids import assign_ids
 from obs.output import write_output
 from obs.sources import SourceError, source_archive, validate_source_archive
 from obs.vault import VaultError, build_document as _build_document, manifest_note
@@ -56,6 +57,7 @@ def build_document(
     try:
         known = {item["id"] for item in reference["capabilities"]}
         document = _build_document(manifest_path, known, configuration_path, execute_commands)
+        assign_ids(document)
         if embed_source:
             arguments = [*delivery, *(["--execute-commands"] if execute_commands else []), "--embed-source"]
             document["sourceArchive"] = source_archive(manifest_path.resolve().parent, document["assets"],

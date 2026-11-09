@@ -15,6 +15,13 @@ INPUT_CAPABILITY_GAPS: frozenset[str] = frozenset({"extensions"})
 """Capabilities no input syntax yields yet; capabilities/extensions owns why."""
 
 
+def without_ids(value: object) -> object:
+    """``value`` without its block node ids, which test_node_ids.py covers (input-model#Block node ids)."""
+    if isinstance(value, dict):
+        return {key: without_ids(item) for key, item in value.items() if key != "id" or "type" not in value}
+    return [without_ids(item) for item in value] if isinstance(value, list) else value
+
+
 def capability_reference() -> dict[str, object]:
     return build_capability_reference(
         ROOT / "spec" / "capabilities", ROOT / "spec" / "capabilities" / "coverage.json",
@@ -163,14 +170,14 @@ def test_core_places_recognized_capabilities_in_content_nodes(tmp_path) -> None:
         "attrs": {"target": "target", "chapter": "target", "heading": "Heading", "label": "Label"},
         "children": [],
     }
-    assert content[4] == {
+    assert without_ids(content[4]) == {
         "type": "embeds", "attrs": {"target": "target", "chapter": "target"}, "children": [],
     }
     assert content[5]["children"][1] == {
         "type": "marks", "attrs": {"category": "risk", "id": "watch"}, "children": [],
     }
     assert content[6]["attrs"] == {"kind": "warning", "title": [_text("Be careful")]}
-    assert content[6]["children"] == [{
+    assert without_ids(content[6]["children"]) == [{
         "type": "paragraph", "attrs": {},
         "children": [{"type": "text", "attrs": {}, "children": [], "text": "Callout body."}],
     }]
@@ -221,7 +228,7 @@ def test_a_callout_body_arrives_as_parsed_nodes_like_chapter_content(tmp_path) -
     [callout] = [node for node in document["chapters"][0]["content"] if node["type"] == "callouts"]
     assert callout["attrs"] == {"kind": "warning", "title": [_text("Check the limits")]}
     paragraph, listing, nested = callout["children"]
-    assert paragraph == {"type": "paragraph", "attrs": {}, "children": [
+    assert without_ids(paragraph) == {"type": "paragraph", "attrs": {}, "children": [
         {"type": "text", "attrs": {}, "children": [], "text": "Read "},
         {"type": "emphasis", "attrs": {}, "children": [
             {"type": "text", "attrs": {}, "children": [], "text": "carefully"},
@@ -238,7 +245,7 @@ def test_a_callout_body_arrives_as_parsed_nodes_like_chapter_content(tmp_path) -
     assert listing["children"][0]["children"][0]["children"][1] == {
         "type": "code", "attrs": {}, "children": [], "text": "one",
     }
-    assert nested == {"type": "callouts", "attrs": {"kind": "note", "title": [_text("Inner")]}, "children": [
+    assert without_ids(nested) == {"type": "callouts", "attrs": {"kind": "note", "title": [_text("Inner")]}, "children": [
         {"type": "paragraph", "attrs": {}, "children": [
             {"type": "text", "attrs": {}, "children": [], "text": "Nested body."},
         ]},
@@ -283,12 +290,12 @@ def test_a_card_body_arrives_as_parsed_nodes_with_its_capability_fences(tmp_path
         "paragraph", "bases", "command-fences", "figures", "cards-metrics", "property-editors",
     ]
     assert first["children"][0]["children"][1]["attrs"]["chapter"] == "target"
-    assert first["children"][4]["children"][0]["children"] == [
+    assert without_ids(first["children"][4]["children"][0]["children"]) == [
         {"type": "paragraph", "attrs": {}, "children": [
             {"type": "text", "attrs": {}, "children": [], "text": "Nested body."},
         ]},
     ]
-    assert second["children"] == [{"type": "paragraph", "attrs": {}, "children": [
+    assert without_ids(second["children"]) == [{"type": "paragraph", "attrs": {}, "children": [
         {"type": "text", "attrs": {}, "children": [], "text": "Plain text."},
     ]}]
     assert {
@@ -328,7 +335,7 @@ def test_core_marks_silent_command_fences_as_non_rendering_producers(tmp_path) -
 
     document = build_document(vault / "manifest.md", capability_reference())
 
-    assert document["chapters"][0]["content"][-1] == {
+    assert without_ids(document["chapters"][0]["content"][-1]) == {
         "type": "command-fences",
         "attrs": {"source": "produce-file\n", "silent": True},
         "children": [],
@@ -756,14 +763,14 @@ def test_a_callout_nested_under_a_list_item_is_a_callout_of_that_item(tmp_path) 
     [listing] = [node for node in document["chapters"][0]["content"] if node["type"] == "list"]
     first, second = listing["children"]
     assert [child["type"] for child in first["children"]] == ["paragraph", "callouts", "code"]
-    assert first["children"][1] == {
+    assert without_ids(first["children"][1]) == {
         "type": "callouts", "attrs": {"kind": "warning", "title": [_text("Risk")]}, "children": [
             {"type": "paragraph", "attrs": {}, "children": [
                 {"type": "text", "attrs": {}, "children": [], "text": "Body."},
             ]},
         ],
     }
-    assert second["children"] == [{
+    assert without_ids(second["children"]) == [{
         "type": "callouts", "attrs": {"kind": "note", "title": [_text("Note")]}, "children": [
             {"type": "paragraph", "attrs": {}, "children": [
                 {"type": "text", "attrs": {}, "children": [], "text": "Marked item."},
@@ -842,10 +849,10 @@ def test_inline_marks_arrive_as_inline_nodes_in_every_context(tmp_path) -> None:
     assert content["paragraph"]["children"] == INLINE_NODES
     assert content["list"]["children"][0]["children"][0]["children"] == INLINE_NODES
     assert content["callouts"]["children"][0]["children"] == INLINE_NODES
-    assert content["quote"] == {"type": "quote", "attrs": {}, "children": [
+    assert without_ids(content["quote"]) == {"type": "quote", "attrs": {}, "children": [
         {"type": "paragraph", "attrs": {}, "children": INLINE_NODES},
     ]}
-    assert content["table"] == {"type": "table", "attrs": {}, "children": [
+    assert without_ids(content["table"]) == {"type": "table", "attrs": {}, "children": [
         {"type": "table-row", "attrs": {}, "children": [
             {"type": "table-cell", "attrs": {"header": True, "align": "center"}, "children": [
                 _text("Head"),
@@ -856,7 +863,7 @@ def test_inline_marks_arrive_as_inline_nodes_in_every_context(tmp_path) -> None:
         ]},
     ]}
     assert content["cards-metrics"]["children"][0]["children"][0]["children"] == INLINE_NODES
-    assert content["math"] == {
+    assert without_ids(content["math"]) == {
         "type": "math", "attrs": {"display": True}, "children": [], "text": "E = mc^2",
     }
 
@@ -929,8 +936,8 @@ def test_a_thematic_break_yields_a_rule_node(tmp_path) -> None:
     assert [node["type"] for node in content] == [
         "paragraph", "rule", "paragraph", "rule", "rule", "quote",
     ]
-    assert content[1] == rule
-    assert content[-1]["children"][-1] == rule
+    assert without_ids(content[1]) == rule
+    assert without_ids(content[-1]["children"][-1]) == rule
     assert "rule" in STRUCTURAL_NODE_TYPES
 
 

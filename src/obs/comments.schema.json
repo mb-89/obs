@@ -17,12 +17,12 @@
     "time": {"$comment": "An RFC 3339 date and time.", "type": "string",
              "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\\.[0-9]+)?(Z|[+-][0-9]{2}:[0-9]{2})$"},
     "target": {
-      "$comment": "The document ({}), a chapter (chapter) or a node (chapter and node, a figure's block id); a quote marks text in it.",
+      "$comment": "The document ({}), a chapter (chapter) or a node (chapter and node, a block node's id or a keyed row's <table id>:<record id>, input-model#Block node ids); a quote marks text in it.",
       "type": "object",
       "additionalProperties": false,
       "properties": {
         "chapter": {"type": "string", "minLength": 1},
-        "node": {"type": "string", "pattern": "^[A-Za-z0-9-]+$"},
+        "node": {"type": "string", "pattern": "^[A-Za-z0-9-]+(:[a-z][a-z0-9-]*)?$"},
         "quote": {"type": "string", "minLength": 1},
         "prefix": {"type": "string"},
         "suffix": {"type": "string"},
