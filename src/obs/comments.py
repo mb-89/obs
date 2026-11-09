@@ -9,13 +9,13 @@ import json
 import re
 from datetime import datetime
 from functools import cache
-from glob import escape
 from pathlib import Path
 from typing import Any, Iterator
 
 from jsonschema import Draft202012Validator
 
-from obs.input import InputError, input_error, schema_error
+from obs.input import input_error, schema_error
+from obs.overlay import overlay_files, overlay_owner, read_overlay
 
 
 SCHEMA_PATH = Path(__file__).with_name("comments.schema.json")
@@ -24,22 +24,7 @@ VERSION = 1
 _SCHEMA = json.loads(SCHEMA_PATH.read_text(encoding="utf-8"))
 _PRINCIPAL = re.compile(_SCHEMA["$defs"]["principal"]["pattern"])
 _KINDS = ("comments", "decisions")
-
-
-def overlay_name(manifest_path: Path, principal: str) -> str:
-    """The overlay file name of a principal: ``<manifest stem>.comments.<principal>.json``."""
-    return f"{manifest_path.stem}.comments.{principal}.json"
-
-
-def overlay_files(manifest_path: Path) -> list[Path]:
-    """Every overlay file next to the manifest, by file name."""
-    return sorted(manifest_path.parent.glob(escape(manifest_path.stem) + ".comments.*.json"),
-                  key=lambda path: path.name)
-
-
-def _principal(path: Path) -> str:
-    """The principal an overlay file's name gives, after its last ``.comments.``."""
-    return path.name.removesuffix(".json").rsplit(".comments.", 1)[-1]
+_KIND = "comments"
 
 
 @cache
@@ -52,22 +37,14 @@ def validate_overlay(overlay: object, path: Path) -> None:
     error = schema_error(list(_validator().iter_errors(overlay)), path, OWNER)
     if error:
         raise error
-    principal = _principal(path)
+    principal = overlay_owner(path, _KIND)
     if overlay["principal"] != principal:
         raise input_error(path, "principal", f"is {overlay['principal']!r}, not {principal!r}, the file name's",
                           f"Write each principal's comments into its own file; see {OWNER}")
 
 
 def _read(path: Path) -> dict[str, Any]:
-    principal = _principal(path)
-    if not _PRINCIPAL.fullmatch(principal):
-        raise input_error(path, "", f"names the principal {principal!r}, not lower-case letters, digits and hyphens",
-                          f"Rename the file; see {OWNER}")
-    try:
-        overlay = json.loads(path.read_text(encoding="utf-8"))
-    except (OSError, UnicodeError, json.JSONDecodeError) as error:
-        raise input_error(path, "", f"cannot be read as JSON ({error})", f"Write the overlay as JSON; see {OWNER}") \
-            from error
+    overlay = read_overlay(path, _KIND, _PRINCIPAL, "principal", OWNER)
     validate_overlay(overlay, path)
     return overlay
 
@@ -132,6 +109,21 @@ def _chapters(chapters: list[dict[str, Any]]) -> Iterator[dict[str, Any]]:
         yield from _chapters(chapter["children"])
 
 
+def document_nodes(document: dict[str, Any]) -> dict[str, set[str]]:
+    """Each chapter id of the Document with the block ids of its figures: what a target can name."""
+    return {chapter["id"]: set(_block_ids(chapter["content"])) for chapter in _chapters(document["chapters"])}
+
+
+def unresolved(target: dict[str, Any], nodes: dict[str, set[str]]) -> tuple[str, str] | None:
+    """The field of a target that names what the Document lacks, and what it names; None where it resolves."""
+    chapter, node = target.get("chapter"), target.get("node")
+    if chapter is not None and chapter not in nodes:
+        return "chapter", f"the chapter {chapter!r}"
+    if node is not None and node not in nodes[chapter]:
+        return "node", f"the node {node!r} in the chapter {chapter!r}"
+    return None
+
+
 def _targets(entry: _Entry) -> Iterator[tuple[str, dict[str, Any]]]:
     if "target" in entry.payload:
         yield f"{entry.field}.target", entry.payload["target"]
@@ -142,29 +134,24 @@ def _targets(entry: _Entry) -> Iterator[tuple[str, dict[str, Any]]]:
 def _unmapped(entries: list[_Entry], nodes: dict[str, set[str]]) -> Iterator[str]:
     for entry in entries:
         for field, target in _targets(entry):
-            chapter, node = target.get("chapter"), target.get("node")
-            if chapter is not None and chapter not in nodes:
-                missing, field = f"the chapter {chapter!r}", f"{field}.chapter"
-            elif node is not None and node not in nodes[chapter]:
-                missing, field = f"the node {node!r} in the chapter {chapter!r}", f"{field}.node"
-            else:
-                continue
-            yield str(input_error(entry.path, field, f"names {missing}, which this Document does not have, for "
-                                  f"{entry.payload['id']!r}", f"Move it to a target the Document has, or resolve it; "
-                                  f"see {OWNER}"))
+            missing = unresolved(target, nodes)
+            if missing is not None:
+                yield str(input_error(entry.path, f"{field}.{missing[0]}", f"names {missing[1]}, which this Document "
+                                      f"does not have, for {entry.payload['id']!r}", f"Move it to a target the "
+                                      f"Document has, or resolve it; see {OWNER}"))
 
 
 def apply_comments(document: dict[str, Any], manifest_path: Path) -> None:
     """Put the union of the manifest's overlay files in the Document's ``comments``, with a warning per
     target the Document does not have; a Document without overlay files gets none."""
-    paths = overlay_files(manifest_path.resolve())
+    paths = overlay_files(manifest_path.resolve(), _KIND)
     if not paths:
         return
     overlays = [(path, _read(path)) for path in paths]
     comments, decisions = (_union(overlays, kind) for kind in _KINDS)
     _check_decisions(decisions)
     _check_replies(comments)
-    nodes = {chapter["id"]: set(_block_ids(chapter["content"])) for chapter in _chapters(document["chapters"])}
+    nodes = document_nodes(document)
     document["diagnostics"].extend({"level": "warning", "message": message}
                                    for message in _unmapped([*comments, *decisions], nodes))
     document["comments"] = {"version": VERSION, "files": [path.name for path in paths],
