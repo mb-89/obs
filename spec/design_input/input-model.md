@@ -1878,9 +1878,9 @@ place a sync's result persists, and only the core writes it ([[#Sync results]]):
 - `version`: `1`. `namespace`: the file name's namespace. `manifest`: the manifest's file name,
   its identity among the manifests of one folder.
 - `records`: one record per synchronized node. A record's `node` is its key: a chapter
-  (`chapter`, its Document id) or a node in it (`chapter` and `node`, its id, [[#Block node ids]]), the
-  same key a comment's target uses ([[#Overlay files]]); the document itself is `{}`. A record
-  has:
+  (`chapter`, its Document id) or a node in it (`chapter` and `node`, its id,
+  [[#Block node ids]]), the same key a comment's target uses ([[#Overlay files]]); the document
+  itself is `{}`. A record has:
   - `external`: the ids of the external objects the node became, at least one;
   - `revision`: the external revision last observed;
   - `hash`: the content hash of the last synchronized rendering, `sha256:` and 64 hex digits;
