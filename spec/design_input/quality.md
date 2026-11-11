@@ -124,6 +124,13 @@ definitions alike. Keeping the same fact in two places is an anti-pattern (user,
   one can run after the artifact's own scripts, and reads the artifact's timings from the
   artifact's own performance marks. The adapter's `test/structure/test_quality.py` refuses a
   test that does otherwise.
+- A browser library an adapter embeds is a door, which the adapter's specification names
+  with its fake. The adapter's tests build every artifact with each door's fake, which a page
+  evaluates at almost no cost.
+
+  The real libraries run only in the doors' contract suite and in the named tests whose subject
+  is a library's rendered output or the real artifact's own cost. The adapter's
+  `test/structure/test_quality.py` names that set and refuses a real-library build outside it.
 - An input many tests read, such as a fixture artifact or the spec artifact, is built once per
   run by `built_once` in the part's `conftest.py` and shared by every worker; the tests only read
   it.
