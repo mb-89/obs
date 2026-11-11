@@ -63,8 +63,9 @@ testpaths = ["test"]
 # Tiers are assigned in test/conftest.py (test/tiers.py). A bare `pytest` runs every tier except
 # external, which runs only when selected with -m external; naming a test runs it whatever its tier.
 markers = [
-    "unit: in-process Python checks",
+    "unit: in-process Python checks (the tier rule: spec/design_input/quality.md, Testing boundaries)",
     "dom: Node.js + linkedom DOM contract checks",
     "browser: native Chrome via Playwright (needs OBS_HTML_TEST_NATIVE_BROWSER)",
+    "build: builds a whole Document, artifact or package from inputs it does not make itself",
     "external: needs data outside both repositories; runs only when selected with -m external",
 ]

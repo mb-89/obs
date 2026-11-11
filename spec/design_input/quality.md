@@ -236,8 +236,30 @@ definitions alike. Keeping the same fact in two places is an anti-pattern (user,
   API, run real producer commands through the test interpreter rather than shell builtins,
   and compare exact bytes the test itself wrote. A test that genuinely needs one platform
   (PowerShell, native pickers) is skipped elsewhere with a reason, never failed.
-- Tier names and meanings are owned by the pytest markers in `pyproject.toml`; assignment from
-  dependency evidence is owned by `test/tiers.py`.
+- Each test of the core and of every adapter has one tier, by the most expensive thing it does
+  itself, in its own source and the fixtures it takes, the most expensive first:
+
+  - external: it reads inputs from outside the repository (see below);
+  - build: it builds a whole Document, artifact or package from inputs it does not make itself:
+    obs's spec, the spec again from its source archive, every committed fixture vault, or a
+    wheel it builds, installs and runs;
+  - browser: it opens a page in Chromium;
+  - dom: it runs the artifact's runtime in Node;
+  - unit: anything else, in the test's own process or a child process it starts, on inputs it
+    makes or a small fixture holds.
+
+  The build tier holds the tests whose subject is such a build; a test that only reads a build many
+  tests share (obs's spec built once per run, `test/spec_build.py`, or an artifact `built_once`
+  gives) is in the tier of what it does with it.
+
+  A tier's timeout is a multiple of its slowest test (`test/bounds.py`), so one test far slower
+  than its tier's others loosens every one of them. The complete suite warns, naming each test
+  whose time is past a multiple of its tier's typical time (`test/bounds.py`, outliers), the
+  sign of a test in the wrong tier.
+
+  Each part's pytest markers in `pyproject.toml` name the tiers and point here;
+  `test/tiers.py` assigns the core's tests theirs from dependency evidence, and an explicit
+  `@pytest.mark.<tier>` assigns any test its tier.
 - Structure tests, which check what a spec note owns and where it points, live in
   `test/structure/test_<note>.py`, one file per note, so changes to different notes touch
   different test files.
