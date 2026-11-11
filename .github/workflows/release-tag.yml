@@ -7,4 +7,4 @@ permissions:
 
 jobs:
   release:
-    uses: mb-89/SE/.github/workflows/release.yml@v2
+    uses: mb-89/SE/.github/workflows/release.yml@v4

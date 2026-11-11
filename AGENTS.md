@@ -2,6 +2,12 @@
 
 ## Working order
 
+se's [work model](../se/.github/skills/work-model/SKILL.md#roles-and-flow) owns the flow of a piece
+of work: its one work issue, its branch, and the pull request whose description carries the field
+report in the form of se's
+[pull request template](../se/.github/pull_request_template.md). obs restates none of it. Within
+that flow, obs work follows this order:
+
 1. Read `spec/design_input` and update the relevant design note before behavior changes.
 2. Keep cross-cutting values in the configuration that owns them, the core's
    `src/obs/config.schema.json` or the HTML adapter's `adapters/html/src/obs_html/cfg.json`,
@@ -18,6 +24,8 @@ This repository must remain publishable. The shared
 hooks with `setup.ps1 -Repo <repository>`. Push only with se's `work_tickets.py push`, which runs
 the public check first, as `public_check` in `se.toml` sets; se's
 [Project settings](../se/README.md#project-settings) own that setting.
+obs's local terms live in `.public-check.local` at the repository root, untracked and ignored;
+se's [README](../se/README.md) leads to the rules for its entries.
 Do not copy the shared process guidance into this repository. CI gates every push to `main` with
 the same check, at the newest se release `[modules.se]` admits:
 [public-check.yml](.github/workflows/public-check.yml), whose job `public-check / gate` the owner
