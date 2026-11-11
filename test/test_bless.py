@@ -115,7 +115,20 @@ def test_an_answer_at_the_chapters_version_is_its_answer_and_one_at_another_is_o
     assert outdated == {"version": version, "outdated": _verdict(old)}
 
 
+def test_a_comment_with_no_verdict_is_the_chapters_comment_and_answers_nothing(tmp_path) -> None:
+    """input-model, Answers: an entry of chapter, version and comment alone keeps the chapter asking."""
+    (tmp_path / "vault").mkdir()
+    version = _version(_vault(tmp_path / "vault"))
+    comment = {"chapter": "decision", "version": version, "comment": "Only a thought."}
+
+    request = _answered(tmp_path, [comment])["decision"]["bless"]
+    assert request == {"version": version, "comment": comment}
+    old = {**comment, "version": "0" * 64}
+    assert _answered(tmp_path, [old])["decision"]["bless"] == {"version": version, "comment": old}
+
+
 @pytest.mark.parametrize(("verdicts", "field"), [
+    ([{"chapter": "decision", "version": "0" * 64}], "verdicts[0].comment"),
     ([{"chapter": "record", "version": "0" * 64, "verdict": "bless"}], "verdicts[0].chapter"),
     ([{"chapter": "decision", "version": "0" * 64, "verdict": "bless"}] * 2, "verdicts[1].chapter"),
     ([{"chapter": "decision", "version": "0" * 64, "verdict": "decline"}], "verdicts[0].comment"),
@@ -123,7 +136,7 @@ def test_an_answer_at_the_chapters_version_is_its_answer_and_one_at_another_is_o
     ([{"chapter": "decision", "version": "0" * 64, "verdict": "pick", "comment": "B."}], "verdicts[0].pick"),
     ([{"chapter": "decision", "version": "short", "verdict": "bless"}], "verdicts[0].version"),
     ([{"chapter": "decision", "version": "0" * 64, "verdict": "keep"}], "verdicts[0].verdict"),
-], ids=["no request", "twice", "decline without comment", "blank comment", "pick without option", "version",
+], ids=["neither verdict nor comment", "no request", "twice", "decline without comment", "blank comment", "pick without option", "version",
         "verdict"])
 def test_an_answers_file_the_core_refuses_names_the_file_the_field_and_the_owner(tmp_path, verdicts, field) -> None:
     (tmp_path / "vault").mkdir()
