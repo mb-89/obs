@@ -219,6 +219,12 @@ definitions alike. Keeping the same fact in two places is an anti-pattern (user,
   the chapter it was on, the next sweep starts a fresh child, and no other test's browser is
   touched.
 
+  A sweep can also measure the page against itself: the child times how long each page took to
+  open, and a step after it that takes a set multiple of that time ends the sweep the same way,
+  naming the chapter. A busy host slows the opening and the steps alike, so the bound follows the
+  host's load where a fixed number of seconds would not; the test that proves a locked page fails
+  its sweep uses it, within its own timeout.
+
   Its test sweeps every committed fixture Document, at a desktop and a phone viewport, without
   and with reduced motion, in the complete suite.
 
