@@ -81,8 +81,21 @@ def test_a_part_with_browser_tests_runs_more_workers_than_cpus_and_every_other_p
     assert browsers and suite.ROOT not in browsers
     assert 1 < suite.BROWSER_WORKERS_PER_CPU <= 2
     for part in suite.PARTS:
-        expected = str(math.ceil(suite.BROWSER_WORKERS_PER_CPU * os.cpu_count())) if part in browsers else "auto"
+        expected = str(math.ceil(suite.BROWSER_WORKERS_PER_CPU * suite.cpus())) if part in browsers else "auto"
         assert workers(part) == expected
+
+
+def test_a_part_with_browser_tests_counts_the_cpus_the_process_may_use(tmp_path, monkeypatch) -> None:
+    """Pinned to two of a host's four CPUs (taskset, a shared runner), the browser part deals its
+    workers for the two it may use, as a 2-CPU runner would, not for the host's four."""
+    import os
+
+    browser = next(package.parents[1] for package in suite.NODE_PACKAGES)
+    monkeypatch.setattr(os, "cpu_count", lambda: 4)
+    monkeypatch.setattr(os, "sched_getaffinity", lambda pid: {0, 1}, raising=False)
+
+    command = suite.part_command(browser, [], {}, tmp_path)
+    assert command[command.index("-n") + 1] == "3"
 
 
 def _junit(path, cases) -> None:

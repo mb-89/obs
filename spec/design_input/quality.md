@@ -91,9 +91,9 @@ definitions alike. Keeping the same fact in two places is an anti-pattern (user,
   adapter startup within a selected module; do not require the end-to-end scenario to test a
   local interaction. Prefer extracting pure transformations only when they have a cohesive owner.
 - The complete suite (`test/suite.py`) runs its parts side by side and each part's tests in
-  parallel worker processes, one per CPU (pytest-xdist). A part with browser tests runs more
-  workers than CPUs, as its tests wait on their pages' frames much of their time, which the
-  further workers fill.
+  parallel worker processes, one per CPU it may use (its CPU affinity; pytest-xdist). A part
+  with browser tests runs more workers than those CPUs, as its tests wait on their pages' frames
+  much of their time, which the further workers fill.
 
   Each part's worker groups start heaviest first, weighed by their test time in the part's last
   run the suite recorded; without a record they keep their order.

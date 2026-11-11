@@ -131,11 +131,19 @@ def part_report(part: Path, environment, run_folder: Path) -> Path:
     return folder / f"{part_name(part).replace('/', '-')}.xml"
 
 
+def cpus() -> int:
+    """The CPUs this process may use: its affinity where the platform reports one (a pinned or
+    shared runner), else the host's count, as pytest-xdist's ``-n auto`` counts them."""
+    if hasattr(os, "sched_getaffinity"):
+        return len(os.sched_getaffinity(0))
+    return os.cpu_count() or 1
+
+
 def part_command(part: Path, arguments: list[str], environment, run_folder: Path) -> list[str]:
     """The pytest command of one part, with its workers (BROWSER_WORKERS_PER_CPU), which writes its
     JUnit report (part_report)."""
     browsers = any(package.parents[1] == part for package in NODE_PACKAGES)
-    workers = str(math.ceil(BROWSER_WORKERS_PER_CPU * (os.cpu_count() or 1))) if browsers else "auto"
+    workers = str(math.ceil(BROWSER_WORKERS_PER_CPU * cpus())) if browsers else "auto"
     return [sys.executable, "-m", "pytest", "-q", "-n", workers, *PARALLEL, *arguments,
             f"--junitxml={part_report(part, environment, run_folder)}"]
 
