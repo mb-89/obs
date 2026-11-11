@@ -1658,9 +1658,10 @@ writes it and the core that reads it:
 `obs-document --answers <file>` builds the Document with the answers in it, so the answered
 artifact is the decision record ([[cli#Answers]]). A verdict whose version is the chapter's is its
 `answer`: the chapter shows it read-only and asks nothing. A verdict at another version is
-`outdated`: the chapter asks again and shows the old answer as outdated. An entry with no
-`verdict` answers nothing: it is the chapter's `comment`, at whichever version, and the chapter
-asks still and shows the comment.
+`outdated`: the chapter asks again and shows the old answer as outdated.
+
+An entry with no `verdict` answers nothing: it is the chapter's `comment`, at whichever version,
+and the chapter asks still and shows the comment.
 
 A verdict for a chapter that does not ask, a second verdict for one chapter, or a file the schema
 refuses is an input error naming the answers file and the field path (`verdicts[0].chapter`).
