@@ -236,8 +236,8 @@ def shard() -> tuple[int, int] | None:
 # holding the JUnit reports of both shards of one `test` workflow run, which CI uploads as the
 # artifacts `junit-shard-<i>`. TIER_WEIGHTS, each tier's mean time per test there, weighs a group
 # the table lacks; keep_shard warns of one, a nudge to measure again. Measured on runs 43045380745
-# (863cdc9) and 43066980632 (45d8e11), 2026-11-11, on GitHub's 4-CPU ubuntu-latest runners. Download each attempt's artifacts
-# before re-running it: a re-run drops them.
+# (863cdc9) and 43066980632 (45d8e11), 2026-11-11, on GitHub's 4-CPU ubuntu-latest runners.
+# Download each attempt's artifacts before re-running it: a re-run drops them.
 SHARD_WEIGHTS = {
     "core": {
         "test/test_vault.py": 14.87,
