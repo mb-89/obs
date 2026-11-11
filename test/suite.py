@@ -21,7 +21,9 @@ weights (keep_shard), and a shard's run
 is checked against the tiers' caps but not recorded. It names its host (its CPU count and model) as it starts, and where the parts
 took longer than `[tests] target_seconds` or `limit_seconds` it says so as it ends, naming the
 SLOWEST_NAMED slowest tests of the parts' reports (slowest_tests), on GitHub Actions also as a
-warning annotation; it does not fail on that (quality.md, Testing boundaries). Each test has its timeout (test/bounds.py); the whole run has a cap,
+warning annotation; it does not fail on that (quality.md, Testing boundaries). As it ends it also
+names, the same way and without failing, each test far slower than its tier's typical time
+(outlying, test/bounds.py's outliers). Each test has its timeout (test/bounds.py); the whole run has a cap,
 CAP_SECONDS, at which a part still running is stopped, with every process it started, and the
 suite names the part and the tests it was running and fails. Arguments are passed on to every
 part's pytest, for example `--durations=20`. Each part writes its JUnit XML report as `<part>.xml`
@@ -235,7 +237,8 @@ def shard() -> tuple[int, int] | None:
 # `uv run python test/suite.py --measure-weights <run folder>...` (measure_weights), each folder
 # holding the JUnit reports of both shards of one `test` workflow run, which CI uploads as the
 # artifacts `junit-shard-<i>`. TIER_WEIGHTS, each tier's mean time per test there, weighs a group
-# the table lacks; keep_shard warns of one, a nudge to measure again. Measured on runs 43045380745
+# the table lacks; keep_shard warns of one, a nudge to measure again. The build tier, added after
+# them, weighs as measure_weights weighs a tier no run ran. Measured on runs 43045380745
 # (863cdc9) and 43066980632 (45d8e11), 2026-11-11, on GitHub's 4-CPU ubuntu-latest runners.
 # Download each attempt's artifacts before re-running it: a re-run drops them.
 SHARD_WEIGHTS = {
@@ -442,7 +445,7 @@ SHARD_WEIGHTS = {
         "test/structure/test_artifact_presentation.py": 0.0,
     },
 }
-TIER_WEIGHTS = {"unit": 0.167, "dom": 0.245, "browser": 1.553, "external": 1.553}
+TIER_WEIGHTS = {"unit": 0.167, "dom": 0.245, "browser": 1.553, "build": 1.553, "external": 1.553}
 
 
 def measure_weights(runs: list[Path]) -> str:
@@ -772,6 +775,18 @@ def slowest_tests(reports: list[Path], count: int = SLOWEST_NAMED) -> list[str]:
     return [f"{seconds:.2f} s {part} {test}" for seconds, part, test in cases[:count]]
 
 
+def outlying(reports: list[Path], environment) -> list[str]:
+    """test/bounds.py's warnings (outliers) of the tests of the parts' JUnit reports slower than
+    OUTLIER_FACTOR times their tier's typical time, the tiers taken over every part: each on a line
+    of its own, and on GitHub Actions also as a warning annotation. The suite does not fail on them."""
+    import bounds  # Only here: an adapter's conftest.py loads this module without test/ on its path.
+
+    run = {f"{report.stem} {test}": timed for report in reports for test, timed in measured_run(report).items()}
+    lines = bounds.outliers(run, bounds.OUTLIER_FACTOR)
+    annotations = [f"::warning title=Test far slower than its tier::{line}" for line in lines]
+    return [*lines, *(annotations if environment.get("GITHUB_ACTIONS") == "true" else [])]
+
+
 def host() -> str:
     """The CPUs this run has, and their model where the platform names it."""
     import platform
@@ -858,9 +873,11 @@ def main(arguments: list[str], clock=time.monotonic) -> int:
             os.environ.pop(SHARD_VARIABLE, None)
         builds = spec_build.counts(Path(shared))
         took = clock() - started
-        slowest = slowest_tests([part_report(part, os.environ, Path(shared)) for part in PARTS])
+        reports = [part_report(part, os.environ, Path(shared)) for part in PARTS]
+        slowest = slowest_tests(reports)
+        unusual = outlying(reports, os.environ)
     print(f"test/suite.py: parts took {took:.1f} s.")
-    for line in overrun(took, target_seconds(), limit_seconds(), os.environ, slowest):
+    for line in [*overrun(took, target_seconds(), limit_seconds(), os.environ, slowest), *unusual]:
         print(line)
     built = ", ".join(f"{kind} {builds[kind]}" for kind in spec_build.BUILDS)
     print(f"test/suite.py: obs's spec was built this run (test/spec_build.py): {built}.")

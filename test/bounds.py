@@ -13,6 +13,8 @@ tier has fewer recorded runs; a loaded host's runs raise its own bounds, and nob
 The committed measurement caps the derived one at CAP_FACTOR times it: a test past that fails the
 suite (``over_cap``), so a slowly regressing test cannot raise its own timeout. A test past its
 timeout fails; ``explain`` adds to its report its name, its timeout, its tier and this file.
+A test far slower than its tier's typical time (``outliers``, OUTLIER_FACTOR) loosens that bound
+for every other test of the tier; test/suite.py names each one in a warning as the run ends.
 
 While a test runs, ``running`` names it in the run's folder (the folder test/suite.py makes, in
 RUNNING), one file per test process, so test/suite.py, when its cap is reached, names the
@@ -29,18 +31,21 @@ import pytest
 # orders TIERS, which SLOWEST falls back to where a host has fewer recorded runs (derive): on a
 # fresh CI runner, always. So it is measured on two CPUs, as CI's runners give the suite about:
 # on the 4-CPU Linux container of 2026-11-11 (Intel Xeon @ 2.10GHz) pinned to two of them,
-# unit, dom and browser are the slowest test of each tier over two runs of the complete suite,
-# `SE_TEST_REPORTS=<folder> taskset -c 0,1 uv run python test/suite.py`, from each part's JUnit
-# report (setup, call and teardown), rounded up to a tenth of a second. External is unmeasured:
-# its tests need data outside the repository, so the complete suite never runs them; it keeps
-# 22.8, the slowest test once measured above the browser tier (2026-11-06).
-COMMITTED = {"unit": 28.8, "dom": 6.4, "browser": 11.2, "external": 22.8}
+# unit, dom, browser and build are the slowest test of each tier over two runs of the complete
+# suite, `SE_TEST_REPORTS=<folder> taskset -c 0,1 uv run python test/suite.py`, from each part's
+# JUnit report (setup, call and teardown, passed tests only), rounded up to a tenth of a second.
+# External is unmeasured: its tests need data outside the repository, so the complete suite never
+# runs them; it keeps 22.8, the slowest test once measured above the browser tier (2026-11-06).
+COMMITTED = {"unit": 20.8, "dom": 7.8, "browser": 12.6, "build": 32.2, "external": 22.8}
 # How many of a part's recorded runs (test/suite.py, record_durations) the suite keeps and SLOWEST
 # is derived from.
 RUNS = 10
 # A record-derived slowest test may not exceed this multiple of its tier's committed one; a test
 # past it fails the suite (over_cap), so a slowly regressing test cannot raise its own timeout.
 CAP_FACTOR = 3
+# A test slower than this multiple of its tier's typical time in a run (outliers) is named in a
+# warning, which does not fail the run: the sign of a test in the wrong tier.
+OUTLIER_FACTOR = 3
 # Each tier's timeout is this multiple of its slowest test: room for a slower machine or a
 # busier run, while a hanging test still fails well before test/suite.py's cap.
 MULTIPLIER = 3
@@ -79,6 +84,34 @@ def over_cap(run: dict[str, list], committed: dict[str, float], factor: float) -
             "make it fast again, or, where it rightly takes longer, measure COMMITTED again by the method its "
             "comment in test/bounds.py names."
             for test, (tier, seconds) in sorted(run.items()) if seconds > factor * committed.get(tier, math.inf)]
+
+
+def typical(seconds: list[float]) -> float:
+    """A tier's typical test time: ordering its tests' times from the fastest, the time of the test
+    at which half the tier's test time is reached, a median of the tier's time rather than of its
+    count of tests, which its many tests of a few milliseconds would set; 0 for no test."""
+    total, reached = sum(seconds), 0.0
+    for value in sorted(seconds):
+        reached += value
+        if reached >= total / 2:
+            return value
+    return 0.0
+
+
+def outliers(run: dict[str, list], factor: float) -> list[str]:
+    """For each test of a run slower than ``factor`` times its tier's typical time (typical) in that
+    run, a warning naming it, its time, its tier's typical time and the remedy, slowest first: the
+    sign of a test in the wrong tier, which loosens its tier's timeout for every other test of it."""
+    times: dict[str, list[float]] = {}
+    for tier, seconds in run.values():
+        times.setdefault(tier, []).append(seconds)
+    usual = {tier: typical(seconds) for tier, seconds in times.items()}
+    return [f"test/bounds.py: {test} took {seconds} s, over {factor} times its {tier} tier's typical "
+            f"{round(usual[tier], 3)} s (OUTLIER_FACTOR, typical). Remedy: check its tier by the rule in "
+            "spec/design_input/quality.md, Testing boundaries, and mark the tier it belongs in, or make it "
+            "faster."
+            for test, (tier, seconds) in sorted(run.items(), key=lambda item: (-item[1][1], item[0]))
+            if usual[tier] and seconds > factor * usual[tier]]
 
 
 def _recorded_runs() -> list[list[dict[str, list]]]:

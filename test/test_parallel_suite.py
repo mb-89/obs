@@ -375,6 +375,31 @@ def test_a_suite_past_its_target_or_limit_names_its_slowest_tests(monkeypatch, c
     assert (f"::warning title={title}::{line[:-1]}: 9.50 s core test.test_slow::test_slowest; " in out) == on_actions
 
 
+@pytest.mark.parametrize("on_actions", [False, True])
+def test_the_suite_names_a_test_far_slower_than_its_tiers_typical_time(monkeypatch, capsys, tmp_path,
+                                                                       on_actions) -> None:
+    """The tiers are taken over every part, and the run does not fail on it."""
+    def run_part(part, arguments, run_folder):
+        cases = [(f"usual_{index}", "unit", 2.0) for index in range(20)] if part == suite.ROOT else [
+            ("builds_the_spec", "unit", 29.2), ("fast", "unit", 0.01)]
+        _report(suite.part_report(part, os.environ, run_folder), cases)
+        return 0, ""
+
+    import os
+
+    monkeypatch.setattr(suite, "run_part", run_part)
+    monkeypatch.setattr(suite, "is_installed", lambda package: True)
+    monkeypatch.setenv(suite.REPORTS_VARIABLE, str(tmp_path))
+    monkeypatch.setenv("GITHUB_ACTIONS", "true") if on_actions else monkeypatch.delenv("GITHUB_ACTIONS", raising=False)
+
+    assert suite.main([]) == 0
+    out = capsys.readouterr().out
+    [line] = [line for line in out.splitlines() if line.startswith("test/bounds.py: ")]
+    part = suite.part_name(next(part for part in suite.PARTS if part != suite.ROOT)).replace("/", "-")
+    assert line.startswith(f"test/bounds.py: {part} test.x::builds_the_spec took 29.2 s, over")
+    assert (f"::warning title=Test far slower than its tier::{line}" in out) == on_actions
+
+
 class _Tiered(_Grouped):
     def __init__(self, nodeid, group, tier="unit"):
         super().__init__(nodeid, group)
@@ -538,7 +563,7 @@ def test_the_weights_are_measured_from_ci_runs_reports_and_print_as_their_consta
 
     assert constants["SHARD_WEIGHTS"] == {"core": {"test/a.py": 3.0, "own": 3.0},
                                           "adapters/html": {"test/d.py": 0.5}}
-    assert constants["TIER_WEIGHTS"] == {"unit": 1.5, "dom": 0.5, "browser": 3.0, "external": 3.0}
+    assert constants["TIER_WEIGHTS"] == {"unit": 1.5, "dom": 0.5, "browser": 3.0, "build": 3.0, "external": 3.0}
 
 
 def test_measuring_without_a_run_folder_is_refused(tmp_path, capsys) -> None:

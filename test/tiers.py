@@ -1,8 +1,9 @@
 """Test tiers, strict environment mode and the skip summary.
 
-Tiers (highest wins): external > browser > dom > unit. A test gets the tier of the
-most expensive dependency found in its own source, the test-module helpers and constants it
-references, and its test-module fixtures. An explicit ``@pytest.mark.<tier>`` always wins.
+quality.md, Testing boundaries, owns the tier rule: what puts a test in which tier. Here a test
+gets the tier of the most expensive dependency found in its own source, the test-module helpers
+and constants it references, and its test-module fixtures (EVIDENCE); the build tier has no
+evidence and is given by its mark. An explicit ``@pytest.mark.<tier>`` always wins.
 
 A bare ``pytest`` runs every tier except external, which runs only when selected with
 ``-m external``; a test named by its node id runs whatever its tier.
@@ -18,7 +19,8 @@ from pathlib import Path
 
 import pytest
 
-TIERS = ("unit", "dom", "browser", "external")
+# Cheapest first; the highest a test has wins.
+TIERS = ("unit", "dom", "browser", "build", "external")
 STRICT_VARIABLE = "OBS_HTML_STRICT"
 EVIDENCE = {
     "external": re.compile(r"OBS_HTML_TEST_AUTHORED_ARTIFACT|OBS_HTML_ARTIFACT_DATA_PROOF|OBS_HTML_TEST_IMPORTED_SNAPSHOT"),
@@ -139,7 +141,7 @@ def classify(item, sources: _Sources, evidence: _Evidence | None = None) -> str:
         return "unit"
     text = (evidence or _Evidence(item, sources)).text
     for tier in reversed(TIERS[1:]):
-        if EVIDENCE[tier].search(text):
+        if tier in EVIDENCE and EVIDENCE[tier].search(text):
             return tier
     return "unit"
 

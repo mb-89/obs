@@ -90,6 +90,25 @@ def test_a_test_above_its_tiers_cap_is_named_and_one_below_it_is_not() -> None:
     assert "cap of 5.7 s" in dom
 
 
+def test_a_tiers_typical_time_is_where_half_its_test_time_is_reached() -> None:
+    """Many tests of a few milliseconds do not set it, as they would a median of the count of tests."""
+    assert bounds.typical([0.01] * 90 + [2.0] * 5 + [3.0] * 2) == 2.0
+    assert bounds.typical([1.0, 1.0, 1.0]) == 1.0
+    assert bounds.typical([]) == 0.0
+
+
+def test_a_test_far_slower_than_its_tiers_typical_time_is_named_and_the_rest_are_not() -> None:
+    run = {f"test.x::fast_{index}": ["unit", 0.01] for index in range(200)}
+    run |= {f"test.x::usual_{index}": ["unit", 2.0] for index in range(20)}
+    run |= {"test.x::builds_the_spec": ["unit", 29.2], "test.x::loaded": ["unit", 6.0],
+            "test.x::page": ["browser", 3.0], "test.x::other_page": ["browser", 3.5]}
+    [message] = bounds.outliers(run, factor=bounds.OUTLIER_FACTOR)
+    assert message.startswith(f"test/bounds.py: test.x::builds_the_spec took 29.2 s, over {bounds.OUTLIER_FACTOR} "
+                              "times its unit tier's typical 2.0 s")
+    assert "spec/design_input/quality.md, Testing boundaries" in message, "it names the tier rule"
+    assert bounds.outliers({"test.x::alone": ["dom", 9.0]}, factor=3) == [], "a lone test is its tier's typical time"
+
+
 def test_a_test_past_its_timeout_fails_naming_itself_and_its_timeout(tmp_path: Path) -> None:
     (tmp_path / "conftest.py").write_text("""
 import pytest
