@@ -16,7 +16,7 @@ version = "2.1.1"
 # The complete suite, its setup and its time budget; test/suite.py's docstring says what each runs.
 setup = ["uv", "run", "python", "test/suite.py", "--setup"]
 command = ["uv", "run", "python", "test/suite.py", "--durations=10"]
-target_seconds = 60
+target_seconds = 100
 limit_seconds = 120
 
 [modules.se]

@@ -66,6 +66,25 @@ def test_each_part_writes_its_junit_report_into_the_directory_se_names(tmp_path)
         f"--junitxml={run / 'core.xml'}"], "without se's directory, the report goes into the run's folder"
 
 
+def test_a_part_with_browser_tests_runs_more_workers_than_cpus_and_every_other_part_one_per_cpu(tmp_path) -> None:
+    """A part with a Node test package (its browser tests) waits on its pages' frames much of its
+    time, so it runs BROWSER_WORKERS_PER_CPU workers per CPU, rounded up; every other part runs one per CPU."""
+    import math
+    import os
+
+    def workers(part) -> str:
+        command = suite.part_command(part, [], {}, tmp_path)
+        assert command.count("-n") == 1, command
+        return command[command.index("-n") + 1]
+
+    browsers = {package.parents[1] for package in suite.NODE_PACKAGES}
+    assert browsers and suite.ROOT not in browsers
+    assert 1 < suite.BROWSER_WORKERS_PER_CPU <= 2
+    for part in suite.PARTS:
+        expected = str(math.ceil(suite.BROWSER_WORKERS_PER_CPU * os.cpu_count())) if part in browsers else "auto"
+        assert workers(part) == expected
+
+
 def _junit(path, cases) -> None:
     path.write_text("<testsuites><testsuite>" + "".join(
         f'<testcase classname="test.x" name="{name}" time="{seconds}"/>' for name, seconds in cases)
@@ -304,13 +323,56 @@ def test_the_suite_names_its_host_and_says_when_its_parts_took_longer_than_the_l
     assert (f"::warning title=Suite over its time limit::{over}" in out) == on_actions
 
 
-def test_the_suite_says_nothing_of_the_limit_within_it(monkeypatch, capsys) -> None:
+def test_the_suite_says_nothing_of_the_limit_or_the_target_within_them(monkeypatch, capsys) -> None:
     monkeypatch.setattr(suite, "run_part", lambda part, arguments, run_folder: (0, ""))
     monkeypatch.setattr(suite, "is_installed", lambda package: True)
-    times = iter([0.0, suite.limit_seconds() - 1.0])
+    times = iter([0.0, suite.target_seconds() - 1.0])
 
     assert suite.main([], clock=lambda: next(times)) == 0
-    assert "limit" not in capsys.readouterr().out
+    out = capsys.readouterr().out
+    assert "limit" not in out and "target" not in out and "slowest" not in out
+
+
+def _write_report(path, cases) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text("<testsuites><testsuite>" + "".join(
+        f'<testcase classname="{classname}" name="{name}" time="{seconds}"/>' for classname, name, seconds in cases)
+        + "</testsuite></testsuites>", encoding="utf-8")
+
+
+@pytest.mark.parametrize(("over", "on_actions"), [("target", False), ("target", True), ("limit", True)])
+def test_a_suite_past_its_target_or_limit_names_its_slowest_tests(monkeypatch, capsys, tmp_path, over,
+                                                                   on_actions) -> None:
+    def run_part(part, arguments, run_folder):
+        cases = [("test.test_slow", "test_slowest", 9.5), ("test.test_slow", "test_quick", 0.1)]
+        if part != suite.ROOT:
+            cases = [(f"test.test_{index}", "test_middle", 1.0 + index / 2) for index in range(suite.SLOWEST_NAMED)]
+        _write_report(suite.part_report(part, os.environ, run_folder), cases)
+        return 0, ""
+
+    import os
+
+    monkeypatch.setattr(suite, "run_part", run_part)
+    monkeypatch.setattr(suite, "is_installed", lambda package: True)
+    monkeypatch.setenv(suite.REPORTS_VARIABLE, str(tmp_path))
+    monkeypatch.setenv("GITHUB_ACTIONS", "true") if on_actions else monkeypatch.delenv("GITHUB_ACTIONS", raising=False)
+    bound = suite.target_seconds() if over == "target" else suite.limit_seconds()
+    took = (suite.target_seconds() + suite.limit_seconds()) / 2 if over == "target" else suite.limit_seconds() + 1.0
+    times = iter([0.0, took])
+
+    assert suite.main([], clock=lambda: next(times)) == 0
+    out = capsys.readouterr().out
+    line = (f"test/suite.py: the parts took {took:.1f} s, over the suite's {bound:g} s {over} "
+            f"([tests] {over}_seconds in se.toml); its {suite.SLOWEST_NAMED} slowest tests:")
+    assert line in out
+    listed = out.split(line, 1)[1].splitlines()[1:suite.SLOWEST_NAMED + 1]
+    assert listed[0] == "  9.50 s core test.test_slow::test_slowest"
+    assert all(entry.startswith("  ") and " s " in entry for entry in listed)
+    assert "test_quick" not in out, "only the slowest tests are named"
+    seconds = [float(entry.split(" s ", 1)[0]) for entry in listed]
+    assert seconds == sorted(seconds, reverse=True)
+    title = "Suite over its time target" if over == "target" else "Suite over its time limit"
+    assert (f"::warning title={title}::{line[:-1]}: 9.50 s core test.test_slow::test_slowest; " in out) == on_actions
 
 
 class _Tiered(_Grouped):

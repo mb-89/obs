@@ -4,21 +4,18 @@ import subprocess
 import sys
 from pathlib import Path
 
-from jsonschema import Draft202012Validator, ValidationError, validate
+from jsonschema import Draft202012Validator, ValidationError
 import pytest
 from referencing import Registry, Resource
 
 from obs.adapter import AdapterError, load_adapter
-from obs.capabilities import build_capability_reference
 from obs.discriminator import discriminating_validator
 from obs.document import STRUCTURAL_NODE_TYPES, DocumentError, call_adapter, main, write_document
 from obs.vault import build_document
 
+from schemas import capability_reference, validate
+
 ROOT = Path(__file__).parents[1]
-
-
-def capability_reference() -> dict[str, object]:
-    return build_capability_reference(ROOT / "spec" / "capabilities", ROOT / "spec" / "capabilities" / "coverage.json")
 
 
 def write_reference(path: Path) -> Path:
