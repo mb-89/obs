@@ -31,12 +31,12 @@ import pytest
 # orders TIERS, which SLOWEST falls back to where a host has fewer recorded runs (derive): on a
 # fresh CI runner, always. So it is measured on two CPUs, as CI's runners give the suite about:
 # on the 4-CPU Linux container of 2026-11-11 (Intel Xeon @ 2.10GHz) pinned to two of them,
-# unit, dom and browser are the slowest test of each tier over two runs of the complete suite,
-# `SE_TEST_REPORTS=<folder> taskset -c 0,1 uv run python test/suite.py`, from each part's JUnit
-# report (setup, call and teardown), rounded up to a tenth of a second. External is unmeasured:
-# its tests need data outside the repository, so the complete suite never runs them; it keeps
-# 22.8, the slowest test once measured above the browser tier (2026-11-06).
-COMMITTED = {"unit": 28.8, "dom": 6.4, "browser": 11.2, "build": 28.8, "external": 22.8}
+# unit, dom, browser and build are the slowest test of each tier over two runs of the complete
+# suite, `SE_TEST_REPORTS=<folder> taskset -c 0,1 uv run python test/suite.py`, from each part's
+# JUnit report (setup, call and teardown, passed tests only), rounded up to a tenth of a second.
+# External is unmeasured: its tests need data outside the repository, so the complete suite never
+# runs them; it keeps 22.8, the slowest test once measured above the browser tier (2026-11-06).
+COMMITTED = {"unit": 20.8, "dom": 7.8, "browser": 12.6, "build": 32.2, "external": 22.8}
 # How many of a part's recorded runs (test/suite.py, record_durations) the suite keeps and SLOWEST
 # is derived from.
 RUNS = 10
