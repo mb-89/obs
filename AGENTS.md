@@ -2,6 +2,12 @@
 
 ## Working order
 
+se's [work model](../se/.github/skills/work-model/SKILL.md#roles-and-flow) owns the flow of a piece
+of work: its one work issue, its branch, and the pull request whose description carries the field
+report in the form of se's
+[pull request template](../se/.github/pull_request_template.md). obs restates none of it. Within
+that flow, obs work follows this order:
+
 1. Read `spec/design_input` and update the relevant design note before behavior changes.
 2. Keep cross-cutting values in the configuration that owns them, the core's
    `src/obs/config.schema.json` or the HTML adapter's `adapters/html/src/obs_html/cfg.json`,
