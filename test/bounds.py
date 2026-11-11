@@ -36,7 +36,7 @@ import pytest
 # JUnit report (setup, call and teardown, passed tests only), rounded up to a tenth of a second.
 # External is unmeasured: its tests need data outside the repository, so the complete suite never
 # runs them; it keeps 22.8, the slowest test once measured above the browser tier (2026-11-06).
-COMMITTED = {"unit": 20.8, "dom": 7.8, "browser": 12.6, "build": 32.2, "external": 22.8}
+COMMITTED = {"unit": 13.3, "dom": 2.2, "browser": 6.5, "build": 9.7, "external": 22.8}
 # How many of a part's recorded runs (test/suite.py, record_durations) the suite keeps and SLOWEST
 # is derived from.
 RUNS = 10
