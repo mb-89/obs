@@ -91,7 +91,9 @@ definitions alike. Keeping the same fact in two places is an anti-pattern (user,
   adapter startup within a selected module; do not require the end-to-end scenario to test a
   local interaction. Prefer extracting pure transformations only when they have a cohesive owner.
 - The complete suite (`test/suite.py`) runs its parts side by side and each part's tests in
-  parallel worker processes, one per CPU (pytest-xdist). Each part's worker groups start heaviest
+  parallel worker processes, one per CPU (pytest-xdist); a part with browser tests runs two per
+  CPU, as its tests wait on their pages' frames much of their time, which the second worker
+  fills. Each part's worker groups start heaviest
   first, weighed by their test time in the part's last run the suite recorded; without a record
   they keep their order.
 
@@ -194,6 +196,11 @@ definitions alike. Keeping the same fact in two places is an anti-pattern (user,
   CI does not fail a run past the suite's time limit, which se's local gate enforces on the
   whole suite; `test/suite.py` names the runner's CPUs and says in each job's log, as a warning
   annotation, when its run is past the limit.
+
+  Each package adds tests, so the suite creeps towards its limit. Its target, `[tests]
+  target_seconds` in `se.toml`, stands 20 s under the limit: past it, se's gate warns, and
+  `test/suite.py` says so too, locally and as a warning annotation in CI, naming the run's slowest
+  tests, so the margin is won back before a slow host meets the limit.
 - The adapter's chapter sweep (`test/chapter_sweep.py`) is the one browser check that does not
   lease the pool's pages. It opens every chapter of an artifact and scrolls it, a step where a
   page that locks its main thread is expected.

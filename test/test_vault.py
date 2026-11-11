@@ -2,12 +2,13 @@ import json
 import re
 from pathlib import Path
 
-from jsonschema import ValidationError, validate
+from jsonschema import ValidationError
 import pytest
 
-from obs.capabilities import build_capability_reference
 from obs.document import STRUCTURAL_NODE_TYPES, DocumentError, build_document
 from obs.figure import FIGURE_KINDS
+
+from schemas import capability_reference, validate
 
 
 ROOT = Path(__file__).parents[1]
@@ -20,12 +21,6 @@ def without_ids(value: object) -> object:
     if isinstance(value, dict):
         return {key: without_ids(item) for key, item in value.items() if key != "id" or "type" not in value}
     return [without_ids(item) for item in value] if isinstance(value, list) else value
-
-
-def capability_reference() -> dict[str, object]:
-    return build_capability_reference(
-        ROOT / "spec" / "capabilities", ROOT / "spec" / "capabilities" / "coverage.json",
-    )
 
 
 def node_types(document: dict[str, object], bodies: bool = True) -> set[str]:

@@ -7,7 +7,8 @@ hand-supplied inputs (test/tiers.py). Its time budget is `[tests]` in `se.toml`.
 
 Each part tests only itself, with its own `pyproject.toml` settings and `conftest.py`, so each
 runs as its own pytest process from its own folder, its tests spread over one worker process
-per CPU (pytest-xdist, `-n auto --dist loadgroup`: a module's tests share a worker; groups start
+per CPU, a part with browser tests over BROWSER_WORKERS_PER_CPU per CPU (pytest-xdist,
+`-n auto --dist loadgroup`: a module's tests share a worker; groups start
 in collection order, so a part can start its longest tests first). The parts run side by side,
 so a short part fills the CPUs a long part leaves idle while it builds its inputs; each part's
 output is printed when it ends. Every part runs to its end even when another fails; the exit
@@ -18,8 +19,9 @@ folder at the end. `--shard i/n` runs the i-th of n shards of every part, so CI 
 suite over n jobs: each part keeps that shard of its xdist groups, dealt by their committed
 weights (keep_shard), and a shard's run
 is checked against the tiers' caps but not recorded. It names its host (its CPU count and model) as it starts, and where the parts
-took longer than `[tests] limit_seconds` it says so as it ends, on GitHub Actions also as a warning
-annotation; it does not fail on that (quality.md, Testing boundaries). Each test has its timeout (test/bounds.py); the whole run has a cap,
+took longer than `[tests] target_seconds` or `limit_seconds` it says so as it ends, naming the
+SLOWEST_NAMED slowest tests of the parts' reports (slowest_tests), on GitHub Actions also as a
+warning annotation; it does not fail on that (quality.md, Testing boundaries). Each test has its timeout (test/bounds.py); the whole run has a cap,
 CAP_SECONDS, at which a part still running is stopped, with every process it started, and the
 suite names the part and the tests it was running and fails. Arguments are passed on to every
 part's pytest, for example `--durations=20`. Each part writes its JUnit XML report as `<part>.xml`
@@ -82,7 +84,7 @@ SETUP = "--setup"
 # `--measure-weights <run folder>...`: print SHARD_WEIGHTS and TIER_WEIGHTS measured from runs' reports.
 MEASURE = "--measure-weights"
 SETUP_COMMAND = f"uv run python test/suite.py {SETUP}"
-PARALLEL = ["-n", "auto", "--dist", "loadgroup", "--no-loadscope-reorder"]
+PARALLEL = ["--dist", "loadgroup", "--no-loadscope-reorder"]
 REPORTS_VARIABLE = "SE_TEST_REPORTS"
 # `--shard i/n`: run only the i-th of n shards of every part (keep_shard), named to the parts here.
 SHARD = "--shard"
@@ -93,6 +95,10 @@ SHARD_VARIABLE = f"{VARIABLE_PREFIX}SHARD"
 # Each part's Node test package, where it has one.
 NODE_PACKAGES = [part / "test" / "browser" for part in PARTS
                  if (part / "test" / "browser" / "package-lock.json").is_file()]
+# A part with a Node test package runs its browser tests, which wait on their pages' frames much of
+# their time: it runs this many workers per CPU, so a second worker fills that time; every other
+# part runs one per CPU (part_command).
+BROWSER_WORKERS_PER_CPU = 2
 # The run's cap, in seconds: past any run that ends ([tests] limit_seconds in se.toml) and past
 # every test's timeout (test/bounds.py), so a hanging test fails by its own timeout first.
 CAP_SECONDS = 300
@@ -123,8 +129,11 @@ def part_report(part: Path, environment, run_folder: Path) -> Path:
 
 
 def part_command(part: Path, arguments: list[str], environment, run_folder: Path) -> list[str]:
-    """The pytest command of one part, which writes its JUnit report (part_report)."""
-    return [sys.executable, "-m", "pytest", "-q", *PARALLEL, *arguments,
+    """The pytest command of one part, with its workers (BROWSER_WORKERS_PER_CPU), which writes its
+    JUnit report (part_report)."""
+    browsers = any(package.parents[1] == part for package in NODE_PACKAGES)
+    workers = str(BROWSER_WORKERS_PER_CPU * (os.cpu_count() or 1)) if browsers else "auto"
+    return [sys.executable, "-m", "pytest", "-q", "-n", workers, *PARALLEL, *arguments,
             f"--junitxml={part_report(part, environment, run_folder)}"]
 
 
@@ -726,11 +735,38 @@ def setup(arguments: list[str], clock) -> int:
     return 0
 
 
-def limit_seconds() -> float:
-    """The suite's time limit, `[tests] limit_seconds` in se.toml, which owns it."""
+def _budget(key: str) -> float:
     import tomllib
 
-    return tomllib.loads((ROOT / "se.toml").read_text(encoding="utf-8"))["tests"]["limit_seconds"]
+    return tomllib.loads((ROOT / "se.toml").read_text(encoding="utf-8"))["tests"][key]
+
+
+def limit_seconds() -> float:
+    """The suite's time limit, `[tests] limit_seconds` in se.toml, which owns it."""
+    return _budget("limit_seconds")
+
+
+def target_seconds() -> float:
+    """The suite's time target, `[tests] target_seconds` in se.toml, which owns it."""
+    return _budget("target_seconds")
+
+
+# How many of its slowest tests the suite names when its parts took longer than the target.
+SLOWEST_NAMED = 10
+
+
+def slowest_tests(reports: list[Path], count: int = SLOWEST_NAMED) -> list[str]:
+    """The ``count`` slowest tests of the parts' JUnit reports, slowest first, each as
+    ``<seconds> s <part> <test>``, the part named by its report (part_report)."""
+    cases = []
+    for report in reports:
+        if not report.is_file():
+            continue
+        for case in ElementTree.parse(report).iter("testcase"):
+            test = f"{case.get('classname', '')}::{case.get('name', '')}"
+            cases.append((float(case.get("time") or 0), report.stem, test))
+    cases.sort(key=lambda case: -case[0])
+    return [f"{seconds:.2f} s {part} {test}" for seconds, part, test in cases[:count]]
 
 
 def host() -> str:
@@ -744,16 +780,22 @@ def host() -> str:
     return f"{os.cpu_count()} CPUs" + (f" ({model})" if model else "")
 
 
-def overrun(seconds: float, limit: float, environment) -> list[str]:
-    """The lines that say the parts took longer than the limit: one, and on GitHub Actions also
-    its warning annotation. The suite does not fail on it: CI runners differ in speed (quality.md,
-    Testing boundaries)."""
-    if seconds <= limit:
+def overrun(seconds: float, target: float, limit: float, environment, slowest: list[str]) -> list[str]:
+    """The lines that say the parts took longer than the target or the limit, naming the slowest
+    tests: one, each slowest test on a line of its own, and on GitHub Actions also the warning
+    annotation. The suite does not fail on it: CI runners differ in speed (quality.md, Testing
+    boundaries)."""
+    if seconds <= target:
         return []
-    line = (f"test/suite.py: the parts took {seconds:.1f} s, over the suite's {limit:g} s limit "
-            "([tests] limit_seconds in se.toml)")
-    annotation = f"::warning title=Suite over its time limit::{line}"
-    return [line, annotation] if environment.get("GITHUB_ACTIONS") == "true" else [line]
+    over, bound = ("limit", limit) if seconds > limit else ("target", target)
+    line = (f"test/suite.py: the parts took {seconds:.1f} s, over the suite's {bound:g} s {over} "
+            f"([tests] {over}_seconds in se.toml)")
+    if slowest:
+        line += f"; its {len(slowest)} slowest tests:"
+    listed = [f"  {test}" for test in slowest]
+    annotation = (f"::warning title=Suite over its time {over}::{line[:-1] + ': ' if slowest else line}"
+                  + "; ".join(slowest))
+    return [line, *listed, *([annotation] if environment.get("GITHUB_ACTIONS") == "true" else [])]
 
 
 def main(arguments: list[str], clock=time.monotonic) -> int:
@@ -812,9 +854,10 @@ def main(arguments: list[str], clock=time.monotonic) -> int:
             del os.environ[spec_build.RUN_FOLDER]
             os.environ.pop(SHARD_VARIABLE, None)
         builds = spec_build.counts(Path(shared))
-    took = clock() - started
+        took = clock() - started
+        slowest = slowest_tests([part_report(part, os.environ, Path(shared)) for part in PARTS])
     print(f"test/suite.py: parts took {took:.1f} s.")
-    for line in overrun(took, limit_seconds(), os.environ):
+    for line in overrun(took, target_seconds(), limit_seconds(), os.environ, slowest):
         print(line)
     built = ", ".join(f"{kind} {builds[kind]}" for kind in spec_build.BUILDS)
     print(f"test/suite.py: obs's spec was built this run (test/spec_build.py): {built}.")
