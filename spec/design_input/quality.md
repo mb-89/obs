@@ -91,9 +91,9 @@ definitions alike. Keeping the same fact in two places is an anti-pattern (user,
   adapter startup within a selected module; do not require the end-to-end scenario to test a
   local interaction. Prefer extracting pure transformations only when they have a cohesive owner.
 - The complete suite (`test/suite.py`) runs its parts side by side and each part's tests in
-  parallel worker processes, one per CPU (pytest-xdist). A part with browser tests runs more
-  workers than CPUs, as its tests wait on their pages' frames much of their time, which the
-  further workers fill.
+  parallel worker processes, one per CPU it may use (its CPU affinity; pytest-xdist). A part
+  with browser tests runs more workers than those CPUs, as its tests wait on their pages' frames
+  much of their time, which the further workers fill.
 
   Each part's worker groups start heaviest first, weighed by their test time in the part's last
   run the suite recorded; without a record they keep their order.
@@ -138,6 +138,10 @@ definitions alike. Keeping the same fact in two places is an anti-pattern (user,
   adapter: `test/spec_build.py` builds its Document in a folder `test/suite.py` makes for the
   run, named by a hash of the build's inputs, and counts each build there; the suite fails where
   one was built twice.
+
+  A process started in the run counts there too a build it makes in another folder, so a test
+  that removed the run's folder from its process cannot hide a second build; a test that runs
+  `test/suite.py`'s main leaves its process the run's folder it found.
 
   The core's controller starts that build as its session starts, before its workers collect.
 

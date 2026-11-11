@@ -131,11 +131,19 @@ def part_report(part: Path, environment, run_folder: Path) -> Path:
     return folder / f"{part_name(part).replace('/', '-')}.xml"
 
 
+def cpus() -> int:
+    """The CPUs this process may use: its affinity where the platform reports one (a pinned or
+    shared runner), else the host's count, as pytest-xdist's ``-n auto`` counts them."""
+    if hasattr(os, "sched_getaffinity"):
+        return len(os.sched_getaffinity(0))
+    return os.cpu_count() or 1
+
+
 def part_command(part: Path, arguments: list[str], environment, run_folder: Path) -> list[str]:
     """The pytest command of one part, with its workers (BROWSER_WORKERS_PER_CPU), which writes its
     JUnit report (part_report)."""
     browsers = any(package.parents[1] == part for package in NODE_PACKAGES)
-    workers = str(math.ceil(BROWSER_WORKERS_PER_CPU * (os.cpu_count() or 1))) if browsers else "auto"
+    workers = str(math.ceil(BROWSER_WORKERS_PER_CPU * cpus())) if browsers else "auto"
     return [sys.executable, "-m", "pytest", "-q", "-n", workers, *PARALLEL, *arguments,
             f"--junitxml={part_report(part, environment, run_folder)}"]
 
@@ -856,6 +864,8 @@ def main(arguments: list[str], clock=time.monotonic) -> int:
     import spec_build  # Only here: an adapter's conftest.py loads this module without test/ on its path.
 
     failed = []
+    # A test that runs main in a worker of the complete suite gets its own run's folder back.
+    found = os.environ.get(spec_build.RUN_FOLDER)
     with tempfile.TemporaryDirectory(prefix="obs-spec-build-") as shared:
         os.environ[spec_build.RUN_FOLDER] = shared  # Each part, and each of its workers, inherits it.
         if named:
@@ -869,7 +879,10 @@ def main(arguments: list[str], clock=time.monotonic) -> int:
                     if code:
                         failed.append(part_name(running[finished]))
         finally:
-            del os.environ[spec_build.RUN_FOLDER]
+            if found is None:
+                del os.environ[spec_build.RUN_FOLDER]
+            else:
+                os.environ[spec_build.RUN_FOLDER] = found
             os.environ.pop(SHARD_VARIABLE, None)
         builds = spec_build.counts(Path(shared))
         took = clock() - started
@@ -884,7 +897,9 @@ def main(arguments: list[str], clock=time.monotonic) -> int:
     if any(count > 1 for count in builds.values()):
         print(f"test/suite.py: obs's spec was built more than once this run ({built}); test/spec_build.py "
               "builds each kind once per run. Remedy: find the build whose inputs changed during the run "
-              "(test/spec_build.py, INPUTS) and keep it from writing outside the vault's design_output.",
+              "(test/spec_build.py, INPUTS) and keep it from writing outside the vault's design_output; "
+              f"where {spec_build.COUNTER} in the run's folder names a build outside it, find the test that "
+              f"removed {spec_build.RUN_FOLDER} from that process.",
               file=sys.stderr)
         return 1
     if failed:

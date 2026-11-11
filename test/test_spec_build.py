@@ -13,6 +13,13 @@ import spec_build
 import suite
 
 
+@pytest.fixture(autouse=True)
+def own_run(monkeypatch):
+    """This module's builds are stand-ins in run folders of their own, not builds of the run its
+    process was started in (spec_build.STARTED_IN): a test that needs one names it."""
+    monkeypatch.setattr(spec_build, "STARTED_IN", None, raising=False)
+
+
 @pytest.fixture
 def counted_builds(monkeypatch, tmp_path):
     """The shared builds with a stand-in build that records each call; its inputs are one file."""
@@ -75,6 +82,7 @@ def test_the_inputs_skip_generated_files(counted_builds, tmp_path, monkeypatch) 
 def suite_run(tmp_path, monkeypatch, builds: list[str]):
     """test/suite.py's main with stand-in parts; the core's records ``builds`` in the run's folder."""
     folders = []
+    monkeypatch.delenv(spec_build.RUN_FOLDER, raising=False)
 
     def run_part(part: Path, arguments: list[str], run_folder: Path) -> tuple[int, str]:
         folder = Path(os.environ[spec_build.RUN_FOLDER])
@@ -224,3 +232,41 @@ def test_a_failed_early_build_is_not_counted_and_the_test_that_needs_it_reports_
     assert spec_build.counts(run) == {}
     with pytest.raises(spec_build.SpecBuildError, match="test/spec_build.py"):
         spec_build.built(run, "document")
+
+
+def test_a_test_of_the_suite_leaves_its_workers_run_folder_so_the_spec_is_built_once(
+        counted_builds, tmp_path, tmp_path_factory, monkeypatch) -> None:
+    """A worker of the complete suite inherits the run's folder. A test that runs suite.main, as
+    test_parallel_suite's and this module's do, leaves it in place, so the worker's next spec test
+    reads the run's one build and builds no private one outside the run's count."""
+    calls, _inputs = counted_builds
+    run = tmp_path / "run"
+    run.mkdir()
+    monkeypatch.setenv(spec_build.RUN_FOLDER, str(run))
+    monkeypatch.setattr(suite, "NODE_PACKAGES", [])
+    monkeypatch.setattr(suite, "run_part", lambda part, arguments, run_folder: (0, ""))
+
+    assert suite.main([]) == 0
+    assert os.environ.get(spec_build.RUN_FOLDER) == str(run)
+    spec_build.built(spec_build.base(tmp_path_factory), "document")
+    assert len(calls) == 1 and spec_build.counts(run) == {"document": 1}
+
+
+def test_a_build_outside_the_run_folder_its_process_was_started_in_is_counted_in_that_run(
+        counted_builds, tmp_path, monkeypatch) -> None:
+    """A process started in a run of the complete suite (STARTED_IN) that builds the spec in
+    another folder, as one whose OBS_SPEC_BUILD a test removed would, is counted in the run's
+    folder too, so the suite's check at the run's end fails on the second build."""
+    calls, _inputs = counted_builds
+    run, elsewhere = tmp_path / "run", tmp_path / "elsewhere"
+    run.mkdir()
+    elsewhere.mkdir()
+    monkeypatch.setattr(spec_build, "STARTED_IN", run, raising=False)
+
+    spec_build.built(run, "document")
+    spec_build.built(elsewhere, "document")
+
+    assert len(calls) == 2
+    assert spec_build.counts(elsewhere) == {"document": 1}
+    assert spec_build.counts(run) == {"document": 2}
+    assert str(elsewhere) in (run / spec_build.COUNTER).read_text(encoding="utf-8")
