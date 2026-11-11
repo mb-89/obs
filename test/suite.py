@@ -856,6 +856,8 @@ def main(arguments: list[str], clock=time.monotonic) -> int:
     import spec_build  # Only here: an adapter's conftest.py loads this module without test/ on its path.
 
     failed = []
+    # A test that runs main in a worker of the complete suite gets its own run's folder back.
+    found = os.environ.get(spec_build.RUN_FOLDER)
     with tempfile.TemporaryDirectory(prefix="obs-spec-build-") as shared:
         os.environ[spec_build.RUN_FOLDER] = shared  # Each part, and each of its workers, inherits it.
         if named:
@@ -869,7 +871,10 @@ def main(arguments: list[str], clock=time.monotonic) -> int:
                     if code:
                         failed.append(part_name(running[finished]))
         finally:
-            del os.environ[spec_build.RUN_FOLDER]
+            if found is None:
+                del os.environ[spec_build.RUN_FOLDER]
+            else:
+                os.environ[spec_build.RUN_FOLDER] = found
             os.environ.pop(SHARD_VARIABLE, None)
         builds = spec_build.counts(Path(shared))
         took = clock() - started
@@ -884,7 +889,9 @@ def main(arguments: list[str], clock=time.monotonic) -> int:
     if any(count > 1 for count in builds.values()):
         print(f"test/suite.py: obs's spec was built more than once this run ({built}); test/spec_build.py "
               "builds each kind once per run. Remedy: find the build whose inputs changed during the run "
-              "(test/spec_build.py, INPUTS) and keep it from writing outside the vault's design_output.",
+              "(test/spec_build.py, INPUTS) and keep it from writing outside the vault's design_output; "
+              f"where {spec_build.COUNTER} in the run's folder names a build outside it, find the test that "
+              f"removed {spec_build.RUN_FOLDER} from that process.",
               file=sys.stderr)
         return 1
     if failed:

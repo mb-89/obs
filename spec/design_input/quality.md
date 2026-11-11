@@ -139,6 +139,10 @@ definitions alike. Keeping the same fact in two places is an anti-pattern (user,
   run, named by a hash of the build's inputs, and counts each build there; the suite fails where
   one was built twice.
 
+  A process started in the run counts there too a build it makes in another folder, so a test
+  that removed the run's folder from its process cannot hide a second build; a test that runs
+  `test/suite.py`'s main leaves its process the run's folder it found.
+
   The core's controller starts that build as its session starts, before its workers collect.
 
   So is an adapter's specification that a producer fence of

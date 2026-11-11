@@ -14,7 +14,8 @@ where a test asks.
 A build's folder is named by a hash of its inputs (INPUTS: the spec vault without what its
 producers write, the core's and the HTML adapter's sources, and this build), so changed inputs are never served a stale build. Each build appends its kind and key to
 COUNTER in the run's folder, which test/suite.py reads at the run's end: where one kind was built
-twice, the run fails.
+twice, the run fails. A process started in a run (STARTED_IN) appends there too a build it makes
+in another folder, naming that folder, so a build that lost the run's folder still fails the run.
 
 The build runs the spec's commands and producers in its vault, offline: the core's
 test/offline_obs_document.py serves each remote image as a placeholder, and serves the adapter
@@ -108,6 +109,9 @@ def build_adapter_spec(folder: Path) -> None:
 
 
 BUILDS = {"document": build_document, "adapter-spec": build_adapter_spec}
+# The run's folder this process was started in, where test/suite.py named one; a build in any other
+# folder is counted there too (built).
+STARTED_IN = Path(os.environ[RUN_FOLDER]) if os.environ.get(RUN_FOLDER) else None
 # The inputs' key, computed once per process.
 _keys: dict[str, str] = {}
 
@@ -146,6 +150,9 @@ def built(run: Path, kind: str) -> Path:
             BUILDS[kind](folder)
             with (run / COUNTER).open("a", encoding="utf-8") as counter:
                 counter.write(f"{kind} {key}\n")
+            if STARTED_IN is not None and run.resolve() != STARTED_IN.resolve():
+                with (STARTED_IN / COUNTER).open("a", encoding="utf-8") as counter:
+                    counter.write(f"{kind} {key} outside the run's folder, in {folder}\n")
             (folder / ".built").touch()
     return folder
 
