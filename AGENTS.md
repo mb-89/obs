@@ -18,6 +18,8 @@ This repository must remain publishable. The shared
 hooks with `setup.ps1 -Repo <repository>`. Push only with se's `work_tickets.py push`, which runs
 the public check first, as `public_check` in `se.toml` sets; se's
 [Project settings](../se/README.md#project-settings) own that setting.
+obs's local terms live in `.public-check.local` at the repository root, untracked and ignored;
+se's [README](../se/README.md) leads to the rules for its entries.
 Do not copy the shared process guidance into this repository. CI gates every push to `main` with
 the same check, at the newest se release `[modules.se]` admits:
 [public-check.yml](.github/workflows/public-check.yml), whose job `public-check / gate` the owner

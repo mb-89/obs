@@ -20,3 +20,4 @@
 # asks to delete it
 /src/obs/diagrams/node_modules/
 /test/browser/node_modules/
+.public-check.local
