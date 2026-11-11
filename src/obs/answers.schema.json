@@ -30,8 +30,7 @@
       "additionalProperties": false,
       "required": [
         "chapter",
-        "version",
-        "verdict"
+        "version"
       ],
       "properties": {
         "chapter": {
@@ -88,6 +87,20 @@
       "allOf": [
         {
           "if": {
+            "not": {
+              "required": [
+                "verdict"
+              ]
+            }
+          },
+          "then": {
+            "required": [
+              "comment"
+            ]
+          }
+        },
+        {
+          "if": {
             "properties": {
               "verdict": {
                 "enum": [
@@ -96,7 +109,10 @@
                   "pick"
                 ]
               }
-            }
+            },
+            "required": [
+              "verdict"
+            ]
           },
           "then": {
             "required": [
@@ -110,7 +126,10 @@
               "verdict": {
                 "const": "pick"
               }
-            }
+            },
+            "required": [
+              "verdict"
+            ]
           },
           "then": {
             "required": [
@@ -125,7 +144,8 @@
             }
           }
         }
-      ]
+      ],
+      "$comment": "One entry per chapter: a verdict with its comment where there is one, or a comment alone with no verdict (input-model#Answers)."
     },
     "figureChanges": {
       "$comment": "A decision figure's reader state (the adapter's), by option letter, and the winner it gives.",

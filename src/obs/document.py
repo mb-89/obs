@@ -107,7 +107,10 @@ def apply_answers(document: dict[str, object], verdicts: list[dict[str, object]]
                               f"Keep one verdict per chapter; see {ANSWERS_OWNER}")
         answered[chapter_id] = index
         request = asking[chapter_id]["bless"]
-        request["answer" if verdict["version"] == request["version"] else "outdated"] = verdict
+        if "verdict" not in verdict:  # A comment alone answers nothing: the chapter asks still.
+            request["comment"] = verdict
+        else:
+            request["answer" if verdict["version"] == request["version"] else "outdated"] = verdict
 
 
 def _all_chapters(chapters: list[dict[str, object]]):

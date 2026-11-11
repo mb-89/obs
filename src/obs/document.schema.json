@@ -595,14 +595,15 @@
         "children": {"type": "array", "items": {"$ref": "#/$defs/chapter"}},
         "metadata": {"type": "object"},
         "bless": {
-          "description": "The chapter's bless request (input-model#Bless requests): its version, and the reader's answer at it or an outdated answer at another version.",
+          "description": "The chapter's bless request (input-model#Bless requests): its version, and the reader's answer at it, an outdated answer at another version, or a comment with no verdict (input-model#Answers).",
           "type": "object", "additionalProperties": false, "required": ["version"],
           "properties": {
             "version": {"$ref": "answers.schema.json#/$defs/version"},
             "answer": {"$ref": "answers.schema.json#/$defs/verdict"},
-            "outdated": {"$ref": "answers.schema.json#/$defs/verdict"}
+            "outdated": {"$ref": "answers.schema.json#/$defs/verdict"},
+            "comment": {"allOf": [{"$ref": "answers.schema.json#/$defs/verdict"}, {"not": {"required": ["verdict"]}}]}
           },
-          "not": {"required": ["answer", "outdated"]}
+          "maxProperties": 2
         },
         "toc": {"const": false, "description": "An included note the manifest does not list; it follows the TOC chapters at the top level."}
       }

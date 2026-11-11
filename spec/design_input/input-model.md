@@ -1647,7 +1647,9 @@ writes it and the core that reads it:
 
 - `chapter` and `version`: the chapter's id and the version it was answered at.
 - `verdict`: `bless`, `decline`, `ask` or `pick` (another option than the decision's winner).
-- `comment`: the reader's comment, which `decline`, `ask` and `pick` need.
+- `comment`: the reader's comment, which `decline`, `ask` and `pick` need and `bless` may carry.
+  Decided by the owner, 11 Nov 2026 (work issue `fix/decision-comments-never-lost-20261111`): a
+  comment is kept with no verdict too, as an entry of `chapter`, `version` and `comment` alone.
 - `pick`: with `pick`, the decision figure's anchor (`figure`) and the picked option's letter,
   or `none` where the reader picked none of the options (`option`).
 - `figures`: by figure anchor, the reader's changes to a decision figure, as its reader state
@@ -1657,6 +1659,9 @@ writes it and the core that reads it:
 artifact is the decision record ([[cli#Answers]]). A verdict whose version is the chapter's is its
 `answer`: the chapter shows it read-only and asks nothing. A verdict at another version is
 `outdated`: the chapter asks again and shows the old answer as outdated.
+
+An entry with no `verdict` answers nothing: it is the chapter's `comment`, at whichever version,
+and the chapter asks still and shows the comment.
 
 A verdict for a chapter that does not ask, a second verdict for one chapter, or a file the schema
 refuses is an input error naming the answers file and the field path (`verdicts[0].chapter`).
