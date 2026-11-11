@@ -96,9 +96,10 @@ SHARD_VARIABLE = f"{VARIABLE_PREFIX}SHARD"
 NODE_PACKAGES = [part / "test" / "browser" for part in PARTS
                  if (part / "test" / "browser" / "package-lock.json").is_file()]
 # A part with a Node test package runs its browser tests, which wait on their pages' frames much of
-# their time: it runs this many workers per CPU, so a second worker fills that time; every other
-# part runs one per CPU (part_command).
-BROWSER_WORKERS_PER_CPU = 2
+# their time: it runs this many workers per CPU, rounded up, so the further workers fill that time;
+# every other part runs one per CPU (part_command). Two per CPU fill it a little more, but stretch a
+# single CPU-bound test past its tier's cap (test/bounds.py) while both parts run.
+BROWSER_WORKERS_PER_CPU = 1.5
 # The run's cap, in seconds: past any run that ends ([tests] limit_seconds in se.toml) and past
 # every test's timeout (test/bounds.py), so a hanging test fails by its own timeout first.
 CAP_SECONDS = 300
@@ -132,7 +133,7 @@ def part_command(part: Path, arguments: list[str], environment, run_folder: Path
     """The pytest command of one part, with its workers (BROWSER_WORKERS_PER_CPU), which writes its
     JUnit report (part_report)."""
     browsers = any(package.parents[1] == part for package in NODE_PACKAGES)
-    workers = str(BROWSER_WORKERS_PER_CPU * (os.cpu_count() or 1)) if browsers else "auto"
+    workers = str(math.ceil(BROWSER_WORKERS_PER_CPU * (os.cpu_count() or 1))) if browsers else "auto"
     return [sys.executable, "-m", "pytest", "-q", "-n", workers, *PARALLEL, *arguments,
             f"--junitxml={part_report(part, environment, run_folder)}"]
 

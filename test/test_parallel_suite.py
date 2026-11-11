@@ -66,9 +66,10 @@ def test_each_part_writes_its_junit_report_into_the_directory_se_names(tmp_path)
         f"--junitxml={run / 'core.xml'}"], "without se's directory, the report goes into the run's folder"
 
 
-def test_a_part_with_browser_tests_runs_two_workers_per_cpu_and_every_other_part_one(tmp_path) -> None:
+def test_a_part_with_browser_tests_runs_more_workers_than_cpus_and_every_other_part_one_per_cpu(tmp_path) -> None:
     """A part with a Node test package (its browser tests) waits on its pages' frames much of its
-    time, so it runs BROWSER_WORKERS_PER_CPU workers per CPU; every other part runs one per CPU."""
+    time, so it runs BROWSER_WORKERS_PER_CPU workers per CPU, rounded up; every other part runs one per CPU."""
+    import math
     import os
 
     def workers(part) -> str:
@@ -78,9 +79,10 @@ def test_a_part_with_browser_tests_runs_two_workers_per_cpu_and_every_other_part
 
     browsers = {package.parents[1] for package in suite.NODE_PACKAGES}
     assert browsers and suite.ROOT not in browsers
-    assert suite.BROWSER_WORKERS_PER_CPU == 2
+    assert 1 < suite.BROWSER_WORKERS_PER_CPU <= 2
     for part in suite.PARTS:
-        assert workers(part) == (str(suite.BROWSER_WORKERS_PER_CPU * os.cpu_count()) if part in browsers else "auto")
+        expected = str(math.ceil(suite.BROWSER_WORKERS_PER_CPU * os.cpu_count())) if part in browsers else "auto"
+        assert workers(part) == expected
 
 
 def _junit(path, cases) -> None:
