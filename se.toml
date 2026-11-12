@@ -21,4 +21,4 @@ limit_seconds = 120
 
 [modules.se]
 url = "https://github.com/mb-89/SE.git"
-version = "^4.0"
+version = "^5.0"

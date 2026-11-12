@@ -1,10 +1,14 @@
+# Copy this file, set branches to your integration branch and uses to se's workflow at its major tag
+# (se's README "Release tags"); se calls its own workflow at the pushed commit.
 name: release-tag
 
-on: push
+on:
+  push:
+    branches: [main]
 
 permissions:
   contents: write
 
 jobs:
   release:
-    uses: mb-89/SE/.github/workflows/release.yml@v4
+    uses: mb-89/SE/.github/workflows/release.yml@v5

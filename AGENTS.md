@@ -26,10 +26,11 @@ the public check first, as `public_check` in `se.toml` sets; se's
 [Project settings](../se/README.md#project-settings) own that setting.
 obs's local terms live in `.public-check.local` at the repository root, untracked and ignored;
 se's [README](../se/README.md) leads to the rules for its entries.
-Do not copy the shared process guidance into this repository. CI gates every push to `main` with
-the same check, at the newest se release `[modules.se]` admits:
-[public-check.yml](.github/workflows/public-check.yml), whose job `public-check / gate` the owner
-makes a required status check of `main`.
+Do not copy the shared process guidance into this repository. obs lands on `main` through pull
+requests, as se's [Landing on main](../se/README.md#landing-on-main) says. The check `check` that
+landing waits for is the job `check` of [test.yml](.github/workflows/test.yml): the same public
+check, at the newest se release `[modules.se]` admits, on every pull request and push, and the
+complete suite.
 
 ## Invariants
 
