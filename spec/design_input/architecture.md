@@ -77,6 +77,13 @@ content:
 ```
 ^repository-layout-decision
 
+A measurement script, one that measures a cost or a timing and is run by hand, outside the suite
+and its budget, lives in its part's `test/measure/`: the core's in `test/measure/`, an adapter's
+in its folder's `test/measure/`. Its name is no `test_*.py`, so pytest collects nothing there.
+
+`test/structure/test_architecture.py` refuses a runnable script anywhere else under a part's
+`test/` that no other file of that part's tests names.
+
 ## Core attachment metadata
 
 The core already provides the neutral Document contract, vault and asset resolution,
