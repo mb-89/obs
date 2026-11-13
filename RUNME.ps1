@@ -15,7 +15,7 @@ function Invoke-Native([string]$Command, [string[]]$Arguments) {
 }
 
 # Every tool a contributor or agent needs, declared once: each run installs uv, -Setup installs
-# all of them, and scripts\new-worktree.ps1 checks the same list through -Tools.
+# all of them, and -Tools lists them.
 $DeclaredTools = @(
     [pscustomobject]@{ Name = "uv"; WingetId = "astral-sh.uv"; Command = "uv"; Files = @() }
     [pscustomobject]@{ Name = "git"; WingetId = "Git.Git"; Command = "git"; Files = @() }
