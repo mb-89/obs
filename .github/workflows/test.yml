@@ -137,16 +137,34 @@ jobs:
       - run: uv run python test/suite.py --shard ${{ matrix.shard }}/2
         env:
           SE_TEST_REPORTS: ${{ runner.temp }}/junit
+          OBS_SUITE_TIME_FILE: ${{ runner.temp }}/suite-time/shard-${{ matrix.shard }}.json
       # Each shard's JUnit reports, from which `test/suite.py --measure-weights` measures SHARD_WEIGHTS.
       - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: junit-shard-${{ matrix.shard }}
           path: ${{ runner.temp }}/junit
-  # One status for the gate and the whole suite, whichever shards it has: the required check.
+      # The shard's time, from which `check` reports CI's suite time.
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: suite-time-shard-${{ matrix.shard }}
+          path: ${{ runner.temp }}/suite-time
+          if-no-files-found: ignore
+  # One status for the gate and the whole suite, whichever shards it has: the required check. It
+  # also reports CI's suite time as the notice se's budget reads from this job (se's README "Test
+  # budget"): the slowest shard's, as the shards run side by side (test/suite.py, --ci-suite-time).
   check:
     needs: [gate, shard]
     if: always()
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        continue-on-error: true
+        with:
+          pattern: suite-time-shard-*
+          path: ${{ runner.temp }}/suite-time
+      - name: CI's suite time, as se's budget reads it
+        run: python3 test/suite.py --ci-suite-time "$RUNNER_TEMP/suite-time"
       - run: test "${{ needs.gate.result }}" = success && test "${{ needs.shard.result }}" = success

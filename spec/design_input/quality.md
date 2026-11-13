@@ -213,6 +213,12 @@ definitions alike. Keeping the same fact in two places is an anti-pattern (user,
   whole suite; `test/suite.py` names the runner's CPUs and says in each job's log, as a warning
   annotation, when its run is past the limit.
 
+  se's gate judges a local run past the limit by CI's suite time, which it reads from the
+  `check` job's `se suite time` notice (se's README, Test budget). The suite runs in the shard
+  jobs, so each shard records its time, and `check` reports the slowest shard's time as that
+  notice (`test/suite.py --ci-suite-time`): the complete suite's wall time on CI, whose shards
+  run side by side.
+
   Each package adds tests, so the suite creeps towards its limit. Its target, `[tests]
   target_seconds` in `se.toml`, stands 20 s under the limit: past it, se's gate warns, and
   `test/suite.py` says so too, locally and as a warning annotation in CI, naming the run's slowest
