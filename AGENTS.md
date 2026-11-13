@@ -30,7 +30,9 @@ Do not copy the shared process guidance into this repository. obs lands on `main
 requests, as se's [Landing on main](../se/README.md#landing-on-main) says. The check `check` that
 landing waits for is the job `check` of [test.yml](.github/workflows/test.yml): the same public
 check, at the newest se release `[modules.se]` admits, on every pull request and push, and the
-complete suite.
+complete suite. On a pull request it also runs se's issue rule, that the description names an open
+work issue, as se's [Integration branch](../se/.github/skills/work-model/SKILL.md#integration-branch)
+says, and checks its field report, a landing's in the work pull request it names.
 
 ## Invariants
 
