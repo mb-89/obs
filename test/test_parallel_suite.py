@@ -594,54 +594,12 @@ def test_a_group_the_committed_weights_lack_is_dealt_by_tier_weights_with_a_warn
     assert len(items) + len(config.deselected) == len(_shard_items())
 
 
-# se's work_tickets.py reads CI's suite time from the `check` run's notice titled so, by this
-# pattern (se's README, Test budget).
-SE_SUITE_TITLE = "se suite time"
-SE_SUITE_MESSAGE = r"Suite time: (\d+(?:\.\d+)?) s"
-
-
-def test_a_run_records_its_time_and_shard_where_the_suite_time_variable_names_a_file(monkeypatch, tmp_path) -> None:
-    import json
-
-    record = tmp_path / "time" / "shard-2.json"
-    monkeypatch.setattr(suite, "run_part", lambda part, arguments, run_folder: (0, ""))
-    monkeypatch.setattr(suite, "is_installed", lambda package: True)
-    monkeypatch.setenv(suite.TIME_VARIABLE, str(record))
-    times = iter([0.0, 42.25])
-
-    assert suite.main([suite.SHARD, "2/2"], clock=lambda: next(times)) == 0
-    assert json.loads(record.read_text(encoding="utf-8")) == {"seconds": 42.25, "shard": "2/2"}
-
-
-def _records(folder, *shards):
-    import json
-
-    folder.mkdir(parents=True, exist_ok=True)
-    for shard, seconds in shards:
-        index = shard.split("/")[0]
-        (folder / f"shard-{index}.json").write_text(json.dumps({"seconds": seconds, "shard": shard}),
-                                                   encoding="utf-8")
-
-
-def test_ci_reports_its_slowest_shard_as_the_suite_time_se_reads(capsys, tmp_path) -> None:
+def test_ci_times_its_shards_with_se_actions_at_the_release_se_lock_pins() -> None:
     import re
+    import tomllib
 
-    _records(tmp_path / "suite-shard-1", ("1/2", 82.44))
-    _records(tmp_path / "suite-shard-2", ("2/2", 67.1))
+    pinned = tomllib.loads((suite.ROOT / "se.lock").read_text(encoding="utf-8"))["modules"]["se"]["version"]
+    workflow = (suite.ROOT / ".github" / "workflows" / "test.yml").read_text(encoding="utf-8")
+    used = dict(re.findall(r"uses: mb-89/SE/\.github/actions/([\w-]+)@(\S+)", workflow))
 
-    assert suite.main([suite.CI_TIME, str(tmp_path)]) == 0
-    notices = [line for line in capsys.readouterr().out.splitlines()
-               if line.startswith(f"::notice title={SE_SUITE_TITLE}::")]
-    assert len(notices) == 1
-    assert float(re.search(SE_SUITE_MESSAGE, notices[0])[1]) == 82.4
-    assert f"(limit {suite.limit_seconds():g} s;" in notices[0]
-
-
-@pytest.mark.parametrize("shards", [[], [("1/2", 80.0)], [("1/2", 80.0), ("1/3", 70.0)]])
-def test_ci_reports_no_suite_time_without_every_shards_record(capsys, tmp_path, shards) -> None:
-    _records(tmp_path, *shards)
-
-    assert suite.main([suite.CI_TIME, str(tmp_path)]) == 0
-    out = capsys.readouterr().out
-    assert "::notice" not in out
-    assert out.startswith(f"test/suite.py: {suite.CI_TIME}: no suite time reported")
+    assert used == {"suite-shard": f"v{pinned}", "suite-time": f"v{pinned}"}

@@ -18,6 +18,8 @@ setup = ["uv", "run", "python", "test/suite.py", "--setup"]
 command = ["uv", "run", "python", "test/suite.py", "--durations=10"]
 target_seconds = 100
 limit_seconds = 120
+# Host variance: spec/design_input/quality.md, Testing boundaries, says why.
+over_limit = "warn"
 
 [modules.se]
 url = "https://github.com/mb-89/SE.git"

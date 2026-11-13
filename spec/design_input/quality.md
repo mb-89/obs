@@ -209,15 +209,19 @@ definitions alike. Keeping the same fact in two places is an anti-pattern (user,
   and each test runs in exactly one. A host without a record starts its heaviest groups first by
   the same weights.
 
-  CI does not fail a run past the suite's time limit, which se's local gate enforces on the
-  whole suite; `test/suite.py` names the runner's CPUs and says in each job's log, as a warning
-  annotation, when its run is past the limit.
+  CI does not fail a run past the suite's time limit. The hosts vary too much for that: the
+  same commit's time differs by tens of seconds from one runner to the next, as above, so a
+  slow runner would block a landing the suite itself does not deserve. obs declares this as
+  `[tests] over_limit = "warn"` in `se.toml`, which se's
+  [Test budget](https://github.com/mb-89/SE/blob/main/README.md#test-budget) owns: an overrun
+  warns instead of failing. `test/suite.py` names the runner's CPUs and says in each job's log,
+  as a warning annotation, when its run is past the limit.
 
   se's gate judges a local run past the limit by CI's suite time, which it reads from the
-  `check` job's `se suite time` notice (se's README, Test budget). The suite runs in the shard
-  jobs, so each shard records its time, and `check` reports the slowest shard's time as that
-  notice (`test/suite.py --ci-suite-time`): the complete suite's wall time on CI, whose shards
-  run side by side.
+  `check` job's `se suite time` notice. The suite runs in the shard jobs, so each shard runs
+  through se's `suite-shard` action, which records its time, and `check` reports the slowest
+  shard's time as that notice through se's `suite-time` action (se's Test budget, above): the
+  complete suite's wall time on CI, whose shards run side by side.
 
   Each package adds tests, so the suite creeps towards its limit. Its target, `[tests]
   target_seconds` in `se.toml`, stands 20 s under the limit: past it, se's gate warns, and
