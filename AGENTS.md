@@ -14,6 +14,9 @@ that flow, obs work follows this order:
    with matching schema constraints.
 3. Implement the smallest behavior consistent with the approved design.
 4. Add a regression test first, run the affected tests, and exercise the affected CLI path.
+   After editing a design note, run
+   `uv run pytest -q test/test_note_inclusion.py test/structure/test_manifest.py` before the
+   complete suite.
 5. Follow the knowledge-ownership and change-locality rules in
    [`quality.md`](spec/design_input/quality.md).
 
