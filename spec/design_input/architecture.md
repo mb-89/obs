@@ -84,6 +84,14 @@ in its folder's `test/measure/`. Its name is no `test_*.py`, so pytest collects 
 `test/structure/test_architecture.py` refuses a runnable script anywhere else under a part's
 `test/` that no other file of that part's tests names.
 
+The repository tracks no file over se's size bound (se's repository hygiene rule,
+`tests/test_repository.py`, whose `MAX_BYTES` owns the bound) unless the allow list in
+`test/structure/test_repository.py` names it with its reason.
+
+Only a vendored library may be on that list, and only one that its part's vendor manifest,
+`vendor.json` in the part's folder, pins by version and hash. The part's own tests check the file
+against that pin, so an entry covers neither another large file nor a changed library.
+
 ## Core attachment metadata
 
 The core already provides the neutral Document contract, vault and asset resolution,
