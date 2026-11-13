@@ -84,6 +84,13 @@ definitions alike. Keeping the same fact in two places is an anti-pattern (user,
 - DOM tests use a controlled browser adapter for deterministic interactions. Native browser
   printing and layout remain separate integration checks; a mocked print call does not verify
   a PDF's visual output.
+- A test of a promise in time ("within a second") proves it by the order of what happens
+  wherever the machine's speed is not its own: in the complete suite and on CI, it checks
+  that what is promised first comes first, never a wall-clock budget scaled by a load it
+  estimates.
+
+  It judges the clock only where it runs alone on the machine the promise names. An
+  adapter's specification that promises a startup time owns how its test proves that order.
 - Write a focused regression test before implementing a feature. Select tests by owning module
   or feature with pytest paths and `-k`; do not run unrelated integration scenarios on each edit.
   Reserve the full test suite for a requested commit.
