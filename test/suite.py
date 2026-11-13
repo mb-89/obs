@@ -249,22 +249,22 @@ def shard() -> tuple[int, int] | None:
 # them, weighs as measure_weights weighs a tier no run ran. Measured on runs 43045380745
 # (863cdc9) and 43066980632 (45d8e11), 2026-11-11, on GitHub's 4-CPU ubuntu-latest runners.
 # Download each attempt's artifacts before re-running it: a re-run drops them.
+# The core's test/test_diagram_figures.py and test/test_vault.py are estimated, not measured: when
+# the core's diagram-drawing tests joined one group (test/test_diagram_figures.py), their CI weights
+# were summed and scaled by those tests' time in three local complete-suite runs before and after
+# (26.4 s to 12.0 s, medians; test_vault.py 12.46 s to 8.92 s), until the weights are measured again.
 SHARD_WEIGHTS = {
     "core": {
-        "test/test_vault.py": 14.87,
+        "test/test_diagram_figures.py": 20.5,
         "test/test_equation_figures.py": 13.09,
         "test/test_note_inclusion.py": 12.81,
-        "test/test_figure_node.py": 10.26,
-        "test/test_diagram_figures.py": 10.01,
+        "test/test_vault.py": 10.65,
         "test/test_parallel_suite.py": 9.61,
         "test/structure/test_public_spec.py": 9.38,
         "test/test_document_contract.py": 8.88,
-        "test/test_comments.py": 6.12,
-        "test/test_capability_examples.py": 5.73,
         "test/test_hatch_build.py": 5.07,
         "test/test_ignored_notes.py": 3.24,
         "test/test_core_input_contracts.py": 2.69,
-        "test/test_sync.py": 2.58,
         "test/test_pugh_figure.py": 2.44,
         "test/test_bounds.py": 2.31,
         "test/structure/test_spec_builds.py": 2.27,

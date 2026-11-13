@@ -8,6 +8,9 @@ import yaml
 from obs.document import DocumentError, build_document
 from test_vault import INPUT_CAPABILITY_GAPS, capability_reference
 
+# Draws diagrams: runs in the diagram tests' group (test/test_diagram_figures.py says why).
+pytestmark = pytest.mark.xdist_group("test/test_diagram_figures.py")
+
 
 ROOT = Path(__file__).parents[1]
 CAPABILITIES = ROOT / "spec" / "capabilities"

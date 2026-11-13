@@ -1,6 +1,7 @@
 import json
 import os
 import shutil
+import threading
 from pathlib import Path
 
 import pytest
@@ -42,8 +43,36 @@ def group_by_module(items) -> None:
             item.add_marker(pytest.mark.xdist_group(item.nodeid.split("::")[0]))
 
 
+# The xdist group of every core test that draws a diagram (test/test_diagram_figures.py says why).
+DIAGRAM_GROUP = "test/test_diagram_figures.py"
+# Whether the test process's diagram session ran before the test started.
+_DIAGRAMS_BEFORE = pytest.StashKey[bool]()
+
+
+def diagram_session_running() -> bool:
+    """Whether this process's diagram session runs: src/obs/diagram.py's thread "obs-diagrams"."""
+    return any(thread.name == "obs-diagrams" for thread in threading.enumerate())
+
+
+def diagram_guard(item, report, before: bool, after: bool) -> None:
+    """Fail, at its teardown, a test outside DIAGRAM_GROUP that started the diagram session
+    (``before`` it ran, none; ``after``, one), naming the test, its group and the remedy."""
+    if report.when != "teardown" or not report.passed or before or not after:
+        return
+    group = suite.xdist_group(item)
+    if group == DIAGRAM_GROUP:
+        return
+    report.outcome = "failed"
+    report.longrepr = (
+        f"test/conftest.py: {item.nodeid} drew a diagram in its xdist group {group}, which started a "
+        "browser session for diagrams in its worker. Remedy: mark it, or its module, "
+        f'pytest.mark.xdist_group("{DIAGRAM_GROUP}") (DIAGRAM_GROUP), so one worker draws every diagram '
+        "(test/test_diagram_figures.py).")
+
+
 @pytest.hookimpl(wrapper=True)
 def pytest_runtest_protocol(item, nextitem):
+    item.stash[_DIAGRAMS_BEFORE] = diagram_session_running()
     with network_guard.running(item.nodeid), bounds.running(item, os.environ.get(spec_build.RUN_FOLDER)):
         return (yield)
 
@@ -52,6 +81,8 @@ def pytest_runtest_protocol(item, nextitem):
 def pytest_runtest_makereport(item, call):
     report = yield
     network_guard.fail(report)
+    if report.when == "teardown":
+        diagram_guard(item, report, item.stash.get(_DIAGRAMS_BEFORE, True), diagram_session_running())
     bounds.explain(item, report)
     tiers.make_report(item, report)
     return report

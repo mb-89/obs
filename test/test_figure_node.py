@@ -13,6 +13,9 @@ from obs.figure import FIGURE_KINDS
 
 from test_vault import capability_reference
 
+# Draws diagrams: runs in the diagram tests' group (test/test_diagram_figures.py says why).
+pytestmark = pytest.mark.xdist_group("test/test_diagram_figures.py")
+
 
 ROOT = Path(__file__).parents[1]
 SVG = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10"><rect width="10" height="10"/></svg>'
