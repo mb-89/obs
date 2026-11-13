@@ -58,7 +58,12 @@ does, every package not installed from its current lockfile, under a lock shared
     uv run python test/suite.py
     uv run python test/suite.py --shard 1/2
     uv run python test/suite.py --measure-weights <run folder>...
+    python3 test/suite.py --ci-suite-time <folder>
 
+Where `OBS_SUITE_TIME_FILE` names a file, the run writes its parts' time and its shard there
+(record_time). `--ci-suite-time` reads those records, one per shard of a CI run, and prints CI's
+suite time as the `se suite time` notice se's budget reads from the `check` job (ci_suite_time):
+the slowest shard's, as CI runs the shards side by side; it needs only Python's standard library.
 `--measure-weights` prints SHARD_WEIGHTS and TIER_WEIGHTS measured from the JUnit reports of the
 CI runs it names (measure_weights), to paste over them.
 """
@@ -94,6 +99,14 @@ SHARD = "--shard"
 # (test/conftest.py, suite_environment).
 VARIABLE_PREFIX = "OBS_SUITE_"
 SHARD_VARIABLE = f"{VARIABLE_PREFIX}SHARD"
+# Where it names a file, the run records its time and shard there as JSON (record_time); each CI
+# shard's job does, and the `check` job reports them (`--ci-suite-time`, ci_suite_time).
+TIME_VARIABLE = f"{VARIABLE_PREFIX}TIME_FILE"
+# `--ci-suite-time <folder>`: report the shards' recorded times as the notice se's budget reads.
+CI_TIME = "--ci-suite-time"
+# se's work_tickets.py reads CI's suite time from the notice of this title on the `check` run, its
+# message starting `Suite time: <seconds> s` (se's README, Test budget).
+SE_SUITE_TITLE = "se suite time"
 # Each part's Node test package, where it has one.
 NODE_PACKAGES = [part / "test" / "browser" for part in PARTS
                  if (part / "test" / "browser" / "package-lock.json").is_file()]
@@ -824,9 +837,46 @@ def overrun(seconds: float, target: float, limit: float, environment, slowest: l
     return [line, *listed, *([annotation] if environment.get("GITHUB_ACTIONS") == "true" else [])]
 
 
+def record_time(seconds: float, named: str | None, environment) -> None:
+    """Where TIME_VARIABLE names a file, write the run's time and its shard (None unsharded) there."""
+    if environment.get(TIME_VARIABLE):
+        record = Path(environment[TIME_VARIABLE])
+        record.parent.mkdir(parents=True, exist_ok=True)
+        record.write_text(json.dumps({"seconds": round(seconds, 3), "shard": named}), encoding="utf-8")
+
+
+def ci_suite_time(folder: Path) -> str:
+    """CI's suite time from the shards' records under ``folder`` (record_time, in subfolders too):
+    the slowest shard's, the complete suite's wall time on CI, whose shard jobs run side by side,
+    as the notice se's budget reads (SE_SUITE_TITLE). Where not every shard of one run left its
+    record, a line that says so instead: se then reads CI's time as unknown."""
+    records = [json.loads(path.read_text(encoding="utf-8")) for path in sorted(folder.rglob("*.json"))]
+    shards = {(record.get("shard") or "1/1"): float(record["seconds"]) for record in records}
+    counts = {shard.split("/")[1] for shard in shards}
+    every = len(counts) == 1 and {shard.split("/")[0] for shard in shards} == {
+        str(index) for index in range(1, int(next(iter(counts))) + 1)}
+    if not every:
+        return (f"test/suite.py: {CI_TIME}: no suite time reported: {folder} holds the records of shards "
+                f"{', '.join(sorted(shards)) or 'none'}, not of every shard of one run ({TIME_VARIABLE} in "
+                "each shard's job).\n")
+    ordered = sorted(shards, key=lambda shard: int(shard.split("/")[0]))
+    slowest = max(shards.values())
+    each = ", ".join(f"{shards[shard]:.1f} s" for shard in ordered)
+    return (f"::notice title={SE_SUITE_TITLE}::Suite time: {slowest:.1f} s (limit {limit_seconds():g} s; "
+            f"the slowest of {len(shards)} shards, which CI runs side by side: {each})\n")
+
+
 def main(arguments: list[str], clock=time.monotonic) -> int:
     if SETUP in arguments:
         return setup(arguments, clock)
+    if CI_TIME in arguments:
+        folder = arguments[arguments.index(CI_TIME) + 1:]
+        if len(folder) != 1:
+            print(f"test/suite.py: {CI_TIME} names no folder. Remedy: name the one folder that holds the "
+                  f"shards' records ({TIME_VARIABLE}).", file=sys.stderr)
+            return 2
+        print(ci_suite_time(Path(folder[0])), end="")
+        return 0
     if MEASURE in arguments:
         runs = [Path(folder) for folder in arguments[arguments.index(MEASURE) + 1:]]
         if not runs or not all(run.is_dir() for run in runs):
@@ -890,6 +940,7 @@ def main(arguments: list[str], clock=time.monotonic) -> int:
         slowest = slowest_tests(reports)
         unusual = outlying(reports, os.environ)
     print(f"test/suite.py: parts took {took:.1f} s.")
+    record_time(took, named, os.environ)
     for line in [*overrun(took, target_seconds(), limit_seconds(), os.environ, slowest), *unusual]:
         print(line)
     built = ", ".join(f"{kind} {builds[kind]}" for kind in spec_build.BUILDS)
