@@ -91,6 +91,10 @@ definitions alike. Keeping the same fact in two places is an anti-pattern (user,
 
   It judges the clock only where it runs alone on the machine the promise names. An
   adapter's specification that promises a startup time owns how its test proves that order.
+
+  On CI, such a promise's clock is judged in a job of its own outside the suite's shards, by
+  the median of five runs alone, warn-only until five main runs in a row hold it; the
+  adapter's specification that makes the promise names that job.
 - Write a focused regression test before implementing a feature. Select tests by owning module
   or feature with pytest paths and `-k`; do not run unrelated integration scenarios on each edit.
   Reserve the full test suite for a requested commit.

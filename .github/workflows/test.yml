@@ -3,7 +3,7 @@ name: test
 # obs's CI. The job `check` is the check main's ruleset requires by that name, the one se's
 # `work_tickets.py integrate` waits for before it squash-merges a landing pull request (se's README
 # "Landing on main"); it passes only when the public check, on a pull request the work model's issue
-# rule and its field report, and every suite shard pass.
+# rule and its field report, every suite shard and the first chapter's job pass.
 on:
   push:
   pull_request:
@@ -148,12 +148,28 @@ jobs:
         with:
           name: junit-shard-${{ matrix.shard }}
           path: ${{ runner.temp }}/junit
+  # The spec artifact's first chapter within a second (adapters/html/spec/artifact-ui.md), judged
+  # outside the suite's shards: test/first_chapter.py runs that one test alone five times and
+  # judges their median; its docstring owns how, and its BLOCKING whether a miss fails this job.
+  # Until then it only warns, so `check`, which needs this job, stays green on a miss.
+  first-chapter:
+    name: first chapter
+    runs-on: ubuntu-26.04
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+      - run: uv run python test/suite.py --setup
+      - name: First chapter, median of five runs alone
+        run: uv run python test/first_chapter.py
   # One status for the gate and the whole suite, whichever shards it has: the required check. se's
   # suite-time action reports CI's suite time, the slowest shard's, as the `se suite time` notice
   # se's budget reads from this job, and holds it to se.toml's [tests] budget (se's README "Test
   # budget"); it fails where a shard failed or left no record.
   check:
-    needs: [gate, shard]
+    needs: [gate, shard, first-chapter]
     if: always()
     runs-on: ubuntu-26.04
     steps:
@@ -161,4 +177,6 @@ jobs:
       - uses: mb-89/SE/.github/actions/suite-time@v5.27.3
         with:
           shards: 2
-      - run: test "${{ needs.gate.result }}" = success && test "${{ needs.shard.result }}" = success
+      - run: |
+          test "${{ needs.gate.result }}" = success && test "${{ needs.shard.result }}" = success &&
+            test "${{ needs.first-chapter.result }}" = success
