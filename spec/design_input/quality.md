@@ -98,6 +98,10 @@ definitions alike. Keeping the same fact in two places is an anti-pattern (user,
   Each part's worker groups start heaviest first, weighed by their test time in the part's last
   run the suite recorded; without a record they keep their order.
 
+  The core's tests that draw a diagram share one group, so one worker starts the diagram door's
+  browser session for all of them; a test outside it that starts that session fails, naming the
+  group to join.
+
   A module's tests share a worker, so its module fixtures are built
   once per run; each worker starts one browser and leases every test a page from its pool, made
   blank between tests as a fresh context shows it. The adapter's browsers keep their frame rate

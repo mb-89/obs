@@ -43,6 +43,7 @@ class Alpha [[plantuml-target]]
 @enduml
 ```
 """
+# Draws diagrams: runs in the diagram tests' group (test/test_diagram_figures.py says why).
 pytestmark = pytest.mark.xdist_group("test/test_diagram_figures.py")
 NOTES = ("target", "other", "drawn", "mermaid-target", "plantuml-target")
 

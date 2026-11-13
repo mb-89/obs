@@ -5,7 +5,10 @@ Reader: whoever changes the diagram kinds or their renderers (input-model, Figur
 direction; capabilities/mermaid, capabilities/plantuml; src/obs/diagram.py).
 
 The vault is built once for the module, so its diagrams are drawn in one browser session; the
-error cases reuse that session. The network guard (test/conftest.py) fails a test whose process
+error cases reuse that session. Every other core test that draws a diagram runs in this module's
+xdist group too (``xdist_group("test/test_diagram_figures.py")``), so the complete suite starts
+that session on one worker: a test process's first diagram starts Playwright, a browser and the
+renderers, about 3 CPU seconds, which four workers paid four times. The network guard (test/conftest.py) fails a test whose process
 reaches the network; the renderers' page refuses every request it does not serve from the
 installed packages.
 """
@@ -143,3 +146,55 @@ def test_a_syntax_error_in_a_source_file_names_the_note_the_fence_and_the_files_
 
     assert message.startswith(f"{tmp_path / 'chapter.md'}: line 3, figure fence 1, source, line 3: ")
     assert message.endswith("; see capabilities/mermaid.")
+
+
+class _Item:
+    """A collected test as the diagram guard reads it: its node id, its xdist group and its stash."""
+
+    def __init__(self, nodeid: str, group: str):
+        self.nodeid, self.stash = nodeid, pytest.Stash()
+        self._mark = pytest.mark.xdist_group(group).mark
+
+    def get_closest_marker(self, name):
+        return self._mark if name == "xdist_group" else None
+
+
+def _teardown():
+    from types import SimpleNamespace
+
+    return SimpleNamespace(when="teardown", outcome="passed", longrepr=None,
+                           passed=True, failed=False)
+
+
+def test_a_test_outside_the_diagram_group_that_starts_the_diagram_session_fails_naming_its_group() -> None:
+    import conftest
+
+    item = _Item("test/test_other.py::test_draws", "test/test_other.py")
+    report = _teardown()
+    conftest.diagram_guard(item, report, before=False, after=True)
+
+    assert report.outcome == "failed"
+    assert "test/test_other.py::test_draws" in report.longrepr and "test/test_other.py" in report.longrepr
+    assert f'xdist_group("{conftest.DIAGRAM_GROUP}")' in report.longrepr
+    assert "test/test_diagram_figures.py" in report.longrepr
+
+
+@pytest.mark.parametrize(("group", "before", "after"), [
+    ("test/test_diagram_figures.py", False, True),  # in the group
+    ("test/test_other.py", True, True),  # the session ran already
+    ("test/test_other.py", False, False),  # it drew nothing
+])
+def test_a_test_in_the_diagram_group_or_that_starts_no_session_passes(group, before, after) -> None:
+    import conftest
+
+    report = _teardown()
+    conftest.diagram_guard(_Item("test/test_x.py::test_x", group), report, before=before, after=after)
+    assert report.outcome == "passed"
+
+
+def test_the_guard_sees_the_session_a_drawing_starts(figures) -> None:
+    """The guard names the diagram door's session by its thread, which drawing starts."""
+    import conftest
+
+    assert conftest.DIAGRAM_GROUP == "test/test_diagram_figures.py"
+    assert conftest.diagram_session_running()

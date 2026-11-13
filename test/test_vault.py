@@ -337,6 +337,8 @@ def test_core_marks_silent_command_fences_as_non_rendering_producers(tmp_path) -
     }
 
 
+# Draws diagrams: runs in the diagram tests' group (test/test_diagram_figures.py says why).
+@pytest.mark.xdist_group("test/test_diagram_figures.py")
 def test_core_emits_data_only_nodes_for_additional_input_capabilities(tmp_path) -> None:
     document = additional_capability_document(tmp_path)
     nodes = document["chapters"][0]["content"]
@@ -706,6 +708,8 @@ def test_spec_document_wikilinks_name_their_included_chapter(spec_document) -> N
     )
 
 
+# Draws diagrams: runs in the diagram tests' group (test/test_diagram_figures.py says why).
+@pytest.mark.xdist_group("test/test_diagram_figures.py")
 def test_core_parses_the_spec_vault_as_neutral_document(tmp_path, spec_document) -> None:
     reference = capability_reference()
     document = spec_document

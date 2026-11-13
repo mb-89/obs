@@ -20,6 +20,9 @@ from test_vault import capability_reference
 
 OWNER = "input-model#Comments and reviews"
 
+# Draws diagrams: runs in the diagram tests' group (test/test_diagram_figures.py says why).
+pytestmark = pytest.mark.xdist_group("test/test_diagram_figures.py")
+
 
 def _vault(tmp_path: Path, abstract: str = "") -> Path:
     (tmp_path / "manifest.md").write_text(f"- [[design]]\n\n{abstract}", encoding="utf-8")
