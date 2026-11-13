@@ -2,20 +2,21 @@ name: test
 
 # obs's CI. The job `check` is the check main's ruleset requires by that name, the one se's
 # `work_tickets.py integrate` waits for before it squash-merges a landing pull request (se's README
-# "Landing on main"); it passes only when the public check and every suite shard pass.
+# "Landing on main"); it passes only when the public check, on a pull request the work model's issue
+# rule and its field report, and every suite shard pass.
 on:
   push:
   pull_request:
-    types: [opened, synchronize, reopened, edited]
+    types: [opened, synchronize, reopened, edited, labeled, unlabeled]
 
 permissions:
   contents: read
   issues: read
 
 jobs:
-  # se's public check on the pushed commits or a pull request's commits, and a pull request's field
-  # report (AGENTS.md "Public safety"), at the newest se release se.toml's [modules.se] range
-  # admits. The check is se's scripts/public_check.py; obs keeps no copy of it.
+  # se's public check on the pushed commits or a pull request's commits, and on a pull request the
+  # work model's issue rule and its field report (AGENTS.md "Public safety"), at the newest se
+  # release se.toml's [modules.se] range admits. The checks are se's scripts; obs keeps no copy.
   gate:
     runs-on: ubuntu-latest
     steps:
@@ -78,6 +79,14 @@ jobs:
             echo "::error::public-check (se's scripts/public_check.py, AGENTS.md 'Public safety') refused $what: amend each named commit as its line says (for a Co-authored-by line, without the line, and turn off the editor's co-author setting, se's README 'Install'), then push again"
             exit 1
           fi
+      # se's work model's issue rule (its SKILL.md "Integration branch"): the description names an
+      # open work issue, a landing's through the work pull request it lands.
+      - name: The pull request names an open work issue
+        if: github.event_name == 'pull_request'
+        env:
+          SE: ${{ runner.temp }}/se
+          GITHUB_TOKEN: ${{ github.token }}
+        run: python3 "$SE/scripts/pr_issues.py" --repo .
       - name: The pull request's field report follows se's template
         if: github.event_name == 'pull_request'
         env:
@@ -87,17 +96,24 @@ jobs:
           REPOSITORY: ${{ github.repository }}
         run: |
           # A worker's pull request carries its field report; it is checked against its work issue,
-          # the issue its first line `Fixes|Refs <issue url>` names. A pull request without the
-          # report's marker (a landing pull request) has none to check.
+          # the issue its first line `Fixes|Refs <issue url>` names. A landing pull request carries
+          # `<!-- se:field-report-in <n> -->` instead: the report is the description of the work
+          # pull request <n>, read from there (se's README "Landing on main"). A pull request
+          # without either marker has no report to check.
           body="$RUNNER_TEMP/pr-body.md"
           printf '%s\n' "$PR_BODY" > "$body"
+          work=$(sed -nE 's#^<!-- se:field-report-in ([0-9]+) -->[[:space:]]*$#\1#p' "$body" | head -n 1)
+          if [ -n "$work" ]; then
+            echo "field-report: the landing's report is the description of pull request $work"
+            gh api "repos/$REPOSITORY/pulls/$work" --jq .body > "$body"
+          fi
           if ! grep -q '<!-- se:field-report -->' "$body"; then
             echo "field-report: no field report in the description, nothing to check"
             exit 0
           fi
-          issue=$(sed -nE '1s#^(Fixes|Refs) https://github\.com/[^/]+/[^/]+/issues/([0-9]+)[[:space:]]*$#\2#p' "$body")
-          if [ -z "$issue" ]; then
-            echo "::error::field-report: the description's first line names no work issue (Fixes|Refs <issue url>, as se's work_tickets.py pr-body writes it)"
+          # se's pr_issues.py owns how a description names its issue, for this step and the one above.
+          if ! issue=$(python3 "$SE/scripts/pr_issues.py" --work-issue "$body" --repository "$REPOSITORY"); then
+            echo "::error::field-report: the description's first line names no work issue of $REPOSITORY (Fixes|Refs <issue url>, as se's work_tickets.py pr-body writes it, or Refs #<n>)"
             exit 1
           fi
           gh api "repos/$REPOSITORY/issues/$issue" --jq .body > "$RUNNER_TEMP/issue-body.md"
