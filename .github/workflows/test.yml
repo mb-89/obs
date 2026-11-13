@@ -136,7 +136,7 @@ jobs:
         with:
           node-version: 22
       - run: uv run python test/suite.py --setup
-      - uses: mb-89/SE/.github/actions/suite-shard@v5.27.0
+      - uses: mb-89/SE/.github/actions/suite-shard@v5.27.3
         env:
           SE_TEST_REPORTS: ${{ runner.temp }}/junit
         with:
@@ -158,7 +158,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: mb-89/SE/.github/actions/suite-time@v5.27.0
+      - uses: mb-89/SE/.github/actions/suite-time@v5.27.3
         with:
           shards: 2
       - run: test "${{ needs.gate.result }}" = success && test "${{ needs.shard.result }}" = success
