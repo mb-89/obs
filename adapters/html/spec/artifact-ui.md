@@ -493,9 +493,11 @@ weights and marks in place and plays what-if; the details sit behind tabs.
 
 A decision figure (obs capabilities/pugh-decisions) is decided in the reader's page by
 `src/obs_html/pugh-figure.js` with ctrl's Pugh engine, `src/obs_html/vendor/pugh.js`, copied
-unchanged from ctrl (its header names the commit). The engine is embedded, with its header,
-only in an artifact that holds a decision figure: it is the reader feature `pugh`
-(`features.py`), whose canary reports a host that does not run it.
+unchanged from ctrl (its header names the commit). ctrl's tests of the engine's rules (obs
+capabilities/pugh-decisions, The rules) run against that file under their ctrl names,
+`test/pugh-engine.test.mjs`. The engine is embedded, with its header, only in an artifact that
+holds a decision figure: it is the reader feature `pugh` (`features.py`), whose canary reports a
+host that does not run it.
 
 Every option carries its letter, A, B, C and on in the order the fence lists them, wherever the
 figure names it, its label and its short name (obs input-model, Pugh decision figures). Where

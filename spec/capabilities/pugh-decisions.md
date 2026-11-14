@@ -59,9 +59,8 @@ a tab "The record", and its text no longer runs under the one-pager.
 ## The rules
 
 ctrl's engine decides by these rules, each owned by its row of "The rules, and why" in ctrl's
-`design/output/pugh.md`, which says why; obs adds none and changes none. The engine's tests, ported
-from ctrl's `test/pugh.test.mjs` under their names, are the HTML adapter's
-`test/pugh-engine.test.mjs`.
+`design/output/pugh.md`, which says why; obs adds none and changes none. The adapter that carries
+the engine runs ctrl's tests of these rules, from ctrl's `test/pugh.test.mjs`, under their names.
 
 | Rule | What the engine does | Source in ctrl |
 |---|---|---|
