@@ -136,7 +136,7 @@ jobs:
         with:
           node-version: 22
       - run: uv run python test/suite.py --setup
-      - uses: mb-89/SE/.github/actions/suite-shard@v5.27.3
+      - uses: mb-89/SE/.github/actions/suite-shard@v5.49.15
         env:
           SE_TEST_REPORTS: ${{ runner.temp }}/junit
         with:
@@ -174,7 +174,7 @@ jobs:
     runs-on: ubuntu-26.04
     steps:
       - uses: actions/checkout@v7
-      - uses: mb-89/SE/.github/actions/suite-time@v5.27.3
+      - uses: mb-89/SE/.github/actions/suite-time@v5.49.15
         with:
           shards: 2
       - run: |
