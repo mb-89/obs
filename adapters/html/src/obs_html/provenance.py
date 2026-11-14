@@ -57,6 +57,16 @@ DETECTORS: tuple[tuple[str, re.Pattern[str]], ...] = (
     ("timestamp", re.compile(r"(?<!\d)\d{4}-[01]\d-[0-3]\d[T ][0-2]\d:[0-5]\d")),
 )
 """Each kind of provenance the check finds, by its label, in the order it looks."""
+_TIME = re.compile(r"\d-[01]\d-[0-3]\d[T ][0-2]\d:")
+_PATH_MARKS = ("home/", "Users", "root/", "tmp/claude", "var/folders/")
+_MAY_HOLD = {
+    "session-url": lambda text: "session_" in text,
+    "session-id": lambda text: "session_" in text,
+    "absolute-path": lambda text: any(mark in text for mark in _PATH_MARKS),
+    "timestamp": lambda text: _TIME.search(text) is not None,
+}
+"""Per detector, whether a text may hold what it finds: a text without the detector's literal part
+holds none, and plain substring tests read most places far faster than the detectors would."""
 
 
 @dataclass(frozen=True)
@@ -79,7 +89,8 @@ def findings(artifact: str, local_terms: tuple[tuple[str, re.Pattern[str]], ...]
     vendored = _vendored_lines(artifact_html(artifact))
     for where, text in artifact_texts(artifact):
         exemption = EXEMPTIONS.get(where) or vendored.get(where)
-        for label, pattern in (*DETECTORS, *local_terms):
+        detectors = tuple((label, pattern) for label, pattern in DETECTORS if _MAY_HOLD[label](text))
+        for label, pattern in (*detectors, *local_terms):
             if pattern.search(text):
                 found.append(Finding(where, label, exemption))
                 if label == "session-url":  # its session id is the same hit
