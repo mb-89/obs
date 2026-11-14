@@ -3,6 +3,7 @@ import re
 from pathlib import Path
 
 from jsonschema import validate
+import pytest
 import yaml
 
 from obs.capabilities import build_capability_reference
@@ -172,68 +173,95 @@ def test_the_packaged_capability_reference_is_current_with_the_capability_notes(
         "--reinstall-package obs, which writes it again from the notes (hatch_build.py)")
 
 
-SKILL = ROOT / "skills" / "obs-authoring"
-"""The authoring skill, generated from the capability notes (spec/design_input/cli.md, Authoring skill)."""
+
+def _generated_skill(tmp_path) -> dict[str, str]:
+    """The authoring skill as its command writes it (spec/design_input/cli.md, Authoring skill)."""
+    from obs.authoring_skill import main
+
+    folder = tmp_path / "obs-authoring"
+    assert main(["--notes", str(CAPABILITIES), "--destination", str(folder)]) == 0
+    return {path.relative_to(folder).as_posix(): path.read_text(encoding="utf-8")
+            for path in sorted(folder.rglob("*")) if path.is_file()}
 
 
-def _committed_skill() -> dict[str, str]:
-    return {path.relative_to(SKILL).as_posix(): path.read_text(encoding="utf-8")
-            for path in sorted(SKILL.rglob("*")) if path.is_file()}
+def _tested_examples() -> dict[str, list[str]]:
+    """Each capability's tested examples as test_capability_examples.py reads them: every markdown
+    fence body and every companion file body; not the parsed figure fences the spec renders."""
+    from test_capability_examples import _examples
+
+    examples: dict[str, list[str]] = {}
+    for place, capability, example, companions in (param.values for param in _examples()):
+        path, line = place.rsplit(":", 1)
+        if (ROOT / path).read_text(encoding="utf-8").splitlines()[int(line) - 1].lstrip("`") == "markdown":
+            examples.setdefault(capability, []).extend([example, *companions.values()])
+    return examples
 
 
-def test_the_authoring_skill_is_current_with_the_capability_notes() -> None:
-    from obs.authoring_skill import REGENERATE, build_skill
-
-    generated = build_skill(CAPABILITIES, CAPABILITIES / "coverage.json")
-
-    assert _committed_skill() == generated, (
-        f"skills/obs-authoring is stale against spec/capabilities; remedy: {REGENERATE}")
-
-
-def test_the_authoring_skill_check_fails_on_a_changed_authoring_line_or_example(tmp_path) -> None:
-    """The check above compares the committed folder with the notes: a changed authoring line or
-    example changes what the notes generate, so the committed folder no longer equals it."""
-    import shutil
-    from obs.authoring_skill import build_skill
-
-    for old, new in (("authoring: Use a base fence", "authoring: Write a base fence"),
-                     ("    order: [file.name]", "    order: [file.path]")):
-        notes = tmp_path / old.split(":")[0].strip()
-        shutil.copytree(CAPABILITIES, notes)
-        bases = notes / "bases.md"
-        text = bases.read_text(encoding="utf-8")
-        assert old in text
-        bases.write_text(text.replace(old, new), encoding="utf-8")
-
-        generated = build_skill(notes, notes / "coverage.json")
-
-        assert generated != _committed_skill()
-        assert new.split(": ", 1)[-1].strip() in generated["references/capabilities.md"]
+def _assert_holds_every_capability(files: dict[str, str]) -> None:
+    """Every capability of the reference has its section in the reference file, with its authoring
+    line and its tested examples, and SKILL.md links it."""
+    reference = build_capability_reference(CAPABILITIES, CAPABILITIES / "coverage.json")
+    sections = dict(re.findall(r"^## (\S+)\n(.*?)(?=^## |\Z)", files["references/capabilities.md"],
+                               flags=re.M | re.S))
+    examples = _tested_examples()
+    assert set(sections) == {item["id"] for item in reference["capabilities"]}
+    for item in reference["capabilities"]:
+        section = sections[item["id"]]
+        assert item["authoring"] in section, item["id"]
+        assert examples.get(item["id"]), item["id"]
+        for example in examples[item["id"]]:
+            assert example.rstrip("\n") in section, item["id"]
+        assert f"](references/capabilities.md#{item['id']})" in files["SKILL.md"], item["id"]
 
 
-def test_the_authoring_skill_follows_the_agent_skills_format() -> None:
+def test_the_authoring_skill_holds_every_capability_with_its_authoring_line_and_tested_examples(tmp_path) -> None:
+    """The folder is never kept by hand: its command writes it from the notes, so it holds what they say."""
+    _assert_holds_every_capability(_generated_skill(tmp_path))
+
+
+def test_the_authoring_skill_check_fails_when_a_capability_is_dropped_or_altered(tmp_path) -> None:
+    files = _generated_skill(tmp_path)
+    reference = files["references/capabilities.md"]
+    dropped = re.sub(r"^## bases\n.*?(?=^## )", "", reference, flags=re.M | re.S)
+    altered_line = reference.replace("Use a base fence or embed", "Use a base fence and embed")
+    altered_example = reference.replace("    order: [file.name]", "    order: [file.path]")
+
+    for broken in (dropped, altered_line, altered_example):
+        assert broken != reference
+        with pytest.raises(AssertionError):
+            _assert_holds_every_capability({**files, "references/capabilities.md": broken})
+
+
+def test_the_authoring_skill_follows_the_agent_skills_format(tmp_path) -> None:
     """Agent Skills (agentskills.io): the name equals the folder's name, lowercase and hyphenated; a
     description under 1,024 characters; a body under 500 lines; reference files one level deep;
     every link stays inside the folder and finds its file and heading."""
-    files = _committed_skill()
+    files = _generated_skill(tmp_path)
     _, raw, body = files["SKILL.md"].split("---", 2)
     frontmatter = yaml.safe_load(raw)
+    unfenced = lambda text: re.sub(r"^(`{3,})[^\n]*\n.*?^\1[ \t]*$", "", text, flags=re.M | re.S)
 
-    assert frontmatter["name"] == SKILL.name
+    assert frontmatter["name"] == "obs-authoring"
     assert re.fullmatch(r"[a-z0-9]+(-[a-z0-9]+)*", frontmatter["name"]) and len(frontmatter["name"]) <= 64
     assert 0 < len(frontmatter["description"]) < 1024 and "Use when" in frontmatter["description"]
     assert len(body.splitlines()) < 500
-    assert all(path == "SKILL.md" or re.fullmatch(r"references/[^/]+\.md", path) for path in files)
+    assert set(files) == {"SKILL.md", "references/capabilities.md"}
 
     for path, text in files.items():
-        prose = re.sub(r"^(`{3,})[^\n]*\n.*?^\1[ \t]*$", "", text, flags=re.M | re.S)
-        for target in re.findall(r"\]\(([^)\s]+)\)", prose):
+        for target in re.findall(r"\]\(([^)\s]+)\)", unfenced(text)):
             file, _, anchor = target.partition("#")
             resolved = (Path(path).parent / file).as_posix() if file else path
             assert "://" not in target and not file.startswith("/") and ".." not in Path(resolved).parts, (path, target)
             assert resolved in files, (path, target)
             if anchor:
-                headings = re.findall(r"^#{1,6} (.+)$", re.sub(r"^(`{3,})[^\n]*\n.*?^\1[ \t]*$", "",
-                                                               files[resolved], flags=re.M | re.S), re.M)
+                headings = re.findall(r"^#{1,6} (.+)$", unfenced(files[resolved]), re.M)
                 assert anchor in {re.sub(r"[^a-z0-9 -]", "", heading.lower()).replace(" ", "-")
                                   for heading in headings}, (path, target)
+
+
+def test_the_authoring_skill_command_writes_an_ignored_output_by_default() -> None:
+    from obs.authoring_skill import DESTINATION
+
+    assert DESTINATION.as_posix() == "data/data_output/skills/obs-authoring"
+    assert DESTINATION.name == "obs-authoring"
+    assert not (ROOT / "skills").exists()

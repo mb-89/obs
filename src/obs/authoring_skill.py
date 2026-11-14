@@ -1,7 +1,7 @@
 """Generate the authoring skill, an Agent Skills folder that teaches obs's Markdown dialect.
 
 Reader: whoever changes what the skill says or how it is laid out; cli.md, Authoring skill, owns
-why it exists and where it lives.
+why it exists and where it is written.
 
 The skill is a second view of the capability notes in `spec/capabilities`: `SKILL.md` lists each
 capability of the capability reference with its summary and authoring line, and
@@ -34,8 +34,9 @@ DESCRIPTION = (
 )
 REFERENCE = "references/capabilities.md"
 """The one reference file, relative to the skill folder."""
-REGENERATE = ("uv run python -m obs.authoring_skill --notes spec/capabilities "
-              "--coverage spec/capabilities/coverage.json --destination skills/obs-authoring")
+DESTINATION = Path("data") / "data_output" / "skills" / NAME
+"""Where the command writes the folder by default, relative to the repository root: an ignored output."""
+REGENERATE = "uv run python -m obs.authoring_skill"
 _GENERATED = f"<!-- Generated from spec/capabilities by obs.authoring_skill; do not edit. Regenerate: {REGENERATE} -->"
 
 FENCE = re.compile(
@@ -118,11 +119,17 @@ def build_skill(notes: Path, coverage: Path | None = None) -> dict[str, str]:
 
 def main(argv: Sequence[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Generate the obs authoring skill folder from the capability notes.")
-    parser.add_argument("--notes", type=Path, required=True)
-    parser.add_argument("--coverage", type=Path)
-    parser.add_argument("--destination", type=Path, required=True)
+    parser.add_argument("--notes", type=Path, default=Path("spec") / "capabilities",
+                        help="the capability notes (default: spec/capabilities)")
+    parser.add_argument("--coverage", type=Path,
+                        help="their coverage data (default: coverage.json among the notes, where it exists)")
+    parser.add_argument("--destination", type=Path, default=DESTINATION,
+                        help=f"the skill folder to write (default: {DESTINATION.as_posix()})")
     options = parser.parse_args(argv)
-    for path, text in build_skill(options.notes, options.coverage).items():
+    coverage = options.coverage
+    if coverage is None and (options.notes / "coverage.json").is_file():
+        coverage = options.notes / "coverage.json"
+    for path, text in build_skill(options.notes, coverage).items():
         write_output(options.destination / path, text)
     return 0
 
