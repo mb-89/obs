@@ -232,6 +232,7 @@ globalThis.obsPugh = (() => {
     const line = (part, text, letter) => {
       const node = element("p", {className: `pugh-bottom pugh-bottom-${part}`, textContent: text});
       node.dataset.pughBottom = part;
+      node.dataset.pughPart = part;
       if (letter) node.dataset.pughFor = letter;
       return node;
     };
