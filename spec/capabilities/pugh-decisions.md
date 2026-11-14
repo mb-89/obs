@@ -100,3 +100,17 @@ The adapter hands the engine:
 and `success` are obs's and never reach the engine. Every fence keeps its meaning: the engine
 decided it already. An adapter states the computed verdict, the runners-up's ties and the vetoes
 only where an option of its own turns them on, so a fence's page is what it was until then.
+
+## Printing the verdicts
+
+An agent that decides a question opens no page, so an adapter may also print the computed verdict
+of each decision of a Document as text, one block per decision: its title, then the same lines a
+reader's page states, from the same engine. The authoring example above prints:
+
+```text
+Which message queue
+The choice depends on the weights: B · Managed wins 55.8 % of the weight draws within ±1.
+A · Current queue ties if Ease of operation goes 2 → 1.5: a reasonable change.
+```
+
+The engine draws from the fence's seed, so the same Document prints the same lines on every run.
