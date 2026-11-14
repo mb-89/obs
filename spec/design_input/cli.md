@@ -97,6 +97,41 @@ An adapter that declares no `serve` command fails the call before the build, nam
 so do `--wait` without `--serve`, `--timeout` without `--wait` and `--serve` with several
 `--source`. The adapter's own documentation owns what its server does.
 
+## Authoring skill
+
+`skills/obs-authoring/` is a skill folder in the Agent Skills format that teaches an agent the
+Markdown this core reads, so an agent can be handed obs's dialect in one place instead of fetching
+the spec. Nothing loads it: no package ships it, no command reads it, and wiring it to an agent
+host is a later step.
+
+It is a second view of the capability notes, generated from the same data as the capability
+reference ([[cli#One-call build]]):
+
+- `SKILL.md` carries the skill's `name`, equal to the folder's name, and a `description` that says
+  when to use it, then lists each capability of the reference with its summary and authoring line,
+  linked to its section of the reference file.
+- `references/capabilities.md` has one section per capability: its summary, its authoring line,
+  the capabilities it builds on, and its tested examples, each `markdown` fence of its note and each
+  companion file a fence names, the examples `test/test_capability_examples.py` builds as input.
+
+The generator, `src/obs/authoring_skill.py`, is pure in its core: `skill_files` takes the
+capability reference and each capability's examples and returns the folder's files as texts, so
+the layout and wording can change in one place. `build_skill` reads the notes and `main` writes
+the files, as the core writes every output:
+
+```sh
+uv run python -m obs.authoring_skill --notes spec/capabilities --coverage spec/capabilities/coverage.json --destination skills/obs-authoring
+```
+
+The folder is committed, unlike the capability reference, because its reader is an agent given
+the repository or the folder, not an installed package. No build writes it, since a build that
+rewrote tracked files would change the checkout on every `uv sync`.
+
+Instead `test/test_capabilities.py` fails when the committed folder differs from what the notes
+generate, naming the command above. It also holds the folder to the format's rules: the name, a
+description under 1,024 characters, a body under 500 lines, reference files one level deep and
+links only into the folder.
+
 ## Answers
 
 `--answers <file>` builds the Document with a reader's answers in it, the answers file a served
