@@ -115,6 +115,16 @@ def test_an_answer_at_the_chapters_version_is_its_answer_and_one_at_another_is_o
     assert outdated == {"version": version, "outdated": _verdict(old)}
 
 
+def test_an_answer_carries_the_readers_vetoes_lifted_vetoes_and_datum(tmp_path) -> None:
+    """input-model, Answers: the person's changes ctrl's engine takes beyond weights and marks."""
+    (tmp_path / "vault").mkdir()
+    version = _version(_vault(tmp_path / "vault"))
+    verdict = _verdict(version)
+    verdict["figures"]["choice"].update({"vetoes": ["A"], "lifts": {"B": ["given", "gate0"]}, "datum": "B"})
+
+    assert _answered(tmp_path, [verdict])["decision"]["bless"] == {"version": version, "answer": verdict}
+
+
 def test_a_comment_with_no_verdict_is_the_chapters_comment_and_answers_nothing(tmp_path) -> None:
     """input-model, Answers: an entry of chapter, version and comment alone keeps the chapter asking."""
     (tmp_path / "vault").mkdir()
@@ -136,8 +146,12 @@ def test_a_comment_with_no_verdict_is_the_chapters_comment_and_answers_nothing(t
     ([{"chapter": "decision", "version": "0" * 64, "verdict": "pick", "comment": "B."}], "verdicts[0].pick"),
     ([{"chapter": "decision", "version": "short", "verdict": "bless"}], "verdicts[0].version"),
     ([{"chapter": "decision", "version": "0" * 64, "verdict": "keep"}], "verdicts[0].verdict"),
+    ([{"chapter": "decision", "version": "0" * 64, "verdict": "bless", "figures": {"choice": {"lifts": {"B": ["gate"]}}}}],
+     "verdicts[0].figures.choice.lifts.B[0]"),
+    ([{"chapter": "decision", "version": "0" * 64, "verdict": "bless", "figures": {"choice": {"datum": "b"}}}],
+     "verdicts[0].figures.choice.datum"),
 ], ids=["neither verdict nor comment", "no request", "twice", "decline without comment", "blank comment", "pick without option", "version",
-        "verdict"])
+        "verdict", "lift id", "datum letter"])
 def test_an_answers_file_the_core_refuses_names_the_file_the_field_and_the_owner(tmp_path, verdicts, field) -> None:
     (tmp_path / "vault").mkdir()
     with pytest.raises(SystemExit) as failure:

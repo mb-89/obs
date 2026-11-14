@@ -148,7 +148,7 @@
       "$comment": "One entry per chapter: a verdict with its comment where there is one, or a comment alone with no verdict (input-model#Answers)."
     },
     "figureChanges": {
-      "$comment": "A decision figure's reader state (the adapter's), by option letter, and the winner it gives.",
+      "$comment": "A decision figure's reader state (the adapter's), by option letter, and the winner it gives (input-model#Answers).",
       "type": "object",
       "additionalProperties": false,
       "properties": {
@@ -172,6 +172,34 @@
               "maximum": 2
             }
           }
+        },
+        "vetoes": {
+          "$comment": "The letters of the options the reader vetoed (the engine's option veto).",
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/letter"
+          }
+        },
+        "lifts": {
+          "$comment": "By option letter, the ids of the engine's own vetoes the reader lifted.",
+          "type": "object",
+          "propertyNames": {
+            "pattern": "^[A-Z]$"
+          },
+          "additionalProperties": {
+            "type": "array",
+            "minItems": 1,
+            "uniqueItems": true,
+            "items": {
+              "type": "string",
+              "pattern": "^(given|gate[0-9]+)$"
+            }
+          }
+        },
+        "datum": {
+          "$comment": "The letter of the option the reader made the datum.",
+          "$ref": "#/$defs/letter"
         },
         "rulings": {
           "type": "object",
