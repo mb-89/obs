@@ -105,10 +105,9 @@ def reported(found: list[Finding]) -> list[Finding]:
     return [finding for finding in found if finding.exemption is None]
 
 
-def problems(found: list[Finding]) -> list[InputError]:
-    """Each reported finding as the error a build warns of, or refuses with (cli.py)."""
-    return [InputError(SOURCE, finding.where, f"carries provenance ({finding.label})", REMEDY)
-            for finding in reported(found)]
+def problem(finding: Finding) -> InputError:
+    """A reported finding as the error a build warns of, or refuses with (cli.py)."""
+    return InputError(SOURCE, finding.where, f"carries provenance ({finding.label})", REMEDY)
 
 
 def local_list(start: Path) -> Path | None:

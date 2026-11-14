@@ -3,12 +3,14 @@ check): built HTML in, findings out, each naming its place; the build warns of t
 refuses them with artifact.refuseProvenance."""
 import json
 import re
+import subprocess
+import sys
 from pathlib import Path
 
 import pytest
 
 from artifacts import artifact_html
-from conftest import ROOT
+from conftest import CORE_ROOT, ROOT
 from documents import chapter, document, heading, paragraph
 from obs_html import cli, provenance
 from obs_html.errors import InputError
@@ -17,7 +19,8 @@ from obs_html.provenance import Finding, findings, local_list, local_terms, repo
 OWNER = "architecture.md, Provenance check"
 PLANTED = ("Built in /home/someone/vault, from https://claude.ai/code/session_PLANTEDabc123 "
            "and session_OTHERxyz789, at 2026-11-14T10:18:33Z, by Codename Kestrel.")
-DECK = ROOT.parents[1] / "spec" / "examples" / "bless-deck"
+FIXTURES = ROOT / "test" / "fixtures" / "documents"
+DECK = CORE_ROOT / "spec" / "examples" / "bless-deck" / "manifest.md"
 
 
 def planted(text: str = PLANTED) -> dict:
@@ -63,15 +66,26 @@ def test_without_a_local_list_there_are_no_local_terms() -> None:
     assert local_terms(None) == ()
 
 
-def test_an_existing_deck_shows_only_the_documented_exemption(tmp_path: Path, monkeypatch) -> None:
-    """The example deck, as the core builds it: only obs's own build time, under its exemption."""
-    from obs import document as core
-
-    destination = tmp_path / "deck.html"
-    monkeypatch.chdir(ROOT.parents[1])  # the core finds its adapters from the repository's root
-    assert core.main(["--source", str(DECK), "--adapter", "html", "--destination", str(destination)]) == 0
+@pytest.mark.parametrize("name", ["pugh", "decision-verdict", "features"])
+def test_an_existing_deck_shows_only_the_documented_exemption(name: str, tmp_path: Path, capsys) -> None:
+    """A committed fixture deck (its Document, as the core built it), built by the CLI: only obs's own
+    build time, under its exemption, and no warning."""
+    destination = tmp_path / f"{name}.html"
+    assert cli.main([str(FIXTURES / f"{name}.json"), str(destination)]) == 0
     found = findings(destination.read_text(encoding="utf-8"))
-    assert reported(found) == []
+    assert reported(found) == [] and "carries provenance" not in capsys.readouterr().err
+    assert found == [Finding(provenance.GENERATION_TIMESTAMP, "timestamp", "generation-timestamp")]
+
+
+def test_the_example_bless_deck_shows_only_the_documented_exemption(tmp_path: Path, capsys) -> None:
+    """obs's example deck (spec/examples/bless-deck), its Document built by the core as
+    test_bless_browser.py builds it, then the artifact by the CLI."""
+    document = tmp_path / "deck.json"
+    subprocess.run([sys.executable, "-m", "obs.document", "--source", str(DECK), "--document", str(document)],
+                   check=True, capture_output=True)
+    assert cli.main([str(document), str(tmp_path / "deck.html")]) == 0
+    found = findings((tmp_path / "deck.html").read_text(encoding="utf-8"))
+    assert "carries provenance" not in capsys.readouterr().err
     assert found == [Finding(provenance.GENERATION_TIMESTAMP, "timestamp", "generation-timestamp")]
 
 

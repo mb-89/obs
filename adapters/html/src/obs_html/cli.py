@@ -292,8 +292,8 @@ def _write_artifact(document: dict, options: argparse.Namespace, config, destina
 def _check_provenance(artifact: str, config, start: Path) -> None:
     """Warn of each provenance finding of ``artifact``, or refuse it with them where the configuration
     says so (artifact.refuseProvenance); the local list is the one nearest ``start``."""
-    errors = provenance.problems(provenance.findings(
-        artifact, provenance.local_terms(provenance.local_list(start.resolve()))))
+    found = provenance.findings(artifact, provenance.local_terms(provenance.local_list(start.resolve())))
+    errors = [provenance.problem(finding) for finding in provenance.reported(found)]
     if errors and config.artifact.get("refuseProvenance", False):
         first = errors[0]
         raise InputError(first.source, first.field, "; ".join(
