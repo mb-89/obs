@@ -1270,6 +1270,15 @@ The figure's body carries the checked matrix as data (`matrix`). The core decide
 adapter runs ctrl's engine on it, in the reader's page, so a reader's change is decided again
 there.
 
+Decided by the worker, 14 Nov 2026 (work issue `feat/pugh-engine-computes-the-verdict-20261114`):
+ctrl's engine is obs's one Pugh engine. An adapter that decides figures carries it as one file,
+unchanged from ctrl, and every figure decides with it; the core keeps none of its own, so no second
+engine can drift from it.
+
+[[capabilities/pugh-decisions#The rules]] names each rule the engine decides by and its source in
+ctrl, and [[capabilities/pugh-decisions#Fence fields and the engine]] how each of the fence's
+fields reaches it.
+
 Beside it, the body carries `shortNames`: each option's short name, in the order `candidates`
 lists them, as the core resolved it from `short` and the label, or null where the letter stands
 alone. Decided by the dispatcher, 6 Nov 2026 (work issue
@@ -1654,6 +1663,11 @@ writes it and the core that reads it:
   or `none` where the reader picked none of the options (`option`).
 - `figures`: by figure anchor, the reader's changes to a decision figure, as its reader state
   holds them (weights, marks, rulings with their tripwires), and the `winner` they give.
+
+  Decided by the user, 14 Nov 2026 (work issue `feat/pugh-engine-computes-the-verdict-20261114`):
+  also the person's other changes ctrl's engine takes: `vetoes`, the letters of the options the
+  reader vetoed; `lifts`, by letter, the ids of the engine's own vetoes the reader lifted (`given`
+  or `gate<n>`); and `datum`, the letter of the option the reader made the datum.
 
 `obs-document --answers <file>` builds the Document with the answers in it, so the answered
 artifact is the decision record ([[cli#Answers]]). A verdict whose version is the chapter's is its
