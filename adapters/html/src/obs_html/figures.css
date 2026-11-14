@@ -545,29 +545,6 @@ details[open] > summary > .pugh-arrow::before {
     overflow-wrap: anywhere;
 }
 
-/* The engine's bottom line under the Y-statement: one short line each, close together. */
-.pugh-proposed-box > .pugh-bottom {
-    margin-block: 0.2rem;
-}
-
-.pugh-proposed-box > .pugh-bottom-verdict {
-    margin-block-start: 0.6rem;
-}
-
-/* An option's changes in its expander (pugh-figure.js, optionActions): keys on one wrapping line. */
-.pugh-option-actions {
-    align-items: center;
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.35rem;
-    margin: 0.3rem 0 0.15rem 1.6rem;
-}
-
-.pugh-option-veto {
-    flex-basis: 100%;
-    overflow-wrap: anywhere;
-}
-
 /* The question a chart answers, its first line. */
 .pugh-question {
     color: var(--color-text-muted);

@@ -523,8 +523,8 @@ proposed winner is a sub-section of its own, so the page reads Current situation
 1. **Potential solutions**, after the note's text: the options list, in the figure's frame.
 2. **Proposed winner**, after it: one box drawn as the report's bottom-line-up-front box (the
    `> [!important]` emphasis box, [[#Takeaways and orientation]]), holding the Y-statement and, under it, the
-   proposed option's success criterion, "Success criterion: ‹text›", where it has one, then the
-   engine's bottom line ([[#The engine's bottom line]]).
+   proposed option's success criterion, "Success criterion: ‹text›", where it has one, and, with
+   the computed verdict on, the engine's bottom line ([[#The engine's bottom line]]).
 3. **Details**, after it: the tabs, in the adapter's tab control (the look of a table's detail
    tabs), Matrix shown at the start, then one tab for each of the chapter's sections after the
    figure ([[#Decision tabs from the chapter]]).
@@ -535,8 +535,8 @@ parts in the same order in its own frame, the box under its options list.
 **The options list:** one row per option. A row is its letter chip, its short name and an
 expander; expanding it shows the option's label where that says more, its `what` sentence, its
 wins and losses, and its success criterion, "Success criterion: ‹text›", where the fence gives
-the option a `success` (obs input-model, Pugh decision figures), then the option's changes
-([[#The reader's vetoes and datum]]). The computed winner's row carries a "winner" mark; the fence's `chosen` option,
+the option a `success` (obs input-model, Pugh decision figures), and, with the computed verdict on,
+the option's changes ([[#The reader's vetoes and datum]]). The computed winner's row carries a "winner" mark; the fence's `chosen` option,
 where it is another, a "chosen" mark.
 
 Where the chapter asks for a bless, each row carries a radio, and the list ends with a row "None
@@ -605,8 +605,18 @@ the reader can change shows its reason on hover or focus, and a tap changes it.
 #### The engine's bottom line
 
 Decided by the user, 14 Nov 2026 (work issue `feat/pugh-engine-computes-the-verdict-20261114`): the
-decision states its computed verdict, "it can't be judgment" (ctrl's design input 55). Under the
-Y-statement and the success criterion, the Proposed winner box holds what ctrl's engine computed
+decision states its computed verdict, "it can't be judgment" (ctrl's design input 55), where the
+computed verdict is on. Its changes after filing make it an option, off by default, so a decision
+figure is what it was until someone turns it on: `artifact.figures.decisionVerdict` (cfg.schema.json),
+true in the adapter's configuration or in a vault's own `cfg.json`, as a deck's. With it off the
+artifact carries none of the module below, byte for byte the artifact it was.
+
+The verdict is its own module, `src/obs_html/pugh-verdict.js`, the pugh feature's part `verdict`
+(`features.py`): a pure layer, data in and data out (the reader's changes to ctrl's engine
+overrides; the engine's result to the bottom line's lines), and thin wiring the figure calls only
+inside its `part verdict` regions ([[architecture#Rendering and runtime]]).
+
+Under the Y-statement and the success criterion, the Proposed winner box holds what ctrl's engine computed
 (its `sensitivity` and each option's `vetoes`; obs capabilities/pugh-decisions, The rules), one
 line each, in this order:
 
@@ -631,7 +641,8 @@ them as the reader left them.
 
 Decided by the user, 14 Nov 2026 (work issue `feat/pugh-engine-computes-the-verdict-20261114`): the
 person's changes that ctrl's engine takes (ctrl's `design/output/pugh.md`, "The person's changes")
-feed it here too, and the page decides again at once. A changed mark is the engine's cell nudge
+feed it here too, where the computed verdict is on, and the page decides again at once. A changed
+mark is the engine's cell nudge
 ([[#The decision matrix]]); an option's expander in the options list holds the rest, as keys:
 
 - **Veto** takes the option out of the ranking, the engine's option veto, its reason "vetoed by

@@ -97,6 +97,6 @@ The adapter hands the engine:
 - the reader's changes as the engine's `overrides`.
 
 `chosen`, `context`, `concern`, `supersededBy` and the options' `short`, `what`, `wins`, `losses`
-and `success` are obs's and never reach the engine. Every fence written before the engine's
-verdict was shown keeps its meaning: the engine decided it already, and its page now also says
-what it computed.
+and `success` are obs's and never reach the engine. Every fence keeps its meaning: the engine
+decided it already. An adapter states the computed verdict, the runners-up's ties and the vetoes
+only where an option of its own turns them on, so a fence's page is what it was until then.

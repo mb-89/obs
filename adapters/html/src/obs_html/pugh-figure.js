@@ -3,16 +3,14 @@
    pugh-decisions); ctrl's engine (vendor/pugh.js, embedded before figures.js as
    globalThis.obsPughEngine) decides it here, unchanged. The figure hands the engine the fence's
    matrix with the reader's weights, a Checklist criterion where failed checklist items name
-   options, and the reader's changes as the engine's own overrides: a changed mark its cell
-   nudge, a vetoed option its option veto, a lifted veto its lift, another datum its datum change;
-   a mark's reason stays here, as an argument in its hover card.
+   options, and the reader's changed marks as the engine's own cell overrides; a mark's reason
+   stays here, as an argument in its hover card.
 
    Top to bottom (artifact-ui.md, Decision figures): Potential solutions, the options list (a row
    an option, expandable, the winner marked, and where the chapter asks for a bless a radio each
    and None of the above: the band's pick state, obsBless.pick, obsBless.picked,
    obs-bless-change); Proposed winner, the box of the Y-statement and the proposed option's success
-   criterion, which follows the pick, and the engine's bottom line (its verdict, each runner-up's
-   tie and each vetoed option's reasons); then Details, the tabs of TABS, each with its badge where it
+   criterion, which follows the pick; then Details, the tabs of TABS, each with its badge where it
    has one and each chart with the question it answers (Matrix: the table, or below ROWS_BELOW of
    the figure's width its rows; Checklist; Sensitivity; Pareto), and one tab for each section of
    the chapter the page rendered into the figure's details (render.py, decision tabs). In a decision
@@ -20,9 +18,9 @@
    detailsOf); elsewhere they follow the options in the figure. Every hover or tap help is the artifact's hover card (hover-card.js;
    artifact.js registers [data-pugh-hover] to hover()).
 
-   The reader's weights, marks, vetoes, lifted vetoes, datum, rulings and tripwires, the options
-   expanded and the tab are session-only view state, kept per figure anchor; readerState() gives
-   all but the last two by figure anchor, options by letter. Print shows the options expanded, the Y-statement and the Matrix
+   The reader's weights, marks, rulings and tripwires, the options expanded and the tab are
+   session-only view state, kept per figure anchor; readerState() gives the first four by figure
+   anchor, options by letter. Print shows the options expanded, the Y-statement and the Matrix
    tab as the reader left it, with a caption note where weights or marks changed.
 
    A figure whose chapter carries an answer (obs input-model, Answers) shows the answer's weights,
@@ -31,7 +29,6 @@ globalThis.obsPugh = (() => {
   const VIEW_NOTE = "View changed by the reader.";
   const CHECKLIST = "checklist";  // The key of the row failed checklist items make (the core reserves it).
   const MARKS = [-2, -1, 0, 1, 2];
-  const READER = "Changed by the reader";  // The comment every change of the reader's hands the engine, which needs one.
   const HUES = 8;  // The option colours, color.option-1 to color.option-8 (assets.json), in letter order.
   const states = new Map();  // figure anchor -> the reader's view state, this session only.
   const drawn = new WeakMap();  // figure -> what it shows: {spec, result, figureModel, view}, for hover().
@@ -68,11 +65,9 @@ globalThis.obsPugh = (() => {
     node.append(...children.filter(child => child !== null && child !== undefined && child !== false));
     return node;
   }
-  /** The reader's changes as the fence has them: none. */
-  const unchanged = () => ({weights: {}, marks: {}, vetoes: [], lifts: {}, datum: null, rulings: {}});
   function fresh(answered) {
-    const view = {...unchanged(), open: {}, tab: "matrix", column: null,
-      ...(answered ? {...structuredClone({...unchanged(), ...answered}), locked: true} : {})};
+    const view = {weights: {}, marks: {}, rulings: {}, open: {}, tab: "matrix", column: null,
+      ...(answered ? {...structuredClone({weights: {}, marks: {}, rulings: {}, ...answered}), locked: true} : {})};
     delete view.winner;
     return view;
   }
@@ -89,8 +84,7 @@ globalThis.obsPugh = (() => {
     return structuredClone(states.get(anchor) ?? fresh(answered));
   }
   const changed = view => Boolean(view && (Object.keys(view.weights).length
-    || Object.values(view.marks).some(marks => Object.keys(marks).length)
-    || view.vetoes?.length || Object.values(view.lifts ?? {}).some(ids => ids.length) || view.datum));
+    || Object.values(view.marks).some(marks => Object.keys(marks).length)/* part verdict { */ || globalThis.obsPughVerdict?.changed(view)/* } part verdict */));
   const texts = value => (value === undefined ? [] : [].concat(value));
 
   /** The options with their letters, the failed checklist items and the matrix the engine decides.
@@ -135,21 +129,17 @@ globalThis.obsPugh = (() => {
     for (const criterion of matrix.criteria) if (criterion.key in weights) criterion.weight = weights[criterion.key];
     return matrix;
   }
-  /** The decision with the reader's changes: ctrl's decide(), every change one of the engine's
-      overrides (artifact-ui.md, The reader's vetoes and datum). The reader's datum, vetoes and lifts
-      come first; a changed mark is the engine's cell override, a nudge from the mark the engine
-      computes with those to the reader's. */
-  function decide(spec, view = unchanged()) {
+  /** The decision with the reader's weights and marks: ctrl's decide(); a changed mark is the
+      engine's cell override, a nudge from the mark it computes to the reader's. */
+  function decide(spec, view = {weights: {}, marks: {}}) {
     const figureModel = model(spec);
     const matrix = matrixFor(spec, figureModel, view.weights);
-    const keyOf = letter => figureModel.byLetter[letter].key;
-    const reader = [
-      ...(view.datum ? [{kind: "datum", candidate: keyOf(view.datum), comment: READER}] : []),
-      ...(view.vetoes ?? []).map(letter => ({kind: "option", candidate: keyOf(letter), action: "veto", comment: READER})),
-      ...Object.entries(view.lifts ?? {}).flatMap(([letter, ids]) => ids.map(veto => ({kind: "lift", candidate: keyOf(letter), veto, comment: READER}))),
-    ];
-    const base = engine().decide(reader.length ? {...matrix, overrides: reader} : matrix);
-    const overrides = [...reader];
+    // part verdict {
+    // The reader's vetoes, lifts and datum, the engine's own overrides (pugh-verdict.js); ships only with that part.
+    matrix.overrides = globalThis.obsPughVerdict?.overrides(view, figureModel) ?? [];
+    // } part verdict
+    const base = engine().decide(matrix);
+    const overrides = [];
     for (const [letter, marks] of Object.entries(view.marks)) {
       const option = figureModel.byLetter[letter], computed = base.candidates.find(c => c.key === option.key);
       if (computed.datum) continue;  // The datum's marks are S by definition.
@@ -158,7 +148,10 @@ globalThis.obsPugh = (() => {
         if (by) overrides.push({kind: "cell", candidate: option.key, criterion, action: "nudge", by, comment: "Changed by the reader"});
       }
     }
-    const result = overrides.length > reader.length ? engine().decide({...matrix, overrides}) : base;
+    // part verdict {
+    if (overrides.length) overrides.unshift(...matrix.overrides);
+    // } part verdict
+    const result = overrides.length ? engine().decide({...matrix, overrides}) : base;
     return {result, figureModel};
   }
   /** The Sensitivity grid's columns (artifact-ui.md, Sensitivity): for each option the engine
@@ -223,84 +216,6 @@ globalThis.obsPugh = (() => {
     node.dataset.pughPart = part;
     return node;
   }
-  /** The engine's bottom line (artifact-ui.md, The engine's bottom line): the verdict, each
-      runner-up's single-weight tie and whether that change is reasonable, and each vetoed option
-      with its reasons, one line each, as the engine computed them. */
-  function bottomLine(result, figureModel) {
-    const named_ = key => tag(figureModel.byKey[key]);
-    const label = key => result.criteria.find(criterion => criterion.key === key)?.label ?? key;
-    const line = (part, text, letter) => {
-      const node = element("p", {className: `pugh-bottom pugh-bottom-${part}`, textContent: text});
-      node.dataset.pughBottom = part;
-      node.dataset.pughPart = part;
-      if (letter) node.dataset.pughFor = letter;
-      return node;
-    };
-    const lines = [], sensitivity = result.sensitivity;
-    if (result.suggestion && !sensitivity) lines.push(line("verdict", `${named_(result.suggestion.key)} is the only option that fits.`));
-    if (result.suggestion && sensitivity) {
-      const share = `${named_(sensitivity.winner)} wins ${percent(sensitivity.share)} of the weight draws within ±${number(sensitivity.step)}.`;
-      const verdict = line("verdict", sensitivity.verdict === "holds" ? `The choice holds: ${share}` : `The choice depends on the weights: ${share}`);
-      verdict.dataset.pughVerdict = sensitivity.verdict;
-      lines.push(verdict);
-      for (const runner of sensitivity.runnersUp) {
-        const tie = runner.tie, who = named_(runner.key);
-        const text = !tie ? `No single weight makes ${who} tie.` : tie.now ? `${who} ties it now.`
-          : `${who} ties if ${label(tie.criterion)} goes ${number(tie.from)} → ${number(tie.to)}: ${tie.reasonable ? "a reasonable change" : "not a reasonable change"}.`;
-        const node = line("runner-up", text, figureModel.byKey[runner.key].letter);
-        if (tie && !tie.now) node.dataset.pughReasonable = String(tie.reasonable);
-        lines.push(node);
-      }
-    }
-    const reason = veto => (veto.by === "person" ? "vetoed by you" : veto.why);
-    for (const candidate of [...result.candidates].sort((a, b) => figureModel.byKey[a.key].letter.localeCompare(figureModel.byKey[b.key].letter))) {
-      const standing = candidate.vetoes.filter(veto => !veto.lifted), lifted = candidate.vetoes.filter(veto => veto.lifted);
-      if (!candidate.vetoes.length) continue;
-      const said = [...standing.map(reason), ...lifted.map(veto => `lifted: ${reason(veto)}`)].join("; ");
-      lines.push(line("veto", `${named_(candidate.key)} is ${standing.length ? "out" : "in"}: ${sentence(said)}`, figureModel.byKey[candidate.key].letter));
-    }
-    return lines;
-  }
-  /** An option's changes in its expander (artifact-ui.md, The reader's vetoes and datum): Veto or
-      Remove my veto, Make it the datum, and Lift or Restore after each of the engine's own vetoes;
-      none where the figure is read only. */
-  function optionActions(figure, spec, result, option, view, print) {
-    if (print || view.locked) return null;
-    const candidate = result.candidates.find(c => c.key === option.key);
-    const redraw = selector => { draw(figure, spec); figure.querySelector(selector)?.focus(); };
-    const key = (text, data, pressed, act) => {
-      const button = element("button", {type: "button", className: "filter-pill", textContent: text});
-      Object.assign(button.dataset, data);
-      if (pressed !== null) button.setAttribute("aria-pressed", String(pressed));
-      button.addEventListener("click", event => { event.stopPropagation(); act(); });
-      return button;
-    };
-    const box = element("div", {className: "pugh-option-actions"});
-    box.dataset.pughActions = option.letter;
-    const vetoed = view.vetoes.includes(option.letter);
-    box.append(key(vetoed ? "Remove my veto" : "Veto", {pughAction: "veto"}, vetoed, () => {
-      view.vetoes = vetoed ? view.vetoes.filter(letter => letter !== option.letter) : [...view.vetoes, option.letter].sort();
-      redraw(`[data-pugh-actions="${option.letter}"] [data-pugh-action="veto"]`);
-    }));
-    if (!candidate.datum) {
-      const fence = spec.matrix.datum?.prefer?.[0] ?? spec.matrix.candidates[0].key;
-      box.append(key("Make it the datum", {pughAction: "datum"}, null, () => {
-        view.datum = option.key === fence ? null : option.letter;
-        redraw(`[data-pugh-actions="${option.letter}"] [data-pugh-action="veto"]`);
-      }));
-    }
-    for (const veto of candidate.vetoes.filter(item => item.by === "tool")) {
-      const lifts = view.lifts[option.letter] ?? [], lifted = lifts.includes(veto.id);
-      box.append(element("span", {className: "pugh-option-veto"}, `${sentence(veto.why)} `,
-        key(lifted ? "Restore" : "Lift", {pughLift: `${option.letter}:${veto.id}`}, lifted, () => {
-          const next = lifted ? lifts.filter(id => id !== veto.id) : [...lifts, veto.id];
-          if (next.length) view.lifts = {...view.lifts, [option.letter]: next};
-          else { const {[option.letter]: _gone, ...rest} = view.lifts; view.lifts = rest; }
-          redraw(`[data-pugh-lift="${option.letter}:${veto.id}"]`);
-        })));
-    }
-    return box;
-  }
   /** The options list (artifact-ui.md, Decision figures): a row an option, its radio where the
       chapter asks for a bless (pickable), its expander's arrow, its letter chip and short name
       ("A · Keep open"; the letter and label where there is no short name), its winner or chosen
@@ -336,12 +251,12 @@ globalThis.obsPugh = (() => {
           ...(spec.matrix.chosen === option.key && option.key !== winner ? tagged("chosen", "chosen") : []))),
         option.short && labelAdds(option.short, option.name) ? element("p", {className: "pugh-option-label", textContent: option.name}) : null,
         option.what ? element("p", {className: "pugh-option-what", textContent: option.what}) : null,
-        said("wins", "Wins"), said("losses", "Losses"), successLine(option, "option-success"),
-        optionActions(figure, spec, result, option, view, print));
-      // The keys of a closed expander are hidden, not merely folded, so nothing counts them as on the page.
-      const keys = details.querySelector(".pugh-option-actions");
-      if (keys) keys.hidden = !details.open;
-      if (!print) details.addEventListener("toggle", () => { view.open[option.letter] = details.open; if (keys) keys.hidden = !details.open; });
+        said("wins", "Wins"), said("losses", "Losses"), successLine(option, "option-success")/* part verdict { */,
+        globalThis.obsPughVerdict?.actions({figure, spec, result, option, view, print, redraw: () => draw(figure, spec)})/* } part verdict */);
+      // part verdict {
+      globalThis.obsPughVerdict?.fold(details);
+      // } part verdict
+      if (!print) details.addEventListener("toggle", () => { view.open[option.letter] = details.open; });
       const row = element("li", {className: "pugh-option"}, picks ? radio(option.letter, `Pick ${tag(option)}`) : null, details);
       row.dataset.pughOption = option.letter;
       return row;
@@ -394,12 +309,12 @@ globalThis.obsPugh = (() => {
   }
   /** The Proposed winner box (artifact-ui.md, Decision figures): the report's bottom-line-up-front
       box (render.py, the important callout's content-emphasis card) holding the Y-statement, then
-      the proposed option's success criterion where it has one, then the engine's bottom line. */
+      the proposed option's success criterion where it has one. */
   function proposed(spec, result, figureModel, pick) {
     const letter = proposedLetter(result, figureModel, pick);
     const box = element("aside", {className: "content-card content-emphasis pugh-proposed-box"},
-      statement(spec, result, figureModel, pick), successLine(letter && figureModel.byLetter[letter], "success"),
-      ...bottomLine(result, figureModel));
+      statement(spec, result, figureModel, pick), successLine(letter && figureModel.byLetter[letter], "success")/* part verdict { */,
+      ...(globalThis.obsPughVerdict?.bottomLine(result, figureModel) ?? [])/* } part verdict */);
     box.dataset.pughPart = "proposed";
     box.setAttribute("aria-label", "Proposed winner");
     return box;
@@ -1045,7 +960,7 @@ globalThis.obsPugh = (() => {
     view.winner = result.suggestion ? figureModel.byKey[result.suggestion.key].letter : "";
     if (!print && !view.locked && changed(view)) {
       const reset = element("button", {type: "button", className: "filter-pill pugh-reset", textContent: "Reset"});
-      reset.dataset.hoverHelp = "Restore the fence's weights, marks, vetoes and datum";
+      reset.dataset.hoverHelp = "Restore the fence's weights and marks";
       reset.addEventListener("click", () => reset_(figure, spec));
       matrix.append(reset);
     }
@@ -1085,7 +1000,11 @@ globalThis.obsPugh = (() => {
   function reset_(figure, spec) {
     const view = state(figure.id, spec.answered);
     if (view.locked) return;  // An answer's changes are the record; nothing resets them.
-    Object.assign(view, {...unchanged(), rulings: view.rulings});
+    view.weights = {};
+    view.marks = {};
+    // part verdict {
+    globalThis.obsPughVerdict?.reset(view);
+    // } part verdict
     draw(figure, spec);
   }
   function render(figure, spec, host) {
@@ -1111,10 +1030,10 @@ globalThis.obsPugh = (() => {
     if (figure.classList.contains("figure-pugh-ready")) draw(figure, spec);
     else globalThis.obsFigures?.place(figure);
   }
-  /** The options menu's Reset (figures.js, FIGURE_OPTIONS): the fence's weights, marks, vetoes and datum back. */
+  /** The options menu's Reset (figures.js, FIGURE_OPTIONS): the fence's weights and marks back. */
   function option(figure) {
     const reset = element("button", {type: "button", className: "filter-pill pugh-reset", textContent: "Reset"});
-    reset.dataset.hoverHelp = "Restore the fence's weights, marks, vetoes and datum";
+    reset.dataset.hoverHelp = "Restore the fence's weights and marks";
     reset.disabled = Boolean(states.get(figure.id)?.locked) || !changed(states.get(figure.id));
     reset.addEventListener("click", () => reset_(figure, JSON.parse(figure.dataset.figureSpec)));
     return reset;
@@ -1133,14 +1052,11 @@ globalThis.obsPugh = (() => {
       anchor (a figure the reader left as it was, or one an answer shows, is not listed), options by letter. */
   function readerState() {
     const marked = view => Object.fromEntries(Object.entries(view.marks).filter(([, marks]) => Object.keys(marks).length));
-    // The vetoes, lifts and datum are named only where the reader set them (answers.schema.json, figureChanges).
-    const engineChanges = view => ({...(view.vetoes.length ? {vetoes: view.vetoes} : {}),
-      ...(Object.keys(view.lifts).length ? {lifts: view.lifts} : {}), ...(view.datum ? {datum: view.datum} : {})});
     return Object.fromEntries([...states].filter(([, view]) => !view.locked)
-      .map(([anchor, view]) => [anchor, structuredClone({weights: view.weights, marks: marked(view), ...engineChanges(view),
-        rulings: view.rulings, winner: view.winner})])
-      .filter(([, view]) => Object.keys(view.weights).length || Object.keys(view.marks).length || Object.keys(view.rulings).length
-        || view.vetoes || view.lifts || view.datum));
+      .map(([anchor, view]) => [anchor, structuredClone({weights: view.weights, marks: marked(view), /* part verdict { */...globalThis.obsPughVerdict?.state(view), /* } part verdict */rulings: view.rulings,
+        winner: view.winner})])
+      .filter(([, view]) => Object.keys(view.weights).length || Object.keys(view.marks).length || Object.keys(view.rulings).length/* part verdict { */
+        || globalThis.obsPughVerdict?.changed(view)/* } part verdict */));
   }
   /** A figure's options as it letters and names them: letter, name and short name (model), for the
       bless pill's "Picked B · Close" (bless.js). */

@@ -316,7 +316,7 @@ def test_a_print_shows_the_solutions_expanded_and_the_matrix_under_details(reade
     # Details may run over more than one sheet; the matrix and each section print once.
     assert printed["details"] >= 1
     assert {key: value for key, value in printed.items() if key != "details"} == {
-        "open": 3, "parts": ["options"], "proposed": [["statement", "success", "verdict", "runner-up", "runner-up"]], "matrix": 1, "tabs": 0, "record": 1}
+        "open": 3, "parts": ["options"], "proposed": [["statement", "success"]], "matrix": 1, "tabs": 0, "record": 1}
     assert after == "pareto"
     assert errors == []
 
@@ -347,15 +347,14 @@ PROPOSED = """anchor => {
 def test_the_proposed_winner_is_a_box_like_the_bottom_line_and_each_option_says_its_success(phone_browser, deck):
     """artifact-ui.md, Decision figures: after Potential solutions, the Proposed winner section holds
     one box drawn as the report's bottom-line-up-front box, the Y-statement, not bold, then the
-    proposed option's success criterion, then the engine's bottom line (its verdict and each
-    runner-up's tie); each option's expander shows its own success criterion."""
+    proposed option's success criterion; each option's expander shows its own."""
     page, errors = _open(phone_browser, deck, 390, "three")
 
     shown = page.evaluate(PROPOSED, THREE)
 
     assert shown["section"] == "three--proposed-winner"
     assert shown["classes"] == ["content-card", "content-emphasis"] and shown["sameLook"]
-    assert shown["parts"] == ["statement", "success", "verdict", "runner-up", "runner-up"] and shown["bold"] is False
+    assert shown["parts"] == ["statement", "success"] and shown["bold"] is False
     assert shown["expanded"] == {"A": None, "B": SUCCESS_B, "C": SUCCESS_C}
     assert errors == []
 
