@@ -1664,6 +1664,11 @@ writes it and the core that reads it:
 - `figures`: by figure anchor, the reader's changes to a decision figure, as its reader state
   holds them (weights, marks, rulings with their tripwires), and the `winner` they give.
 
+  Decided by the user, 14 Nov 2026 (work issue `feat/pugh-engine-computes-the-verdict-20261114`):
+  also the person's other changes ctrl's engine takes: `vetoes`, the letters of the options the
+  reader vetoed; `lifts`, by letter, the ids of the engine's own vetoes the reader lifted (`given`
+  or `gate<n>`); and `datum`, the letter of the option the reader made the datum.
+
 `obs-document --answers <file>` builds the Document with the answers in it, so the answered
 artifact is the decision record ([[cli#Answers]]). A verdict whose version is the chapter's is its
 `answer`: the chapter shows it read-only and asks nothing. A verdict at another version is

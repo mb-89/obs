@@ -585,13 +585,19 @@ WIDE = {**DECISION, "title": "Many options", "chosen": "O9", "checklist": [
 last two on a Checklist row of weight 2 (test_pugh_figures_browser.py)."""
 
 
+GATED = {**DECISION, "title": "Which option within budget", "chosen": "B", "checklist": [],
+         "gates": [{"criterion": "cost", "max": 15, "why": "over budget"}]}
+"""ctrl's test matrix of DECISION with a hard gate: B (ctrl's A, cost 19) fails it, the engine's veto
+gate0, which the reader lifts (test_pugh_figures_browser.py, the reader's vetoes and datum)."""
+
+
 def pugh(root: Path) -> None:
     """The decision figures (test_pugh_figures_browser.py): ctrl's test matrix with a chosen runner-up,
-    and one of ten options. Not a moved interim vault."""
+    one of ten options, and ctrl's matrix with a gate. Not a moved interim vault."""
     (root / "manifest.md").write_text("---\ntitle: Decisions\n---\n- [[decisions]]\n", encoding="utf-8")
     (root / "decisions.md").write_text("# Decisions\n\n" + "".join(
         f"```figure\nversion: 1\nkind: pugh\ncaption: The {name} decision.\ncontent: {json.dumps(matrix)}\n```\n"
-        f"^{name}\n\n" for name, matrix in (("option", DECISION), ("wide", WIDE))), encoding="utf-8")
+        f"^{name}\n\n" for name, matrix in (("option", DECISION), ("wide", WIDE), ("gated", GATED))), encoding="utf-8")
 
 
 GALLERY_SVG = ('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 20">'
