@@ -170,3 +170,70 @@ def test_the_packaged_capability_reference_is_current_with_the_capability_notes(
     assert packaged == build_capability_reference(CAPABILITIES, CAPABILITIES / "coverage.json"), (
         "src/obs/capability-reference.json is stale against spec/capabilities; remedy: uv sync "
         "--reinstall-package obs, which writes it again from the notes (hatch_build.py)")
+
+
+SKILL = ROOT / "skills" / "obs-authoring"
+"""The authoring skill, generated from the capability notes (spec/design_input/cli.md, Authoring skill)."""
+
+
+def _committed_skill() -> dict[str, str]:
+    return {path.relative_to(SKILL).as_posix(): path.read_text(encoding="utf-8")
+            for path in sorted(SKILL.rglob("*")) if path.is_file()}
+
+
+def test_the_authoring_skill_is_current_with_the_capability_notes() -> None:
+    from obs.authoring_skill import REGENERATE, build_skill
+
+    generated = build_skill(CAPABILITIES, CAPABILITIES / "coverage.json")
+
+    assert _committed_skill() == generated, (
+        f"skills/obs-authoring is stale against spec/capabilities; remedy: {REGENERATE}")
+
+
+def test_the_authoring_skill_check_fails_on_a_changed_authoring_line_or_example(tmp_path) -> None:
+    """The check above compares the committed folder with the notes: a changed authoring line or
+    example changes what the notes generate, so the committed folder no longer equals it."""
+    import shutil
+    from obs.authoring_skill import build_skill
+
+    for old, new in (("authoring: Use a base fence", "authoring: Write a base fence"),
+                     ("    order: [file.name]", "    order: [file.path]")):
+        notes = tmp_path / old.split(":")[0].strip()
+        shutil.copytree(CAPABILITIES, notes)
+        bases = notes / "bases.md"
+        text = bases.read_text(encoding="utf-8")
+        assert old in text
+        bases.write_text(text.replace(old, new), encoding="utf-8")
+
+        generated = build_skill(notes, notes / "coverage.json")
+
+        assert generated != _committed_skill()
+        assert new.split(": ", 1)[-1].strip() in generated["references/capabilities.md"]
+
+
+def test_the_authoring_skill_follows_the_agent_skills_format() -> None:
+    """Agent Skills (agentskills.io): the name equals the folder's name, lowercase and hyphenated; a
+    description under 1,024 characters; a body under 500 lines; reference files one level deep;
+    every link stays inside the folder and finds its file and heading."""
+    files = _committed_skill()
+    _, raw, body = files["SKILL.md"].split("---", 2)
+    frontmatter = yaml.safe_load(raw)
+
+    assert frontmatter["name"] == SKILL.name
+    assert re.fullmatch(r"[a-z0-9]+(-[a-z0-9]+)*", frontmatter["name"]) and len(frontmatter["name"]) <= 64
+    assert 0 < len(frontmatter["description"]) < 1024 and "Use when" in frontmatter["description"]
+    assert len(body.splitlines()) < 500
+    assert all(path == "SKILL.md" or re.fullmatch(r"references/[^/]+\.md", path) for path in files)
+
+    for path, text in files.items():
+        prose = re.sub(r"^(`{3,})[^\n]*\n.*?^\1[ \t]*$", "", text, flags=re.M | re.S)
+        for target in re.findall(r"\]\(([^)\s]+)\)", prose):
+            file, _, anchor = target.partition("#")
+            resolved = (Path(path).parent / file).as_posix() if file else path
+            assert "://" not in target and not file.startswith("/") and ".." not in Path(resolved).parts, (path, target)
+            assert resolved in files, (path, target)
+            if anchor:
+                headings = re.findall(r"^#{1,6} (.+)$", re.sub(r"^(`{3,})[^\n]*\n.*?^\1[ \t]*$", "",
+                                                               files[resolved], flags=re.M | re.S), re.M)
+                assert anchor in {re.sub(r"[^a-z0-9 -]", "", heading.lower()).replace(" ", "-")
+                                  for heading in headings}, (path, target)
