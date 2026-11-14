@@ -4,3 +4,4 @@ adapters/html/test/parity/test_parity_table.py:161  # generic word matched by a 
 test/test_validation_once.py:34  # generic word matched by a machine-local list, reported in obs#561.
 test/test_validation_once.py:36  # generic word matched by a machine-local list, reported in obs#561.
 test/test_validation_once.py:41  # generic word matched by a machine-local list, reported in obs#561.
+adapters/html/test/test_provenance.py:20  # A made-up home-folder path the provenance check's test plants and must find; no real profile.
