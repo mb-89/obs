@@ -1020,6 +1020,12 @@ does; one in a keyed row stays in the row, or in its detail's record `field`. No
 chapter and a quote in place of a node. Saving, reopening and painting a highlight count the same
 text, so a reviewed copy reopens with each highlight on its quote, whether the bar is open or not.
 
+A copy saved by release 3.9.0 or earlier counted the gutter's text too, where its bar was open:
+its positions are read corrected, never rewritten. Where the quote is not at its positions, the
+quote with every gutter text taken out is looked for one gutter's length earlier, then at its
+occurrence nearest there in the target's text; a quote found nowhere keeps its positions, and the
+comment keeps its block either way. `obsCommentModel.anchorSpan` owns the rule.
+
 **Import.** `obs-html --extract-comments HTML` reads the island as untrusted data, never runs
 the artifact, and prints a deterministic text list of its threads, each comment with its state
 entries, for triage. With

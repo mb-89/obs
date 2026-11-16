@@ -239,3 +239,29 @@ def test_a_reopened_reviewed_copy_paints_a_comment_on_its_quote(chapter, node, q
     assert reopened.evaluate(PAINTED, {"chapter": chapter, "bar": True}) == [quote]
     assert errors == reopened_errors == []
 
+
+SAVED_BY_3_9_0 = ROOT / "test" / "fixtures" / "comments-saved-by-3.9.0.html"
+
+
+def _old_island() -> dict:
+    text = SAVED_BY_3_9_0.read_text(encoding="utf-8")
+    return json.loads(text.split("data-comment-island>", 1)[1].rsplit("</script>", 1)[0])
+
+
+def test_a_copy_saved_by_3_9_0_reopens_with_each_highlight_on_its_quote(tmp_path, reader_browser) -> None:
+    """Release 3.9.0's positions counted the open bar's review gutter: its copy, rebuilt with its
+    comments or loaded into a built artifact, paints each comment on its quote in its block."""
+    old = _old_island()
+    quotes = {comment["target"]["chapter"]: comment["target"]["quote"] for comment in old["comments"]}
+    assert quotes == {"intro": "the de", "appendix": "heading he"}
+    assert all(comment["target"]["prefix"].startswith("✓×💬") for comment in old["comments"])
+    document = json.loads(FIXTURE.read_text(encoding="utf-8"))
+    rebuilt, errors = _open(reader_browser, _artifact(tmp_path, {**document, "comments": old}))
+    loaded, loaded_errors = _open(reader_browser, _artifact(tmp_path, document))
+    loaded.set_input_files("[data-comment-files]", str(SAVED_BY_3_9_0))
+    loaded.wait_for_function("obsComments.data.annotations.length === 2")
+    for page in (rebuilt, loaded):
+        for chapter, quote in quotes.items():
+            assert page.evaluate(PAINTED, {"chapter": chapter, "bar": False}) == [quote], chapter
+            assert page.evaluate(PAINTED, {"chapter": chapter, "bar": True}) == [quote], chapter
+    assert errors == loaded_errors == []

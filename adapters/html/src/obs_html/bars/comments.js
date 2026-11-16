@@ -685,7 +685,8 @@
         const all = root === chapterBody || keyedRow(target) ? textNodes(root) : textNodes(chapterBody);
         const first = all.findIndex((node) => root.contains(node));
         const nodes = first < 0 ? [] : all.slice(first);
-        const points = commentModel.rangePoints(nodes.map((node) => node.data.length), target.start, target.end);
+        const span = commentModel.anchorSpan(nodes.map((node) => node.data).join(""), target, reviewGutterText());
+        const points = commentModel.rangePoints(nodes.map((node) => node.data.length), span.start, span.end);
         if (!points) return null;
         const range = document.createRange();
         range.setStart(nodes[points.start.index], points.start.offset);
@@ -793,6 +794,11 @@
         button.title = label;
         return button;
     };
+
+    // The text one review gutter shows, which a copy saved by release 3.9.0 or earlier counted.
+    let gutterText = null;
+    const reviewGutterText = () => gutterText ??=
+        ["accept", "reject", "comment"].map((kind) => reviewButton(kind, "").textContent).join("");
 
     const reviewItemsForRecord = (record) => {
         const isDocument = globalThis.obsArtifact.isDocument(record);
