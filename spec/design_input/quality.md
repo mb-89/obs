@@ -241,6 +241,10 @@ definitions alike. Keeping the same fact in two places is an anti-pattern (user,
   `suite-time` step names. The target and the limit are then each shard's, and se's gate judges a
   run of the whole suite, such as a local one, against that many times each.
 
+  `test/suite.py` judges its own run the same way: a whole run against that many times each,
+  naming the scaled numbers as se's gate prints them, and a shard's run (`--shard`) against one
+  shard's.
+
   Each package adds tests, so the suite creeps towards its limit. Its target, `[tests]
   target_seconds` in `se.toml`, stands 20 s under the limit: past it, se's gate warns, and
   `test/suite.py` says so too, locally and as a warning annotation in CI, naming the run's slowest
