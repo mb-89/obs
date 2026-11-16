@@ -22,5 +22,5 @@ limit_seconds = 120
 over_limit = "warn"
 
 [modules.se]
-url = "https://github.com/mb-89/SE.git"
+url = "../SE.git"
 version = "^5.0"

@@ -238,7 +238,8 @@ The archive holds the vault only: it refers to the generator instead of copying 
 The `sourceArchive.build` record says what rebuilds the artifact, since the adapter builds from
 the Document alone and the core is what knows it:
 
-- the public `repository` (the `Repository` URL of obs's `pyproject.toml`),
+- the `repository`: the `origin` remote of the checkout obs runs from, as an https URL without
+  credentials (an `ssh` remote in its https form), so a copy of obs on another host names that host,
 - the `commit` of the checkout obs runs from (core and adapter come from this one repository),
 - the package versions of every lockfile Git tracks there (`lockfiles`, by
   repository-relative path: `uv.lock` and each `package-lock.json`),

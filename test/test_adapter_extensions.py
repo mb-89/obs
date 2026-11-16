@@ -7,7 +7,7 @@ INPUT_MODEL = SPEC / "design_input" / "input-model.md"
 # The example of an adapter documenting its own extension lives in that adapter's specification,
 # which this reference note stands for (spec/appendix/references).
 EXAMPLE_NOTE = SPEC / "appendix" / "references" / "obs-html-specification.md"
-EXAMPLE = "https://github.com/mb-89/obs/blob/main/adapters/html/spec/manifest.md"
+EXAMPLE = "../../../adapters/html/spec/manifest.md"
 OWNER_LINK = "[[input-model#Adapter extensions"
 
 

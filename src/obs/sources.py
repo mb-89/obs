@@ -5,6 +5,7 @@ from __future__ import annotations
 import base64
 import json
 import os
+import re
 import subprocess
 import tomllib
 from collections.abc import Sequence
@@ -69,10 +70,10 @@ def source_archive(vault_root: Path, assets: list[dict[str, object]], snippets: 
 
 
 def generator(package: Path) -> dict[str, object]:
-    """The public repository, commit and lockfile versions of the Git checkout holding ``package``."""
+    """The origin repository, commit and lockfile versions of the Git checkout holding ``package``
+    (architecture, Source archive)."""
     checkout = Path(_git(package, "rev-parse", "--show-toplevel"))
     commit = _git(checkout, "rev-parse", "HEAD")
-    project = tomllib.loads((checkout / "pyproject.toml").read_text(encoding="utf-8"))["project"]
     lockfiles = {}
     for name in sorted(filter(None, _git(checkout, "ls-files", "-z", "--", *LOCKFILES).split("\0"))):
         text = (checkout / name).read_text(encoding="utf-8")
@@ -83,7 +84,21 @@ def generator(package: Path) -> dict[str, object]:
             lockfiles[name] = {path.removeprefix("node_modules/"): item["version"]
                                for path, item in json.loads(text).get("packages", {}).items()
                                if path and "version" in item}
-    return {"repository": project["urls"]["Repository"], "commit": commit, "lockfiles": lockfiles}
+    return {"repository": origin_url(_git(checkout, "remote", "get-url", "origin")), "commit": commit,
+            "lockfiles": lockfiles}
+
+
+def origin_url(remote: str) -> str:
+    """A remote URL as https without credentials: `git@host:owner/repo.git` and `ssh://git@host/owner/repo`
+    become `https://host/owner/repo.git`; `https://user:token@host/...` loses `user:token@`."""
+    remote = remote.strip()
+    scp = re.fullmatch(r"[\w.-]+@([\w.-]+):(.+)", remote)
+    if scp:
+        return f"https://{scp.group(1)}/{scp.group(2)}"
+    match = re.fullmatch(r"(?:ssh|https?|git)://(?:[^@/]+@)?([^/]+)/(.+)", remote)
+    if match:
+        return f"https://{match.group(1)}/{match.group(2)}"
+    return remote
 
 
 def _git(folder: Path, *arguments: str) -> str:
