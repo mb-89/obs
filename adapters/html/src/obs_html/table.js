@@ -1408,6 +1408,16 @@
             });
             const keep = new Set(selected);
             selected.forEach((row) => rowGroupParents.get(row)?.forEach((group) => keep.add(group)));
+            // part empty-groups {
+            // An empty group shows on the page of the row or collapsed group before it, else on page one.
+            const counted = new Set(dataRows);
+            let previous;
+            allRows.forEach((row) => {
+                if (row.dataset.groupEmpty) {
+                    if (previous ? selected.has(previous) : pageIndex === 0) keep.add(row);
+                } else if (counted.has(row)) previous = row;
+            });
+            // } part empty-groups
             allRows.forEach((row) => {
                 if (row.dataset.detailOwner && selected.has(byKey.get(row.dataset.detailOwner))) {
                     keep.add(row);
