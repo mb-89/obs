@@ -52,6 +52,12 @@ jobs:
           )
           git -C "$SE" checkout --quiet "$tag"
           echo "public-check: se $tag, the newest release se.toml's [modules.se] range admits"
+      # The copies of se's workflows and actions obs calls (`uses: ./.github/...`) are what se.lock's
+      # pin generates (se's README "Workflows"); `se_workflows.py write` regenerates a stale one.
+      - name: se's workflow copies match the pin
+        env:
+          SE: ${{ runner.temp }}/se
+        run: python3 "$SE/scripts/se_workflows.py" --source "$SE" check
       - name: Gate the commits
         env:
           SE: ${{ runner.temp }}/se
