@@ -1,6 +1,6 @@
 ---
 title: obs-html specification
-url: https://github.com/mb-89/obs/blob/main/adapters/html/spec/manifest.md
+url: ../../../adapters/html/spec/manifest.md
 description: "The HTML adapter's own specification: everything about its output, including its option namespace and trusted extensions, such as attachment replacement, the example of an adapter documenting its own extension. The attached file is that specification, built with the adapter."
 accessed: 2026-11-06
 ---

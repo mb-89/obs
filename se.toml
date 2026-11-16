@@ -10,7 +10,7 @@ authored_content = [
 identity = "mb <mb>"
 public_check = true
 release = "workflow"
-version = "3.5.1"
+version = "3.5.2"
 
 [tests]
 # The complete suite, its setup and its time budget; test/suite.py's docstring says what each runs.
@@ -22,5 +22,5 @@ limit_seconds = 120
 over_limit = "warn"
 
 [modules.se]
-url = "https://github.com/mb-89/SE.git"
+url = "../SE.git"
 version = "^5.0"

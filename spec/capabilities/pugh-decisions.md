@@ -15,10 +15,8 @@ A ```` ```pugh ```` fence holds one matrix in YAML, or a figure fence of kind `p
 ([[capabilities/figures]]) holds it under `content` or in a `source` file. The core checks it
 and carries it as data; it decides nothing.
 
-An adapter decides the matrix with ctrl's engine, `src/core/pugh.js` of github.com/mb-89/ctrl,
-carried unchanged from ctrl's commit `2839d765ff04d5586f1f0199203bbebf2d03cd22`. The engine's
-own note, ctrl's `design/output/pugh.md`, owns the matrix's shape ("The matrix file") and every
-rule of the decision. [[input-model#Pugh decision figures]] owns what obs adds.
+An adapter decides the matrix with ctrl's Pugh engine, which it carries unchanged. The engine owns
+the matrix's shape and every rule of the decision. [[input-model#Pugh decision figures]] owns what obs adds.
 
 ## Authoring example
 

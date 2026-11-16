@@ -225,7 +225,7 @@ definitions alike. Keeping the same fact in two places is an anti-pattern (user,
   slow runner would block a landing the suite itself does not deserve.
 
   obs declares this as `[tests] over_limit = "warn"` in `se.toml`, which se's
-  [Test budget](https://github.com/mb-89/SE/blob/main/README.md#test-budget) owns: an overrun
+  Test budget section in its README owns: an overrun
   warns instead of failing. `test/suite.py` names the runner's CPUs and says in each job's log,
   as a warning annotation, when its run is past the limit.
 
