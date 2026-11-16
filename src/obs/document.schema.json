@@ -69,7 +69,7 @@
       "enum": [
         "section", "paragraph", "list", "list-item", "quote", "callouts", "table", "table-row", "code", "math",
         "rule", "command-fences", "figures", "bases", "registers", "cards-metrics", "document", "property-editors",
-        "embeds"
+        "embeds", "columns"
       ]
     },
     "structuralType": {
@@ -91,7 +91,7 @@
       "anyOf": [
         {"properties": {"type": {"enum": [
           "section", "paragraph", "list", "list-item", "quote", "table", "table-row", "table-cell", "rule",
-          "registers", "figures", "cards-metrics", "callouts"
+          "registers", "figures", "cards-metrics", "callouts", "columns"
         ]}}},
         {"properties": {"type": {"const": "embeds"}, "attrs": {"not": {"required": ["asset"]}}}}
       ]
@@ -219,6 +219,20 @@
               "properties": {"title": {"$ref": "#/$defs/inlineNodes"},
                              "labels": {"type": "array", "items": {"$ref": "#/$defs/inlineNodes"}}}
             }}}}
+          }}
+        },
+        {
+          "description": "A two-column block (capabilities/columns#Document node): its weight pair, [1, 1] where none is authored; its children are exactly two document nodes, the first and the second column, each holding that column's blocks parsed like chapter content.",
+          "if": {"properties": {"type": {"const": "columns"}}},
+          "then": {"properties": {
+            "attrs": {
+              "type": "object", "additionalProperties": false, "required": ["weights"],
+              "properties": {"weights": {"type": "array", "minItems": 2, "maxItems": 2,
+                                         "items": {"type": "integer", "minimum": 1, "maximum": 8}}}
+            },
+            "children": {"minItems": 2, "maxItems": 2, "items": {"properties": {
+              "type": {"const": "document"}, "attrs": {"maxProperties": 0}
+            }}}
           }}
         },
         {

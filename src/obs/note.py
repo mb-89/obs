@@ -11,6 +11,7 @@ import re
 from typing import NamedTuple
 
 from markdown_it import MarkdownIt
+from markdown_it.rules_block import StateBlock
 from mdit_py_plugins.dollarmath import dollarmath_plugin
 import yaml
 
@@ -44,14 +45,126 @@ def lines(text: str) -> list[str]:
 
 
 @cache
-def parser() -> MarkdownIt:
-    """The supported Markdown dialect: CommonMark, pipe tables, strikethrough and TeX math."""
-    return MarkdownIt("commonmark", {"html": False, "linkify": False}).enable(
+def parser(columns: bool = False) -> MarkdownIt:
+    """The supported Markdown dialect: CommonMark, pipe tables, strikethrough and TeX math, and
+    with ``columns`` the ``|||`` delimiter lines of capabilities/columns."""
+    markdown = MarkdownIt("commonmark", {"html": False, "linkify": False}).enable(
         ["table", "strikethrough"],
     ).use(
         dollarmath_plugin, allow_labels=False, allow_space=False, allow_digits=False,
         double_inline=True,
     )
+    if columns:
+        # Before the table rule, and ending a paragraph, a table, a list or a quote as a thematic
+        # break does (the table rule ends at the blockquote rule's terminators).
+        markdown.block.ruler.before(
+            "table", "columns", _delimiter_rule, {"alt": ["paragraph", "reference", "blockquote", "list"]},
+        )
+    return markdown
+
+
+DELIMITER = "columns_delimiter"
+"""The token type of a ``|||`` line (capabilities/columns#Delimiters); its ``info`` is the text
+after the marks, the weights an opening line may carry."""
+_DELIMITER_LINE = re.compile(r"\|\|\|(?:[ \t]+(?P<rest>.*?))?[ \t]*")
+_CANDIDATE = re.compile(r"^[ \t>*+\-0-9.)]*\|\|\|(?:[ \t].*)?$", re.M)
+"""A line that may be a delimiter, at the top level or in a list item or a quote, where it is an error."""
+_WEIGHTS = re.compile(r"(?P<first>[0-9]+):(?P<second>[0-9]+)")
+WEIGHT_RANGE = range(1, 9)
+"""The weights a columns block's opening line may name (input-model#Document home and abstract)."""
+
+
+def _delimiter_rule(state: StateBlock, start: int, _end: int, silent: bool) -> bool:
+    """A ``|||`` line at most three spaces in, as one ``columns_delimiter`` token."""
+    if state.is_code_block(start):
+        return False
+    begin = state.bMarks[start] + state.tShift[start]
+    match = _DELIMITER_LINE.fullmatch(state.src[begin:state.eMarks[start]])
+    if match is None:
+        return False
+    if not silent:
+        token = state.push(DELIMITER, "", 0)
+        token.map = [start, start + 1]
+        token.markup = "|||"
+        token.info = match["rest"] or ""
+    state.line = start + 1
+    return True
+
+
+def column_weights(info: str) -> tuple[int, int]:
+    """The weights of an opening line whose text after the marks is ``info``: ``(1, 1)`` without
+    any; column_blocks checked them."""
+    weights = _WEIGHTS.fullmatch(info)
+    return (int(weights["first"]), int(weights["second"])) if weights else (1, 1)
+
+
+def has_delimiters(text: str) -> bool:
+    """Whether ``text`` may hold a ``|||`` delimiter line: only such text is parsed with them."""
+    return "|||" in text and _CANDIDATE.search(text) is not None
+
+
+class ColumnBlock(NamedTuple):
+    """One block of capabilities/columns: its number in the text (from 1), its weights and the
+    0-based lines of its opening, separator and closing delimiters."""
+
+    number: int
+    weights: tuple[int, int]
+    opening: int
+    separator: int
+    closing: int
+
+
+class ColumnsError(ValueError):
+    """A malformed columns block: its number in the text, the 0-based line of the delimiter at
+    fault, the problem and the remedy (capabilities/columns#Input errors)."""
+
+    def __init__(self, number: int, line: int, problem: str, remedy: str) -> None:
+        super().__init__(f"columns block {number}: {problem}. {remedy}.")
+        self.number, self.line, self.problem, self.remedy = number, line, problem, remedy
+
+
+def column_blocks(text: str) -> list[ColumnBlock]:
+    """The columns blocks of a note's text, read from its lines; capabilities/columns owns the rules.
+
+    Pure: the same text gives the same blocks or the same ColumnsError, the first malformed block's.
+    """
+    if not has_delimiters(text):
+        return []
+    tokens = parser(columns=True).parse(text)
+    delimiters = [token for token in tokens if token.type == DELIMITER]
+    content = [token.map[0] for token in tokens
+               if token.level == 0 and token.type != DELIMITER and token.map and token.nesting >= 0]
+    see = "see capabilities/columns"
+    blocks: list[ColumnBlock] = []
+    for start in range(0, len(delimiters), 3):
+        group, number = delimiters[start:start + 3], len(blocks) + 1
+        for place, token in zip(("opening", "separator", "closing"), group):
+            line = token.map[0]
+            if token.level:
+                raise ColumnsError(number, line, f"has its {place} line inside a list item or a blockquote",
+                                   f"Write the ||| line at the top level of the note; {see}")
+            if place != "opening" and token.info:
+                raise ColumnsError(number, line, f"has {token.info!r} on its {place} line, where no weights go",
+                                   f"Name the weights on the opening line alone, as ||| 1:2; {see}")
+        opening = group[0]
+        weights = _WEIGHTS.fullmatch(opening.info) if opening.info else None
+        if opening.info and (weights is None or not {int(weights["first"]), int(weights["second"])}
+                             <= set(WEIGHT_RANGE)):
+            raise ColumnsError(number, opening.map[0], f"has the weights {opening.info!r}, which are not two "
+                               "integers from 1 to 8", f"Write two weights from 1 to 8, as ||| 1:2; {see}")
+        if len(group) < 3:
+            raise ColumnsError(number, group[-1].map[0], "is not closed: it has "
+                               f"{'no separator and ' if len(group) < 2 else ''}no closing ||| line",
+                               "Close the block with a ||| line after its second column; a block holds "
+                               f"no other block; {see}")
+        lines = [token.map[0] for token in group]
+        for column, (first, last) in enumerate(zip(lines, lines[1:]), 1):
+            if not any(first < line < last for line in content):
+                raise ColumnsError(number, first, f"has no Markdown block in its {('first', 'second')[column - 1]} "
+                                   "column", f"Write the column's content between its ||| lines, or remove the "
+                                   f"block; a block holds no other block; {see}")
+        blocks.append(ColumnBlock(number, column_weights(opening.info), *lines))
+    return blocks
 
 
 def read_note(path: Path) -> Note:

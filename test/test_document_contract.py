@@ -72,6 +72,7 @@ def capability_node_attrs(identifier: str) -> dict[str, object]:
         "attachments": {"asset": "asset", "label": "Attachment"},
         "callouts": {"kind": "note", "title": []},
         "cards-metrics": {"source": "", "spec": {}},
+        "columns": {"weights": [1, 2]},
         "command-fences": {"source": "echo derived\n", "output": "derived\n"},
         "chapter-inclusion": {"id": "chapter"},
         "count-query": {"query": {}},
@@ -94,9 +95,12 @@ def capability_node_attrs(identifier: str) -> dict[str, object]:
 
 
 def capability_node_children(identifier: str) -> list[dict[str, object]]:
-    """A figure's one child is its kind's body; every other fixture node has none."""
+    """A figure's one child is its kind's body and a columns block's two are its columns; every other
+    fixture node has none."""
     if identifier == "figures":
         return [{"type": "plot", "attrs": {"descriptor": figure_descriptor()}, "children": []}]
+    if identifier == "columns":
+        return [{"type": "document", "attrs": {}, "children": []} for _ in range(2)]
     return []
 
 
