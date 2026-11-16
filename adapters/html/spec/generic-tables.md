@@ -543,3 +543,148 @@ adapter's browser evaluator runs the same conformance fixture.
   predefined Appendix or register chapter list.
 - Ordinary authored links navigate to the chapter containing a table. Table filters are owned by
   that table, independently of chapter navigation and the artifact-wide Filter.
+## Current data
+
+A Base's rows are the build's. `obsHtml.liveSource` declares where newer values of those rows are
+read when the page opens; [[capabilities/live-data]] is its authoring note. The rows the build
+selected stay underneath: values read later are only laid over them in the open page, never saved
+into it. A Base without the option renders exactly as it would without this section.
+
+### Declaration
+
+`obsHtml.liveSource` sits on a Base, in a `base` fence and in a `.base` file a register embeds
+alike. `live-source.schema.json` (packaged) owns its keys, with `additionalProperties: false` at
+every level:
+
+- `name` (required): the source's name as reader sentences say it, such as `Example Tracker`.
+- `key` (required): 1 to 4 property names that identify an item.
+- `changed` (required): the property that holds the instant an item last changed, an ISO 8601
+  date and time with its offset (`Z` or `±hh:mm`).
+- `notePath` (required): the vault-relative path of an item's note, a template over `key`
+  properties only, so a path follows from the key. The path is a row's identity.
+- `refreshMinutes` (optional): a whole number of at least 5, default 10.
+- `fields` (required): `{target: path}` or `{target: {path, lowercase: true}}`.
+- `derive` (optional): `{target: [case, ...]}`. A case is `{where?: conditions, value}`,
+  `{where?, path}` or `{where?, keep: true}`. The first case that matches wins; a case without
+  `where` is the default and comes last.
+- `fillNew` (optional): `{target: path}`, applied only to rows the build did not have.
+- `bodyPath` (optional): the path of the expanded text of a row the build did not have. It is
+  never a property; a row the build had keeps its expanded text until the next build.
+- `exclude` (optional): conditions; an item that meets them is ignored.
+- `accept` (optional): conditions a new item must meet to become a row.
+- `changes` (required): 1 or 2 routes, tried in order.
+  - Connector: `{provider: connector, server, tool, rows, requests: [{set, input}], next?:
+    {cursor, more, input}, maxPages, fields?}`. `tool` is one of an enum of read tools, today
+    `list_issues`; adding one is a reviewed schema change.
+  - Web: `{provider: web, requests: [{set, url}], rows?, next?: link, maxPages, fields?}`. `rows`
+    is the path of the answer's list; without it the answer itself is the list.
+  - `maxPages` is 1 to 5. A route's own `fields` replaces the path of a target that `fields`
+    already maps, for that route's answers only, and adds no target.
+
+No key for headers, tokens or credentials exists anywhere.
+
+The renderer removes `liveSource` from the definition it embeds, and `obsHtml` with it when
+nothing else is left there, so the Query view never shows the option and a reader's edit cannot
+change it. The table entry carries the declaration as `live`, with no time beside it, so an
+unchanged rebuild stays byte-identical.
+
+### Paths, templates and conditions
+
+One grammar each:
+
+- **Paths**: dotted keys plus `[]`, which maps over a list, at most 8 steps (a key or a `[]` is
+  one step each). A key is read only as the value's own key. An object is absent, never a value.
+  Scalars keep their JSON type, and a list of scalars stays a list. A path that is absent or
+  `null` on an item removes the property from the row.
+- **Templates**: `{name}` only, naming a key property, a mapped field or `since`; no other
+  braces. Values are URL-encoded inside a `url`. A connector `input` value that is one template
+  alone takes the value as it is; any other is text.
+- **Conditions**: exactly the shape of capabilities/queries (Conditions), as
+  [[obs-specification|obs's specification]] defines it: `{field, equals, matchCase?}` or
+  `{field, exists: true}`, with exactly one of `equals` and `exists`. The page evaluates them with
+  `obsQuery.compileConditions` (query.js), its one conditions evaluator, over the mapped fields as
+  a note's frontmatter (`{frontmatter: fields}`).
+
+### Build refusals
+
+Each is the one input error form, naming the Base's note (or its `.base` file) and the field under
+`base.obsHtml.liveSource` (`obsHtml.liveSource` in a `.base` file). The build first checks the
+rest of the definition against `base.schema.json`
+([[input-model#Compact declarative table presentation]]), then the declaration. It refuses:
+
+- a schema violation of `live-source.schema.json`, and a case without `where` that is not last;
+- a view with `obs.members`, or `obs.records` other than `note` on the Base or a view;
+- a `fields`, `derive`, `fillNew` or `set` target that is not a plain name
+  (`^[A-Za-z][A-Za-z0-9_ .-]{0,63}$`), that is `__proto__`, `constructor` or `prototype`, or that is
+  a name the runtime or the core reserves: `title`, `slug`, `text`, `content`, `body`, `depth`,
+  `chapter`, `sourcePath`, `recordType`, `frontmatter`, `frontmatter.*`, `file.*`, `mark`,
+  `mark.*`, and `obs`, `obs.*` or an adapter namespace `obs<Name>` (obs's input model, Core and
+  adapter namespaces);
+- a target that a property of the same Base declares `editable`, as a `reference`, as a
+  `metadataFormats` source or as a `linkProperty`;
+- a `key` property, `changed`, or a field a condition names, that no `fields` or `set` target
+  maps;
+- a `notePath` naming a property outside `key`, or any template naming a field that is neither a
+  key property, a mapped field nor `since`;
+- a path of more than 8 steps;
+- a `url` that is not `https`, that carries a user name or password, or that has a query name
+  matching `token|key|secret|password|auth|sig|code` (ignoring case), and a connector `input` key
+  that matches the same names;
+- a view that groups by a derived target whose `obsHtml.groupOrder` lists a value no case of that
+  target produces, unless the target has a `keep` case.
+
+The adapter imports no core module, so these are shape checks only; the mapping is checked in the
+page (below).
+
+### Mapping and merging
+
+`live-data.js` is the pure layer, `globalThis.obsLiveData`: it uses no page and no network, and no
+function of it returns HTML, because fetched text is data. Later pieces call it by these names,
+which stay stable:
+
+- `LIMITS`: `{items: 2000, fieldBytes: 65536, pathSteps: 8}`.
+- `readPath(value, path)`: the value at a path, or `undefined` where it is absent.
+- `fillTemplate(template, values, {url})`: the filled text, or `undefined` where a name has no
+  scalar value; with `url: true` each value is URL-encoded.
+- `instant(text)`: the milliseconds of an ISO 8601 date and time with its offset, else `NaN`.
+  Instants are compared as instants, never as text.
+- `notePath(declaration, fields)`: the note path the key fields give, or `undefined`.
+- `mapItem(declaration, route, request, item, shownFor)`: one item as `{path, changed, fields,
+  body}`, or `null`. It takes the request's `set`, then `fields` with the route's own paths and
+  `lowercase`, then `exclude`, then `derive` and, for a new item (`shownFor(path)` gives no row),
+  `fillNew`, `bodyPath` and `accept`. A `keep` case keeps the shown row's value; a new item whose
+  `derive` lands on `keep` is `null`, because the page cannot know its value.
+- `lower(text)`: raw text as the safe content nodes `paragraph`, `text`, `lineBreak` and `link`
+  with an `https` URL, and no others. A blank line starts a paragraph, a newline is a line break
+  and a bare `https` URL becomes a link; Markdown markers stay visible as text.
+- `validateNodes(nodes)`: the nodes when each is of that subset, else a `TypeError`.
+- `since(declaration, request, population)`: for one request, the newest `changed` among the
+  population's rows that carry the request's `set` values, minus one second, as ISO text; or
+  `undefined` without such a row.
+- `merge(declaration, route, request, items, shown)`: the rows the items change, by note path, as
+  `{rows, partial}`. An item applies only when its `changed` instant is strictly newer than the
+  shown row's. Items are deduplicated by path and `changed`. Past a limit (more than 2000 items in
+  a read, or a value over 64 KiB) the item is dropped and the read is `partial`.
+- `check(declaration, population)`: the failures of the check below, each `{notePath, check,
+  field}`.
+
+A row is `{sourcePath, frontmatter}`, the shape conditions read.
+
+### The check
+
+When the page starts, the tables feature's `live-source` part hands `obsLiveData.check` each live
+table's population, whether or not its chapter is shown. A register's population is the union of
+the core's rows of the views its table entry carries: all of them, or the one view a heading names.
+A fence's population is the note rows its Base-level `filters` select. The check proves, for every
+row:
+
+- every key property is present and nonblank, and the key is unique (`key`);
+- `changed` parses as an instant (`changed`);
+- `notePath` over the key reproduces the row's `sourcePath` (`notePath`);
+- each `derive` target reproduces the row's own value (`derive`); a `keep` case, and a `path`
+  case, which reads an item the row does not have, count as reproducing.
+
+It also proves that each request's `set` values occur in at least one row (`set`). Each failure
+logs one console error naming the table, the note path, the check and the field, and turns that
+table's routes off for this page; its saved rows are shown as they are. `obs-html --check-rendered`
+fails on such a page ([[cli]]), so an author runs it after declaring a source.
