@@ -778,6 +778,8 @@ remedy. A kind's own options sit beside them in the fence. The kinds and their c
 - `pugh`: a Pugh decision matrix ([[#Pugh decision figures]]). `source` names a YAML or JSON
   file; inline `content` is the same mapping. A plain ```` ```pugh ```` fence is a figure of that
   kind without caption, alt or block id.
+- `timeline`: dated note records as a lane timeline ([[#Timeline figures]]). `source` names a
+  YAML or JSON file; inline `content` is the same mapping.
 
 An optional `caption` supplies visible figure prose; omission renders no caption or placeholder.
 
@@ -1289,6 +1291,86 @@ the chapter's content, after the figure, in order. The core adds nothing to the 
 An adapter that shows them as the figure's tabs gathers them when it renders the chapter.
 Decided by the worker, 6 Nov 2026: the Document already carries the sections, so its schema
 does not change.
+
+#### Timeline figures
+
+Decided by the user, 16 Nov 2026 (work issue `feat/timeline-figure-kind-20261116`): a timeline is
+a figure of the vault's own dated notes, drawn in the house figure frame.
+
+It ports the ideas of v1's iteration timeline (`v1:product/engine-go/report.go` with
+`v1:spec/iterations/i0027_book_feedback/req-project-timeline.md`, `req-timeline-anchor.md` and
+`req-timeline-drilldown.md`): rows a reader opens, the current period anchored with the earlier
+ones above it, scrolling that never pages, toned chips and an empty view that says so.
+
+The lane-by-day grid follows SE's `scripts/timeline.py` model. No v1 CSS or markup is ported.
+
+A timeline figure is a `figure` fence of `kind: timeline` with `version: 1`, `caption` and
+`alt`. Its content, inline under `content` or in a YAML or JSON `source` file, is a mapping:
+
+- `records`, required: the query that selects the timeline's records, a `where` list of
+  conditions and an optional `from` owner, as a frontmatter query has
+  ([[capabilities/queries]], [[#Reusable query ownership]]). Its notes are included in the
+  Document as those of any query in an included note are, record-only notes
+  (`obs: {document: false}`) too; an ignored note is never selected.
+- `date`, required: the name of the field that holds a record's day, `yyyy-mm-dd`.
+- `lane`, required: the name of the field whose text names a record's lane.
+- `today`, required: the timeline's today, `yyyy-mm-dd`. It is written, never read from a clock,
+  so the same input always builds the same page.
+- `lanes`, optional: the lanes in display order, 1 to 8 distinct names. Without it the lanes are
+  the selected records' lane names in case-insensitive order, at most 8.
+- `band` and `bands`, optional and only together: the name of the field that names a record's
+  band, and the bands, an ordered list of `{value, label, at}`: `value` the band field's text,
+  `label` the row's name (Today, Next, Needs you), `at` either `today` (between the past rows and
+  the planned rows) or `end` (after the planned rows). Values are distinct.
+- `anchor`, optional: `today` or a band's `value`, the row a reader sees first.
+- `label`, `text`, `flags` and `marker`, optional: the names of the fields that hold a record's
+  short label (the note's title without it), its text, its flags and whether it is a marker.
+
+The record fields these name are a record's frontmatter fields, read as a query condition reads
+them ([[capabilities/queries#Conditions]]). A record is placed by them:
+
+- A record whose band field holds the text of a listed band's `value` sits in that band's row.
+  Any other record sits on its day: its date field holds a day, `yyyy-mm-dd`.
+- Its lane field holds its lane's name; with `lanes`, one of them.
+- Its flags field, where it has one, is a list of `{label, tone}`. `label` is the chip's text and
+  `tone` one of the tones of `$defs/tone` in `src/obs/input.schema.json` (neutral, positive,
+  warning, negative), neutral without it. The field is `flags`, not `marks`, because `mark` and
+  `mark.<category>` already name mark tags in query conditions ([[#Mark tags]]).
+- Its marker field, where it is `true`, makes it a marker, such as a release: a labelled mark in
+  its cell, not one of the cell's items.
+
+The rows, from top to bottom:
+
+1. The dated rows up to and including `today`, oldest first.
+2. The `at: today` bands, in the order `bands` lists them.
+3. The dated rows after `today`, the planned rows.
+4. The `at: end` bands, in listed order.
+
+A dated row exists only for a day that has a record. A year divider stands before each dated row
+whose year differs from the dated row before it, so the first row has none. `anchor: today`
+names the first row after the past rows; `anchor: <value>` names that band's row.
+
+Each row has one cell per lane. A cell shows a stop, the number of its items (its records that
+are not markers) and the label of its last item, its items ordered by day, then by vault path.
+A past stop is filled, a planned stop is hollow and a band's stop is a band mark; a cell's
+markers show as labelled marks.
+
+A row that is opened lists its items per lane, with their flags; an item that is opened shows
+its `text` field as plain text and a link to its note. The core decides none of this: it is
+what an adapter draws, from the records the query selects in the reader, under the reader's
+filter ([[capabilities/timeline-figures]]).
+
+The core checks the content against `$defs/figureBodies/timeline` of
+`src/obs/document.schema.json`, then what no schema states: that `today` and every record's day
+are calendar days, that `band` and `bands` come together, that `anchor` names a band, at most 8
+lanes, and each selected record: its day or band, its lane, its flags and their tones.
+
+A refusal is an input error in the one form. For the content it names the figure's note, the
+fence and the field path within it (`content.today`, `source.bands[1].at`). For a record it
+names the record's note and its field (`when`, `flags[0].tone`), with the figure's note in the
+problem. The remedy names [[capabilities/timeline-figures]].
+
+The body is the checked content as it is.
 
 ### Markdown body and frontmatter
 
