@@ -156,3 +156,13 @@ def test_without_lanes_the_records_may_name_at_most_eight(tmp_path) -> None:
 
     message = str(failure.value)
     assert "figure fence 1, content.lane:" in message and f"see {OWNER}." in message
+
+
+def test_the_capability_notes_example_builds_without_a_warning(tmp_path) -> None:
+    from test_capability_examples import _examples, _read
+
+    [example] = [param.values for param in _examples() if param.values[1] == "timeline-figures"]
+    document = _read(tmp_path, example[2], example[3])
+
+    assert document["diagnostics"] == []
+    assert "timeline-figures" in document["capabilities"]

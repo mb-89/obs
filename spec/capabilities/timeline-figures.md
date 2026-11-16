@@ -50,6 +50,7 @@ content:
   flags: flags
   marker: release
 ```
+^team-work
 ````
 
 The records are notes such as this one, dated, in a lane and with a flag:
