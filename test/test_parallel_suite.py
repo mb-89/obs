@@ -594,12 +594,16 @@ def test_a_group_the_committed_weights_lack_is_dealt_by_tier_weights_with_a_warn
     assert len(items) + len(config.deselected) == len(_shard_items())
 
 
-def test_ci_times_its_shards_with_se_actions_at_the_release_se_lock_pins() -> None:
+def test_ci_times_its_shards_with_the_copies_of_se_actions_at_the_commit_se_lock_pins() -> None:
     import re
     import tomllib
 
-    pinned = tomllib.loads((suite.ROOT / "se.lock").read_text(encoding="utf-8"))["modules"]["se"]["version"]
+    pinned = tomllib.loads((suite.ROOT / "se.lock").read_text(encoding="utf-8"))["modules"]["se"]["ref"]
     workflow = (suite.ROOT / ".github" / "workflows" / "test.yml").read_text(encoding="utf-8")
-    used = dict(re.findall(r"uses: [\w.-]+/SE/\.github/actions/([\w-]+)@(\S+)", workflow))
+    used = re.findall(r"uses: (\S*/actions/[\w-]+)\S*", workflow)
 
-    assert used == {"suite-shard": f"v{pinned}", "suite-time": f"v{pinned}"}
+    assert used == ["./.github/actions/suite-shard", "./.github/actions/suite-time"]
+    for action in used:
+        copy = (suite.ROOT / action / "action.yml").read_text(encoding="utf-8")
+        assert copy.startswith(f"# se-workflows: {action[2:]}/action.yml at {pinned} from ")
+        assert re.findall(r"(?m)^ +ref: (\S+)$", copy) == [pinned]
