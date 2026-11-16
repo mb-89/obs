@@ -4,7 +4,8 @@
 // state entry and the reader's names are the core's as they are, and a target the core's, but for
 // the abstract's, which on the home page is the home page's chapter key. The review state
 // (reviewState) and a comment's state (commentState) mirror their owners,
-// obs.comments.review_state and obs.comments.comment_state.
+// obs.comments.review_state and obs.comments.comment_state. The ends of a range over a target's text are
+// rangePoints'.
 (() => {
     "use strict";
 
@@ -97,5 +98,20 @@
             .sort((first, second) => compare(first.author, second.author) || compare(first.id, second.id))[0].state;
     };
 
-    globalThis.obsCommentModel = {VERSION, fromCore, toCore, reviewState, commentState, sameTarget};
+    // The two ends of a span of a text made of pieces of these lengths, each as a piece's index and
+    // an offset in it, or null where the text is too short; a start on a boundary is the earlier
+    // piece's end, as a range a selection gives may start.
+    const rangePoints = (lengths, start, end) => {
+        let offset = 0;
+        let from = null;
+        for (let index = 0; index < lengths.length; index += 1) {
+            const next = offset + lengths[index];
+            if (!from && start >= offset && start <= next) from = {index, offset: start - offset};
+            if (from && end >= offset && end <= next) return {start: from, end: {index, offset: end - offset}};
+            offset = next;
+        }
+        return null;
+    };
+
+    globalThis.obsCommentModel = {VERSION, fromCore, toCore, reviewState, commentState, sameTarget, rangePoints};
 })();

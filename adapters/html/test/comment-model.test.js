@@ -51,3 +51,10 @@ assert.deepEqual(mapped.comments[0].target, {abstract: true, node: "paragraph-1"
 assert.deepEqual(mapped.comments[0].batch.items, [{abstract: true}, {chapter: "one", node: "list-1"}]);
 assert.deepEqual(mapped.decisions[0].target, {abstract: true, node: "p"});
 assert.deepEqual(model.fromCore(mapped), home);
+
+// A span's two ends over text pieces (rangePoints): a start on a boundary is the earlier piece's end.
+assert.deepEqual(model.rangePoints([4, 6, 3], 4, 12), {start: {index: 0, offset: 4}, end: {index: 2, offset: 2}});
+assert.deepEqual(model.rangePoints([4, 6], 5, 7), {start: {index: 1, offset: 1}, end: {index: 1, offset: 3}});
+assert.deepEqual(model.rangePoints([4, 6], 0, 0), {start: {index: 0, offset: 0}, end: {index: 0, offset: 0}});
+assert.equal(model.rangePoints([4, 6], 5, 11), null, "a span past the text");
+assert.equal(model.rangePoints([], 0, 1), null);

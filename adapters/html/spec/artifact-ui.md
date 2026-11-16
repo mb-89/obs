@@ -1980,7 +1980,9 @@ separate from artifact presentation.
 
   Positions are
   canonical within the reviewed copy, including selections that cross block or heading
-  boundaries; the quote is display/context data and does not gate range reconstruction.
+  boundaries: they count the block's own text, without review controls, as
+  [Comments and the core model](input-model.md#comments-and-the-core-model) says. The quote is
+  display/context data and does not gate range reconstruction.
 
   Anchors are not re-anchored across regenerated artifacts.
 
