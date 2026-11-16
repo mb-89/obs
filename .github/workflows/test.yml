@@ -29,11 +29,13 @@ jobs:
       - name: Clone se at the pin
         env:
           SE: ${{ runner.temp }}/se
+          # se beside obs on its host, as se's README "Workflows" reaches it, so no line names an owner.
+          SE_URL: ${{ github.server_url }}/${{ github.repository_owner }}/SE.git
         run: |
           # se.toml's [modules.se] version range, resolved as se's scripts/se_modules.py resolves
           # it: the newest vMAJOR.MINOR.PATCH tag the range admits. se_modules is loaded from the
           # commit se.lock holds, and the check then runs at the resolved tag.
-          git clone --quiet --no-checkout --filter=blob:none https://github.com/mb-89/SE.git "$SE"
+          git clone --quiet --no-checkout --filter=blob:none "$SE_URL" "$SE"
           locked=$(python3 -c 'import tomllib; print(tomllib.load(open("se.lock", "rb"))["modules"]["se"]["ref"])')
           git -C "$SE" checkout --quiet "$locked"
           tag=$(python3 - "$SE" <<'PY'
@@ -120,8 +122,8 @@ jobs:
           python3 "$SE/scripts/work_tickets.py" field-report --check "$body" --issue-body "$RUNNER_TEMP/issue-body.md"
   # The complete suite in shards, one job each (test/suite.py, --shard): CI runners differ in speed,
   # and one job per shard keeps each under the suite's time limit. se's suite-shard action runs and
-  # times each shard and uploads its record for `check` (se's README "Test budget"); its ref is the
-  # se release se.lock pins.
+  # times each shard and uploads its record for `check` (se's README "Test budget"); it is the copy
+  # se writes at the commit se.lock pins (se's README "Workflows").
   shard:
     name: suite (shard ${{ matrix.shard }}/2)
     runs-on: ubuntu-26.04
@@ -136,7 +138,7 @@ jobs:
         with:
           node-version: 22
       - run: uv run python test/suite.py --setup
-      - uses: mb-89/SE/.github/actions/suite-shard@v5.78.0
+      - uses: ./.github/actions/suite-shard
         env:
           SE_TEST_REPORTS: ${{ runner.temp }}/junit
         with:
@@ -174,7 +176,7 @@ jobs:
     runs-on: ubuntu-26.04
     steps:
       - uses: actions/checkout@v7
-      - uses: mb-89/SE/.github/actions/suite-time@v5.78.0
+      - uses: ./.github/actions/suite-time
         with:
           shards: 2
       - run: |
