@@ -1059,3 +1059,29 @@ def test_a_glossary_row_a_view_selects_includes_its_note_and_ids_are_stable(tmp_
     assert {record["note"]: record["id"] for record in document["records"] if record["type"] == "glossary"} == {
         "hidden-term": "glossary-hidden-term", "term": "glossary-term",
     }
+
+
+@pytest.mark.parametrize("value", ["2026-13-02", "2026-02-30", "2026-11-16 25:00:00"])
+def test_an_unquoted_impossible_date_or_time_names_the_note_its_line_and_the_remedy(tmp_path, value) -> None:
+    from obs.document import main
+
+    (tmp_path / "manifest.md").write_text("- [[dated]]\n", encoding="utf-8")
+    (tmp_path / "dated.md").write_text(f"---\ntitle: Dated\nwhen: {value}\n---\nBody.\n", encoding="utf-8")
+
+    with pytest.raises(SystemExit) as raised:
+        main(["--source", str(tmp_path / "manifest.md"), "--document", str(tmp_path / "out.json")])
+
+    message = str(raised.value.code)
+    assert f"{tmp_path / 'dated.md'}" in message
+    assert "line 3" in message
+    assert "quote the value" in message
+
+
+def test_an_unquoted_valid_date_still_loads_as_a_date(tmp_path) -> None:
+    import datetime
+
+    from obs.note import read_note
+
+    (tmp_path / "dated.md").write_text("---\nwhen: 2026-11-16\n---\nBody.\n", encoding="utf-8")
+
+    assert read_note(tmp_path / "dated.md").metadata["when"] == datetime.date(2026, 11, 16)

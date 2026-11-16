@@ -12,6 +12,9 @@ capability:
 
 Add structured metadata to a Markdown note.
 
+An unquoted date or time that is no real one, such as `2026-13-02`, is an error that names the
+note and its line; quote the value to keep it as text, or write a real date.
+
 ## Ignored notes
 
 The boolean field `ignored` (default `false`) marks a note as ignored, the way a leading

@@ -261,6 +261,13 @@ def _split_frontmatter(source: str, path: Path) -> tuple[dict[str, object], str]
         metadata = yaml.safe_load(source[4:closing])
     except yaml.YAMLError as error:
         raise VaultError(f"Invalid frontmatter in {path}: {error}") from error
+    except ValueError as error:
+        node = _unloadable_scalar(source[4:closing])
+        where = f"line {node.start_mark.line + 2}: {node.value}" if node else "a value"
+        raise VaultError(
+            f"Invalid frontmatter in {path}: {where} is no real date or time ({error}); quote the value, "
+            f"or write a real date or time."
+        ) from error
     if metadata is None:
         metadata = {}
     if not isinstance(metadata, dict):
@@ -275,3 +282,24 @@ def _split_frontmatter(source: str, path: Path) -> tuple[dict[str, object], str]
     if source[body_start:body_start + 1] == "\n":
         body_start += 1
     return metadata, source[body_start:]
+
+
+def _unloadable_scalar(frontmatter: str) -> yaml.ScalarNode | None:
+    """The first frontmatter scalar, in source order, that the YAML loader cannot turn into a value."""
+    constructor = yaml.SafeLoader("")
+    pending, seen = [yaml.compose(frontmatter, Loader=yaml.SafeLoader)], set()
+    while pending:
+        node = pending.pop()
+        if node is None or id(node) in seen:
+            continue
+        seen.add(id(node))
+        if isinstance(node, yaml.ScalarNode):
+            try:
+                constructor.construct_object(node)
+            except ValueError:
+                return node
+        elif isinstance(node, yaml.MappingNode):
+            pending.extend(reversed([part for pair in node.value for part in pair]))
+        else:
+            pending.extend(reversed(node.value))
+    return None
