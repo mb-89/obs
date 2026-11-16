@@ -917,7 +917,7 @@
                 {
                   "type": "bases",
                   "attrs": {
-                    "source": "filters: 'kind == \"item\"'\nproperties:\n  description: {displayName: Description}\nviews:\n  - type: table\n    name: Items\n    order: [file.name, rank, description]\n    sort: [{property: rank, direction: ASC}]\n  - type: table\n    name: Kinds\n    order: [file.name, rank]\n    groupBy: {property: kind, direction: ASC}\n    obsHtml: {groupOrder: [item, part], showEmptyGroups: true}\n  - type: table\n    name: Checked\n    order: [file.name, rank]\n    obsHtml: {passing: {filters: 'rank != 1', label: checked}}\n  - type: table\n    name: Brief\n    order: [file.name, description]\n    obsHtml: {detailFields: [rank]}\nobsHtml:\n  liveSource:\n    name: Example Tracker\n    key: [slot]\n    changed: updated\n    notePath: 'item-{slot}.md'\n    fields: {slot: slot, rank: rank, updated: updated_at}\n    changes:\n    - provider: connector\n      server: Example Tracker\n      tool: list_issues\n      rows: issues\n      maxPages: 1\n      requests:\n      - set: {kind: item}\n        input: {owner: example-org, repo: widgets, since: '{since}'}\n",
+                    "source": "filters: 'kind == \"item\"'\nproperties:\n  description: {displayName: Description}\nviews:\n  - type: table\n    name: Items\n    order: [file.name, rank, description]\n    sort: [{property: rank, direction: ASC}]\n  - type: table\n    name: Kinds\n    order: [file.name, rank]\n    groupBy: {property: kind, direction: ASC}\n    obsHtml: {groupOrder: [item, part], showEmptyGroups: true}\n  - type: table\n    name: Checked\n    order: [file.name, rank]\n    obsHtml: {passing: {filters: 'rank != 1', label: checked}}\n  - type: table\n    name: Brief\n    order: [file.name, description]\n    obsHtml: {detailFields: [rank]}\n",
                     "spec": {
                       "filters": "kind == \"item\"",
                       "properties": {
@@ -987,18 +987,39 @@
                             ]
                           }
                         }
+                      ]
+                    }
+                  },
+                  "children": [],
+                  "id": "bases-7fdd4328"
+                },
+                {
+                  "type": "bases",
+                  "attrs": {
+                    "source": "filters: 'kind == \"issue\"'\nviews:\n  - type: table\n    name: Tracker\n    order: [file.name, number]\nobsHtml:\n  liveSource:\n    name: Example Tracker\n    key: [repo, number]\n    changed: updated\n    notePath: 'issues/{repo}-{number}.md'\n    fields: {number: number, updated: updated_at}\n    changes:\n    - provider: connector\n      server: Example Tracker\n      tool: list_issues\n      rows: issues\n      maxPages: 1\n      requests:\n      - set: {repo: widgets}\n        input: {owner: example-org, repo: widgets, since: '{since}'}\n",
+                    "spec": {
+                      "filters": "kind == \"issue\"",
+                      "views": [
+                        {
+                          "type": "table",
+                          "name": "Tracker",
+                          "order": [
+                            "file.name",
+                            "number"
+                          ]
+                        }
                       ],
                       "obsHtml": {
                         "liveSource": {
                           "name": "Example Tracker",
                           "key": [
-                            "slot"
+                            "repo",
+                            "number"
                           ],
                           "changed": "updated",
-                          "notePath": "item-{slot}.md",
+                          "notePath": "issues/{repo}-{number}.md",
                           "fields": {
-                            "slot": "slot",
-                            "rank": "rank",
+                            "number": "number",
                             "updated": "updated_at"
                           },
                           "changes": [
@@ -1011,7 +1032,7 @@
                               "requests": [
                                 {
                                   "set": {
-                                    "kind": "item"
+                                    "repo": "widgets"
                                   },
                                   "input": {
                                     "owner": "example-org",
@@ -1027,7 +1048,7 @@
                     }
                   },
                   "children": [],
-                  "id": "bases-b9956eed"
+                  "id": "bases-21dace35"
                 },
                 {
                   "type": "paragraph",
@@ -2406,6 +2427,158 @@
       }
     },
     {
+      "id": "issues-widgets-1",
+      "title": "Widgets 1",
+      "toc": false,
+      "content": [
+        {
+          "type": "markdown-frontmatter",
+          "attrs": {
+            "metadata": {
+              "kind": "issue",
+              "repo": "widgets",
+              "number": 1,
+              "updated": "2026-11-01T10:00:00Z"
+            }
+          },
+          "children": [
+            {
+              "type": "field",
+              "attrs": {
+                "name": "kind"
+              },
+              "children": [
+                {
+                  "type": "text",
+                  "attrs": {},
+                  "children": [],
+                  "text": "issue"
+                }
+              ]
+            },
+            {
+              "type": "field",
+              "attrs": {
+                "name": "repo"
+              },
+              "children": [
+                {
+                  "type": "text",
+                  "attrs": {},
+                  "children": [],
+                  "text": "widgets"
+                }
+              ]
+            },
+            {
+              "type": "field",
+              "attrs": {
+                "name": "updated"
+              },
+              "children": [
+                {
+                  "type": "text",
+                  "attrs": {},
+                  "children": [],
+                  "text": "2026-11-01T10:00:00Z"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "chapter-inclusion",
+          "attrs": {
+            "id": "issues-widgets-1"
+          },
+          "children": []
+        }
+      ],
+      "children": [],
+      "metadata": {
+        "kind": "issue",
+        "repo": "widgets",
+        "number": 1,
+        "updated": "2026-11-01T10:00:00Z"
+      }
+    },
+    {
+      "id": "issues-widgets-2",
+      "title": "Widgets 2",
+      "toc": false,
+      "content": [
+        {
+          "type": "markdown-frontmatter",
+          "attrs": {
+            "metadata": {
+              "kind": "issue",
+              "repo": "widgets",
+              "number": 2,
+              "updated": "2026-11-02T10:00:00Z"
+            }
+          },
+          "children": [
+            {
+              "type": "field",
+              "attrs": {
+                "name": "kind"
+              },
+              "children": [
+                {
+                  "type": "text",
+                  "attrs": {},
+                  "children": [],
+                  "text": "issue"
+                }
+              ]
+            },
+            {
+              "type": "field",
+              "attrs": {
+                "name": "repo"
+              },
+              "children": [
+                {
+                  "type": "text",
+                  "attrs": {},
+                  "children": [],
+                  "text": "widgets"
+                }
+              ]
+            },
+            {
+              "type": "field",
+              "attrs": {
+                "name": "updated"
+              },
+              "children": [
+                {
+                  "type": "text",
+                  "attrs": {},
+                  "children": [],
+                  "text": "2026-11-02T10:00:00Z"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "chapter-inclusion",
+          "attrs": {
+            "id": "issues-widgets-2"
+          },
+          "children": []
+        }
+      ],
+      "children": [],
+      "metadata": {
+        "kind": "issue",
+        "repo": "widgets",
+        "number": 2,
+        "updated": "2026-11-02T10:00:00Z"
+      }
+    },
+    {
       "id": "item-01",
       "title": "Item 01",
       "toc": false,
@@ -2416,8 +2589,6 @@
             "metadata": {
               "kind": "item",
               "rank": 1,
-              "slot": "01",
-              "updated": "2026-11-01T10:00:00Z",
               "description": "Item 1 of the paged table, with a description long enough to wrap in a narrow column."
             }
           },
@@ -2433,34 +2604,6 @@
                   "attrs": {},
                   "children": [],
                   "text": "item"
-                }
-              ]
-            },
-            {
-              "type": "field",
-              "attrs": {
-                "name": "slot"
-              },
-              "children": [
-                {
-                  "type": "text",
-                  "attrs": {},
-                  "children": [],
-                  "text": "01"
-                }
-              ]
-            },
-            {
-              "type": "field",
-              "attrs": {
-                "name": "updated"
-              },
-              "children": [
-                {
-                  "type": "text",
-                  "attrs": {},
-                  "children": [],
-                  "text": "2026-11-01T10:00:00Z"
                 }
               ]
             },
@@ -2492,8 +2635,6 @@
       "metadata": {
         "kind": "item",
         "rank": 1,
-        "slot": "01",
-        "updated": "2026-11-01T10:00:00Z",
         "description": "Item 1 of the paged table, with a description long enough to wrap in a narrow column."
       }
     },
@@ -2508,8 +2649,6 @@
             "metadata": {
               "kind": "item",
               "rank": 2,
-              "slot": "02",
-              "updated": "2026-11-02T10:00:00Z",
               "description": "Item 2 of the paged table, with a description long enough to wrap in a narrow column."
             }
           },
@@ -2525,34 +2664,6 @@
                   "attrs": {},
                   "children": [],
                   "text": "item"
-                }
-              ]
-            },
-            {
-              "type": "field",
-              "attrs": {
-                "name": "slot"
-              },
-              "children": [
-                {
-                  "type": "text",
-                  "attrs": {},
-                  "children": [],
-                  "text": "02"
-                }
-              ]
-            },
-            {
-              "type": "field",
-              "attrs": {
-                "name": "updated"
-              },
-              "children": [
-                {
-                  "type": "text",
-                  "attrs": {},
-                  "children": [],
-                  "text": "2026-11-02T10:00:00Z"
                 }
               ]
             },
@@ -2584,8 +2695,6 @@
       "metadata": {
         "kind": "item",
         "rank": 2,
-        "slot": "02",
-        "updated": "2026-11-02T10:00:00Z",
         "description": "Item 2 of the paged table, with a description long enough to wrap in a narrow column."
       }
     },
@@ -2600,8 +2709,6 @@
             "metadata": {
               "kind": "item",
               "rank": 3,
-              "slot": "03",
-              "updated": "2026-11-03T10:00:00Z",
               "description": "Item 3 of the paged table, with a description long enough to wrap in a narrow column."
             }
           },
@@ -2617,34 +2724,6 @@
                   "attrs": {},
                   "children": [],
                   "text": "item"
-                }
-              ]
-            },
-            {
-              "type": "field",
-              "attrs": {
-                "name": "slot"
-              },
-              "children": [
-                {
-                  "type": "text",
-                  "attrs": {},
-                  "children": [],
-                  "text": "03"
-                }
-              ]
-            },
-            {
-              "type": "field",
-              "attrs": {
-                "name": "updated"
-              },
-              "children": [
-                {
-                  "type": "text",
-                  "attrs": {},
-                  "children": [],
-                  "text": "2026-11-03T10:00:00Z"
                 }
               ]
             },
@@ -2676,8 +2755,6 @@
       "metadata": {
         "kind": "item",
         "rank": 3,
-        "slot": "03",
-        "updated": "2026-11-03T10:00:00Z",
         "description": "Item 3 of the paged table, with a description long enough to wrap in a narrow column."
       }
     },
@@ -2692,8 +2769,6 @@
             "metadata": {
               "kind": "item",
               "rank": 4,
-              "slot": "04",
-              "updated": "2026-11-04T10:00:00Z",
               "description": "Item 4 of the paged table, with a description long enough to wrap in a narrow column."
             }
           },
@@ -2709,34 +2784,6 @@
                   "attrs": {},
                   "children": [],
                   "text": "item"
-                }
-              ]
-            },
-            {
-              "type": "field",
-              "attrs": {
-                "name": "slot"
-              },
-              "children": [
-                {
-                  "type": "text",
-                  "attrs": {},
-                  "children": [],
-                  "text": "04"
-                }
-              ]
-            },
-            {
-              "type": "field",
-              "attrs": {
-                "name": "updated"
-              },
-              "children": [
-                {
-                  "type": "text",
-                  "attrs": {},
-                  "children": [],
-                  "text": "2026-11-04T10:00:00Z"
                 }
               ]
             },
@@ -2768,8 +2815,6 @@
       "metadata": {
         "kind": "item",
         "rank": 4,
-        "slot": "04",
-        "updated": "2026-11-04T10:00:00Z",
         "description": "Item 4 of the paged table, with a description long enough to wrap in a narrow column."
       }
     },
@@ -2784,8 +2829,6 @@
             "metadata": {
               "kind": "item",
               "rank": 5,
-              "slot": "05",
-              "updated": "2026-11-05T10:00:00Z",
               "description": "Item 5 of the paged table, with a description long enough to wrap in a narrow column."
             }
           },
@@ -2801,34 +2844,6 @@
                   "attrs": {},
                   "children": [],
                   "text": "item"
-                }
-              ]
-            },
-            {
-              "type": "field",
-              "attrs": {
-                "name": "slot"
-              },
-              "children": [
-                {
-                  "type": "text",
-                  "attrs": {},
-                  "children": [],
-                  "text": "05"
-                }
-              ]
-            },
-            {
-              "type": "field",
-              "attrs": {
-                "name": "updated"
-              },
-              "children": [
-                {
-                  "type": "text",
-                  "attrs": {},
-                  "children": [],
-                  "text": "2026-11-05T10:00:00Z"
                 }
               ]
             },
@@ -2860,8 +2875,6 @@
       "metadata": {
         "kind": "item",
         "rank": 5,
-        "slot": "05",
-        "updated": "2026-11-05T10:00:00Z",
         "description": "Item 5 of the paged table, with a description long enough to wrap in a narrow column."
       }
     },
@@ -2876,8 +2889,6 @@
             "metadata": {
               "kind": "item",
               "rank": 6,
-              "slot": "06",
-              "updated": "2026-11-06T10:00:00Z",
               "description": "Item 6 of the paged table, with a description long enough to wrap in a narrow column."
             }
           },
@@ -2893,34 +2904,6 @@
                   "attrs": {},
                   "children": [],
                   "text": "item"
-                }
-              ]
-            },
-            {
-              "type": "field",
-              "attrs": {
-                "name": "slot"
-              },
-              "children": [
-                {
-                  "type": "text",
-                  "attrs": {},
-                  "children": [],
-                  "text": "06"
-                }
-              ]
-            },
-            {
-              "type": "field",
-              "attrs": {
-                "name": "updated"
-              },
-              "children": [
-                {
-                  "type": "text",
-                  "attrs": {},
-                  "children": [],
-                  "text": "2026-11-06T10:00:00Z"
                 }
               ]
             },
@@ -2952,8 +2935,6 @@
       "metadata": {
         "kind": "item",
         "rank": 6,
-        "slot": "06",
-        "updated": "2026-11-06T10:00:00Z",
         "description": "Item 6 of the paged table, with a description long enough to wrap in a narrow column."
       }
     },
@@ -2968,8 +2949,6 @@
             "metadata": {
               "kind": "item",
               "rank": 7,
-              "slot": "07",
-              "updated": "2026-11-07T10:00:00Z",
               "description": "Item 7 of the paged table, with a description long enough to wrap in a narrow column."
             }
           },
@@ -2985,34 +2964,6 @@
                   "attrs": {},
                   "children": [],
                   "text": "item"
-                }
-              ]
-            },
-            {
-              "type": "field",
-              "attrs": {
-                "name": "slot"
-              },
-              "children": [
-                {
-                  "type": "text",
-                  "attrs": {},
-                  "children": [],
-                  "text": "07"
-                }
-              ]
-            },
-            {
-              "type": "field",
-              "attrs": {
-                "name": "updated"
-              },
-              "children": [
-                {
-                  "type": "text",
-                  "attrs": {},
-                  "children": [],
-                  "text": "2026-11-07T10:00:00Z"
                 }
               ]
             },
@@ -3044,8 +2995,6 @@
       "metadata": {
         "kind": "item",
         "rank": 7,
-        "slot": "07",
-        "updated": "2026-11-07T10:00:00Z",
         "description": "Item 7 of the paged table, with a description long enough to wrap in a narrow column."
       }
     },
@@ -3060,8 +3009,6 @@
             "metadata": {
               "kind": "item",
               "rank": 8,
-              "slot": "08",
-              "updated": "2026-11-08T10:00:00Z",
               "description": "Item 8 of the paged table, with a description long enough to wrap in a narrow column."
             }
           },
@@ -3077,34 +3024,6 @@
                   "attrs": {},
                   "children": [],
                   "text": "item"
-                }
-              ]
-            },
-            {
-              "type": "field",
-              "attrs": {
-                "name": "slot"
-              },
-              "children": [
-                {
-                  "type": "text",
-                  "attrs": {},
-                  "children": [],
-                  "text": "08"
-                }
-              ]
-            },
-            {
-              "type": "field",
-              "attrs": {
-                "name": "updated"
-              },
-              "children": [
-                {
-                  "type": "text",
-                  "attrs": {},
-                  "children": [],
-                  "text": "2026-11-08T10:00:00Z"
                 }
               ]
             },
@@ -3136,8 +3055,6 @@
       "metadata": {
         "kind": "item",
         "rank": 8,
-        "slot": "08",
-        "updated": "2026-11-08T10:00:00Z",
         "description": "Item 8 of the paged table, with a description long enough to wrap in a narrow column."
       }
     },
@@ -3152,8 +3069,6 @@
             "metadata": {
               "kind": "item",
               "rank": 9,
-              "slot": "09",
-              "updated": "2026-11-09T10:00:00Z",
               "description": "Item 9 of the paged table, with a description long enough to wrap in a narrow column."
             }
           },
@@ -3169,34 +3084,6 @@
                   "attrs": {},
                   "children": [],
                   "text": "item"
-                }
-              ]
-            },
-            {
-              "type": "field",
-              "attrs": {
-                "name": "slot"
-              },
-              "children": [
-                {
-                  "type": "text",
-                  "attrs": {},
-                  "children": [],
-                  "text": "09"
-                }
-              ]
-            },
-            {
-              "type": "field",
-              "attrs": {
-                "name": "updated"
-              },
-              "children": [
-                {
-                  "type": "text",
-                  "attrs": {},
-                  "children": [],
-                  "text": "2026-11-09T10:00:00Z"
                 }
               ]
             },
@@ -3228,8 +3115,6 @@
       "metadata": {
         "kind": "item",
         "rank": 9,
-        "slot": "09",
-        "updated": "2026-11-09T10:00:00Z",
         "description": "Item 9 of the paged table, with a description long enough to wrap in a narrow column."
       }
     },
@@ -3244,8 +3129,6 @@
             "metadata": {
               "kind": "item",
               "rank": 10,
-              "slot": "10",
-              "updated": "2026-11-10T10:00:00Z",
               "description": "Item 10 of the paged table, with a description long enough to wrap in a narrow column."
             }
           },
@@ -3261,34 +3144,6 @@
                   "attrs": {},
                   "children": [],
                   "text": "item"
-                }
-              ]
-            },
-            {
-              "type": "field",
-              "attrs": {
-                "name": "slot"
-              },
-              "children": [
-                {
-                  "type": "text",
-                  "attrs": {},
-                  "children": [],
-                  "text": "10"
-                }
-              ]
-            },
-            {
-              "type": "field",
-              "attrs": {
-                "name": "updated"
-              },
-              "children": [
-                {
-                  "type": "text",
-                  "attrs": {},
-                  "children": [],
-                  "text": "2026-11-10T10:00:00Z"
                 }
               ]
             },
@@ -3320,8 +3175,6 @@
       "metadata": {
         "kind": "item",
         "rank": 10,
-        "slot": "10",
-        "updated": "2026-11-10T10:00:00Z",
         "description": "Item 10 of the paged table, with a description long enough to wrap in a narrow column."
       }
     },
@@ -3336,8 +3189,6 @@
             "metadata": {
               "kind": "item",
               "rank": 11,
-              "slot": "11",
-              "updated": "2026-11-11T10:00:00Z",
               "description": "Item 11 of the paged table, with a description long enough to wrap in a narrow column."
             }
           },
@@ -3353,34 +3204,6 @@
                   "attrs": {},
                   "children": [],
                   "text": "item"
-                }
-              ]
-            },
-            {
-              "type": "field",
-              "attrs": {
-                "name": "slot"
-              },
-              "children": [
-                {
-                  "type": "text",
-                  "attrs": {},
-                  "children": [],
-                  "text": "11"
-                }
-              ]
-            },
-            {
-              "type": "field",
-              "attrs": {
-                "name": "updated"
-              },
-              "children": [
-                {
-                  "type": "text",
-                  "attrs": {},
-                  "children": [],
-                  "text": "2026-11-11T10:00:00Z"
                 }
               ]
             },
@@ -3412,8 +3235,6 @@
       "metadata": {
         "kind": "item",
         "rank": 11,
-        "slot": "11",
-        "updated": "2026-11-11T10:00:00Z",
         "description": "Item 11 of the paged table, with a description long enough to wrap in a narrow column."
       }
     },
@@ -3428,8 +3249,6 @@
             "metadata": {
               "kind": "item",
               "rank": 12,
-              "slot": "12",
-              "updated": "2026-11-12T10:00:00Z",
               "description": "Item 12 of the paged table, with a description long enough to wrap in a narrow column."
             }
           },
@@ -3445,34 +3264,6 @@
                   "attrs": {},
                   "children": [],
                   "text": "item"
-                }
-              ]
-            },
-            {
-              "type": "field",
-              "attrs": {
-                "name": "slot"
-              },
-              "children": [
-                {
-                  "type": "text",
-                  "attrs": {},
-                  "children": [],
-                  "text": "12"
-                }
-              ]
-            },
-            {
-              "type": "field",
-              "attrs": {
-                "name": "updated"
-              },
-              "children": [
-                {
-                  "type": "text",
-                  "attrs": {},
-                  "children": [],
-                  "text": "2026-11-12T10:00:00Z"
                 }
               ]
             },
@@ -3504,8 +3295,6 @@
       "metadata": {
         "kind": "item",
         "rank": 12,
-        "slot": "12",
-        "updated": "2026-11-12T10:00:00Z",
         "description": "Item 12 of the paged table, with a description long enough to wrap in a narrow column."
       }
     },
@@ -3520,8 +3309,6 @@
             "metadata": {
               "kind": "item",
               "rank": 13,
-              "slot": "13",
-              "updated": "2026-11-13T10:00:00Z",
               "description": "Item 13 of the paged table, with a description long enough to wrap in a narrow column."
             }
           },
@@ -3537,34 +3324,6 @@
                   "attrs": {},
                   "children": [],
                   "text": "item"
-                }
-              ]
-            },
-            {
-              "type": "field",
-              "attrs": {
-                "name": "slot"
-              },
-              "children": [
-                {
-                  "type": "text",
-                  "attrs": {},
-                  "children": [],
-                  "text": "13"
-                }
-              ]
-            },
-            {
-              "type": "field",
-              "attrs": {
-                "name": "updated"
-              },
-              "children": [
-                {
-                  "type": "text",
-                  "attrs": {},
-                  "children": [],
-                  "text": "2026-11-13T10:00:00Z"
                 }
               ]
             },
@@ -3596,8 +3355,6 @@
       "metadata": {
         "kind": "item",
         "rank": 13,
-        "slot": "13",
-        "updated": "2026-11-13T10:00:00Z",
         "description": "Item 13 of the paged table, with a description long enough to wrap in a narrow column."
       }
     },
@@ -3612,8 +3369,6 @@
             "metadata": {
               "kind": "item",
               "rank": 14,
-              "slot": "14",
-              "updated": "2026-11-14T10:00:00Z",
               "description": "Item 14 of the paged table, with a description long enough to wrap in a narrow column."
             }
           },
@@ -3629,34 +3384,6 @@
                   "attrs": {},
                   "children": [],
                   "text": "item"
-                }
-              ]
-            },
-            {
-              "type": "field",
-              "attrs": {
-                "name": "slot"
-              },
-              "children": [
-                {
-                  "type": "text",
-                  "attrs": {},
-                  "children": [],
-                  "text": "14"
-                }
-              ]
-            },
-            {
-              "type": "field",
-              "attrs": {
-                "name": "updated"
-              },
-              "children": [
-                {
-                  "type": "text",
-                  "attrs": {},
-                  "children": [],
-                  "text": "2026-11-14T10:00:00Z"
                 }
               ]
             },
@@ -3688,8 +3415,6 @@
       "metadata": {
         "kind": "item",
         "rank": 14,
-        "slot": "14",
-        "updated": "2026-11-14T10:00:00Z",
         "description": "Item 14 of the paged table, with a description long enough to wrap in a narrow column."
       }
     },
@@ -3704,8 +3429,6 @@
             "metadata": {
               "kind": "item",
               "rank": 15,
-              "slot": "15",
-              "updated": "2026-11-15T10:00:00Z",
               "description": "Item 15 of the paged table, with a description long enough to wrap in a narrow column."
             }
           },
@@ -3721,34 +3444,6 @@
                   "attrs": {},
                   "children": [],
                   "text": "item"
-                }
-              ]
-            },
-            {
-              "type": "field",
-              "attrs": {
-                "name": "slot"
-              },
-              "children": [
-                {
-                  "type": "text",
-                  "attrs": {},
-                  "children": [],
-                  "text": "15"
-                }
-              ]
-            },
-            {
-              "type": "field",
-              "attrs": {
-                "name": "updated"
-              },
-              "children": [
-                {
-                  "type": "text",
-                  "attrs": {},
-                  "children": [],
-                  "text": "2026-11-15T10:00:00Z"
                 }
               ]
             },
@@ -3780,8 +3475,6 @@
       "metadata": {
         "kind": "item",
         "rank": 15,
-        "slot": "15",
-        "updated": "2026-11-15T10:00:00Z",
         "description": "Item 15 of the paged table, with a description long enough to wrap in a narrow column."
       }
     },
@@ -3796,8 +3489,6 @@
             "metadata": {
               "kind": "item",
               "rank": 16,
-              "slot": "16",
-              "updated": "2026-11-16T10:00:00Z",
               "description": "Item 16 of the paged table, with a description long enough to wrap in a narrow column."
             }
           },
@@ -3813,34 +3504,6 @@
                   "attrs": {},
                   "children": [],
                   "text": "item"
-                }
-              ]
-            },
-            {
-              "type": "field",
-              "attrs": {
-                "name": "slot"
-              },
-              "children": [
-                {
-                  "type": "text",
-                  "attrs": {},
-                  "children": [],
-                  "text": "16"
-                }
-              ]
-            },
-            {
-              "type": "field",
-              "attrs": {
-                "name": "updated"
-              },
-              "children": [
-                {
-                  "type": "text",
-                  "attrs": {},
-                  "children": [],
-                  "text": "2026-11-16T10:00:00Z"
                 }
               ]
             },
@@ -3872,8 +3535,6 @@
       "metadata": {
         "kind": "item",
         "rank": 16,
-        "slot": "16",
-        "updated": "2026-11-16T10:00:00Z",
         "description": "Item 16 of the paged table, with a description long enough to wrap in a narrow column."
       }
     },
@@ -3888,8 +3549,6 @@
             "metadata": {
               "kind": "item",
               "rank": 17,
-              "slot": "17",
-              "updated": "2026-11-17T10:00:00Z",
               "description": "Item 17 of the paged table, with a description long enough to wrap in a narrow column."
             }
           },
@@ -3905,34 +3564,6 @@
                   "attrs": {},
                   "children": [],
                   "text": "item"
-                }
-              ]
-            },
-            {
-              "type": "field",
-              "attrs": {
-                "name": "slot"
-              },
-              "children": [
-                {
-                  "type": "text",
-                  "attrs": {},
-                  "children": [],
-                  "text": "17"
-                }
-              ]
-            },
-            {
-              "type": "field",
-              "attrs": {
-                "name": "updated"
-              },
-              "children": [
-                {
-                  "type": "text",
-                  "attrs": {},
-                  "children": [],
-                  "text": "2026-11-17T10:00:00Z"
                 }
               ]
             },
@@ -3964,8 +3595,6 @@
       "metadata": {
         "kind": "item",
         "rank": 17,
-        "slot": "17",
-        "updated": "2026-11-17T10:00:00Z",
         "description": "Item 17 of the paged table, with a description long enough to wrap in a narrow column."
       }
     },
@@ -3980,8 +3609,6 @@
             "metadata": {
               "kind": "item",
               "rank": 18,
-              "slot": "18",
-              "updated": "2026-11-18T10:00:00Z",
               "description": "Item 18 of the paged table, with a description long enough to wrap in a narrow column."
             }
           },
@@ -3997,34 +3624,6 @@
                   "attrs": {},
                   "children": [],
                   "text": "item"
-                }
-              ]
-            },
-            {
-              "type": "field",
-              "attrs": {
-                "name": "slot"
-              },
-              "children": [
-                {
-                  "type": "text",
-                  "attrs": {},
-                  "children": [],
-                  "text": "18"
-                }
-              ]
-            },
-            {
-              "type": "field",
-              "attrs": {
-                "name": "updated"
-              },
-              "children": [
-                {
-                  "type": "text",
-                  "attrs": {},
-                  "children": [],
-                  "text": "2026-11-18T10:00:00Z"
                 }
               ]
             },
@@ -4056,8 +3655,6 @@
       "metadata": {
         "kind": "item",
         "rank": 18,
-        "slot": "18",
-        "updated": "2026-11-18T10:00:00Z",
         "description": "Item 18 of the paged table, with a description long enough to wrap in a narrow column."
       }
     },
@@ -4072,8 +3669,6 @@
             "metadata": {
               "kind": "item",
               "rank": 19,
-              "slot": "19",
-              "updated": "2026-11-19T10:00:00Z",
               "description": "Item 19 of the paged table, with a description long enough to wrap in a narrow column."
             }
           },
@@ -4089,34 +3684,6 @@
                   "attrs": {},
                   "children": [],
                   "text": "item"
-                }
-              ]
-            },
-            {
-              "type": "field",
-              "attrs": {
-                "name": "slot"
-              },
-              "children": [
-                {
-                  "type": "text",
-                  "attrs": {},
-                  "children": [],
-                  "text": "19"
-                }
-              ]
-            },
-            {
-              "type": "field",
-              "attrs": {
-                "name": "updated"
-              },
-              "children": [
-                {
-                  "type": "text",
-                  "attrs": {},
-                  "children": [],
-                  "text": "2026-11-19T10:00:00Z"
                 }
               ]
             },
@@ -4148,8 +3715,6 @@
       "metadata": {
         "kind": "item",
         "rank": 19,
-        "slot": "19",
-        "updated": "2026-11-19T10:00:00Z",
         "description": "Item 19 of the paged table, with a description long enough to wrap in a narrow column."
       }
     },
@@ -4164,8 +3729,6 @@
             "metadata": {
               "kind": "item",
               "rank": 20,
-              "slot": "20",
-              "updated": "2026-11-20T10:00:00Z",
               "description": "Item 20 of the paged table, with a description long enough to wrap in a narrow column."
             }
           },
@@ -4181,34 +3744,6 @@
                   "attrs": {},
                   "children": [],
                   "text": "item"
-                }
-              ]
-            },
-            {
-              "type": "field",
-              "attrs": {
-                "name": "slot"
-              },
-              "children": [
-                {
-                  "type": "text",
-                  "attrs": {},
-                  "children": [],
-                  "text": "20"
-                }
-              ]
-            },
-            {
-              "type": "field",
-              "attrs": {
-                "name": "updated"
-              },
-              "children": [
-                {
-                  "type": "text",
-                  "attrs": {},
-                  "children": [],
-                  "text": "2026-11-20T10:00:00Z"
                 }
               ]
             },
@@ -4240,8 +3775,6 @@
       "metadata": {
         "kind": "item",
         "rank": 20,
-        "slot": "20",
-        "updated": "2026-11-20T10:00:00Z",
         "description": "Item 20 of the paged table, with a description long enough to wrap in a narrow column."
       }
     },
@@ -4256,8 +3789,6 @@
             "metadata": {
               "kind": "item",
               "rank": 21,
-              "slot": "21",
-              "updated": "2026-11-21T10:00:00Z",
               "description": "Item 21 of the paged table, with a description long enough to wrap in a narrow column."
             }
           },
@@ -4273,34 +3804,6 @@
                   "attrs": {},
                   "children": [],
                   "text": "item"
-                }
-              ]
-            },
-            {
-              "type": "field",
-              "attrs": {
-                "name": "slot"
-              },
-              "children": [
-                {
-                  "type": "text",
-                  "attrs": {},
-                  "children": [],
-                  "text": "21"
-                }
-              ]
-            },
-            {
-              "type": "field",
-              "attrs": {
-                "name": "updated"
-              },
-              "children": [
-                {
-                  "type": "text",
-                  "attrs": {},
-                  "children": [],
-                  "text": "2026-11-21T10:00:00Z"
                 }
               ]
             },
@@ -4332,8 +3835,6 @@
       "metadata": {
         "kind": "item",
         "rank": 21,
-        "slot": "21",
-        "updated": "2026-11-21T10:00:00Z",
         "description": "Item 21 of the paged table, with a description long enough to wrap in a narrow column."
       }
     },
@@ -4348,8 +3849,6 @@
             "metadata": {
               "kind": "item",
               "rank": 22,
-              "slot": "22",
-              "updated": "2026-11-22T10:00:00Z",
               "description": "Item 22 of the paged table, with a description long enough to wrap in a narrow column."
             }
           },
@@ -4365,34 +3864,6 @@
                   "attrs": {},
                   "children": [],
                   "text": "item"
-                }
-              ]
-            },
-            {
-              "type": "field",
-              "attrs": {
-                "name": "slot"
-              },
-              "children": [
-                {
-                  "type": "text",
-                  "attrs": {},
-                  "children": [],
-                  "text": "22"
-                }
-              ]
-            },
-            {
-              "type": "field",
-              "attrs": {
-                "name": "updated"
-              },
-              "children": [
-                {
-                  "type": "text",
-                  "attrs": {},
-                  "children": [],
-                  "text": "2026-11-22T10:00:00Z"
                 }
               ]
             },
@@ -4424,8 +3895,6 @@
       "metadata": {
         "kind": "item",
         "rank": 22,
-        "slot": "22",
-        "updated": "2026-11-22T10:00:00Z",
         "description": "Item 22 of the paged table, with a description long enough to wrap in a narrow column."
       }
     },
@@ -4440,8 +3909,6 @@
             "metadata": {
               "kind": "item",
               "rank": 23,
-              "slot": "23",
-              "updated": "2026-11-23T10:00:00Z",
               "description": "Item 23 of the paged table, with a description long enough to wrap in a narrow column."
             }
           },
@@ -4457,34 +3924,6 @@
                   "attrs": {},
                   "children": [],
                   "text": "item"
-                }
-              ]
-            },
-            {
-              "type": "field",
-              "attrs": {
-                "name": "slot"
-              },
-              "children": [
-                {
-                  "type": "text",
-                  "attrs": {},
-                  "children": [],
-                  "text": "23"
-                }
-              ]
-            },
-            {
-              "type": "field",
-              "attrs": {
-                "name": "updated"
-              },
-              "children": [
-                {
-                  "type": "text",
-                  "attrs": {},
-                  "children": [],
-                  "text": "2026-11-23T10:00:00Z"
                 }
               ]
             },
@@ -4516,8 +3955,6 @@
       "metadata": {
         "kind": "item",
         "rank": 23,
-        "slot": "23",
-        "updated": "2026-11-23T10:00:00Z",
         "description": "Item 23 of the paged table, with a description long enough to wrap in a narrow column."
       }
     },
@@ -4532,8 +3969,6 @@
             "metadata": {
               "kind": "item",
               "rank": 24,
-              "slot": "24",
-              "updated": "2026-11-24T10:00:00Z",
               "description": "Item 24 of the paged table, with a description long enough to wrap in a narrow column."
             }
           },
@@ -4549,34 +3984,6 @@
                   "attrs": {},
                   "children": [],
                   "text": "item"
-                }
-              ]
-            },
-            {
-              "type": "field",
-              "attrs": {
-                "name": "slot"
-              },
-              "children": [
-                {
-                  "type": "text",
-                  "attrs": {},
-                  "children": [],
-                  "text": "24"
-                }
-              ]
-            },
-            {
-              "type": "field",
-              "attrs": {
-                "name": "updated"
-              },
-              "children": [
-                {
-                  "type": "text",
-                  "attrs": {},
-                  "children": [],
-                  "text": "2026-11-24T10:00:00Z"
                 }
               ]
             },
@@ -4608,8 +4015,6 @@
       "metadata": {
         "kind": "item",
         "rank": 24,
-        "slot": "24",
-        "updated": "2026-11-24T10:00:00Z",
         "description": "Item 24 of the paged table, with a description long enough to wrap in a narrow column."
       }
     },
@@ -5139,15 +4544,14 @@
       "fieldNodes": []
     },
     {
-      "id": "item-01",
+      "id": "issues-widgets-1",
       "type": "note",
-      "path": "item-01.md",
+      "path": "issues/widgets-1.md",
       "fields": {
-        "kind": "item",
-        "rank": 1,
-        "slot": "01",
-        "updated": "2026-11-01T10:00:00Z",
-        "description": "Item 1 of the paged table, with a description long enough to wrap in a narrow column."
+        "kind": "issue",
+        "repo": "widgets",
+        "number": 1,
+        "updated": "2026-11-01T10:00:00Z"
       },
       "fieldNodes": [
         {
@@ -5160,21 +4564,21 @@
               "type": "text",
               "attrs": {},
               "children": [],
-              "text": "item"
+              "text": "issue"
             }
           ]
         },
         {
           "type": "field",
           "attrs": {
-            "name": "slot"
+            "name": "repo"
           },
           "children": [
             {
               "type": "text",
               "attrs": {},
               "children": [],
-              "text": "01"
+              "text": "widgets"
             }
           ]
         },
@@ -5189,6 +4593,87 @@
               "attrs": {},
               "children": [],
               "text": "2026-11-01T10:00:00Z"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "issues-widgets-2",
+      "type": "note",
+      "path": "issues/widgets-2.md",
+      "fields": {
+        "kind": "issue",
+        "repo": "widgets",
+        "number": 2,
+        "updated": "2026-11-02T10:00:00Z"
+      },
+      "fieldNodes": [
+        {
+          "type": "field",
+          "attrs": {
+            "name": "kind"
+          },
+          "children": [
+            {
+              "type": "text",
+              "attrs": {},
+              "children": [],
+              "text": "issue"
+            }
+          ]
+        },
+        {
+          "type": "field",
+          "attrs": {
+            "name": "repo"
+          },
+          "children": [
+            {
+              "type": "text",
+              "attrs": {},
+              "children": [],
+              "text": "widgets"
+            }
+          ]
+        },
+        {
+          "type": "field",
+          "attrs": {
+            "name": "updated"
+          },
+          "children": [
+            {
+              "type": "text",
+              "attrs": {},
+              "children": [],
+              "text": "2026-11-02T10:00:00Z"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "item-01",
+      "type": "note",
+      "path": "item-01.md",
+      "fields": {
+        "kind": "item",
+        "rank": 1,
+        "description": "Item 1 of the paged table, with a description long enough to wrap in a narrow column."
+      },
+      "fieldNodes": [
+        {
+          "type": "field",
+          "attrs": {
+            "name": "kind"
+          },
+          "children": [
+            {
+              "type": "text",
+              "attrs": {},
+              "children": [],
+              "text": "item"
             }
           ]
         },
@@ -5215,8 +4700,6 @@
       "fields": {
         "kind": "item",
         "rank": 2,
-        "slot": "02",
-        "updated": "2026-11-02T10:00:00Z",
         "description": "Item 2 of the paged table, with a description long enough to wrap in a narrow column."
       },
       "fieldNodes": [
@@ -5231,34 +4714,6 @@
               "attrs": {},
               "children": [],
               "text": "item"
-            }
-          ]
-        },
-        {
-          "type": "field",
-          "attrs": {
-            "name": "slot"
-          },
-          "children": [
-            {
-              "type": "text",
-              "attrs": {},
-              "children": [],
-              "text": "02"
-            }
-          ]
-        },
-        {
-          "type": "field",
-          "attrs": {
-            "name": "updated"
-          },
-          "children": [
-            {
-              "type": "text",
-              "attrs": {},
-              "children": [],
-              "text": "2026-11-02T10:00:00Z"
             }
           ]
         },
@@ -5285,8 +4740,6 @@
       "fields": {
         "kind": "item",
         "rank": 3,
-        "slot": "03",
-        "updated": "2026-11-03T10:00:00Z",
         "description": "Item 3 of the paged table, with a description long enough to wrap in a narrow column."
       },
       "fieldNodes": [
@@ -5301,34 +4754,6 @@
               "attrs": {},
               "children": [],
               "text": "item"
-            }
-          ]
-        },
-        {
-          "type": "field",
-          "attrs": {
-            "name": "slot"
-          },
-          "children": [
-            {
-              "type": "text",
-              "attrs": {},
-              "children": [],
-              "text": "03"
-            }
-          ]
-        },
-        {
-          "type": "field",
-          "attrs": {
-            "name": "updated"
-          },
-          "children": [
-            {
-              "type": "text",
-              "attrs": {},
-              "children": [],
-              "text": "2026-11-03T10:00:00Z"
             }
           ]
         },
@@ -5355,8 +4780,6 @@
       "fields": {
         "kind": "item",
         "rank": 4,
-        "slot": "04",
-        "updated": "2026-11-04T10:00:00Z",
         "description": "Item 4 of the paged table, with a description long enough to wrap in a narrow column."
       },
       "fieldNodes": [
@@ -5371,34 +4794,6 @@
               "attrs": {},
               "children": [],
               "text": "item"
-            }
-          ]
-        },
-        {
-          "type": "field",
-          "attrs": {
-            "name": "slot"
-          },
-          "children": [
-            {
-              "type": "text",
-              "attrs": {},
-              "children": [],
-              "text": "04"
-            }
-          ]
-        },
-        {
-          "type": "field",
-          "attrs": {
-            "name": "updated"
-          },
-          "children": [
-            {
-              "type": "text",
-              "attrs": {},
-              "children": [],
-              "text": "2026-11-04T10:00:00Z"
             }
           ]
         },
@@ -5425,8 +4820,6 @@
       "fields": {
         "kind": "item",
         "rank": 5,
-        "slot": "05",
-        "updated": "2026-11-05T10:00:00Z",
         "description": "Item 5 of the paged table, with a description long enough to wrap in a narrow column."
       },
       "fieldNodes": [
@@ -5441,34 +4834,6 @@
               "attrs": {},
               "children": [],
               "text": "item"
-            }
-          ]
-        },
-        {
-          "type": "field",
-          "attrs": {
-            "name": "slot"
-          },
-          "children": [
-            {
-              "type": "text",
-              "attrs": {},
-              "children": [],
-              "text": "05"
-            }
-          ]
-        },
-        {
-          "type": "field",
-          "attrs": {
-            "name": "updated"
-          },
-          "children": [
-            {
-              "type": "text",
-              "attrs": {},
-              "children": [],
-              "text": "2026-11-05T10:00:00Z"
             }
           ]
         },
@@ -5495,8 +4860,6 @@
       "fields": {
         "kind": "item",
         "rank": 6,
-        "slot": "06",
-        "updated": "2026-11-06T10:00:00Z",
         "description": "Item 6 of the paged table, with a description long enough to wrap in a narrow column."
       },
       "fieldNodes": [
@@ -5511,34 +4874,6 @@
               "attrs": {},
               "children": [],
               "text": "item"
-            }
-          ]
-        },
-        {
-          "type": "field",
-          "attrs": {
-            "name": "slot"
-          },
-          "children": [
-            {
-              "type": "text",
-              "attrs": {},
-              "children": [],
-              "text": "06"
-            }
-          ]
-        },
-        {
-          "type": "field",
-          "attrs": {
-            "name": "updated"
-          },
-          "children": [
-            {
-              "type": "text",
-              "attrs": {},
-              "children": [],
-              "text": "2026-11-06T10:00:00Z"
             }
           ]
         },
@@ -5565,8 +4900,6 @@
       "fields": {
         "kind": "item",
         "rank": 7,
-        "slot": "07",
-        "updated": "2026-11-07T10:00:00Z",
         "description": "Item 7 of the paged table, with a description long enough to wrap in a narrow column."
       },
       "fieldNodes": [
@@ -5581,34 +4914,6 @@
               "attrs": {},
               "children": [],
               "text": "item"
-            }
-          ]
-        },
-        {
-          "type": "field",
-          "attrs": {
-            "name": "slot"
-          },
-          "children": [
-            {
-              "type": "text",
-              "attrs": {},
-              "children": [],
-              "text": "07"
-            }
-          ]
-        },
-        {
-          "type": "field",
-          "attrs": {
-            "name": "updated"
-          },
-          "children": [
-            {
-              "type": "text",
-              "attrs": {},
-              "children": [],
-              "text": "2026-11-07T10:00:00Z"
             }
           ]
         },
@@ -5635,8 +4940,6 @@
       "fields": {
         "kind": "item",
         "rank": 8,
-        "slot": "08",
-        "updated": "2026-11-08T10:00:00Z",
         "description": "Item 8 of the paged table, with a description long enough to wrap in a narrow column."
       },
       "fieldNodes": [
@@ -5651,34 +4954,6 @@
               "attrs": {},
               "children": [],
               "text": "item"
-            }
-          ]
-        },
-        {
-          "type": "field",
-          "attrs": {
-            "name": "slot"
-          },
-          "children": [
-            {
-              "type": "text",
-              "attrs": {},
-              "children": [],
-              "text": "08"
-            }
-          ]
-        },
-        {
-          "type": "field",
-          "attrs": {
-            "name": "updated"
-          },
-          "children": [
-            {
-              "type": "text",
-              "attrs": {},
-              "children": [],
-              "text": "2026-11-08T10:00:00Z"
             }
           ]
         },
@@ -5705,8 +4980,6 @@
       "fields": {
         "kind": "item",
         "rank": 9,
-        "slot": "09",
-        "updated": "2026-11-09T10:00:00Z",
         "description": "Item 9 of the paged table, with a description long enough to wrap in a narrow column."
       },
       "fieldNodes": [
@@ -5721,34 +4994,6 @@
               "attrs": {},
               "children": [],
               "text": "item"
-            }
-          ]
-        },
-        {
-          "type": "field",
-          "attrs": {
-            "name": "slot"
-          },
-          "children": [
-            {
-              "type": "text",
-              "attrs": {},
-              "children": [],
-              "text": "09"
-            }
-          ]
-        },
-        {
-          "type": "field",
-          "attrs": {
-            "name": "updated"
-          },
-          "children": [
-            {
-              "type": "text",
-              "attrs": {},
-              "children": [],
-              "text": "2026-11-09T10:00:00Z"
             }
           ]
         },
@@ -5775,8 +5020,6 @@
       "fields": {
         "kind": "item",
         "rank": 10,
-        "slot": "10",
-        "updated": "2026-11-10T10:00:00Z",
         "description": "Item 10 of the paged table, with a description long enough to wrap in a narrow column."
       },
       "fieldNodes": [
@@ -5791,34 +5034,6 @@
               "attrs": {},
               "children": [],
               "text": "item"
-            }
-          ]
-        },
-        {
-          "type": "field",
-          "attrs": {
-            "name": "slot"
-          },
-          "children": [
-            {
-              "type": "text",
-              "attrs": {},
-              "children": [],
-              "text": "10"
-            }
-          ]
-        },
-        {
-          "type": "field",
-          "attrs": {
-            "name": "updated"
-          },
-          "children": [
-            {
-              "type": "text",
-              "attrs": {},
-              "children": [],
-              "text": "2026-11-10T10:00:00Z"
             }
           ]
         },
@@ -5845,8 +5060,6 @@
       "fields": {
         "kind": "item",
         "rank": 11,
-        "slot": "11",
-        "updated": "2026-11-11T10:00:00Z",
         "description": "Item 11 of the paged table, with a description long enough to wrap in a narrow column."
       },
       "fieldNodes": [
@@ -5861,34 +5074,6 @@
               "attrs": {},
               "children": [],
               "text": "item"
-            }
-          ]
-        },
-        {
-          "type": "field",
-          "attrs": {
-            "name": "slot"
-          },
-          "children": [
-            {
-              "type": "text",
-              "attrs": {},
-              "children": [],
-              "text": "11"
-            }
-          ]
-        },
-        {
-          "type": "field",
-          "attrs": {
-            "name": "updated"
-          },
-          "children": [
-            {
-              "type": "text",
-              "attrs": {},
-              "children": [],
-              "text": "2026-11-11T10:00:00Z"
             }
           ]
         },
@@ -5915,8 +5100,6 @@
       "fields": {
         "kind": "item",
         "rank": 12,
-        "slot": "12",
-        "updated": "2026-11-12T10:00:00Z",
         "description": "Item 12 of the paged table, with a description long enough to wrap in a narrow column."
       },
       "fieldNodes": [
@@ -5931,34 +5114,6 @@
               "attrs": {},
               "children": [],
               "text": "item"
-            }
-          ]
-        },
-        {
-          "type": "field",
-          "attrs": {
-            "name": "slot"
-          },
-          "children": [
-            {
-              "type": "text",
-              "attrs": {},
-              "children": [],
-              "text": "12"
-            }
-          ]
-        },
-        {
-          "type": "field",
-          "attrs": {
-            "name": "updated"
-          },
-          "children": [
-            {
-              "type": "text",
-              "attrs": {},
-              "children": [],
-              "text": "2026-11-12T10:00:00Z"
             }
           ]
         },
@@ -5985,8 +5140,6 @@
       "fields": {
         "kind": "item",
         "rank": 13,
-        "slot": "13",
-        "updated": "2026-11-13T10:00:00Z",
         "description": "Item 13 of the paged table, with a description long enough to wrap in a narrow column."
       },
       "fieldNodes": [
@@ -6001,34 +5154,6 @@
               "attrs": {},
               "children": [],
               "text": "item"
-            }
-          ]
-        },
-        {
-          "type": "field",
-          "attrs": {
-            "name": "slot"
-          },
-          "children": [
-            {
-              "type": "text",
-              "attrs": {},
-              "children": [],
-              "text": "13"
-            }
-          ]
-        },
-        {
-          "type": "field",
-          "attrs": {
-            "name": "updated"
-          },
-          "children": [
-            {
-              "type": "text",
-              "attrs": {},
-              "children": [],
-              "text": "2026-11-13T10:00:00Z"
             }
           ]
         },
@@ -6055,8 +5180,6 @@
       "fields": {
         "kind": "item",
         "rank": 14,
-        "slot": "14",
-        "updated": "2026-11-14T10:00:00Z",
         "description": "Item 14 of the paged table, with a description long enough to wrap in a narrow column."
       },
       "fieldNodes": [
@@ -6071,34 +5194,6 @@
               "attrs": {},
               "children": [],
               "text": "item"
-            }
-          ]
-        },
-        {
-          "type": "field",
-          "attrs": {
-            "name": "slot"
-          },
-          "children": [
-            {
-              "type": "text",
-              "attrs": {},
-              "children": [],
-              "text": "14"
-            }
-          ]
-        },
-        {
-          "type": "field",
-          "attrs": {
-            "name": "updated"
-          },
-          "children": [
-            {
-              "type": "text",
-              "attrs": {},
-              "children": [],
-              "text": "2026-11-14T10:00:00Z"
             }
           ]
         },
@@ -6125,8 +5220,6 @@
       "fields": {
         "kind": "item",
         "rank": 15,
-        "slot": "15",
-        "updated": "2026-11-15T10:00:00Z",
         "description": "Item 15 of the paged table, with a description long enough to wrap in a narrow column."
       },
       "fieldNodes": [
@@ -6141,34 +5234,6 @@
               "attrs": {},
               "children": [],
               "text": "item"
-            }
-          ]
-        },
-        {
-          "type": "field",
-          "attrs": {
-            "name": "slot"
-          },
-          "children": [
-            {
-              "type": "text",
-              "attrs": {},
-              "children": [],
-              "text": "15"
-            }
-          ]
-        },
-        {
-          "type": "field",
-          "attrs": {
-            "name": "updated"
-          },
-          "children": [
-            {
-              "type": "text",
-              "attrs": {},
-              "children": [],
-              "text": "2026-11-15T10:00:00Z"
             }
           ]
         },
@@ -6195,8 +5260,6 @@
       "fields": {
         "kind": "item",
         "rank": 16,
-        "slot": "16",
-        "updated": "2026-11-16T10:00:00Z",
         "description": "Item 16 of the paged table, with a description long enough to wrap in a narrow column."
       },
       "fieldNodes": [
@@ -6211,34 +5274,6 @@
               "attrs": {},
               "children": [],
               "text": "item"
-            }
-          ]
-        },
-        {
-          "type": "field",
-          "attrs": {
-            "name": "slot"
-          },
-          "children": [
-            {
-              "type": "text",
-              "attrs": {},
-              "children": [],
-              "text": "16"
-            }
-          ]
-        },
-        {
-          "type": "field",
-          "attrs": {
-            "name": "updated"
-          },
-          "children": [
-            {
-              "type": "text",
-              "attrs": {},
-              "children": [],
-              "text": "2026-11-16T10:00:00Z"
             }
           ]
         },
@@ -6265,8 +5300,6 @@
       "fields": {
         "kind": "item",
         "rank": 17,
-        "slot": "17",
-        "updated": "2026-11-17T10:00:00Z",
         "description": "Item 17 of the paged table, with a description long enough to wrap in a narrow column."
       },
       "fieldNodes": [
@@ -6281,34 +5314,6 @@
               "attrs": {},
               "children": [],
               "text": "item"
-            }
-          ]
-        },
-        {
-          "type": "field",
-          "attrs": {
-            "name": "slot"
-          },
-          "children": [
-            {
-              "type": "text",
-              "attrs": {},
-              "children": [],
-              "text": "17"
-            }
-          ]
-        },
-        {
-          "type": "field",
-          "attrs": {
-            "name": "updated"
-          },
-          "children": [
-            {
-              "type": "text",
-              "attrs": {},
-              "children": [],
-              "text": "2026-11-17T10:00:00Z"
             }
           ]
         },
@@ -6335,8 +5340,6 @@
       "fields": {
         "kind": "item",
         "rank": 18,
-        "slot": "18",
-        "updated": "2026-11-18T10:00:00Z",
         "description": "Item 18 of the paged table, with a description long enough to wrap in a narrow column."
       },
       "fieldNodes": [
@@ -6351,34 +5354,6 @@
               "attrs": {},
               "children": [],
               "text": "item"
-            }
-          ]
-        },
-        {
-          "type": "field",
-          "attrs": {
-            "name": "slot"
-          },
-          "children": [
-            {
-              "type": "text",
-              "attrs": {},
-              "children": [],
-              "text": "18"
-            }
-          ]
-        },
-        {
-          "type": "field",
-          "attrs": {
-            "name": "updated"
-          },
-          "children": [
-            {
-              "type": "text",
-              "attrs": {},
-              "children": [],
-              "text": "2026-11-18T10:00:00Z"
             }
           ]
         },
@@ -6405,8 +5380,6 @@
       "fields": {
         "kind": "item",
         "rank": 19,
-        "slot": "19",
-        "updated": "2026-11-19T10:00:00Z",
         "description": "Item 19 of the paged table, with a description long enough to wrap in a narrow column."
       },
       "fieldNodes": [
@@ -6421,34 +5394,6 @@
               "attrs": {},
               "children": [],
               "text": "item"
-            }
-          ]
-        },
-        {
-          "type": "field",
-          "attrs": {
-            "name": "slot"
-          },
-          "children": [
-            {
-              "type": "text",
-              "attrs": {},
-              "children": [],
-              "text": "19"
-            }
-          ]
-        },
-        {
-          "type": "field",
-          "attrs": {
-            "name": "updated"
-          },
-          "children": [
-            {
-              "type": "text",
-              "attrs": {},
-              "children": [],
-              "text": "2026-11-19T10:00:00Z"
             }
           ]
         },
@@ -6475,8 +5420,6 @@
       "fields": {
         "kind": "item",
         "rank": 20,
-        "slot": "20",
-        "updated": "2026-11-20T10:00:00Z",
         "description": "Item 20 of the paged table, with a description long enough to wrap in a narrow column."
       },
       "fieldNodes": [
@@ -6491,34 +5434,6 @@
               "attrs": {},
               "children": [],
               "text": "item"
-            }
-          ]
-        },
-        {
-          "type": "field",
-          "attrs": {
-            "name": "slot"
-          },
-          "children": [
-            {
-              "type": "text",
-              "attrs": {},
-              "children": [],
-              "text": "20"
-            }
-          ]
-        },
-        {
-          "type": "field",
-          "attrs": {
-            "name": "updated"
-          },
-          "children": [
-            {
-              "type": "text",
-              "attrs": {},
-              "children": [],
-              "text": "2026-11-20T10:00:00Z"
             }
           ]
         },
@@ -6545,8 +5460,6 @@
       "fields": {
         "kind": "item",
         "rank": 21,
-        "slot": "21",
-        "updated": "2026-11-21T10:00:00Z",
         "description": "Item 21 of the paged table, with a description long enough to wrap in a narrow column."
       },
       "fieldNodes": [
@@ -6561,34 +5474,6 @@
               "attrs": {},
               "children": [],
               "text": "item"
-            }
-          ]
-        },
-        {
-          "type": "field",
-          "attrs": {
-            "name": "slot"
-          },
-          "children": [
-            {
-              "type": "text",
-              "attrs": {},
-              "children": [],
-              "text": "21"
-            }
-          ]
-        },
-        {
-          "type": "field",
-          "attrs": {
-            "name": "updated"
-          },
-          "children": [
-            {
-              "type": "text",
-              "attrs": {},
-              "children": [],
-              "text": "2026-11-21T10:00:00Z"
             }
           ]
         },
@@ -6615,8 +5500,6 @@
       "fields": {
         "kind": "item",
         "rank": 22,
-        "slot": "22",
-        "updated": "2026-11-22T10:00:00Z",
         "description": "Item 22 of the paged table, with a description long enough to wrap in a narrow column."
       },
       "fieldNodes": [
@@ -6631,34 +5514,6 @@
               "attrs": {},
               "children": [],
               "text": "item"
-            }
-          ]
-        },
-        {
-          "type": "field",
-          "attrs": {
-            "name": "slot"
-          },
-          "children": [
-            {
-              "type": "text",
-              "attrs": {},
-              "children": [],
-              "text": "22"
-            }
-          ]
-        },
-        {
-          "type": "field",
-          "attrs": {
-            "name": "updated"
-          },
-          "children": [
-            {
-              "type": "text",
-              "attrs": {},
-              "children": [],
-              "text": "2026-11-22T10:00:00Z"
             }
           ]
         },
@@ -6685,8 +5540,6 @@
       "fields": {
         "kind": "item",
         "rank": 23,
-        "slot": "23",
-        "updated": "2026-11-23T10:00:00Z",
         "description": "Item 23 of the paged table, with a description long enough to wrap in a narrow column."
       },
       "fieldNodes": [
@@ -6701,34 +5554,6 @@
               "attrs": {},
               "children": [],
               "text": "item"
-            }
-          ]
-        },
-        {
-          "type": "field",
-          "attrs": {
-            "name": "slot"
-          },
-          "children": [
-            {
-              "type": "text",
-              "attrs": {},
-              "children": [],
-              "text": "23"
-            }
-          ]
-        },
-        {
-          "type": "field",
-          "attrs": {
-            "name": "updated"
-          },
-          "children": [
-            {
-              "type": "text",
-              "attrs": {},
-              "children": [],
-              "text": "2026-11-23T10:00:00Z"
             }
           ]
         },
@@ -6755,8 +5580,6 @@
       "fields": {
         "kind": "item",
         "rank": 24,
-        "slot": "24",
-        "updated": "2026-11-24T10:00:00Z",
         "description": "Item 24 of the paged table, with a description long enough to wrap in a narrow column."
       },
       "fieldNodes": [
@@ -6771,34 +5594,6 @@
               "attrs": {},
               "children": [],
               "text": "item"
-            }
-          ]
-        },
-        {
-          "type": "field",
-          "attrs": {
-            "name": "slot"
-          },
-          "children": [
-            {
-              "type": "text",
-              "attrs": {},
-              "children": [],
-              "text": "24"
-            }
-          ]
-        },
-        {
-          "type": "field",
-          "attrs": {
-            "name": "updated"
-          },
-          "children": [
-            {
-              "type": "text",
-              "attrs": {},
-              "children": [],
-              "text": "2026-11-24T10:00:00Z"
             }
           ]
         },
@@ -7222,100 +6017,108 @@
         "data": "eyJ2ZXJzaW9uIjogMSwgIm5vZGVzIjogW3siaWQiOiAiaW4iLCAibGFiZWwiOiAiSW5wdXQiLCAic3RhZ2UiOiAwfSwgeyJpZCI6ICJvdXQiLCAibGFiZWwiOiAiT3V0cHV0IiwgInN0YWdlIjogMX0sIHsiaWQiOiAibG9zcyIsICJsYWJlbCI6ICJMb3NzIiwgInN0YWdlIjogMX1dLCAibGlua3MiOiBbeyJzb3VyY2UiOiAiaW4iLCAidGFyZ2V0IjogIm91dCIsICJ2YWx1ZSI6IDh9LCB7InNvdXJjZSI6ICJpbiIsICJ0YXJnZXQiOiAibG9zcyIsICJ2YWx1ZSI6IDJ9XX0="
       },
       {
+        "path": "issues/widgets-1.md",
+        "data": "LS0tCmtpbmQ6IGlzc3VlCnJlcG86IHdpZGdldHMKbnVtYmVyOiAxCnVwZGF0ZWQ6ICcyMDI2LTExLTAxVDEwOjAwOjAwWicKLS0tCg=="
+      },
+      {
+        "path": "issues/widgets-2.md",
+        "data": "LS0tCmtpbmQ6IGlzc3VlCnJlcG86IHdpZGdldHMKbnVtYmVyOiAyCnVwZGF0ZWQ6ICcyMDI2LTExLTAyVDEwOjAwOjAwWicKLS0tCg=="
+      },
+      {
         "path": "item-01.md",
-        "data": "LS0tCmtpbmQ6IGl0ZW0KcmFuazogMQpzbG90OiAnMDEnCnVwZGF0ZWQ6ICcyMDI2LTExLTAxVDEwOjAwOjAwWicKZGVzY3JpcHRpb246IEl0ZW0gMSBvZiB0aGUgcGFnZWQgdGFibGUsIHdpdGggYSBkZXNjcmlwdGlvbiBsb25nIGVub3VnaCB0byB3cmFwIGluIGEgbmFycm93IGNvbHVtbi4KLS0tCg=="
+        "data": "LS0tCmtpbmQ6IGl0ZW0KcmFuazogMQpkZXNjcmlwdGlvbjogSXRlbSAxIG9mIHRoZSBwYWdlZCB0YWJsZSwgd2l0aCBhIGRlc2NyaXB0aW9uIGxvbmcgZW5vdWdoIHRvIHdyYXAgaW4gYSBuYXJyb3cgY29sdW1uLgotLS0K"
       },
       {
         "path": "item-02.md",
-        "data": "LS0tCmtpbmQ6IGl0ZW0KcmFuazogMgpzbG90OiAnMDInCnVwZGF0ZWQ6ICcyMDI2LTExLTAyVDEwOjAwOjAwWicKZGVzY3JpcHRpb246IEl0ZW0gMiBvZiB0aGUgcGFnZWQgdGFibGUsIHdpdGggYSBkZXNjcmlwdGlvbiBsb25nIGVub3VnaCB0byB3cmFwIGluIGEgbmFycm93IGNvbHVtbi4KLS0tCg=="
+        "data": "LS0tCmtpbmQ6IGl0ZW0KcmFuazogMgpkZXNjcmlwdGlvbjogSXRlbSAyIG9mIHRoZSBwYWdlZCB0YWJsZSwgd2l0aCBhIGRlc2NyaXB0aW9uIGxvbmcgZW5vdWdoIHRvIHdyYXAgaW4gYSBuYXJyb3cgY29sdW1uLgotLS0K"
       },
       {
         "path": "item-03.md",
-        "data": "LS0tCmtpbmQ6IGl0ZW0KcmFuazogMwpzbG90OiAnMDMnCnVwZGF0ZWQ6ICcyMDI2LTExLTAzVDEwOjAwOjAwWicKZGVzY3JpcHRpb246IEl0ZW0gMyBvZiB0aGUgcGFnZWQgdGFibGUsIHdpdGggYSBkZXNjcmlwdGlvbiBsb25nIGVub3VnaCB0byB3cmFwIGluIGEgbmFycm93IGNvbHVtbi4KLS0tCg=="
+        "data": "LS0tCmtpbmQ6IGl0ZW0KcmFuazogMwpkZXNjcmlwdGlvbjogSXRlbSAzIG9mIHRoZSBwYWdlZCB0YWJsZSwgd2l0aCBhIGRlc2NyaXB0aW9uIGxvbmcgZW5vdWdoIHRvIHdyYXAgaW4gYSBuYXJyb3cgY29sdW1uLgotLS0K"
       },
       {
         "path": "item-04.md",
-        "data": "LS0tCmtpbmQ6IGl0ZW0KcmFuazogNApzbG90OiAnMDQnCnVwZGF0ZWQ6ICcyMDI2LTExLTA0VDEwOjAwOjAwWicKZGVzY3JpcHRpb246IEl0ZW0gNCBvZiB0aGUgcGFnZWQgdGFibGUsIHdpdGggYSBkZXNjcmlwdGlvbiBsb25nIGVub3VnaCB0byB3cmFwIGluIGEgbmFycm93IGNvbHVtbi4KLS0tCg=="
+        "data": "LS0tCmtpbmQ6IGl0ZW0KcmFuazogNApkZXNjcmlwdGlvbjogSXRlbSA0IG9mIHRoZSBwYWdlZCB0YWJsZSwgd2l0aCBhIGRlc2NyaXB0aW9uIGxvbmcgZW5vdWdoIHRvIHdyYXAgaW4gYSBuYXJyb3cgY29sdW1uLgotLS0K"
       },
       {
         "path": "item-05.md",
-        "data": "LS0tCmtpbmQ6IGl0ZW0KcmFuazogNQpzbG90OiAnMDUnCnVwZGF0ZWQ6ICcyMDI2LTExLTA1VDEwOjAwOjAwWicKZGVzY3JpcHRpb246IEl0ZW0gNSBvZiB0aGUgcGFnZWQgdGFibGUsIHdpdGggYSBkZXNjcmlwdGlvbiBsb25nIGVub3VnaCB0byB3cmFwIGluIGEgbmFycm93IGNvbHVtbi4KLS0tCg=="
+        "data": "LS0tCmtpbmQ6IGl0ZW0KcmFuazogNQpkZXNjcmlwdGlvbjogSXRlbSA1IG9mIHRoZSBwYWdlZCB0YWJsZSwgd2l0aCBhIGRlc2NyaXB0aW9uIGxvbmcgZW5vdWdoIHRvIHdyYXAgaW4gYSBuYXJyb3cgY29sdW1uLgotLS0K"
       },
       {
         "path": "item-06.md",
-        "data": "LS0tCmtpbmQ6IGl0ZW0KcmFuazogNgpzbG90OiAnMDYnCnVwZGF0ZWQ6ICcyMDI2LTExLTA2VDEwOjAwOjAwWicKZGVzY3JpcHRpb246IEl0ZW0gNiBvZiB0aGUgcGFnZWQgdGFibGUsIHdpdGggYSBkZXNjcmlwdGlvbiBsb25nIGVub3VnaCB0byB3cmFwIGluIGEgbmFycm93IGNvbHVtbi4KLS0tCg=="
+        "data": "LS0tCmtpbmQ6IGl0ZW0KcmFuazogNgpkZXNjcmlwdGlvbjogSXRlbSA2IG9mIHRoZSBwYWdlZCB0YWJsZSwgd2l0aCBhIGRlc2NyaXB0aW9uIGxvbmcgZW5vdWdoIHRvIHdyYXAgaW4gYSBuYXJyb3cgY29sdW1uLgotLS0K"
       },
       {
         "path": "item-07.md",
-        "data": "LS0tCmtpbmQ6IGl0ZW0KcmFuazogNwpzbG90OiAnMDcnCnVwZGF0ZWQ6ICcyMDI2LTExLTA3VDEwOjAwOjAwWicKZGVzY3JpcHRpb246IEl0ZW0gNyBvZiB0aGUgcGFnZWQgdGFibGUsIHdpdGggYSBkZXNjcmlwdGlvbiBsb25nIGVub3VnaCB0byB3cmFwIGluIGEgbmFycm93IGNvbHVtbi4KLS0tCg=="
+        "data": "LS0tCmtpbmQ6IGl0ZW0KcmFuazogNwpkZXNjcmlwdGlvbjogSXRlbSA3IG9mIHRoZSBwYWdlZCB0YWJsZSwgd2l0aCBhIGRlc2NyaXB0aW9uIGxvbmcgZW5vdWdoIHRvIHdyYXAgaW4gYSBuYXJyb3cgY29sdW1uLgotLS0K"
       },
       {
         "path": "item-08.md",
-        "data": "LS0tCmtpbmQ6IGl0ZW0KcmFuazogOApzbG90OiAnMDgnCnVwZGF0ZWQ6ICcyMDI2LTExLTA4VDEwOjAwOjAwWicKZGVzY3JpcHRpb246IEl0ZW0gOCBvZiB0aGUgcGFnZWQgdGFibGUsIHdpdGggYSBkZXNjcmlwdGlvbiBsb25nIGVub3VnaCB0byB3cmFwIGluIGEgbmFycm93IGNvbHVtbi4KLS0tCg=="
+        "data": "LS0tCmtpbmQ6IGl0ZW0KcmFuazogOApkZXNjcmlwdGlvbjogSXRlbSA4IG9mIHRoZSBwYWdlZCB0YWJsZSwgd2l0aCBhIGRlc2NyaXB0aW9uIGxvbmcgZW5vdWdoIHRvIHdyYXAgaW4gYSBuYXJyb3cgY29sdW1uLgotLS0K"
       },
       {
         "path": "item-09.md",
-        "data": "LS0tCmtpbmQ6IGl0ZW0KcmFuazogOQpzbG90OiAnMDknCnVwZGF0ZWQ6ICcyMDI2LTExLTA5VDEwOjAwOjAwWicKZGVzY3JpcHRpb246IEl0ZW0gOSBvZiB0aGUgcGFnZWQgdGFibGUsIHdpdGggYSBkZXNjcmlwdGlvbiBsb25nIGVub3VnaCB0byB3cmFwIGluIGEgbmFycm93IGNvbHVtbi4KLS0tCg=="
+        "data": "LS0tCmtpbmQ6IGl0ZW0KcmFuazogOQpkZXNjcmlwdGlvbjogSXRlbSA5IG9mIHRoZSBwYWdlZCB0YWJsZSwgd2l0aCBhIGRlc2NyaXB0aW9uIGxvbmcgZW5vdWdoIHRvIHdyYXAgaW4gYSBuYXJyb3cgY29sdW1uLgotLS0K"
       },
       {
         "path": "item-10.md",
-        "data": "LS0tCmtpbmQ6IGl0ZW0KcmFuazogMTAKc2xvdDogJzEwJwp1cGRhdGVkOiAnMjAyNi0xMS0xMFQxMDowMDowMFonCmRlc2NyaXB0aW9uOiBJdGVtIDEwIG9mIHRoZSBwYWdlZCB0YWJsZSwgd2l0aCBhIGRlc2NyaXB0aW9uIGxvbmcgZW5vdWdoIHRvIHdyYXAgaW4gYSBuYXJyb3cgY29sdW1uLgotLS0K"
+        "data": "LS0tCmtpbmQ6IGl0ZW0KcmFuazogMTAKZGVzY3JpcHRpb246IEl0ZW0gMTAgb2YgdGhlIHBhZ2VkIHRhYmxlLCB3aXRoIGEgZGVzY3JpcHRpb24gbG9uZyBlbm91Z2ggdG8gd3JhcCBpbiBhIG5hcnJvdyBjb2x1bW4uCi0tLQo="
       },
       {
         "path": "item-11.md",
-        "data": "LS0tCmtpbmQ6IGl0ZW0KcmFuazogMTEKc2xvdDogJzExJwp1cGRhdGVkOiAnMjAyNi0xMS0xMVQxMDowMDowMFonCmRlc2NyaXB0aW9uOiBJdGVtIDExIG9mIHRoZSBwYWdlZCB0YWJsZSwgd2l0aCBhIGRlc2NyaXB0aW9uIGxvbmcgZW5vdWdoIHRvIHdyYXAgaW4gYSBuYXJyb3cgY29sdW1uLgotLS0K"
+        "data": "LS0tCmtpbmQ6IGl0ZW0KcmFuazogMTEKZGVzY3JpcHRpb246IEl0ZW0gMTEgb2YgdGhlIHBhZ2VkIHRhYmxlLCB3aXRoIGEgZGVzY3JpcHRpb24gbG9uZyBlbm91Z2ggdG8gd3JhcCBpbiBhIG5hcnJvdyBjb2x1bW4uCi0tLQo="
       },
       {
         "path": "item-12.md",
-        "data": "LS0tCmtpbmQ6IGl0ZW0KcmFuazogMTIKc2xvdDogJzEyJwp1cGRhdGVkOiAnMjAyNi0xMS0xMlQxMDowMDowMFonCmRlc2NyaXB0aW9uOiBJdGVtIDEyIG9mIHRoZSBwYWdlZCB0YWJsZSwgd2l0aCBhIGRlc2NyaXB0aW9uIGxvbmcgZW5vdWdoIHRvIHdyYXAgaW4gYSBuYXJyb3cgY29sdW1uLgotLS0K"
+        "data": "LS0tCmtpbmQ6IGl0ZW0KcmFuazogMTIKZGVzY3JpcHRpb246IEl0ZW0gMTIgb2YgdGhlIHBhZ2VkIHRhYmxlLCB3aXRoIGEgZGVzY3JpcHRpb24gbG9uZyBlbm91Z2ggdG8gd3JhcCBpbiBhIG5hcnJvdyBjb2x1bW4uCi0tLQo="
       },
       {
         "path": "item-13.md",
-        "data": "LS0tCmtpbmQ6IGl0ZW0KcmFuazogMTMKc2xvdDogJzEzJwp1cGRhdGVkOiAnMjAyNi0xMS0xM1QxMDowMDowMFonCmRlc2NyaXB0aW9uOiBJdGVtIDEzIG9mIHRoZSBwYWdlZCB0YWJsZSwgd2l0aCBhIGRlc2NyaXB0aW9uIGxvbmcgZW5vdWdoIHRvIHdyYXAgaW4gYSBuYXJyb3cgY29sdW1uLgotLS0K"
+        "data": "LS0tCmtpbmQ6IGl0ZW0KcmFuazogMTMKZGVzY3JpcHRpb246IEl0ZW0gMTMgb2YgdGhlIHBhZ2VkIHRhYmxlLCB3aXRoIGEgZGVzY3JpcHRpb24gbG9uZyBlbm91Z2ggdG8gd3JhcCBpbiBhIG5hcnJvdyBjb2x1bW4uCi0tLQo="
       },
       {
         "path": "item-14.md",
-        "data": "LS0tCmtpbmQ6IGl0ZW0KcmFuazogMTQKc2xvdDogJzE0Jwp1cGRhdGVkOiAnMjAyNi0xMS0xNFQxMDowMDowMFonCmRlc2NyaXB0aW9uOiBJdGVtIDE0IG9mIHRoZSBwYWdlZCB0YWJsZSwgd2l0aCBhIGRlc2NyaXB0aW9uIGxvbmcgZW5vdWdoIHRvIHdyYXAgaW4gYSBuYXJyb3cgY29sdW1uLgotLS0K"
+        "data": "LS0tCmtpbmQ6IGl0ZW0KcmFuazogMTQKZGVzY3JpcHRpb246IEl0ZW0gMTQgb2YgdGhlIHBhZ2VkIHRhYmxlLCB3aXRoIGEgZGVzY3JpcHRpb24gbG9uZyBlbm91Z2ggdG8gd3JhcCBpbiBhIG5hcnJvdyBjb2x1bW4uCi0tLQo="
       },
       {
         "path": "item-15.md",
-        "data": "LS0tCmtpbmQ6IGl0ZW0KcmFuazogMTUKc2xvdDogJzE1Jwp1cGRhdGVkOiAnMjAyNi0xMS0xNVQxMDowMDowMFonCmRlc2NyaXB0aW9uOiBJdGVtIDE1IG9mIHRoZSBwYWdlZCB0YWJsZSwgd2l0aCBhIGRlc2NyaXB0aW9uIGxvbmcgZW5vdWdoIHRvIHdyYXAgaW4gYSBuYXJyb3cgY29sdW1uLgotLS0K"
+        "data": "LS0tCmtpbmQ6IGl0ZW0KcmFuazogMTUKZGVzY3JpcHRpb246IEl0ZW0gMTUgb2YgdGhlIHBhZ2VkIHRhYmxlLCB3aXRoIGEgZGVzY3JpcHRpb24gbG9uZyBlbm91Z2ggdG8gd3JhcCBpbiBhIG5hcnJvdyBjb2x1bW4uCi0tLQo="
       },
       {
         "path": "item-16.md",
-        "data": "LS0tCmtpbmQ6IGl0ZW0KcmFuazogMTYKc2xvdDogJzE2Jwp1cGRhdGVkOiAnMjAyNi0xMS0xNlQxMDowMDowMFonCmRlc2NyaXB0aW9uOiBJdGVtIDE2IG9mIHRoZSBwYWdlZCB0YWJsZSwgd2l0aCBhIGRlc2NyaXB0aW9uIGxvbmcgZW5vdWdoIHRvIHdyYXAgaW4gYSBuYXJyb3cgY29sdW1uLgotLS0K"
+        "data": "LS0tCmtpbmQ6IGl0ZW0KcmFuazogMTYKZGVzY3JpcHRpb246IEl0ZW0gMTYgb2YgdGhlIHBhZ2VkIHRhYmxlLCB3aXRoIGEgZGVzY3JpcHRpb24gbG9uZyBlbm91Z2ggdG8gd3JhcCBpbiBhIG5hcnJvdyBjb2x1bW4uCi0tLQo="
       },
       {
         "path": "item-17.md",
-        "data": "LS0tCmtpbmQ6IGl0ZW0KcmFuazogMTcKc2xvdDogJzE3Jwp1cGRhdGVkOiAnMjAyNi0xMS0xN1QxMDowMDowMFonCmRlc2NyaXB0aW9uOiBJdGVtIDE3IG9mIHRoZSBwYWdlZCB0YWJsZSwgd2l0aCBhIGRlc2NyaXB0aW9uIGxvbmcgZW5vdWdoIHRvIHdyYXAgaW4gYSBuYXJyb3cgY29sdW1uLgotLS0K"
+        "data": "LS0tCmtpbmQ6IGl0ZW0KcmFuazogMTcKZGVzY3JpcHRpb246IEl0ZW0gMTcgb2YgdGhlIHBhZ2VkIHRhYmxlLCB3aXRoIGEgZGVzY3JpcHRpb24gbG9uZyBlbm91Z2ggdG8gd3JhcCBpbiBhIG5hcnJvdyBjb2x1bW4uCi0tLQo="
       },
       {
         "path": "item-18.md",
-        "data": "LS0tCmtpbmQ6IGl0ZW0KcmFuazogMTgKc2xvdDogJzE4Jwp1cGRhdGVkOiAnMjAyNi0xMS0xOFQxMDowMDowMFonCmRlc2NyaXB0aW9uOiBJdGVtIDE4IG9mIHRoZSBwYWdlZCB0YWJsZSwgd2l0aCBhIGRlc2NyaXB0aW9uIGxvbmcgZW5vdWdoIHRvIHdyYXAgaW4gYSBuYXJyb3cgY29sdW1uLgotLS0K"
+        "data": "LS0tCmtpbmQ6IGl0ZW0KcmFuazogMTgKZGVzY3JpcHRpb246IEl0ZW0gMTggb2YgdGhlIHBhZ2VkIHRhYmxlLCB3aXRoIGEgZGVzY3JpcHRpb24gbG9uZyBlbm91Z2ggdG8gd3JhcCBpbiBhIG5hcnJvdyBjb2x1bW4uCi0tLQo="
       },
       {
         "path": "item-19.md",
-        "data": "LS0tCmtpbmQ6IGl0ZW0KcmFuazogMTkKc2xvdDogJzE5Jwp1cGRhdGVkOiAnMjAyNi0xMS0xOVQxMDowMDowMFonCmRlc2NyaXB0aW9uOiBJdGVtIDE5IG9mIHRoZSBwYWdlZCB0YWJsZSwgd2l0aCBhIGRlc2NyaXB0aW9uIGxvbmcgZW5vdWdoIHRvIHdyYXAgaW4gYSBuYXJyb3cgY29sdW1uLgotLS0K"
+        "data": "LS0tCmtpbmQ6IGl0ZW0KcmFuazogMTkKZGVzY3JpcHRpb246IEl0ZW0gMTkgb2YgdGhlIHBhZ2VkIHRhYmxlLCB3aXRoIGEgZGVzY3JpcHRpb24gbG9uZyBlbm91Z2ggdG8gd3JhcCBpbiBhIG5hcnJvdyBjb2x1bW4uCi0tLQo="
       },
       {
         "path": "item-20.md",
-        "data": "LS0tCmtpbmQ6IGl0ZW0KcmFuazogMjAKc2xvdDogJzIwJwp1cGRhdGVkOiAnMjAyNi0xMS0yMFQxMDowMDowMFonCmRlc2NyaXB0aW9uOiBJdGVtIDIwIG9mIHRoZSBwYWdlZCB0YWJsZSwgd2l0aCBhIGRlc2NyaXB0aW9uIGxvbmcgZW5vdWdoIHRvIHdyYXAgaW4gYSBuYXJyb3cgY29sdW1uLgotLS0K"
+        "data": "LS0tCmtpbmQ6IGl0ZW0KcmFuazogMjAKZGVzY3JpcHRpb246IEl0ZW0gMjAgb2YgdGhlIHBhZ2VkIHRhYmxlLCB3aXRoIGEgZGVzY3JpcHRpb24gbG9uZyBlbm91Z2ggdG8gd3JhcCBpbiBhIG5hcnJvdyBjb2x1bW4uCi0tLQo="
       },
       {
         "path": "item-21.md",
-        "data": "LS0tCmtpbmQ6IGl0ZW0KcmFuazogMjEKc2xvdDogJzIxJwp1cGRhdGVkOiAnMjAyNi0xMS0yMVQxMDowMDowMFonCmRlc2NyaXB0aW9uOiBJdGVtIDIxIG9mIHRoZSBwYWdlZCB0YWJsZSwgd2l0aCBhIGRlc2NyaXB0aW9uIGxvbmcgZW5vdWdoIHRvIHdyYXAgaW4gYSBuYXJyb3cgY29sdW1uLgotLS0K"
+        "data": "LS0tCmtpbmQ6IGl0ZW0KcmFuazogMjEKZGVzY3JpcHRpb246IEl0ZW0gMjEgb2YgdGhlIHBhZ2VkIHRhYmxlLCB3aXRoIGEgZGVzY3JpcHRpb24gbG9uZyBlbm91Z2ggdG8gd3JhcCBpbiBhIG5hcnJvdyBjb2x1bW4uCi0tLQo="
       },
       {
         "path": "item-22.md",
-        "data": "LS0tCmtpbmQ6IGl0ZW0KcmFuazogMjIKc2xvdDogJzIyJwp1cGRhdGVkOiAnMjAyNi0xMS0yMlQxMDowMDowMFonCmRlc2NyaXB0aW9uOiBJdGVtIDIyIG9mIHRoZSBwYWdlZCB0YWJsZSwgd2l0aCBhIGRlc2NyaXB0aW9uIGxvbmcgZW5vdWdoIHRvIHdyYXAgaW4gYSBuYXJyb3cgY29sdW1uLgotLS0K"
+        "data": "LS0tCmtpbmQ6IGl0ZW0KcmFuazogMjIKZGVzY3JpcHRpb246IEl0ZW0gMjIgb2YgdGhlIHBhZ2VkIHRhYmxlLCB3aXRoIGEgZGVzY3JpcHRpb24gbG9uZyBlbm91Z2ggdG8gd3JhcCBpbiBhIG5hcnJvdyBjb2x1bW4uCi0tLQo="
       },
       {
         "path": "item-23.md",
-        "data": "LS0tCmtpbmQ6IGl0ZW0KcmFuazogMjMKc2xvdDogJzIzJwp1cGRhdGVkOiAnMjAyNi0xMS0yM1QxMDowMDowMFonCmRlc2NyaXB0aW9uOiBJdGVtIDIzIG9mIHRoZSBwYWdlZCB0YWJsZSwgd2l0aCBhIGRlc2NyaXB0aW9uIGxvbmcgZW5vdWdoIHRvIHdyYXAgaW4gYSBuYXJyb3cgY29sdW1uLgotLS0K"
+        "data": "LS0tCmtpbmQ6IGl0ZW0KcmFuazogMjMKZGVzY3JpcHRpb246IEl0ZW0gMjMgb2YgdGhlIHBhZ2VkIHRhYmxlLCB3aXRoIGEgZGVzY3JpcHRpb24gbG9uZyBlbm91Z2ggdG8gd3JhcCBpbiBhIG5hcnJvdyBjb2x1bW4uCi0tLQo="
       },
       {
         "path": "item-24.md",
-        "data": "LS0tCmtpbmQ6IGl0ZW0KcmFuazogMjQKc2xvdDogJzI0Jwp1cGRhdGVkOiAnMjAyNi0xMS0yNFQxMDowMDowMFonCmRlc2NyaXB0aW9uOiBJdGVtIDI0IG9mIHRoZSBwYWdlZCB0YWJsZSwgd2l0aCBhIGRlc2NyaXB0aW9uIGxvbmcgZW5vdWdoIHRvIHdyYXAgaW4gYSBuYXJyb3cgY29sdW1uLgotLS0K"
+        "data": "LS0tCmtpbmQ6IGl0ZW0KcmFuazogMjQKZGVzY3JpcHRpb246IEl0ZW0gMjQgb2YgdGhlIHBhZ2VkIHRhYmxlLCB3aXRoIGEgZGVzY3JpcHRpb24gbG9uZyBlbm91Z2ggdG8gd3JhcCBpbiBhIG5hcnJvdyBjb2x1bW4uCi0tLQo="
       },
       {
         "path": "logo.png",
@@ -7351,7 +6154,7 @@
       },
       {
         "path": "tables.md",
-        "data": "IyBUYWJsZXMKCmBgYGJhc2UKZmlsdGVyczogJ2tpbmQgPT0gIml0ZW0iJwpwcm9wZXJ0aWVzOgogIGRlc2NyaXB0aW9uOiB7ZGlzcGxheU5hbWU6IERlc2NyaXB0aW9ufQp2aWV3czoKICAtIHR5cGU6IHRhYmxlCiAgICBuYW1lOiBJdGVtcwogICAgb3JkZXI6IFtmaWxlLm5hbWUsIHJhbmssIGRlc2NyaXB0aW9uXQogICAgc29ydDogW3twcm9wZXJ0eTogcmFuaywgZGlyZWN0aW9uOiBBU0N9XQogIC0gdHlwZTogdGFibGUKICAgIG5hbWU6IEtpbmRzCiAgICBvcmRlcjogW2ZpbGUubmFtZSwgcmFua10KICAgIGdyb3VwQnk6IHtwcm9wZXJ0eToga2luZCwgZGlyZWN0aW9uOiBBU0N9CiAgICBvYnNIdG1sOiB7Z3JvdXBPcmRlcjogW2l0ZW0sIHBhcnRdLCBzaG93RW1wdHlHcm91cHM6IHRydWV9CiAgLSB0eXBlOiB0YWJsZQogICAgbmFtZTogQ2hlY2tlZAogICAgb3JkZXI6IFtmaWxlLm5hbWUsIHJhbmtdCiAgICBvYnNIdG1sOiB7cGFzc2luZzoge2ZpbHRlcnM6ICdyYW5rICE9IDEnLCBsYWJlbDogY2hlY2tlZH19CiAgLSB0eXBlOiB0YWJsZQogICAgbmFtZTogQnJpZWYKICAgIG9yZGVyOiBbZmlsZS5uYW1lLCBkZXNjcmlwdGlvbl0KICAgIG9ic0h0bWw6IHtkZXRhaWxGaWVsZHM6IFtyYW5rXX0Kb2JzSHRtbDoKICBsaXZlU291cmNlOgogICAgbmFtZTogRXhhbXBsZSBUcmFja2VyCiAgICBrZXk6IFtzbG90XQogICAgY2hhbmdlZDogdXBkYXRlZAogICAgbm90ZVBhdGg6ICdpdGVtLXtzbG90fS5tZCcKICAgIGZpZWxkczoge3Nsb3Q6IHNsb3QsIHJhbms6IHJhbmssIHVwZGF0ZWQ6IHVwZGF0ZWRfYXR9CiAgICBjaGFuZ2VzOgogICAgLSBwcm92aWRlcjogY29ubmVjdG9yCiAgICAgIHNlcnZlcjogRXhhbXBsZSBUcmFja2VyCiAgICAgIHRvb2w6IGxpc3RfaXNzdWVzCiAgICAgIHJvd3M6IGlzc3VlcwogICAgICBtYXhQYWdlczogMQogICAgICByZXF1ZXN0czoKICAgICAgLSBzZXQ6IHtraW5kOiBpdGVtfQogICAgICAgIGlucHV0OiB7b3duZXI6IGV4YW1wbGUtb3JnLCByZXBvOiB3aWRnZXRzLCBzaW5jZTogJ3tzaW5jZX0nfQpgYGAKClBhcmFncmFwaCAxIG9mIHRoZSBjbG9zaW5nIHRleHQsIHdoaWNoIHJlYWRzIG9uIGFmdGVyIHRoZSBjb250ZW50IGFib3ZlIGl0LiBQYXJhZ3JhcGggMSBvZiB0aGUgY2xvc2luZyB0ZXh0LCB3aGljaCByZWFkcyBvbiBhZnRlciB0aGUgY29udGVudCBhYm92ZSBpdC4gUGFyYWdyYXBoIDEgb2YgdGhlIGNsb3NpbmcgdGV4dCwgd2hpY2ggcmVhZHMgb24gYWZ0ZXIgdGhlIGNvbnRlbnQgYWJvdmUgaXQuIAoKUGFyYWdyYXBoIDIgb2YgdGhlIGNsb3NpbmcgdGV4dCwgd2hpY2ggcmVhZHMgb24gYWZ0ZXIgdGhlIGNvbnRlbnQgYWJvdmUgaXQuIFBhcmFncmFwaCAyIG9mIHRoZSBjbG9zaW5nIHRleHQsIHdoaWNoIHJlYWRzIG9uIGFmdGVyIHRoZSBjb250ZW50IGFib3ZlIGl0LiBQYXJhZ3JhcGggMiBvZiB0aGUgY2xvc2luZyB0ZXh0LCB3aGljaCByZWFkcyBvbiBhZnRlciB0aGUgY29udGVudCBhYm92ZSBpdC4gCg=="
+        "data": "IyBUYWJsZXMKCmBgYGJhc2UKZmlsdGVyczogJ2tpbmQgPT0gIml0ZW0iJwpwcm9wZXJ0aWVzOgogIGRlc2NyaXB0aW9uOiB7ZGlzcGxheU5hbWU6IERlc2NyaXB0aW9ufQp2aWV3czoKICAtIHR5cGU6IHRhYmxlCiAgICBuYW1lOiBJdGVtcwogICAgb3JkZXI6IFtmaWxlLm5hbWUsIHJhbmssIGRlc2NyaXB0aW9uXQogICAgc29ydDogW3twcm9wZXJ0eTogcmFuaywgZGlyZWN0aW9uOiBBU0N9XQogIC0gdHlwZTogdGFibGUKICAgIG5hbWU6IEtpbmRzCiAgICBvcmRlcjogW2ZpbGUubmFtZSwgcmFua10KICAgIGdyb3VwQnk6IHtwcm9wZXJ0eToga2luZCwgZGlyZWN0aW9uOiBBU0N9CiAgICBvYnNIdG1sOiB7Z3JvdXBPcmRlcjogW2l0ZW0sIHBhcnRdLCBzaG93RW1wdHlHcm91cHM6IHRydWV9CiAgLSB0eXBlOiB0YWJsZQogICAgbmFtZTogQ2hlY2tlZAogICAgb3JkZXI6IFtmaWxlLm5hbWUsIHJhbmtdCiAgICBvYnNIdG1sOiB7cGFzc2luZzoge2ZpbHRlcnM6ICdyYW5rICE9IDEnLCBsYWJlbDogY2hlY2tlZH19CiAgLSB0eXBlOiB0YWJsZQogICAgbmFtZTogQnJpZWYKICAgIG9yZGVyOiBbZmlsZS5uYW1lLCBkZXNjcmlwdGlvbl0KICAgIG9ic0h0bWw6IHtkZXRhaWxGaWVsZHM6IFtyYW5rXX0KYGBgCgpgYGBiYXNlCmZpbHRlcnM6ICdraW5kID09ICJpc3N1ZSInCnZpZXdzOgogIC0gdHlwZTogdGFibGUKICAgIG5hbWU6IFRyYWNrZXIKICAgIG9yZGVyOiBbZmlsZS5uYW1lLCBudW1iZXJdCm9ic0h0bWw6CiAgbGl2ZVNvdXJjZToKICAgIG5hbWU6IEV4YW1wbGUgVHJhY2tlcgogICAga2V5OiBbcmVwbywgbnVtYmVyXQogICAgY2hhbmdlZDogdXBkYXRlZAogICAgbm90ZVBhdGg6ICdpc3N1ZXMve3JlcG99LXtudW1iZXJ9Lm1kJwogICAgZmllbGRzOiB7bnVtYmVyOiBudW1iZXIsIHVwZGF0ZWQ6IHVwZGF0ZWRfYXR9CiAgICBjaGFuZ2VzOgogICAgLSBwcm92aWRlcjogY29ubmVjdG9yCiAgICAgIHNlcnZlcjogRXhhbXBsZSBUcmFja2VyCiAgICAgIHRvb2w6IGxpc3RfaXNzdWVzCiAgICAgIHJvd3M6IGlzc3VlcwogICAgICBtYXhQYWdlczogMQogICAgICByZXF1ZXN0czoKICAgICAgLSBzZXQ6IHtyZXBvOiB3aWRnZXRzfQogICAgICAgIGlucHV0OiB7b3duZXI6IGV4YW1wbGUtb3JnLCByZXBvOiB3aWRnZXRzLCBzaW5jZTogJ3tzaW5jZX0nfQpgYGAKClBhcmFncmFwaCAxIG9mIHRoZSBjbG9zaW5nIHRleHQsIHdoaWNoIHJlYWRzIG9uIGFmdGVyIHRoZSBjb250ZW50IGFib3ZlIGl0LiBQYXJhZ3JhcGggMSBvZiB0aGUgY2xvc2luZyB0ZXh0LCB3aGljaCByZWFkcyBvbiBhZnRlciB0aGUgY29udGVudCBhYm92ZSBpdC4gUGFyYWdyYXBoIDEgb2YgdGhlIGNsb3NpbmcgdGV4dCwgd2hpY2ggcmVhZHMgb24gYWZ0ZXIgdGhlIGNvbnRlbnQgYWJvdmUgaXQuIAoKUGFyYWdyYXBoIDIgb2YgdGhlIGNsb3NpbmcgdGV4dCwgd2hpY2ggcmVhZHMgb24gYWZ0ZXIgdGhlIGNvbnRlbnQgYWJvdmUgaXQuIFBhcmFncmFwaCAyIG9mIHRoZSBjbG9zaW5nIHRleHQsIHdoaWNoIHJlYWRzIG9uIGFmdGVyIHRoZSBjb250ZW50IGFib3ZlIGl0LiBQYXJhZ3JhcGggMiBvZiB0aGUgY2xvc2luZyB0ZXh0LCB3aGljaCByZWFkcyBvbiBhZnRlciB0aGUgY29udGVudCBhYm92ZSBpdC4gCg=="
       }
     ],
     "build": {

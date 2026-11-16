@@ -146,7 +146,7 @@ def test_a_row_the_declaration_does_not_reproduce_logs_one_error_per_live_table_
 
 def test_the_feature_fixture_carries_the_part_and_makes_no_request(feature_artifact: str, tmp_path: Path,
                                                                       opened) -> None:
-    """The feature fixture's paged table declares a connector route only (build_documents.py,
+    """The feature fixture's tracker table declares a connector route only (build_documents.py,
     FEATURE_LIVE_SOURCE): its check passes silently and the page asks the network for nothing."""
     assert "globalThis.obsLiveData" in feature_artifact
     path = tmp_path / "features.html"
