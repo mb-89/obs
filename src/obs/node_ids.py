@@ -18,7 +18,7 @@ from obs.input import input_error
 OWNER = "input-model#Block node ids"
 IDENTIFIED = frozenset(json.loads(Path(__file__).with_name("document.schema.json").read_text(encoding="utf-8"))
                        ["$defs"]["identifiedType"]["enum"])
-CONTAINERS = frozenset({"list", "list-item", "quote", "callouts", "table", "cards-metrics", "document"})
+CONTAINERS = frozenset({"list", "list-item", "quote", "callouts", "table", "cards-metrics", "document", "columns"})
 """The block nodes whose children are blocks in turn; any other node's children are its content."""
 ANCHORED = CONTAINERS - {"list-item"}
 """The containers whose derived id is anchored on their heading, not hashed over their children; a

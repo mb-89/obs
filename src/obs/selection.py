@@ -256,9 +256,10 @@ ParagraphMark = tuple[str, str, str]
 
 
 @cache
-def paragraph_marks(body: str) -> tuple[ParagraphMark, ...]:
-    """The marks of a note's marked paragraphs, in order; see capabilities/marks."""
-    tokens = parser().parse(body)
+def paragraph_marks(body: str, columns: bool = False) -> tuple[ParagraphMark, ...]:
+    """The marks of a note's marked paragraphs, in order; see capabilities/marks. With ``columns``
+    a ``|||`` line ends a paragraph (capabilities/columns#Delimiters)."""
+    tokens = parser(columns).parse(body)
     marks: list[ParagraphMark] = []
     for previous, token in pairwise(tokens):
         if token.type != "inline" or previous.type != "paragraph_open":
