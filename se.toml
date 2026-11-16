@@ -10,7 +10,7 @@ authored_content = [
 identity = "mb <mb>"
 public_check = true
 release = "workflow"
-version = "3.5.3"
+version = "3.5.4"
 
 [tests]
 # The complete suite, its setup and its time budget; test/suite.py's docstring says what each runs.
@@ -20,6 +20,9 @@ target_seconds = 100
 limit_seconds = 120
 # Host variance: spec/design_input/quality.md, Testing boundaries, says why.
 over_limit = "warn"
+# The shards CI runs the suite in: .github/workflows/test.yml, `check`'s suite-time `shards: 2`.
+# The target and the limit are each shard's; a whole-suite run is judged against twice each.
+shards = 2
 
 [modules.se]
 url = "../SE.git"
