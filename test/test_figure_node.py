@@ -49,6 +49,8 @@ CURVE = {
 }
 DECISION = {"criteria": [{"key": "cost", "weight": 1, "better": "lower"}],
             "candidates": [{"key": "now", "values": {"cost": 2}}, {"key": "new", "values": {"cost": 1}}]}
+TIMELINE = {"records": {"where": [{"field": "kind", "equals": "event"}]}, "date": "when", "lane": "team",
+            "today": "2026-11-16"}
 FLOW = "graph LR\n  A --> B\n"
 SEQUENCE = "@startuml\nA -> B\n@enduml\n"
 KINDS = {
@@ -61,6 +63,7 @@ KINDS = {
     "mermaid": ("flow.mmd", FLOW, json.dumps(FLOW), ""),
     "plantuml": ("sequence.puml", SEQUENCE, json.dumps(SEQUENCE), ""),
     "pugh": ("decision.json", json.dumps(DECISION), json.dumps(DECISION), ""),
+    "timeline": ("timeline.json", json.dumps(TIMELINE), json.dumps(TIMELINE), ""),
 }
 
 
@@ -123,6 +126,7 @@ def test_each_kind_carries_its_content_in_its_one_child(tmp_path) -> None:
     assert bodies["plot"] == {"descriptor": DESCRIPTOR}
     assert [bodies["mermaid"]["source"], bodies["plantuml"]["source"]] == [FLOW, SEQUENCE]
     assert bodies["pugh"] == {"matrix": DECISION, "shortNames": ["now", "new"]}
+    assert bodies["timeline"] == TIMELINE
     assert bodies["equations"]["solution"]["branches"] == [
         {"y": {"op": "mul", "args": [{"symbol": "a"}, {"symbol": "x"}]}}]
 

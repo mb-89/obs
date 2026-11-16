@@ -16,7 +16,6 @@ import urllib.request
 
 from jsonschema import Draft202012Validator
 from markdown_it.token import Token
-from referencing import Registry, Resource
 import yaml
 
 from obs.commands import CommandError, run_command
@@ -24,7 +23,7 @@ from obs.config import (
     DEFAULT_CORE_CONFIG, DEFAULT_FIGURE_LABELS, DEFAULT_LONG_PARAGRAPHS,
     CoreConfig, CoreConfigError, load_core_config, overridden,
 )
-from obs.figure import FIGURE_KINDS, FIGURE_SCHEMA_PATH, FigureContentError, FigureContext
+from obs.figure import FIGURE_KINDS, FigureContentError, FigureContext, figure_registry
 from obs.input import (
     ADAPTER_NAMESPACE,
     InputError,
@@ -490,11 +489,11 @@ def _metadata_links(metadata: object, source_path: Path, vault: _Vault, name: st
                 _link(match["target"].strip(), source_path, vault, place=f"field {name}")
 
 
-def _select(selects, vault: _Vault) -> None:
-    """Include the notes that selects(fields, path, body) chooses."""
-    for path, (fields, body) in vault.notes.items():
-        if selects(fields, vault.relative(path), body):
-            vault.reached.append(path)
+def _select(selects, vault: _Vault) -> list[Path]:
+    """Include the notes that selects(fields, path, body) chooses; return them."""
+    chosen = [path for path, (fields, body) in vault.notes.items() if selects(fields, vault.relative(path), body)]
+    vault.reached.extend(chosen)
+    return chosen
 
 
 def _query_owner(identity: object, key: str, source_path: Path, vault: _Vault) -> Path:
@@ -507,10 +506,11 @@ def _query_owner(identity: object, key: str, source_path: Path, vault: _Vault) -
     return path
 
 
-def _query_selection(query: object, source_path: Path, vault: _Vault, owners: tuple[Path, ...] = ()) -> None:
-    """Include the notes a frontmatter query or cards metric selects, and its owner notes."""
+def _query_selection(query: object, source_path: Path, vault: _Vault, owners: tuple[Path, ...] = ()) -> list[Path]:
+    """Include the notes a frontmatter query or cards metric selects, and its owner notes; return
+    the selected notes."""
     if not isinstance(query, dict) or not isinstance(query.get("where"), list):
-        return
+        return []
     if "secondary" in query:
         vault.reached.append(_query_owner(query["secondary"], "secondary", source_path, vault))
     chain = [query["where"]]
@@ -534,8 +534,16 @@ def _query_selection(query: object, source_path: Path, vault: _Vault, owners: tu
             )
         chain.append(owned["where"])
         owner = owned.get("from")
-    _select(lambda fields, path, body: all(
+    return _select(lambda fields, path, body: all(
         conditions_select(where, fields, path, note_marks(body)) for where in chain), vault)
+
+
+def _figure_records(query: dict[str, object], context: "_Context") -> list[tuple[str, dict[str, object]]]:
+    """The notes a figure's query selects, included as any query's: each its vault path and its
+    frontmatter as JSON values, by vault path (FigureContext.select)."""
+    vault = context.vault
+    chosen = _query_selection(query, context.source_path, vault)
+    return sorted((vault.relative(path), _json_value(vault.notes[path][0])) for path in chosen)
 
 
 def _card_selection(card: dict[str, object], source_path: Path, vault: _Vault) -> None:
@@ -1141,8 +1149,12 @@ def _figure(fence: dict[str, object], context: _Context, place: str, opener: int
             body = kind.resolve(body, FigureContext(
                 "source" if "source" in fence else "content", lambda target: _figure_note(target, context),
                 (lambda snippet: _file_line(snippet, path, fence["source"])) if "source" in fence
-                else lambda snippet: _content_line(snippet, context, opener)))
+                else lambda snippet: _content_line(snippet, context, opener),
+                lambda query: _figure_records(query, context), context.vault.relative(source_path)))
     except FigureContentError as error:
+        if error.note is not None:  # A fault of a note the content selects, in that note's field.
+            raise input_error(context.vault.root / error.note, error.field, error.problem,
+                              f"{error.remedy}; see {error.reference or FIGURES}") from error
         raise (located(error) if error.reference else fail(error.field, error.problem, error.remedy)) from error
     body |= options
     error = schema_error(list(_figure_body(fence["kind"]).iter_errors(body)), source_path, FIGURES, place=place)
@@ -1170,13 +1182,7 @@ def _figure_body(kind: str) -> Draft202012Validator:
     """The validator of a figure kind's body, document.schema.json ($defs/figureBodies), compiled once."""
     schema = json.loads(Path(__file__).with_name("document.schema.json").read_text(encoding="utf-8"))
     return Draft202012Validator({**schema["$defs"]["figureBodies"][kind], "$defs": schema["$defs"]},
-                                registry=_figure_registry())
-
-
-@cache
-def _figure_registry() -> Registry:
-    return Registry().with_resource(
-        FIGURE_SCHEMA_PATH.name, Resource.from_contents(json.loads(FIGURE_SCHEMA_PATH.read_text(encoding="utf-8"))))
+                                registry=figure_registry())
 
 
 def _figure_note(target: str, context: _Context) -> tuple[str, dict[str, object]] | None:

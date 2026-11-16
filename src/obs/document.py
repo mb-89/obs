@@ -25,6 +25,7 @@ from obs.vault import VaultError, build_document as _build_document, manifest_no
 
 
 DOCUMENT_SCHEMA_PATH = Path(__file__).with_name("document.schema.json")
+INPUT_SCHEMA_PATH = Path(__file__).with_name("input.schema.json")
 FIGURE_SCHEMA_PATH = Path(__file__).with_name("figure.schema.json")
 ANSWERS_SCHEMA_PATH = Path(__file__).with_name("answers.schema.json")
 ANSWERS_OWNER = "input-model#Answers"
@@ -136,8 +137,8 @@ def read_capability_reference(path: Path) -> dict[str, object]:
 @cache
 def document_validators() -> tuple[Draft202012Validator, dict[str, Draft202012Validator]]:
     """document.schema.json's validator and one per figure body kind ($defs/figureBodies), compiled
-    once per process, with figure.schema.json, answers.schema.json, comments.schema.json and sync.schema.json
-    registered."""
+    once per process, with figure.schema.json, answers.schema.json, comments.schema.json, sync.schema.json
+    and input.schema.json registered."""
     schema = json.loads(DOCUMENT_SCHEMA_PATH.read_text(encoding="utf-8"))
     registry = Registry().with_resources([
         (FIGURE_SCHEMA_PATH.name, Resource.from_contents(json.loads(FIGURE_SCHEMA_PATH.read_text(encoding="utf-8")))),
@@ -145,6 +146,7 @@ def document_validators() -> tuple[Draft202012Validator, dict[str, Draft202012Va
         (COMMENTS_SCHEMA_PATH.name,
          Resource.from_contents(json.loads(COMMENTS_SCHEMA_PATH.read_text(encoding="utf-8")))),
         (SYNC_SCHEMA_PATH.name, Resource.from_contents(json.loads(SYNC_SCHEMA_PATH.read_text(encoding="utf-8")))),
+        (INPUT_SCHEMA_PATH.name, Resource.from_contents(json.loads(INPUT_SCHEMA_PATH.read_text(encoding="utf-8")))),
     ])
     bodies = {
         kind: Draft202012Validator({**body, "$defs": schema["$defs"]}, registry=registry)
