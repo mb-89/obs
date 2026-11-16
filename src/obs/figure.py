@@ -1,6 +1,7 @@
 """The figure kinds and the language-neutral FigureDescriptor contract."""
 import base64
 from dataclasses import dataclass
+from datetime import date
 from functools import cache
 import json
 from pathlib import Path
@@ -8,6 +9,7 @@ from typing import Callable
 from xml.etree import ElementTree
 
 from jsonschema import Draft202012Validator
+from referencing import Registry, Resource
 import yaml
 
 from obs import diagram
@@ -15,6 +17,7 @@ from obs.input import schema_error
 
 
 FIGURE_SCHEMA_PATH = Path(__file__).with_name("figure.schema.json")
+INPUT_SCHEMA_PATH = Path(__file__).with_name("input.schema.json")
 FIGURES, DESCRIPTOR = "capabilities/figures", "capabilities/figure-descriptor"
 """The notes owning a figure fence's and a FigureDescriptor's contracts."""
 
@@ -51,12 +54,14 @@ def write_figure_descriptor(descriptor: dict[str, object], path: Path) -> None:
 class FigureContentError(ValueError):
     """A figure's content its kind cannot read; ``field`` names it within the fence, ``line`` the
     content's 1-based line where the kind names one, and ``reference`` the note that owns the
-    kind's contract where it is not capabilities/figures."""
+    kind's contract where it is not capabilities/figures. ``note``, the vault path of a note the
+    content selects, names a fault of that note's own: ``field`` is then its frontmatter field."""
 
     def __init__(self, field: str, problem: str, remedy: str, line: int | None = None,
-                 reference: str | None = None) -> None:
+                 reference: str | None = None, note: str | None = None) -> None:
         super().__init__(problem)
         self.field, self.problem, self.remedy, self.line, self.reference = field, problem, remedy, line, reference
+        self.note = note
 
 
 def _image(content: object, media_type: str | None) -> dict[str, object]:
@@ -260,6 +265,11 @@ class FigureContext:
     """A link target's note: its vault-relative path and frontmatter, or None without a note."""
     line: Callable[[str], str]
     """Where text of the content stands, such as \"line 12\", or empty where it is not found."""
+    select: Callable[[dict[str, object]], "list[tuple[str, dict[str, object]]]"]
+    """The notes a query (``where`` and ``from``) selects, included in the Document as any query's
+    are: each its vault-relative path and its frontmatter as JSON values, by vault path."""
+    note: str
+    """The vault-relative path of the note the figure is in."""
 
 
 def _equations(content: object, media_type: str | None) -> dict[str, object]:
@@ -270,6 +280,118 @@ def _equations(content: object, media_type: str | None) -> dict[str, object]:
 def _equation_body(content: dict[str, object], context: FigureContext) -> dict[str, object]:
     from obs.equations import resolve
     return resolve(content, context)
+
+
+TIMELINE = "capabilities/timeline-figures"
+"""The note that owns the timeline kind's contract; see input-model, Timeline figures."""
+TIMELINE_LANES = 8
+"""The most lanes a timeline has (input-model, Timeline figures)."""
+
+
+@cache
+def figure_registry() -> Registry:
+    """The core schemas a figure body's schema refers to, by file name: figure.schema.json and
+    input.schema.json."""
+    return Registry().with_resources(
+        (path.name, Resource.from_contents(json.loads(path.read_text(encoding="utf-8"))))
+        for path in (FIGURE_SCHEMA_PATH, INPUT_SCHEMA_PATH))
+
+
+@cache
+def _timeline_validator() -> Draft202012Validator:
+    schema = json.loads(Path(__file__).with_name("document.schema.json").read_text(encoding="utf-8"))
+    return Draft202012Validator({"$schema": schema["$schema"], "$defs": schema["$defs"],
+                                 "$ref": "#/$defs/figureBodies/timeline"}, registry=figure_registry())
+
+
+@cache
+def _tones() -> tuple[str, ...]:
+    """The tones of input.schema.json's ``$defs/tone``, the one tone vocabulary."""
+    return tuple(json.loads(INPUT_SCHEMA_PATH.read_text(encoding="utf-8"))["$defs"]["tone"]["enum"])
+
+
+def _day(value: object) -> bool:
+    """Whether ``value`` is a calendar day written yyyy-mm-dd."""
+    if not isinstance(value, str) or len(value) != 10:
+        return False
+    try:
+        return date.fromisoformat(value).isoformat() == value
+    except ValueError:
+        return False
+
+
+def _timeline(content: object, _media_type: str | None) -> dict[str, object]:
+    """A timeline's content in YAML or JSON, checked against ``$defs/figureBodies/timeline`` and for
+    what no schema states; the records are checked once the vault selects them (``_timeline_records``)."""
+    field = "source" if isinstance(content, bytes) else "content"
+    if isinstance(content, bytes):
+        try:
+            content = yaml.safe_load(content.decode("utf-8"))
+        except (UnicodeDecodeError, yaml.YAMLError) as error:
+            raise FigureContentError(field, f"is not YAML or JSON: {error}".replace("\n", " "),
+                                     f"Write the content as a YAML mapping; see {TIMELINE}") from error
+    content = json.loads(json.dumps(content, default=str))
+    _checked(content, _timeline_validator(), field, TIMELINE)
+
+    def fail(at: str, problem: str, remedy: str) -> FigureContentError:
+        return FigureContentError(f"{field}.{at}", problem, f"{remedy}; see {TIMELINE}")
+
+    if not _day(content["today"]):
+        raise fail("today", f"is {content['today']!r}, which is no calendar day", "Write a day as yyyy-mm-dd")
+    values = [band["value"] for band in content.get("bands", [])]
+    for index, value in enumerate(values):
+        if value in values[:index]:
+            raise fail(f"bands[{index}].value", f"is {value!r}, which an earlier band has",
+                       "Give every band its own value")
+    if "anchor" in content and content["anchor"] != "today" and content["anchor"] not in values:
+        raise fail("anchor", f"is {content['anchor']!r}, which is neither today nor a band's value",
+                   f"Write today or one of {', '.join(values) or 'the values of bands'}")
+    return content
+
+
+def _timeline_records(body: dict[str, object], context: FigureContext) -> dict[str, object]:
+    """Check each record the timeline's query selects: its day or band, its lane and its flags. The
+    body is unchanged: an adapter selects the records again in the reader, under its filter."""
+    bands = {band["value"] for band in body.get("bands", [])}
+    lanes = body.get("lanes")
+    found: set[str] = set()
+    where = f"in the timeline figure of {context.note}"
+
+    def fail(note: str, at: str, problem: str, remedy: str) -> FigureContentError:
+        return FigureContentError(at, f"{problem}, {where}", remedy, reference=TIMELINE, note=note)
+
+    for note, fields in context.select(body["records"]):
+        band = fields.get(body["band"]) if "band" in body else None
+        if band is not None and band not in bands:
+            raise fail(note, body["band"], f"is {band!r}, which is no band's value",
+                       f"Write one of {', '.join(sorted(bands))}, or add a band with that value")
+        if band is None and not _day(fields.get(body["date"])):
+            value = fields.get(body["date"])
+            problem = "is missing" if value is None else f"is {value!r}, which is no day"
+            raise fail(note, body["date"], problem, "Write the record's day as yyyy-mm-dd")
+        lane = fields.get(body["lane"])
+        if not isinstance(lane, str) or not lane.strip():
+            raise fail(note, body["lane"], "names no lane" if lane is None else f"is {lane!r}, no lane's name",
+                       "Write the name of the record's lane")
+        if lanes is not None and lane not in lanes:
+            raise fail(note, body["lane"], f"is {lane!r}, which is not in the figure's lanes",
+                       f"Write one of {', '.join(lanes)}, or add {lane!r} to the figure's lanes")
+        found.add(lane)
+        flags = fields.get(body["flags"]) if "flags" in body else None
+        if flags is not None and not isinstance(flags, list):
+            raise fail(note, body["flags"], "is not a list of flags", "Write a list of {label, tone}")
+        for index, flag in enumerate(flags or []):
+            if not isinstance(flag, dict) or not isinstance(flag.get("label"), str) or not flag["label"].strip():
+                raise fail(note, f"{body['flags']}[{index}]", "is no flag with a label",
+                           "Write {label: <text>, tone: <tone>}")
+            if flag.get("tone", "neutral") not in _tones():
+                raise fail(note, f"{body['flags']}[{index}].tone", f"is {flag['tone']!r}, which is no tone",
+                           f"Write one of {', '.join(_tones())}")
+    if lanes is None and len(found) > TIMELINE_LANES:
+        raise FigureContentError(f"{context.field}.lane", f"names {len(found)} lanes in the records it selects, "
+                                 f"more than {TIMELINE_LANES}", f"Select fewer lanes, at most {TIMELINE_LANES}",
+                                 reference=TIMELINE)
+    return body
 
 
 @dataclass(frozen=True)
@@ -300,6 +422,7 @@ FIGURE_KINDS: dict[str, FigureKind] = {
     "mermaid": FigureKind(_diagram("mermaid"), "mermaid", fence=True),
     "plantuml": FigureKind(_diagram("plantuml"), "plantuml", fence=True),
     "pugh": FigureKind(_pugh, "pugh-decisions", fence=True),
+    "timeline": FigureKind(_timeline, "timeline-figures", resolve=_timeline_records),
 }
 """The figure kinds; see input-model, Figure input direction. Adding a kind is one entry here and
 one body schema in document.schema.json."""

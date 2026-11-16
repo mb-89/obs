@@ -100,7 +100,9 @@ def additional_capability_vault(tmp_path) -> Path:
         "```figure\nversion: 1\nkind: equations\ncontent: {equations: y = a*x, "
         "variables: {x: {default: 0, range: [0, 1]}, a: {default: 2}, y: {}}, plot: {x: x, y: y}}\n```\n\n"
         "```pugh\ncriteria: [{key: cost, weight: 1, better: lower}]\n"
-        "candidates: [{key: now, values: {cost: 2}}, {key: new, values: {cost: 1}}]\n```\n",
+        "candidates: [{key: now, values: {cost: 2}}, {key: new, values: {cost: 1}}]\n```\n\n"
+        "```figure\nversion: 1\nkind: timeline\ncontent: {records: {where: [{field: kind, equals: event}]}, "
+        "date: when, lane: team, today: 2026-11-16}\n```\n",
         encoding="utf-8",
     )
     return vault
@@ -350,18 +352,18 @@ def test_core_emits_data_only_nodes_for_additional_input_capabilities(tmp_path) 
     assert [node["type"] for node in emitted] == [
         "markdown-frontmatter", "profiles", "quantities", "queries", "count-query",
         "references", "chapter-inclusion", "markdown", "attachments", "registers",
-        "cards-metrics", "figures", "property-editors", "figures", "figures", "figures", "figures",
+        "cards-metrics", "figures", "property-editors", "figures", "figures", "figures", "figures", "figures",
     ]
-    assert emitted[-6]["children"][0]["attrs"]["descriptor"]["id"] == "comparison"
-    assert [node["attrs"]["kind"] for node in emitted[-4:]] == ["mermaid", "plantuml", "equations", "pugh"]
-    assert emitted[-5]["attrs"] == {
+    assert emitted[-7]["children"][0]["attrs"]["descriptor"]["id"] == "comparison"
+    assert [node["attrs"]["kind"] for node in emitted[-5:]] == ["mermaid", "plantuml", "equations", "pugh", "timeline"]
+    assert emitted[-6]["attrs"] == {
         "source": "version: 1\nfield: source\nlabel: Source\n",
         "spec": {"version": 1, "field": "source", "label": "Source"}, "writes": ["source"],
     }
     assert {
         "attachments", "cards-metrics", "count-query", "figures",
         "markdown-frontmatter", "mermaid", "plantuml", "profiles", "property-editors", "pugh-decisions",
-        "quantities", "queries", "references", "registers",
+        "quantities", "queries", "references", "registers", "timeline-figures",
     } <= set(document["capabilities"])
 
 

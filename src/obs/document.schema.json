@@ -375,7 +375,46 @@
                            {"type": "array", "minItems": 1, "items": {"type": "integer", "minimum": -2, "maximum": 2}}]},
     "pughTexts": {"oneOf": [{"type": "string", "minLength": 1},
                             {"type": "array", "minItems": 1, "items": {"type": "string", "minLength": 1}}]},
+    "timelineField": {
+      "description": "The name of a record's frontmatter field a timeline figure reads (input-model, Timeline figures).",
+      "type": "string", "minLength": 1, "maxLength": 256
+    },
+    "timelineDay": {"description": "A day, yyyy-mm-dd; the core also checks it is a calendar day.",
+                    "type": "string", "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"},
     "figureBodies": {
+      "timeline": {
+        "description": "A timeline figure (capabilities/timeline-figures; input-model, Timeline figures): the checked content as authored, which an adapter draws from the records its query selects.",
+        "type": "object", "additionalProperties": false, "required": ["records", "date", "lane", "today"],
+        "dependentRequired": {"band": ["bands"], "bands": ["band"]},
+        "properties": {
+          "records": {
+            "description": "The query that selects the records: its conditions and an optional from owner (capabilities/queries).",
+            "type": "object", "additionalProperties": false, "required": ["where"],
+            "properties": {"where": {"$ref": "input.schema.json#/$defs/conditions"},
+                           "from": {"$ref": "input.schema.json#/$defs/queryReference"}}
+          },
+          "date": {"$ref": "#/$defs/timelineField"},
+          "lane": {"$ref": "#/$defs/timelineField"},
+          "today": {"$ref": "#/$defs/timelineDay"},
+          "lanes": {"description": "The lanes in display order.", "type": "array", "minItems": 1, "maxItems": 8,
+                    "uniqueItems": true, "items": {"type": "string", "minLength": 1, "maxLength": 256}},
+          "band": {"$ref": "#/$defs/timelineField"},
+          "bands": {
+            "description": "The named bands in order: at today between the past and the planned rows, at end after them.",
+            "type": "array", "minItems": 1, "maxItems": 16,
+            "items": {"type": "object", "additionalProperties": false, "required": ["value", "label", "at"],
+                      "properties": {"value": {"type": "string", "minLength": 1, "maxLength": 512},
+                                     "label": {"type": "string", "minLength": 1, "maxLength": 256},
+                                     "at": {"enum": ["today", "end"]}}}
+          },
+          "anchor": {"description": "today, or the value of one of bands: the row a reader sees first.",
+                     "type": "string", "minLength": 1, "maxLength": 512},
+          "label": {"$ref": "#/$defs/timelineField"},
+          "text": {"$ref": "#/$defs/timelineField"},
+          "flags": {"$ref": "#/$defs/timelineField"},
+          "marker": {"$ref": "#/$defs/timelineField"}
+        }
+      },
       "pugh": {
         "description": "A Pugh decision figure (capabilities/pugh-decisions): the matrix as data, which an adapter decides.",
         "type": "object", "additionalProperties": false, "required": ["matrix", "shortNames"],
