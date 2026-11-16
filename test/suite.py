@@ -19,7 +19,8 @@ folder at the end. `--shard i/n` runs the i-th of n shards of every part, so CI 
 suite over n jobs: each part keeps that shard of its xdist groups, dealt by their committed
 weights (keep_shard), and a shard's run
 is checked against the tiers' caps but not recorded. It names its host (its CPU count and model) as it starts, and where the parts
-took longer than `[tests] target_seconds` or `limit_seconds` it says so as it ends, naming the
+took longer than `[tests] target_seconds` or `limit_seconds`, a whole run `[tests] shards` times
+each as se's gate judges it (budget), it says so as it ends, naming the numbers it judged by and the
 SLOWEST_NAMED slowest tests of the parts' reports (slowest_tests), on GitHub Actions also as a
 warning annotation; it does not fail on that (quality.md, Testing boundaries). As it ends it also
 names, the same way and without failing, each test far slower than its tier's typical time
@@ -78,6 +79,7 @@ import xml.etree.ElementTree as ElementTree
 from collections import Counter
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
+from typing import NamedTuple
 
 ROOT = Path(__file__).resolve().parents[1]
 # The core, then each integrated adapter folder under adapters/.
@@ -102,8 +104,9 @@ NODE_PACKAGES = [part / "test" / "browser" for part in PARTS
 # every other part runs one per CPU (part_command). Two per CPU fill it a little more, but stretch a
 # single CPU-bound test past its tier's cap (test/bounds.py) while both parts run.
 BROWSER_WORKERS_PER_CPU = 1.5
-# The run's cap, in seconds: past any run that ends ([tests] limit_seconds in se.toml) and past
-# every test's timeout (test/bounds.py), so a hanging test fails by its own timeout first.
+# The run's cap, in seconds: past any run that ends ([tests] limit_seconds times shards in
+# se.toml, budget) and past every test's timeout (test/bounds.py), so a hanging test fails by its
+# own timeout first.
 CAP_SECONDS = 300
 # In node_modules: the SHA-256 of the lockfile it was installed from.
 INSTALLED_LOCKFILE = ".obs-installed-lockfile"
@@ -753,20 +756,31 @@ def setup(arguments: list[str], clock) -> int:
     return 0
 
 
-def _budget(key: str) -> float:
+def tests_settings() -> dict:
+    """se.toml's `[tests]`, which owns the suite's time budget."""
     import tomllib
 
-    return tomllib.loads((ROOT / "se.toml").read_text(encoding="utf-8"))["tests"][key]
+    return tomllib.loads((ROOT / "se.toml").read_text(encoding="utf-8"))["tests"]
 
 
-def limit_seconds() -> float:
-    """The suite's time limit, `[tests] limit_seconds` in se.toml, which owns it."""
-    return _budget("limit_seconds")
+class Budget(NamedTuple):
+    """The target and the limit a run is judged against, in seconds, and, where they are scaled by
+    the shards, their timing as se's gate prints it; None where they are one shard's."""
+
+    target: float
+    limit: float
+    timing: str | None
 
 
-def target_seconds() -> float:
-    """The suite's time target, `[tests] target_seconds` in se.toml, which owns it."""
-    return _budget("target_seconds")
+def budget(tests: dict, sharded: bool) -> Budget:
+    """The budget of a run from se.toml's `[tests]` ``tests``. Its `target_seconds` and
+    `limit_seconds` are each shard's: a shard's run (``sharded``) is judged against them, and a
+    whole run, as se's gate judges it, against `shards` times each (default 1)."""
+    shards = 1 if sharded else tests.get("shards", 1)
+    target, limit = tests["target_seconds"] * shards, tests["limit_seconds"] * shards
+    timing = (f"target {target:g} s, limit {limit:g} s, {shards} shards of {tests['limit_seconds']:g} s"
+              if shards > 1 else None)
+    return Budget(target, limit, timing)
 
 
 # How many of its slowest tests the suite names when its parts took longer than the target.
@@ -810,16 +824,17 @@ def host() -> str:
     return f"{os.cpu_count()} CPUs" + (f" ({model})" if model else "")
 
 
-def overrun(seconds: float, target: float, limit: float, environment, slowest: list[str]) -> list[str]:
-    """The lines that say the parts took longer than the target or the limit, naming the slowest
+def overrun(seconds: float, judged: Budget, environment, slowest: list[str]) -> list[str]:
+    """The lines that say the parts took longer than the budget's target or limit, naming the slowest
     tests: one, each slowest test on a line of its own, and on GitHub Actions also the warning
     annotation. The suite does not fail on it: CI runners differ in speed (quality.md, Testing
     boundaries)."""
-    if seconds <= target:
+    if seconds <= judged.target:
         return []
-    over, bound = ("limit", limit) if seconds > limit else ("target", target)
-    line = (f"test/suite.py: the parts took {seconds:.1f} s, over the suite's {bound:g} s {over} "
-            f"([tests] {over}_seconds in se.toml)")
+    over, bound = ("limit", judged.limit) if seconds > judged.limit else ("target", judged.target)
+    owner = (f"[tests] {over}_seconds in se.toml" if judged.timing is None
+             else f"[tests] {over}_seconds times shards in se.toml: {judged.timing}")
+    line = f"test/suite.py: the parts took {seconds:.1f} s, over the suite's {bound:g} s {over} ({owner})"
     if slowest:
         line += f"; its {len(slowest)} slowest tests:"
     listed = [f"  {test}" for test in slowest]
@@ -894,7 +909,7 @@ def main(arguments: list[str], clock=time.monotonic) -> int:
         slowest = slowest_tests(reports)
         unusual = outlying(reports, os.environ)
     print(f"test/suite.py: parts took {took:.1f} s.")
-    for line in [*overrun(took, target_seconds(), limit_seconds(), os.environ, slowest), *unusual]:
+    for line in [*overrun(took, budget(tests_settings(), sharded=bool(named)), os.environ, slowest), *unusual]:
         print(line)
     built = ", ".join(f"{kind} {builds[kind]}" for kind in spec_build.BUILDS)
     print(f"test/suite.py: obs's spec was built this run (test/spec_build.py): {built}.")

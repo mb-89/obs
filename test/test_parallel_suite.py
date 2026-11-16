@@ -316,6 +316,12 @@ def test_a_worker_or_a_run_without_a_report_writes_no_workers_property() -> None
     assert report.properties == []
 
 
+# A sharded budget as se.toml's [tests] declares it: each shard's target and limit, and the shards.
+SHARDED = {"target_seconds": 100, "limit_seconds": 120, "shards": 2}
+# A budget of one shard: a whole run is judged against it as it stands.
+UNSHARDED = {"target_seconds": 100, "limit_seconds": 120}
+
+
 @pytest.mark.parametrize("on_actions", [False, True])
 def test_the_suite_names_its_host_and_says_when_its_parts_took_longer_than_the_limit(monkeypatch, capsys,
                                                                                     on_actions) -> None:
@@ -324,7 +330,8 @@ def test_the_suite_names_its_host_and_says_when_its_parts_took_longer_than_the_l
     monkeypatch.setattr(suite, "run_part", lambda part, arguments, run_folder: (0, ""))
     monkeypatch.setattr(suite, "is_installed", lambda package: True)
     monkeypatch.setenv("GITHUB_ACTIONS", "true") if on_actions else monkeypatch.delenv("GITHUB_ACTIONS", raising=False)
-    limit = suite.limit_seconds()
+    monkeypatch.setattr(suite, "tests_settings", lambda: UNSHARDED)
+    limit = UNSHARDED["limit_seconds"]
     times = iter([0.0, limit + 5.0])
 
     assert suite.main([], clock=lambda: next(times)) == 0
@@ -339,11 +346,54 @@ def test_the_suite_names_its_host_and_says_when_its_parts_took_longer_than_the_l
 def test_the_suite_says_nothing_of_the_limit_or_the_target_within_them(monkeypatch, capsys) -> None:
     monkeypatch.setattr(suite, "run_part", lambda part, arguments, run_folder: (0, ""))
     monkeypatch.setattr(suite, "is_installed", lambda package: True)
-    times = iter([0.0, suite.target_seconds() - 1.0])
+    monkeypatch.setattr(suite, "tests_settings", lambda: UNSHARDED)
+    times = iter([0.0, UNSHARDED["target_seconds"] - 1.0])
 
     assert suite.main([], clock=lambda: next(times)) == 0
     out = capsys.readouterr().out
     assert "limit" not in out and "target" not in out and "slowest" not in out
+
+
+@pytest.mark.parametrize(("tests", "sharded", "expected"), [
+    (SHARDED, False, suite.Budget(200, 240, "target 200 s, limit 240 s, 2 shards of 120 s")),
+    (SHARDED, True, suite.Budget(100, 120, None)),
+    ({"target_seconds": 100, "limit_seconds": 120}, False, suite.Budget(100, 120, None)),
+    ({**SHARDED, "shards": 1}, False, suite.Budget(100, 120, None)),
+])
+def test_a_whole_run_is_judged_against_shards_times_the_budget_and_a_shard_against_one(tests, sharded,
+                                                                                      expected) -> None:
+    """As se's gate judges a whole run ([tests] shards in se's README, Test budget)."""
+    assert suite.budget(tests, sharded) == expected
+
+
+def _timed_run(monkeypatch, took: float) -> None:
+    monkeypatch.setattr(suite, "run_part", lambda part, arguments, run_folder: (0, ""))
+    monkeypatch.setattr(suite, "is_installed", lambda package: True)
+    monkeypatch.setattr(suite, "tests_settings", lambda: SHARDED)
+    monkeypatch.delenv("GITHUB_ACTIONS", raising=False)
+    times = iter([0.0, took])
+    return lambda: next(times)
+
+
+def test_a_whole_run_within_shards_times_the_target_says_nothing_of_it(monkeypatch, capsys) -> None:
+    assert suite.main([], clock=_timed_run(monkeypatch, 150.0)) == 0
+    out = capsys.readouterr().out
+    assert "target" not in out and "limit" not in out and "slowest" not in out
+
+
+@pytest.mark.parametrize(("took", "over", "bound"), [(210.0, "target", 200), (250.0, "limit", 240)])
+def test_a_whole_run_past_shards_times_the_budget_names_the_scaled_numbers(monkeypatch, capsys, took, over,
+                                                                          bound) -> None:
+    assert suite.main([], clock=_timed_run(monkeypatch, took)) == 0
+    assert (f"test/suite.py: the parts took {took:.1f} s, over the suite's {bound} s {over} "
+            f"([tests] {over}_seconds times shards in se.toml: target 200 s, limit 240 s, "
+            "2 shards of 120 s)") in capsys.readouterr().out
+
+
+def test_a_shards_run_past_one_shards_target_says_so(monkeypatch, capsys) -> None:
+    assert suite.main(["--shard", "1/2"], clock=_timed_run(monkeypatch, 110.0)) == 0
+    assert ("test/suite.py: the parts took 110.0 s, over the suite's 100 s target "
+            "([tests] target_seconds in se.toml)") in capsys.readouterr().out
 
 
 def _write_report(path, cases) -> None:
@@ -369,8 +419,10 @@ def test_a_suite_past_its_target_or_limit_names_its_slowest_tests(monkeypatch, c
     monkeypatch.setattr(suite, "is_installed", lambda package: True)
     monkeypatch.setenv(suite.REPORTS_VARIABLE, str(tmp_path))
     monkeypatch.setenv("GITHUB_ACTIONS", "true") if on_actions else monkeypatch.delenv("GITHUB_ACTIONS", raising=False)
-    bound = suite.target_seconds() if over == "target" else suite.limit_seconds()
-    took = (suite.target_seconds() + suite.limit_seconds()) / 2 if over == "target" else suite.limit_seconds() + 1.0
+    monkeypatch.setattr(suite, "tests_settings", lambda: UNSHARDED)
+    target, limit = UNSHARDED["target_seconds"], UNSHARDED["limit_seconds"]
+    bound = target if over == "target" else limit
+    took = (target + limit) / 2 if over == "target" else limit + 1.0
     times = iter([0.0, took])
 
     assert suite.main([], clock=lambda: next(times)) == 0
