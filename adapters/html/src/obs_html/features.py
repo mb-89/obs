@@ -25,7 +25,9 @@ A part may also need an option of the adapter's configuration (``Part.option``, 
 A feature script holds the code it runs only with a part inside that part's regions, a line region
 (``// part <key> {`` to ``// } part <key>`` on lines of their own) or an inline one (``/* part
 <key> { */`` to ``/* } part <key> */``); ``feature_source`` strips every region of a part that does
-not ship, so where it does not, the script ships as it would without the part.
+not ship, so where it does not, the script ships as it would without the part. The figure frame's
+script, figures.js, holds a figure kind's calls into its feature's script the same way, in regions
+named by the feature's key, so an artifact without the feature ships figures.js as it was.
 """
 from __future__ import annotations
 
@@ -239,6 +241,8 @@ FEATURES: tuple[Feature, ...] = (
                      option=("figures", "decisionVerdict")),)),
     Feature("sankey", "a figure of a kind drawn by the Sankey script (figures.py, FIGURE_KINDS): a Sankey "
             "figure", _figures_need("sankey"), ("sankey-figure.js",), host=False),
+    Feature("timeline", "a figure of a kind drawn by the timeline script (figures.py, FIGURE_KINDS): a timeline "
+            "figure", _figures_need("timeline"), ("timeline-figure.js",), styles=("timeline.css",), host=False),
     Feature("tables", "a note with a Base table: the reader's table code, the data table, the Bases schema "
             "and the YAML library its definition editor reads", _tables, ("tables.js",),
             elements=("data-table-script", "base-schema", "yaml-script"), host=False,
