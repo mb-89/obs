@@ -600,6 +600,6 @@ def test_ci_times_its_shards_with_se_actions_at_the_release_se_lock_pins() -> No
 
     pinned = tomllib.loads((suite.ROOT / "se.lock").read_text(encoding="utf-8"))["modules"]["se"]["version"]
     workflow = (suite.ROOT / ".github" / "workflows" / "test.yml").read_text(encoding="utf-8")
-    used = dict(re.findall(r"uses: mb-89/SE/\.github/actions/([\w-]+)@(\S+)", workflow))
+    used = dict(re.findall(r"uses: [\w.-]+/SE/\.github/actions/([\w-]+)@(\S+)", workflow))
 
     assert used == {"suite-shard": f"v{pinned}", "suite-time": f"v{pinned}"}

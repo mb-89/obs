@@ -106,17 +106,18 @@ CHECKOUT = Path(__file__).resolve().parents[1]
 
 
 def test_the_archive_records_the_obs_commit_and_lockfiles_that_rebuild_it(tmp_path) -> None:
-    """The record names what rebuilds the artifact: obs's public repository, the commit of the
+    """The record names what rebuilds the artifact: the origin of obs's checkout, the commit of the
     checkout obs runs from and the versions of every lockfile Git tracks there."""
     build = build_document(source_vault(tmp_path) / "manifest.md", capability_reference(),
                            embed_source=True)["sourceArchive"]["build"]
 
     head = subprocess.run(["git", "-C", str(CHECKOUT), "rev-parse", "HEAD"], capture_output=True,
                           text=True, check=True).stdout.strip()
-    project = tomllib.loads((CHECKOUT / "pyproject.toml").read_text(encoding="utf-8"))["project"]
+    origin = subprocess.run(["git", "-C", str(CHECKOUT), "remote", "get-url", "origin"], capture_output=True,
+                            text=True, check=True).stdout
     locked = {item["name"]: item["version"]
               for item in tomllib.loads((CHECKOUT / "uv.lock").read_text(encoding="utf-8"))["package"]}
-    assert build["repository"] == project["urls"]["Repository"]
+    assert build["repository"] == sources.origin_url(origin)
     assert build["commit"] == head
     assert build["lockfiles"]["uv.lock"] == locked
     diagrams = json.loads((CHECKOUT / "src/obs/diagrams/package-lock.json").read_text(encoding="utf-8"))
@@ -352,3 +353,14 @@ def test_each_destination_is_checked_against_its_own_source_s_vault(tmp_path) ->
 
     assert f"--source {second}: --destination" in str(refused.value.code)
     assert (second.parent / "first.json").is_file() and not (second.parent / "second.json").exists()
+
+@pytest.mark.parametrize("remote, expected", [
+    ("git@host.invalid:owner/obs.git", "https://host.invalid/owner/obs.git"),
+    ("ssh://git@host.invalid/owner/obs.git", "https://host.invalid/owner/obs.git"),
+    ("https://user:token@host.invalid/owner/obs.git", "https://host.invalid/owner/obs.git"),
+    ("https://host.invalid/owner/obs\n", "https://host.invalid/owner/obs"),
+])
+def test_the_archive_names_the_origin_as_https_without_credentials(remote, expected) -> None:
+    """A source archive names its checkout's origin, so a copy of obs on another host names that host;
+    never a credential, and an ssh remote in its https form (architecture, Source archive)."""
+    assert sources.origin_url(remote) == expected
