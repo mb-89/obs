@@ -78,7 +78,9 @@ TABLES = build(
     _table_chapter("paged", _register(_view(passing=PASSING, pageSize=20), CHECKS)),
     _table_chapter("phased", _fence(_grouped(passing=PASSING, showEmptyGroups=True), "phased")),
     _table_chapter("empty", _fence(_view("Empty", passing=PASSING), "none")),
-    records=(*CHECKS, *GREEN, *PHASED))
+    records=(*CHECKS, *GREEN, *PHASED),
+    # The reader's Filter narrows the check records: the global Filter of the counts' test.
+    metadata={"obsHtml": {"query": {"scope": "records", "where": [{"field": "kind", "equals": "check"}]}}})
 
 
 @pytest.fixture(scope="module")
@@ -159,6 +161,15 @@ def test_the_counts_follow_a_table_local_filter(open_chapter) -> None:
     assert _state(page) == (2, "2 of 2 items", "263 of 265 verified", "false")
     page.locator(LINE).click()
     assert _state(page) == (265, "265 of 266 items", "263 of 265 verified", "true")
+
+
+def test_the_counts_follow_the_global_filter(open_chapter) -> None:
+    page = open_chapter("register")
+    page.evaluate("obsArtifact.setFilter(obsQuery.compile('NOT code: /^check-00[0-4]$/'))")
+    page.wait_for_function(f"document.querySelector({json.dumps(LINE)}).textContent.startsWith('259')")
+    assert _state(page) == (2, "2 of 2 items", "259 of 261 verified", "false")
+    page.locator(LINE).click()
+    assert _state(page) == (261, "261 of 261 items", "259 of 261 verified", "true")
 
 
 def test_an_all_passing_view_shows_one_positive_sentence_and_no_rows(open_chapter) -> None:
