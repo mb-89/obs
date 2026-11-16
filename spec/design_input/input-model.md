@@ -1214,8 +1214,7 @@ A decision figure is a figure of kind `pugh`. A plain ```` ```pugh ```` fence, a
 it, is one without caption, alt or block id, and its whole text is the matrix in YAML. A `figure`
 fence of `kind: pugh` holds the same matrix under `content`, or in a YAML or JSON `source` file.
 
-The matrix has the shape that ctrl's Pugh engine (`adapters/html/src/obs_html/vendor/pugh.js`)
-reads; the engine owns it. Every option has a
+The matrix has the shape that ctrl's Pugh engine reads; the engine owns it. Every option has a
 letter, A, B, C and on, in the order `candidates` lists them, at most 26 options. obs adds:
 
 - `chosen`, optional: the key of the option the author chose, which the figure checks.
