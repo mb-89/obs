@@ -237,6 +237,10 @@ definitions alike. Keeping the same fact in two places is an anti-pattern (user,
   (se's Test budget, above): the complete suite's wall time on CI, whose shards run side by
   side.
 
+  obs declares the shards `check` waits for as `[tests] shards` in `se.toml`, the number its
+  `suite-time` step names. The target and the limit are then each shard's, and se's gate judges a
+  run of the whole suite, such as a local one, against that many times each.
+
   Each package adds tests, so the suite creeps towards its limit. Its target, `[tests]
   target_seconds` in `se.toml`, stands 20 s under the limit: past it, se's gate warns, and
   `test/suite.py` says so too, locally and as a warning annotation in CI, naming the run's slowest
