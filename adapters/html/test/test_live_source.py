@@ -17,6 +17,7 @@ import yaml
 
 from conftest import CORE_ROOT, ROOT
 from documents import chapter, document as build, node
+from obs_html import cli
 from obs_html.artifact_data import decode_artifact_data, same_artifact_content
 from obs_html.config import load_config
 from obs_html.errors import InputError
@@ -249,9 +250,12 @@ def test_rendering_leaves_the_documents_base_as_the_core_gave_it() -> None:
     assert document == before
 
 
-def test_the_capability_notes_authoring_example_builds_without_warnings(tmp_path, capfd, monkeypatch) -> None:
+def test_the_capability_notes_authoring_example_builds_and_warns_only_of_its_rows_instants(
+        tmp_path, capfd, monkeypatch) -> None:
     """spec/capabilities/live-data.md: its example, as the obsHtml of a Base fence over notes whose
-    path follows from their key, builds with the core and renders with obs-html without a warning."""
+    path follows from their key, builds with the core without a diagnostic and with obs-html
+    without a warning of its own. The one kind of warning left is the provenance check's (architecture.md,
+    Provenance check): a row's changed instant reads as a build timestamp, one finding per row."""
     import sys
     sys.path.insert(0, str(ROOT / "test" / "fixtures"))
     import build_documents
@@ -277,3 +281,9 @@ def test_the_capability_notes_authoring_example_builds_without_warnings(tmp_path
     [table] = tables(render(document, CONFIG))
     assert table["live"] == DECLARATION
     assert capfd.readouterr().err == ""
+    cli.main([str(tmp_path / "live-data.json"), str(tmp_path / "live-data.html")])
+    warnings = [line for line in capfd.readouterr().err.splitlines() if line.startswith("Warning:")]
+    places = sorted(re.findall(r"artifact-data (notes\[\d+\]\.\w+\.\w+): carries provenance \(timestamp\)",
+                               "\n".join(warnings)))
+    assert len(warnings) == len(places) == 2 * len(ISSUES), warnings
+    assert {place.split(".", 1)[1] for place in places} == {"frontmatter.updated", "frontmatterHtml.updated"}

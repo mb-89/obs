@@ -732,6 +732,16 @@ FEATURE_CARDS = {"version": 1, "cards": [
 the first a quantity link in its body."""
 
 
+FEATURE_LIVE_SOURCE = (
+    "obsHtml:\n  liveSource:\n    name: Example Tracker\n    key: [slot]\n    changed: updated\n"
+    "    notePath: 'item-{slot}.md'\n    fields: {slot: slot, rank: rank, updated: updated_at}\n"
+    "    changes:\n    - provider: connector\n      server: Example Tracker\n      tool: list_issues\n"
+    "      rows: issues\n      maxPages: 1\n      requests:\n      - set: {kind: item}\n"
+    "        input: {owner: example-org, repo: widgets, since: '{since}'}\n")
+"""The paged table's live source, for live-source (generic-tables.md, Current data): its one route is
+a connector's, so no browser test that opens the fixture makes a request."""
+
+
 def features(root: Path) -> None:
     """The browser tier's feature fixture (obs quality.md, Testing boundaries): a few chapters in
     which every feature of the registry (features.py, FEATURES, with every part) appears, read in
@@ -743,7 +753,8 @@ def features(root: Path) -> None:
     bless, which needs answers and bless; the overview's two-column block needs columns. Its chapters also hold what those checks read in obs's spec: prose with
     links, marks, an image, a callout and nested headings; a paged table of notes outside the contents,
     whose second view lists a kind no row has, for empty-groups, whose third folds its passing rows,
-    for passing-rows, and whose fourth opens a row with only its rank, for detail-fields;
+    for passing-rows, and whose fourth opens a row with only its rank, for detail-fields, and which
+    declares a live source over its items' slot, for live-source;
     a figure reference across chapters; a register and a property editor; a card group with metrics
     and a quantity link (FEATURE_CARDS). As in obs's spec, the
     chapters the reading script walks are nested three deep, with headings. Each chapter's
@@ -782,10 +793,11 @@ def features(root: Path) -> None:
         "  - type: table\n    name: Checked\n    order: [file.name, rank]\n"
         f"    obsHtml: {{passing: {{filters: 'rank != 1', label: checked}}}}\n"
         "  - type: table\n    name: Brief\n    order: [file.name, description]\n"
-        f"    obsHtml: {{detailFields: [rank]}}\n```\n\n{FEATURE_PROSE}\n", encoding="utf-8")
+        f"    obsHtml: {{detailFields: [rank]}}\n{FEATURE_LIVE_SOURCE}```\n\n{FEATURE_PROSE}\n", encoding="utf-8")
     for index in range(1, FEATURE_ITEMS + 1):
         (root / f"item-{index:02}.md").write_text(
-            f"---\nkind: item\nrank: {index}\ndescription: Item {index} of the paged table, "
+            f"---\nkind: item\nrank: {index}\nslot: '{index:02}'\nupdated: '2026-11-{index:02}T10:00:00Z'\n"
+            f"description: Item {index} of the paged table, "
             "with a description long enough to wrap in a narrow column.\n---\n", encoding="utf-8")
     (root / "logo.png").write_bytes(base64.b64decode(
         "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII="))
