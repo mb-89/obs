@@ -48,6 +48,9 @@ says, and checks its field report, a landing's in the work pull request it names
   [Figure input direction](spec/design_input/input-model.md#figure-input-direction),
   and the html adapter's browser assets built from lockfiles, owned by
   [Packaged browser assets](adapters/html/spec/architecture.md#packaged-browser-assets).
+  The copies of se's workflows and actions that obs calls under `.github/` are generated and
+  committed too: se writes them at its pin, as its README's [Workflows](../se/README.md#workflows)
+  says.
 - One owner owns each fact; other locations link to it.
 - Follow se's [authored-prose preservation rule](../se/.github/skills/work-model/SKILL.md#rules-for-all-roles).
 - Do not add compatibility aliases, shims, or fallbacks unless explicitly requested.
