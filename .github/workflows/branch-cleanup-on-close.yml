@@ -1,0 +1,18 @@
+# When a pull request closes, merged or not, this calls the copy of se's branch-cleanup.yml to delete
+# its head branch; se's README "Workflows" and the copy's header own which branches are kept.
+# Delete this file to switch the cleanup off.
+name: branch-cleanup-on-close
+on:
+  pull_request:
+    types: [closed]
+permissions:
+  contents: write
+  pull-requests: read
+jobs:
+  cleanup:
+    uses: ./.github/workflows/branch-cleanup.yml
+    with:
+      number: ${{ github.event.pull_request.number }}
+      head_ref: ${{ github.event.pull_request.head.ref }}
+      head_sha: ${{ github.event.pull_request.head.sha }}
+      head_repository: ${{ github.event.pull_request.head.repo.full_name }}
