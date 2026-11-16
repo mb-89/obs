@@ -43,6 +43,18 @@
     max-width: 100%;
 }
 
+/* In review mode the one review gutter left of the prose column holds every item's controls, so the
+   columns stand one below the other there, as card groups do (cards.css), and no two share a line. */
+.review-mode .content-columns {
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.review-mode .content-column {
+    flex: 0 0 auto;
+    width: 100%;
+}
+
 /* The one decision to stack: the reader's own width, the chapter scroll's (base.css, an inline-size
    container), never the viewport's. Too narrow for two readable columns, the first stands above the
    second. A printed book stands in no such container, so on paper a block stays side by side. */
