@@ -5,6 +5,7 @@ from __future__ import annotations
 import base64
 import json
 import os
+import re
 import subprocess
 import tomllib
 from collections.abc import Sequence
@@ -72,7 +73,8 @@ def generator(package: Path) -> dict[str, object]:
     """The public repository, commit and lockfile versions of the Git checkout holding ``package``."""
     checkout = Path(_git(package, "rev-parse", "--show-toplevel"))
     commit = _git(checkout, "rev-parse", "HEAD")
-    project = tomllib.loads((checkout / "pyproject.toml").read_text(encoding="utf-8"))["project"]
+    repository = public_repository(_git(checkout, "config", "--get", "remote.origin.url", missing_ok=True),
+                                   checkout)
     lockfiles = {}
     for name in sorted(filter(None, _git(checkout, "ls-files", "-z", "--", *LOCKFILES).split("\0"))):
         text = (checkout / name).read_text(encoding="utf-8")
@@ -83,16 +85,50 @@ def generator(package: Path) -> dict[str, object]:
             lockfiles[name] = {path.removeprefix("node_modules/"): item["version"]
                                for path, item in json.loads(text).get("packages", {}).items()
                                if path and "version" in item}
-    return {"repository": project["urls"]["Repository"], "commit": commit, "lockfiles": lockfiles}
+    return {"repository": repository, "commit": commit, "lockfiles": lockfiles}
 
 
-def _git(folder: Path, *arguments: str) -> str:
+_REMOTE = re.compile(r"(?P<scheme>[a-z][a-z0-9+.-]*)://(?:[^@/]*@)?(?P<host>[^/:]+)(?::(?P<port>\d*))?(?P<path>/.*)?",
+                     re.IGNORECASE)
+_SCP = re.compile(r"(?:[^@/:]+@)?(?P<host>[^/:]{2,}):(?P<path>.*)")
+_HTTP = frozenset({"http", "https"})
+_SSH = frozenset({"ssh", "git+ssh", "ssh+git", "git"})
+
+
+def public_repository(origin: str | None, checkout: object = "obs's checkout") -> str:
+    """The ``https://<host>/<owner>/<repository>`` an ``origin`` remote URL names, https, http or ssh,
+    without its credentials, trailing ``.git`` or ``/``; architecture, Repository from the origin.
+    ``checkout`` names the checkout the origin belongs to in the error."""
+    text = (origin or "").strip()
+    remote, scp = _REMOTE.fullmatch(text), _SCP.fullmatch(text)
+    if remote and remote["scheme"].lower() in _HTTP:
+        port = f":{remote['port']}" if remote["port"] else ""
+        scheme, host, path = remote["scheme"].lower(), remote["host"] + port, remote["path"]
+    elif remote and remote["scheme"].lower() in _SSH:
+        scheme, host, path = "https", remote["host"], remote["path"]
+    elif scp and "://" not in text and "/" not in text.split(":", 1)[0]:
+        scheme, host, path = "https", scp["host"], scp["path"]
+    else:
+        scheme = host = path = None
+    path = (path or "").strip("/").removesuffix(".git").strip("/")
+    if not host or not path:
+        found = f"is {text!r}, which names" if text else "is missing, so it names"
+        raise SourceError(f"obs-document --embed-source: the origin remote of {checkout} {found} no hosted "
+                          f"repository the source archive can record. Add the https or ssh URL obs was cloned "
+                          f"from with git remote add origin <URL> (or git remote set-url origin <URL>); see "
+                          f"{OWNER}.")
+    return f"{scheme}://{host.lower()}/{path}"
+
+
+def _git(folder: Path, *arguments: str, missing_ok: bool = False) -> str | None:
     try:
         result = subprocess.run(["git", "-C", str(folder), *arguments], capture_output=True, text=True,
                                 encoding="utf-8")
     except FileNotFoundError as error:
         raise SourceError(f"obs-document --embed-source: git is not installed, so obs in {folder} cannot name "
                           f"the commit that rebuilds the artifact. Install git; see {OWNER}.") from error
+    if missing_ok and result.returncode == 1 and not result.stderr.strip():
+        return None
     if result.returncode:
         raise SourceError(f"obs-document --embed-source: obs runs from {folder}, which is no Git checkout, so it "
                           f"cannot name the commit that rebuilds the artifact ({result.stderr.strip()}). Run obs "

@@ -727,6 +727,11 @@ are not exempt: a system of record and its items link to their internal record n
   warnings.
 - The references register is a query over notes with a `url`, not a maintained list.
 
+A `url` may instead be a path relative to the note, naming a file of the repository that holds the
+vault, such as obs's own specifications: the same tree may live on more than one Git host, so a
+note never names obs's host. Such a `url` is the note's property as written; the adapter's preview
+shows its external link only for an http(s) `url`.
+
 Link text: the text written in the link wins. An unlabelled link renders by the target's kind:
 a numeric-value note shows its value and unit (and range or tolerance once typed), and any other
 note shows its title. There is no placeholder syntax such as `$value` in link text.
@@ -1215,7 +1220,7 @@ it, is one without caption, alt or block id, and its whole text is the matrix in
 fence of `kind: pugh` holds the same matrix under `content`, or in a YAML or JSON `source` file.
 
 The matrix has the shape of the matrix file of ctrl's Pugh engine: ctrl's
-`design/output/pugh.md` (github.com/mb-89/ctrl), "The matrix file", owns it. Every option has a
+`design/output/pugh.md`, "The matrix file", owns it. Every option has a
 letter, A, B, C and on, in the order `candidates` lists them, at most 26 options. obs adds:
 
 - `chosen`, optional: the key of the option the author chose, which the figure checks.

@@ -238,7 +238,7 @@ The archive holds the vault only: it refers to the generator instead of copying 
 The `sourceArchive.build` record says what rebuilds the artifact, since the adapter builds from
 the Document alone and the core is what knows it:
 
-- the public `repository` (the `Repository` URL of obs's `pyproject.toml`),
+- the public `repository`, derived from the checkout's `origin` ([Repository from the origin](#repository-from-the-origin)),
 - the `commit` of the checkout obs runs from (core and adapter come from this one repository),
 - the package versions of every lockfile Git tracks there (`lockfiles`, by
   repository-relative path: `uv.lock` and each `package-lock.json`),
@@ -255,6 +255,22 @@ are left out.
 An obs that runs from no Git checkout cannot name its commit: `--embed-source` then
 fails naming the folder and the remedy, to run obs from a clone of its repository. The working
 tree's uncommitted changes are not recorded.
+
+#### Repository from the origin
+
+The same tree may live on more than one Git host, so no tracked file names where obs lives: the
+`repository` is the URL of the checkout's `origin` remote (`remote.origin.url`), written as
+`https://<host>/<owner>/<repository>`.
+
+- An https or http origin keeps its host, port and path; an ssh origin, `ssh://` or the scp form
+  `git@host:owner/repository.git`, keeps its host and path and drops its port.
+- The user name and password an origin carries are dropped, as are a trailing `.git` and `/`.
+- A checkout with no `origin`, or whose `origin` is a local folder or `file://` URL, names no
+  public repository: `--embed-source` then fails naming the checkout and the remedy, to add the
+  hosted origin (`git remote add origin <https URL>`).
+
+Deriving the URL from the origin was chosen over a URL in `pyproject.toml`, because a tracked file
+names one host while the origin names the one this checkout came from.
 
 Reading the commit and lockfiles from the checkout
 was chosen over package metadata, because only a checkout holds the lockfiles and the commit

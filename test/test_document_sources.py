@@ -103,20 +103,58 @@ def test_the_one_call_build_hands_the_adapter_the_source_archive_only_with_the_o
 
 
 CHECKOUT = Path(__file__).resolve().parents[1]
+FAKE_ORIGIN = "https://git.example/someone/obs"
 
 
-def test_the_archive_records_the_obs_commit_and_lockfiles_that_rebuild_it(tmp_path) -> None:
-    """The record names what rebuilds the artifact: obs's public repository, the commit of the
-    checkout obs runs from and the versions of every lockfile Git tracks there."""
+@pytest.fixture
+def fake_origin(monkeypatch) -> str:
+    """The checkout's ``remote.origin.url`` as git reads it from its environment, over the clone's own."""
+    monkeypatch.setenv("GIT_CONFIG_COUNT", "1")
+    monkeypatch.setenv("GIT_CONFIG_KEY_0", "remote.origin.url")
+    monkeypatch.setenv("GIT_CONFIG_VALUE_0", FAKE_ORIGIN.replace("https://", "git@").replace("/", ":", 1) + ".git")
+    return FAKE_ORIGIN
+
+
+@pytest.mark.parametrize(("origin", "repository"), [
+    ("https://git.example/someone/obs", "https://git.example/someone/obs"),
+    ("https://git.example/someone/obs.git", "https://git.example/someone/obs"),
+    ("https://git.example/someone/obs/", "https://git.example/someone/obs"),
+    ("http://git.example:8080/someone/obs.git", "http://git.example:8080/someone/obs"),
+    ("https://someone:secret@githost/someone/obs.git", "https://githost/someone/obs"),
+    ("https://token@githost/group/sub/obs", "https://githost/group/sub/obs"),
+    ("git@git.example:someone/obs.git", "https://git.example/someone/obs"),
+    ("git.example:someone/obs", "https://git.example/someone/obs"),
+    ("ssh://git@git.example/someone/obs.git", "https://git.example/someone/obs"),
+    ("ssh://git@git.example:2222/someone/obs.git", "https://git.example/someone/obs"),
+    ("git+ssh://git@git.example/someone/obs", "https://git.example/someone/obs"),
+    ("git://git.example/someone/obs.git", "https://git.example/someone/obs"),
+])
+def test_the_repository_is_the_origin_as_https_without_credentials(origin, repository) -> None:
+    assert sources.public_repository(origin) == repository
+
+
+@pytest.mark.parametrize("origin", [None, "", "  ", "/srv/git/obs.git", "../obs", "file:///srv/git/obs.git",
+                                    "C:/repositories/obs", "https://git.example", "git@git.example:"])
+def test_an_origin_that_names_no_hosted_repository_is_refused(origin) -> None:
+    with pytest.raises(sources.SourceError) as refused:
+        sources.public_repository(origin)
+
+    assert "origin" in str(refused.value) and "git remote" in str(refused.value)
+    assert sources.OWNER in str(refused.value)
+
+
+def test_the_archive_records_the_obs_commit_and_lockfiles_that_rebuild_it(tmp_path, fake_origin) -> None:
+    """The record names what rebuilds the artifact: obs's public repository, from the checkout's
+    origin, the commit of the checkout obs runs from and the versions of every lockfile Git tracks
+    there."""
     build = build_document(source_vault(tmp_path) / "manifest.md", capability_reference(),
                            embed_source=True)["sourceArchive"]["build"]
 
     head = subprocess.run(["git", "-C", str(CHECKOUT), "rev-parse", "HEAD"], capture_output=True,
                           text=True, check=True).stdout.strip()
-    project = tomllib.loads((CHECKOUT / "pyproject.toml").read_text(encoding="utf-8"))["project"]
     locked = {item["name"]: item["version"]
               for item in tomllib.loads((CHECKOUT / "uv.lock").read_text(encoding="utf-8"))["package"]}
-    assert build["repository"] == project["urls"]["Repository"]
+    assert build["repository"] == fake_origin
     assert build["commit"] == head
     assert build["lockfiles"]["uv.lock"] == locked
     diagrams = json.loads((CHECKOUT / "src/obs/diagrams/package-lock.json").read_text(encoding="utf-8"))

@@ -303,7 +303,7 @@
       ]
     },
     "pughMatrix": {
-      "description": "A Pugh decision matrix (capabilities/pugh-decisions; input-model, Pugh decision figures): the shape of ctrl's matrix file (github.com/mb-89/ctrl, design/output/pugh.md, \"The matrix file\"), without its options' figures and its overrides, with the chosen option, each option's short name, sentence, wins and losses, and a checklist. An option's letter is its place in candidates (A for the first). The core also checks what no schema states (src/obs/figure.py): a short name of at most 5 words, unique keys, the criteria, options and letters a field names, values for measured and marks for judged criteria, and no criterion keyed checklist.",
+      "description": "A Pugh decision matrix (capabilities/pugh-decisions; input-model, Pugh decision figures): the shape of ctrl's matrix file (ctrl's design/output/pugh.md, \"The matrix file\"), without its options' figures and its overrides, with the chosen option, each option's short name, sentence, wins and losses, and a checklist. An option's letter is its place in candidates (A for the first). The core also checks what no schema states (src/obs/figure.py): a short name of at most 5 words, unique keys, the criteria, options and letters a field names, values for measured and marks for judged criteria, and no criterion keyed checklist.",
       "type": "object", "additionalProperties": false, "required": ["criteria", "candidates"],
       "properties": {
         "title": {"type": "string", "minLength": 1},
@@ -631,7 +631,7 @@
       }
     },
     "sourceBuild": {
-      "description": "What rebuilds the artifact: obs's public repository, the commit of the checkout obs ran from, the package versions of every lockfile Git tracks there by repository-relative path, the obs-document arguments of the call without the build machine's paths and the declared style (architecture.md, Source archive).",
+      "description": "What rebuilds the artifact: obs's public repository, the https URL of the checkout's origin, the commit of the checkout obs ran from, the package versions of every lockfile Git tracks there by repository-relative path, the obs-document arguments of the call without the build machine's paths and the declared style (architecture.md, Source archive).",
       "type": "object", "additionalProperties": false, "required": ["repository", "commit", "lockfiles", "arguments"],
       "properties": {
         "repository": {"type": "string", "minLength": 1},

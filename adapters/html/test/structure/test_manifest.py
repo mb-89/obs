@@ -64,6 +64,14 @@ def test_every_wikilink_resolves_inside_this_vault() -> None:
     assert broken == []
 
 
+def test_the_obs_specification_note_links_obs_spec_inside_the_repository() -> None:
+    """The reference note names obs's spec by a path relative to the note, never by a host."""
+    note = SPEC / "references" / "obs-specification.md"
+    url = re.search(r"^url: (.+)$", note.read_text(encoding="utf-8"), re.MULTILINE)[1]
+
+    assert (note.parent / url).resolve() == ROOT.parents[1] / "spec" / "manifest.md"
+
+
 def test_trusted_actions_names_this_adapters_extension_example() -> None:
     section = (SPEC / "capabilities" / "trusted-actions.md").read_text(encoding="utf-8").split(
         "## Adapter extensions", 1)[1]

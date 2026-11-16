@@ -7,7 +7,8 @@ INPUT_MODEL = SPEC / "design_input" / "input-model.md"
 # The example of an adapter documenting its own extension lives in that adapter's specification,
 # which this reference note stands for (spec/appendix/references).
 EXAMPLE_NOTE = SPEC / "appendix" / "references" / "obs-html-specification.md"
-EXAMPLE = "https://github.com/mb-89/obs/blob/main/adapters/html/spec/manifest.md"
+# The note links the adapter's specification inside the repository, by a path relative to the note.
+EXAMPLE = "../../../adapters/html/spec/manifest.md"
 OWNER_LINK = "[[input-model#Adapter extensions"
 
 
@@ -33,3 +34,4 @@ def test_the_example_is_a_reference_note_that_holds_its_url() -> None:
     note = EXAMPLE_NOTE.read_text(encoding="utf-8")
     assert f"url: {EXAMPLE}" in note
     assert "attachment replacement" in note
+    assert (EXAMPLE_NOTE.parent / EXAMPLE).resolve() == SPEC.parent / "adapters" / "html" / "spec" / "manifest.md"
