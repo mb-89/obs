@@ -10,7 +10,11 @@ authored_content = [
 identity = "mb <mb>"
 public_check = true
 release = "workflow"
-version = "3.11.0"
+version = "3.11.1"
+
+# How a landing reaches main: se's README "Landing on main" owns the setting.
+[integrate]
+landing = "fast-forward"
 
 [tests]
 # The complete suite, its setup and its time budget; test/suite.py's docstring says what each runs.
