@@ -23,7 +23,7 @@ def test_node_unit_tests_are_present():
     assert {path.name for path in NODE_TESTS} == {
         "attachment-replacement.test.js", "bases-filter-conformance.test.js", "canonical-transaction.test.js",
         "comment-model.test.js", "detail-fields.test.js", "empty-groups.test.js", "equations.test.js", "limited-host.test.js",
-        "passing-rows.test.js", "pugh-engine.test.mjs", "pugh-verdict.test.js", "pugh.test.js", "timeline.test.js",
+        "live-data.test.js", "passing-rows.test.js", "pugh-engine.test.mjs", "pugh-verdict.test.js", "pugh.test.js", "timeline.test.js",
         "zip-rewrite.test.js"}
 
 
