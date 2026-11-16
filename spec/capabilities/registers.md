@@ -46,6 +46,11 @@ reads nothing from the vault. Its attributes are defined by `src/obs/document.sc
   rules of [[capabilities/bases#Comparisons]], the same that decide which notes the Document
   includes.
 
+  An adapter may let a Base declare, in the adapter's namespace, where newer values of its rows
+  are read when its output is opened. The rows the core selected stay canonical, complete and the
+  only saved rows. Values read later are the adapter's table-local, in-memory projection: never
+  saved, and no data owner for anything but that table's display.
+
 The view's `obs.records`, else the base's, names the record type its rows have: `note`,
 `chapter`, `tag`, `glossary`, `documentMetadata` or `documentHistory`, `note` when neither
 names one. `src/obs/document.schema.json` (`$defs/record`) defines each record type and its
