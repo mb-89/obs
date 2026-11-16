@@ -85,6 +85,7 @@ def additional_capability_vault(tmp_path) -> Path:
         "reference: https://example.test/source\n---\n"
         "![Source](source.csv)\n\n![[register.base#Open]]\n\n"
         "```cards\nversion: 1\ncards: [{title: Coverage, body: Current state.}]\n```\n\n"
+        "||| 1:2\nClaim.\n|||\nEvidence.\n|||\n\n"
         "```figure\nversion: 1\nkind: plot\ncontent: "
         '{"schemaVersion": 1, "id": "comparison", "data": {"traces": [{"x": [0], "y": [0]}]}, '
         '"panels": [{"id": "overview", '
@@ -352,8 +353,12 @@ def test_core_emits_data_only_nodes_for_additional_input_capabilities(tmp_path) 
     assert [node["type"] for node in emitted] == [
         "markdown-frontmatter", "profiles", "quantities", "queries", "count-query",
         "references", "chapter-inclusion", "markdown", "attachments", "registers",
-        "cards-metrics", "figures", "property-editors", "figures", "figures", "figures", "figures", "figures",
+        "cards-metrics", "columns", "figures", "property-editors", "figures", "figures", "figures", "figures", "figures",
     ]
+    assert without_ids(emitted[11]) == {"type": "columns", "attrs": {"weights": [1, 2]}, "children": [
+        {"type": "document", "attrs": {}, "children": [paragraph]} for paragraph in (
+            {"type": "paragraph", "attrs": {}, "children": [_text("Claim.")]},
+            {"type": "paragraph", "attrs": {}, "children": [_text("Evidence.")]})]}
     assert emitted[-7]["children"][0]["attrs"]["descriptor"]["id"] == "comparison"
     assert [node["attrs"]["kind"] for node in emitted[-5:]] == ["mermaid", "plantuml", "equations", "pugh", "timeline"]
     assert emitted[-6]["attrs"] == {
@@ -361,7 +366,7 @@ def test_core_emits_data_only_nodes_for_additional_input_capabilities(tmp_path) 
         "spec": {"version": 1, "field": "source", "label": "Source"}, "writes": ["source"],
     }
     assert {
-        "attachments", "cards-metrics", "count-query", "figures",
+        "attachments", "cards-metrics", "columns", "count-query", "figures",
         "markdown-frontmatter", "mermaid", "plantuml", "profiles", "property-editors", "pugh-decisions",
         "quantities", "queries", "references", "registers", "timeline-figures",
     } <= set(document["capabilities"])

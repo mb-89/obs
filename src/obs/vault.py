@@ -45,7 +45,10 @@ from obs.input import (
     validate_quantity,
 )
 from obs.node_ids import block_names
-from obs.note import IGNORED, Note, VaultError, lines, parser, read_note
+from obs.note import (
+    DELIMITER, IGNORED, ColumnsError, Note, VaultError, column_blocks, column_weights, has_delimiters, lines,
+    parser, read_note,
+)
 from obs import svg_links
 from obs.figure_lint import figure_warnings
 from obs.paragraph_lint import paragraph_warnings
@@ -112,6 +115,8 @@ class _Vault:
     """The labels before a typed figure number, which the figure lint warns about."""
     long_paragraphs: tuple[int, int] = DEFAULT_LONG_PARAGRAPHS
     """The long-paragraph lint's warningLines and lineCharacters."""
+    columns: bool = False
+    """Whether the build reads ``|||`` delimiter lines: the capability reference names columns."""
     blocks: dict[Path, set[str]] = field(default_factory=dict)
     """Each parsed note's figure block ids (input-model, Figure captions and references)."""
     block_links: list[tuple[dict[str, object], Path, Path, str]] = field(default_factory=list)
@@ -256,6 +261,7 @@ def build_document(
     vault = _read_vault(manifest_path, metadata, body)
     vault.figure_labels = configuration.figure_labels
     vault.long_paragraphs = configuration.long_paragraphs
+    vault.columns = "columns" in (capability_ids or set())
     _validate_note(manifest_path, vault)
     chapters, abstract = _parse_manifest(manifest, manifest_path, vault_root, vault.identities)
     _add_records(vault, chapters, title)
@@ -440,7 +446,7 @@ def _add_records(vault: _Vault, chapters: list[dict[str, object]], title: str) -
     for path, (metadata, body) in vault.notes.items():
         note, source = vault.identities[path], vault.relative(path)
         name = _shown_title(path, vault)
-        for category, identifier, text in paragraph_marks(body):
+        for category, identifier, text in paragraph_marks(body, vault.columns and has_delimiters(body)):
             add("tag", f"{note}-{category}-{identifier}", {
                 "sourcePath": source, "type": category, "label": identifier, "text": text,
                 "source": name,
@@ -772,9 +778,19 @@ class _Context:
 
 
 def _nodes(source: str, context: _Context) -> list[dict[str, object]]:
-    tokens = parser().parse(source)
-    if context.first_line is None:
+    if context.first_line is None:  # A card body: delimiters are read in a note's own text alone.
+        tokens = parser().parse(source)
         return _blocks(tokens, 0, len(tokens), context)
+    columns = "columns" in context.capability_ids and has_delimiters(source)
+    if columns:
+        try:
+            column_blocks(source)
+        except ColumnsError as error:
+            line = _note_line(context, error.line)
+            raise VaultError(str(input_error(
+                context.source_path, f"columns block {error.number}",
+                f"{error.problem}{'' if line is None else f' (line {line})'}", error.remedy))) from error
+    tokens = parser(columns).parse(source)
     # The note's own text: the lints name its lines.
     note = context.vault.relative(context.source_path)
     for line, message in figure_warnings(tokens, partial(_note_line, context), context.vault.figure_labels):
@@ -873,6 +889,14 @@ def _blocks(
         elif token.type == "hr":
             result.append({"type": "rule", "attrs": {}, "children": []})
             position += 1
+        elif token.type == DELIMITER:  # An opening line; _nodes checked the block (capabilities/columns).
+            separator = next(index for index in range(position + 1, end) if tokens[index].type == DELIMITER)
+            closing = next(index for index in range(separator + 1, end) if tokens[index].type == DELIMITER)
+            result.append({"type": "columns", "attrs": {"weights": list(column_weights(token.info))}, "children": [
+                {"type": "document", "attrs": {}, "children": _blocks(tokens, start + 1, stop, context)}
+                for start, stop in ((position, separator), (separator, closing))]})
+            context.capabilities.add("columns")
+            position = closing + 1
         elif token.type == "math_block":
             result.append({
                 "type": "math", "attrs": {"display": True}, "children": [],

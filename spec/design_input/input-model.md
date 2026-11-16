@@ -1789,6 +1789,8 @@ whose type `document.schema.json` lists as identified (`$defs/identifiedType`): 
 paragraphs, lists and list items, quotes and callouts, tables and table rows, code, display math,
 rules, command fences, figures, cards and the blocks of a card's body, and the other fenced blocks.
 
+A columns block ([[capabilities/columns]]), its two columns and the blocks in them carry one too.
+
 Inline nodes, a table's cells and the capability markers carry none. An id is unique within its
 chapter, or within the abstract. `src/obs/node_ids.py` assigns the ids after the note reader, for
 every adapter alike.
@@ -1822,12 +1824,14 @@ are numbered among themselves, in document order: the first keeps `<type>-<hash>
 get `-2`, `-3`, and so on. A derived id that equals an explicit id of the chapter takes the next
 number too.
 
-A container (a list, a table, a quote, a callout, a cards fence, a card) is anchored, not hashed
-over its children. Its normalized text is its own authored attributes (a list's `ordered`, a
-callout's kind and title, a card's title) and the id of the heading it sits under, none before a
-chapter's first heading.
+A container (a list, a table, a quote, a callout, a cards fence, a card, a columns block, a
+column) is anchored, not hashed over its children. Its normalized text is its own authored
+attributes (a list's `ordered`, a callout's kind and title, a card's title) and the id of the
+heading it sits under, none before a chapter's first heading.
 
 Its children's text is not part of it, nor is a cards fence's source, which holds its cards.
+A columns block's weights are its presentation, not its text: a block and its columns keep their
+ids when the weights change.
 
 A list item is no container here: its first paragraph is its own text. Children keep their own
 ids.

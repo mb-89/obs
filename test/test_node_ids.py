@@ -18,7 +18,7 @@ from test_vault import capability_reference
 
 OWNER = "input-model#Block node ids"
 SCHEMA = Path(__file__).parents[1] / "src" / "obs" / "document.schema.json"
-CONTAINERS = {"list", "list-item", "quote", "callouts", "table", "cards-metrics", "document"}
+CONTAINERS = {"list", "list-item", "quote", "callouts", "table", "cards-metrics", "document", "columns"}
 
 NOTE = """# Design
 
