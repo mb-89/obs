@@ -1077,6 +1077,24 @@ def test_an_unquoted_impossible_date_or_time_names_the_note_its_line_and_the_rem
     assert "quote the value" in message
 
 
+@pytest.mark.parametrize("line", ["summary: done: yes", "note: to\x07day", "when: 2026-13-02"],
+                         ids=["broken-yaml", "control-character", "impossible-date"])
+def test_a_frontmatter_error_names_the_line_an_editor_shows(tmp_path, line) -> None:
+    from obs.document import main
+
+    (tmp_path / "manifest.md").write_text("- [[faulty]]\n", encoding="utf-8")
+    (tmp_path / "faulty.md").write_text(f"---\ntitle: Faulty\nstatus: draft\n{line}\n---\nBody.\n", encoding="utf-8")
+
+    with pytest.raises(SystemExit) as raised:
+        main(["--source", str(tmp_path / "manifest.md"), "--document", str(tmp_path / "out.json")])
+
+    message = str(raised.value.code)
+    assert f"{tmp_path / 'faulty.md'}" in message
+    assert re.search(r"\bline 4\b", message)
+    if "\x07" in line:
+        assert "position" not in message
+
+
 def test_an_unquoted_valid_date_still_loads_as_a_date(tmp_path) -> None:
     import datetime
 
