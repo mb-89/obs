@@ -106,6 +106,9 @@ PDF operations:
   --export-pdf HTML --output file.pdf prints existing HTML with local Chrome/Edge/Chromium
   or Playwright Chromium, and attaches the source ZIP the HTML embeds as obs-html-source.zip.
   If no browser is installed: uv run playwright install chromium
+  Its links to omitted notes name ./NAME.html#place, so keep that HTML beside the PDF; a .pdf
+  DESTINATION names its own name with .html, and a link to another local file its path from
+  the HTML's folder.
   --attach-source-to-pdf PDF --source-artifact HTML --output file.pdf attaches the source ZIP
   that HTML embeds (a Document built with obs-document --embed-source) to a PDF saved from it,
   as obs-html-source.zip. Rendering such a Document to a .pdf DESTINATION attaches it already.
