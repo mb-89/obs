@@ -1190,35 +1190,37 @@ async function verifyComments() {
     // Input-model.md "Comments and the core model": a selection in a row's note detail targets the
     // block of the detail's note it starts in, under that note's chapter, and the row's badge counts it.
     const detailToggle = ".data-table-tree-toggle, [data-table-detail-toggle]";
-    click(row.querySelector(detailToggle));
-    const plainRange = new TextRange();
-    plainRange.selectNodeContents(body.querySelector(
-        'tr[data-detail-owner="glossary:bluf"] [data-node-id="paragraph-5e2c6006"]'));
-    selection = {rangeCount: 1, isCollapsed: false, getRangeAt: () => plainRange, removeAllRanges() {}};
-    document.dispatchEvent(new window.Event("selectionchange"));
-    const plainAdd = document.querySelector("[data-comment-add]");
-    assert.equal(plainAdd.disabled, false);
-    click(plainAdd);
-    const plainTarget = context.obsComments.data.annotations.at(-1).target;
-    assert.equal(plainTarget.chapter, "bluf");
-    assert.equal(plainTarget.node, "paragraph-5e2c6006");
-    assert.equal(plainTarget.field, undefined);
-    row = body.querySelector('tr[data-row-key="glossary:bluf"]');
-    assert.equal(row.dataset.reviewState, "accepted");
-    assert.equal(row.querySelector(".review-action--comment").dataset.count, "1");
-    click(row.querySelector(detailToggle));
-    assert.equal(body.querySelector('tr[data-detail-owner="glossary:bluf"]'), null);
-    row = body.querySelector('tr[data-row-key="glossary:bluf"]');
-    assert.equal(row.dataset.reviewState, "accepted");
-    assert.equal(row.querySelector(".review-action--comment").dataset.count, "1");
-    click(document.querySelector(".comment-target"));
-    await context.obsArtifact.whenChapterReady();
-    assert.equal(document.querySelector("[data-active-chapter]").dataset.chapter, "glossary");
-    assert.ok(body.querySelector('tr[data-detail-owner="glossary:bluf"]'));
-    row = body.querySelector('tr[data-row-key="glossary:bluf"]');
-    click(row.querySelector(detailToggle));
-    assert.equal(body.querySelector('tr[data-detail-owner="glossary:bluf"]'), null);
-    row = body.querySelector('tr[data-row-key="glossary:bluf"]');
+    {
+        click(row.querySelector(detailToggle));
+        const plainRange = new TextRange();
+        plainRange.selectNodeContents(body.querySelector(
+            'tr[data-detail-owner="glossary:bluf"] [data-node-id="paragraph-5e2c6006"]'));
+        selection = {rangeCount: 1, isCollapsed: false, getRangeAt: () => plainRange, removeAllRanges() {}};
+        document.dispatchEvent(new window.Event("selectionchange"));
+        const add = document.querySelector("[data-comment-add]");
+        assert.equal(add.disabled, false);
+        click(add);
+        const plainTarget = context.obsComments.data.annotations.at(-1).target;
+        assert.equal(plainTarget.chapter, "bluf");
+        assert.equal(plainTarget.node, "paragraph-5e2c6006");
+        assert.equal(plainTarget.field, undefined);
+        row = body.querySelector('tr[data-row-key="glossary:bluf"]');
+        assert.equal(row.dataset.reviewState, "accepted");
+        assert.equal(row.querySelector(".review-action--comment").dataset.count, "1");
+        click(row.querySelector(detailToggle));
+        assert.equal(body.querySelector('tr[data-detail-owner="glossary:bluf"]'), null);
+        row = body.querySelector('tr[data-row-key="glossary:bluf"]');
+        assert.equal(row.dataset.reviewState, "accepted");
+        assert.equal(row.querySelector(".review-action--comment").dataset.count, "1");
+        click(document.querySelector(".comment-target"));
+        await context.obsArtifact.whenChapterReady();
+        assert.equal(document.querySelector("[data-active-chapter]").dataset.chapter, "glossary");
+        assert.ok(body.querySelector('tr[data-detail-owner="glossary:bluf"]'));
+        row = body.querySelector('tr[data-row-key="glossary:bluf"]');
+        click(row.querySelector(detailToggle));
+        assert.equal(body.querySelector('tr[data-detail-owner="glossary:bluf"]'), null);
+        row = body.querySelector('tr[data-row-key="glossary:bluf"]');
+    }
     // Input-model.md "Comments and the core model": a selection in a keyed row's detail targets the
     // detail's record field, the reference panel a `details: columns` view opens (input-model.md,
     // obsHtml.details); the BLUF entry's source is such a reference.
