@@ -701,6 +701,11 @@ Values from external systems or heavy analysis are computed offline and stay pla
 There is no hard border: analytic equations with numbers plugged in should run live, and
 work that is too heavy for the browser runs offline.
 
+An adapter may let a Base declare, in the adapter's namespace, where newer values of its rows are
+read when its output is opened. The rows the core selected stay canonical, complete and the only
+saved rows. Values read later are the adapter's table-local, in-memory projection: never saved,
+and no data owner for anything but that table's display.
+
 Quantities carry a unit system. A quantity's `unit` is a physical unit: an SI or common
 engineering unit, with prefixes and as products or quotients, which the core parses with one
 pinned unit library. A quantity may carry a `range`, its domain, which holds its value.
@@ -1561,6 +1566,11 @@ the per-kind register is the `marks` [register](#registers).
   Each row is a canonical note; columns project its frontmatter or canonical semantic fields.
   Row-specific explanation and evidence belong in that note's body and remain accessible
   through the shared table's existing detail expansion.
+
+  An adapter may let a Base declare, in the adapter's namespace, where newer values of its rows
+  are read when its output is opened. The rows the core selected stay canonical, complete and the
+  only saved rows. Values read later are the adapter's table-local, in-memory projection: never
+  saved, and no data owner for anything but that table's display.
 
   Preserve meaningful row order, relationships, units and qualifications during migration,
   including chapter-two and
