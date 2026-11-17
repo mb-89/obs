@@ -64,7 +64,7 @@ def _live_tracker(status: str) -> dict:
     issues = {1: {"state": "open", "labels": ["ready"], "status": status},
               2: {"state": "closed", "labels": [], "status": "Done"}}
     records = tuple({"id": f"widgets-{number}", "type": "note", "path": f"issues/widgets-{number}.md", "fields": {
-        "kind": "issue", "repo": "widgets", "number": number, "updated": f"2026-11-0{number}T10:00:00Z", **item}}
+        "kind": "issue", "repo": "widgets", "number": number, **item}}
         for number, item in issues.items())
     spec = {"filters": 'kind == "issue"', "views": [{"type": "table", "name": "Board", "order": ["file.name", "status"]}],
             "obsHtml": {"liveSource": copy.deepcopy(declaration)}}

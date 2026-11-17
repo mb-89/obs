@@ -733,13 +733,14 @@ the first a quantity link in its body."""
 
 
 FEATURE_LIVE_SOURCE = (
-    "obsHtml:\n  liveSource:\n    name: Example Tracker\n    key: [repo, number]\n    changed: updated\n"
-    "    notePath: 'issues/{repo}-{number}.md'\n    fields: {number: number, updated: updated_at}\n"
+    "obsHtml:\n  liveSource:\n    name: Example Tracker\n    key: [repo, number]\n"
+    "    notePath: 'issues/{repo}-{number}.md'\n    fields: {number: number}\n"
     "    changes:\n    - provider: connector\n      server: Example Tracker\n      tool: list_issues\n"
     "      rows: issues\n      maxPages: 1\n      requests:\n      - set: {repo: widgets}\n"
     "        input: {owner: example-org, repo: widgets, since: '{since}'}\n")
 """The tracker table's live source, for live-source (generic-tables.md, Current data): its one route is
-a connector's, so no browser test that opens the fixture makes a request."""
+a connector's, so no browser test that opens the fixture makes a request, and its notes carry no
+instant, so its build raises no provenance finding."""
 
 
 def features(root: Path) -> None:
@@ -799,7 +800,7 @@ def features(root: Path) -> None:
     (root / "issues").mkdir()
     for number in (1, 2):
         (root / "issues" / f"widgets-{number}.md").write_text(
-            f"---\nkind: issue\nrepo: widgets\nnumber: {number}\nupdated: '2026-11-0{number}T10:00:00Z'\n---\n",
+            f"---\nkind: issue\nrepo: widgets\nnumber: {number}\n---\n",
             encoding="utf-8")
     for index in range(1, FEATURE_ITEMS + 1):
         (root / f"item-{index:02}.md").write_text(

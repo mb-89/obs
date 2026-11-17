@@ -996,7 +996,7 @@
                 {
                   "type": "bases",
                   "attrs": {
-                    "source": "filters: 'kind == \"issue\"'\nviews:\n  - type: table\n    name: Tracker\n    order: [file.name, number]\nobsHtml:\n  liveSource:\n    name: Example Tracker\n    key: [repo, number]\n    changed: updated\n    notePath: 'issues/{repo}-{number}.md'\n    fields: {number: number, updated: updated_at}\n    changes:\n    - provider: connector\n      server: Example Tracker\n      tool: list_issues\n      rows: issues\n      maxPages: 1\n      requests:\n      - set: {repo: widgets}\n        input: {owner: example-org, repo: widgets, since: '{since}'}\n",
+                    "source": "filters: 'kind == \"issue\"'\nviews:\n  - type: table\n    name: Tracker\n    order: [file.name, number]\nobsHtml:\n  liveSource:\n    name: Example Tracker\n    key: [repo, number]\n    notePath: 'issues/{repo}-{number}.md'\n    fields: {number: number}\n    changes:\n    - provider: connector\n      server: Example Tracker\n      tool: list_issues\n      rows: issues\n      maxPages: 1\n      requests:\n      - set: {repo: widgets}\n        input: {owner: example-org, repo: widgets, since: '{since}'}\n",
                     "spec": {
                       "filters": "kind == \"issue\"",
                       "views": [
@@ -1016,11 +1016,9 @@
                             "repo",
                             "number"
                           ],
-                          "changed": "updated",
                           "notePath": "issues/{repo}-{number}.md",
                           "fields": {
-                            "number": "number",
-                            "updated": "updated_at"
+                            "number": "number"
                           },
                           "changes": [
                             {
@@ -1048,7 +1046,7 @@
                     }
                   },
                   "children": [],
-                  "id": "bases-21dace35"
+                  "id": "bases-5746d2aa"
                 },
                 {
                   "type": "paragraph",
@@ -2437,8 +2435,7 @@
             "metadata": {
               "kind": "issue",
               "repo": "widgets",
-              "number": 1,
-              "updated": "2026-11-01T10:00:00Z"
+              "number": 1
             }
           },
           "children": [
@@ -2467,20 +2464,6 @@
                   "attrs": {},
                   "children": [],
                   "text": "widgets"
-                }
-              ]
-            },
-            {
-              "type": "field",
-              "attrs": {
-                "name": "updated"
-              },
-              "children": [
-                {
-                  "type": "text",
-                  "attrs": {},
-                  "children": [],
-                  "text": "2026-11-01T10:00:00Z"
                 }
               ]
             }
@@ -2498,8 +2481,7 @@
       "metadata": {
         "kind": "issue",
         "repo": "widgets",
-        "number": 1,
-        "updated": "2026-11-01T10:00:00Z"
+        "number": 1
       }
     },
     {
@@ -2513,8 +2495,7 @@
             "metadata": {
               "kind": "issue",
               "repo": "widgets",
-              "number": 2,
-              "updated": "2026-11-02T10:00:00Z"
+              "number": 2
             }
           },
           "children": [
@@ -2545,20 +2526,6 @@
                   "text": "widgets"
                 }
               ]
-            },
-            {
-              "type": "field",
-              "attrs": {
-                "name": "updated"
-              },
-              "children": [
-                {
-                  "type": "text",
-                  "attrs": {},
-                  "children": [],
-                  "text": "2026-11-02T10:00:00Z"
-                }
-              ]
             }
           ]
         },
@@ -2574,8 +2541,7 @@
       "metadata": {
         "kind": "issue",
         "repo": "widgets",
-        "number": 2,
-        "updated": "2026-11-02T10:00:00Z"
+        "number": 2
       }
     },
     {
@@ -4550,8 +4516,7 @@
       "fields": {
         "kind": "issue",
         "repo": "widgets",
-        "number": 1,
-        "updated": "2026-11-01T10:00:00Z"
+        "number": 1
       },
       "fieldNodes": [
         {
@@ -4579,20 +4544,6 @@
               "attrs": {},
               "children": [],
               "text": "widgets"
-            }
-          ]
-        },
-        {
-          "type": "field",
-          "attrs": {
-            "name": "updated"
-          },
-          "children": [
-            {
-              "type": "text",
-              "attrs": {},
-              "children": [],
-              "text": "2026-11-01T10:00:00Z"
             }
           ]
         }
@@ -4605,8 +4556,7 @@
       "fields": {
         "kind": "issue",
         "repo": "widgets",
-        "number": 2,
-        "updated": "2026-11-02T10:00:00Z"
+        "number": 2
       },
       "fieldNodes": [
         {
@@ -4634,20 +4584,6 @@
               "attrs": {},
               "children": [],
               "text": "widgets"
-            }
-          ]
-        },
-        {
-          "type": "field",
-          "attrs": {
-            "name": "updated"
-          },
-          "children": [
-            {
-              "type": "text",
-              "attrs": {},
-              "children": [],
-              "text": "2026-11-02T10:00:00Z"
             }
           ]
         }
@@ -6018,11 +5954,11 @@
       },
       {
         "path": "issues/widgets-1.md",
-        "data": "LS0tCmtpbmQ6IGlzc3VlCnJlcG86IHdpZGdldHMKbnVtYmVyOiAxCnVwZGF0ZWQ6ICcyMDI2LTExLTAxVDEwOjAwOjAwWicKLS0tCg=="
+        "data": "LS0tCmtpbmQ6IGlzc3VlCnJlcG86IHdpZGdldHMKbnVtYmVyOiAxCi0tLQo="
       },
       {
         "path": "issues/widgets-2.md",
-        "data": "LS0tCmtpbmQ6IGlzc3VlCnJlcG86IHdpZGdldHMKbnVtYmVyOiAyCnVwZGF0ZWQ6ICcyMDI2LTExLTAyVDEwOjAwOjAwWicKLS0tCg=="
+        "data": "LS0tCmtpbmQ6IGlzc3VlCnJlcG86IHdpZGdldHMKbnVtYmVyOiAyCi0tLQo="
       },
       {
         "path": "item-01.md",
@@ -6154,7 +6090,7 @@
       },
       {
         "path": "tables.md",
-        "data": "IyBUYWJsZXMKCmBgYGJhc2UKZmlsdGVyczogJ2tpbmQgPT0gIml0ZW0iJwpwcm9wZXJ0aWVzOgogIGRlc2NyaXB0aW9uOiB7ZGlzcGxheU5hbWU6IERlc2NyaXB0aW9ufQp2aWV3czoKICAtIHR5cGU6IHRhYmxlCiAgICBuYW1lOiBJdGVtcwogICAgb3JkZXI6IFtmaWxlLm5hbWUsIHJhbmssIGRlc2NyaXB0aW9uXQogICAgc29ydDogW3twcm9wZXJ0eTogcmFuaywgZGlyZWN0aW9uOiBBU0N9XQogIC0gdHlwZTogdGFibGUKICAgIG5hbWU6IEtpbmRzCiAgICBvcmRlcjogW2ZpbGUubmFtZSwgcmFua10KICAgIGdyb3VwQnk6IHtwcm9wZXJ0eToga2luZCwgZGlyZWN0aW9uOiBBU0N9CiAgICBvYnNIdG1sOiB7Z3JvdXBPcmRlcjogW2l0ZW0sIHBhcnRdLCBzaG93RW1wdHlHcm91cHM6IHRydWV9CiAgLSB0eXBlOiB0YWJsZQogICAgbmFtZTogQ2hlY2tlZAogICAgb3JkZXI6IFtmaWxlLm5hbWUsIHJhbmtdCiAgICBvYnNIdG1sOiB7cGFzc2luZzoge2ZpbHRlcnM6ICdyYW5rICE9IDEnLCBsYWJlbDogY2hlY2tlZH19CiAgLSB0eXBlOiB0YWJsZQogICAgbmFtZTogQnJpZWYKICAgIG9yZGVyOiBbZmlsZS5uYW1lLCBkZXNjcmlwdGlvbl0KICAgIG9ic0h0bWw6IHtkZXRhaWxGaWVsZHM6IFtyYW5rXX0KYGBgCgpgYGBiYXNlCmZpbHRlcnM6ICdraW5kID09ICJpc3N1ZSInCnZpZXdzOgogIC0gdHlwZTogdGFibGUKICAgIG5hbWU6IFRyYWNrZXIKICAgIG9yZGVyOiBbZmlsZS5uYW1lLCBudW1iZXJdCm9ic0h0bWw6CiAgbGl2ZVNvdXJjZToKICAgIG5hbWU6IEV4YW1wbGUgVHJhY2tlcgogICAga2V5OiBbcmVwbywgbnVtYmVyXQogICAgY2hhbmdlZDogdXBkYXRlZAogICAgbm90ZVBhdGg6ICdpc3N1ZXMve3JlcG99LXtudW1iZXJ9Lm1kJwogICAgZmllbGRzOiB7bnVtYmVyOiBudW1iZXIsIHVwZGF0ZWQ6IHVwZGF0ZWRfYXR9CiAgICBjaGFuZ2VzOgogICAgLSBwcm92aWRlcjogY29ubmVjdG9yCiAgICAgIHNlcnZlcjogRXhhbXBsZSBUcmFja2VyCiAgICAgIHRvb2w6IGxpc3RfaXNzdWVzCiAgICAgIHJvd3M6IGlzc3VlcwogICAgICBtYXhQYWdlczogMQogICAgICByZXF1ZXN0czoKICAgICAgLSBzZXQ6IHtyZXBvOiB3aWRnZXRzfQogICAgICAgIGlucHV0OiB7b3duZXI6IGV4YW1wbGUtb3JnLCByZXBvOiB3aWRnZXRzLCBzaW5jZTogJ3tzaW5jZX0nfQpgYGAKClBhcmFncmFwaCAxIG9mIHRoZSBjbG9zaW5nIHRleHQsIHdoaWNoIHJlYWRzIG9uIGFmdGVyIHRoZSBjb250ZW50IGFib3ZlIGl0LiBQYXJhZ3JhcGggMSBvZiB0aGUgY2xvc2luZyB0ZXh0LCB3aGljaCByZWFkcyBvbiBhZnRlciB0aGUgY29udGVudCBhYm92ZSBpdC4gUGFyYWdyYXBoIDEgb2YgdGhlIGNsb3NpbmcgdGV4dCwgd2hpY2ggcmVhZHMgb24gYWZ0ZXIgdGhlIGNvbnRlbnQgYWJvdmUgaXQuIAoKUGFyYWdyYXBoIDIgb2YgdGhlIGNsb3NpbmcgdGV4dCwgd2hpY2ggcmVhZHMgb24gYWZ0ZXIgdGhlIGNvbnRlbnQgYWJvdmUgaXQuIFBhcmFncmFwaCAyIG9mIHRoZSBjbG9zaW5nIHRleHQsIHdoaWNoIHJlYWRzIG9uIGFmdGVyIHRoZSBjb250ZW50IGFib3ZlIGl0LiBQYXJhZ3JhcGggMiBvZiB0aGUgY2xvc2luZyB0ZXh0LCB3aGljaCByZWFkcyBvbiBhZnRlciB0aGUgY29udGVudCBhYm92ZSBpdC4gCg=="
+        "data": "IyBUYWJsZXMKCmBgYGJhc2UKZmlsdGVyczogJ2tpbmQgPT0gIml0ZW0iJwpwcm9wZXJ0aWVzOgogIGRlc2NyaXB0aW9uOiB7ZGlzcGxheU5hbWU6IERlc2NyaXB0aW9ufQp2aWV3czoKICAtIHR5cGU6IHRhYmxlCiAgICBuYW1lOiBJdGVtcwogICAgb3JkZXI6IFtmaWxlLm5hbWUsIHJhbmssIGRlc2NyaXB0aW9uXQogICAgc29ydDogW3twcm9wZXJ0eTogcmFuaywgZGlyZWN0aW9uOiBBU0N9XQogIC0gdHlwZTogdGFibGUKICAgIG5hbWU6IEtpbmRzCiAgICBvcmRlcjogW2ZpbGUubmFtZSwgcmFua10KICAgIGdyb3VwQnk6IHtwcm9wZXJ0eToga2luZCwgZGlyZWN0aW9uOiBBU0N9CiAgICBvYnNIdG1sOiB7Z3JvdXBPcmRlcjogW2l0ZW0sIHBhcnRdLCBzaG93RW1wdHlHcm91cHM6IHRydWV9CiAgLSB0eXBlOiB0YWJsZQogICAgbmFtZTogQ2hlY2tlZAogICAgb3JkZXI6IFtmaWxlLm5hbWUsIHJhbmtdCiAgICBvYnNIdG1sOiB7cGFzc2luZzoge2ZpbHRlcnM6ICdyYW5rICE9IDEnLCBsYWJlbDogY2hlY2tlZH19CiAgLSB0eXBlOiB0YWJsZQogICAgbmFtZTogQnJpZWYKICAgIG9yZGVyOiBbZmlsZS5uYW1lLCBkZXNjcmlwdGlvbl0KICAgIG9ic0h0bWw6IHtkZXRhaWxGaWVsZHM6IFtyYW5rXX0KYGBgCgpgYGBiYXNlCmZpbHRlcnM6ICdraW5kID09ICJpc3N1ZSInCnZpZXdzOgogIC0gdHlwZTogdGFibGUKICAgIG5hbWU6IFRyYWNrZXIKICAgIG9yZGVyOiBbZmlsZS5uYW1lLCBudW1iZXJdCm9ic0h0bWw6CiAgbGl2ZVNvdXJjZToKICAgIG5hbWU6IEV4YW1wbGUgVHJhY2tlcgogICAga2V5OiBbcmVwbywgbnVtYmVyXQogICAgbm90ZVBhdGg6ICdpc3N1ZXMve3JlcG99LXtudW1iZXJ9Lm1kJwogICAgZmllbGRzOiB7bnVtYmVyOiBudW1iZXJ9CiAgICBjaGFuZ2VzOgogICAgLSBwcm92aWRlcjogY29ubmVjdG9yCiAgICAgIHNlcnZlcjogRXhhbXBsZSBUcmFja2VyCiAgICAgIHRvb2w6IGxpc3RfaXNzdWVzCiAgICAgIHJvd3M6IGlzc3VlcwogICAgICBtYXhQYWdlczogMQogICAgICByZXF1ZXN0czoKICAgICAgLSBzZXQ6IHtyZXBvOiB3aWRnZXRzfQogICAgICAgIGlucHV0OiB7b3duZXI6IGV4YW1wbGUtb3JnLCByZXBvOiB3aWRnZXRzLCBzaW5jZTogJ3tzaW5jZX0nfQpgYGAKClBhcmFncmFwaCAxIG9mIHRoZSBjbG9zaW5nIHRleHQsIHdoaWNoIHJlYWRzIG9uIGFmdGVyIHRoZSBjb250ZW50IGFib3ZlIGl0LiBQYXJhZ3JhcGggMSBvZiB0aGUgY2xvc2luZyB0ZXh0LCB3aGljaCByZWFkcyBvbiBhZnRlciB0aGUgY29udGVudCBhYm92ZSBpdC4gUGFyYWdyYXBoIDEgb2YgdGhlIGNsb3NpbmcgdGV4dCwgd2hpY2ggcmVhZHMgb24gYWZ0ZXIgdGhlIGNvbnRlbnQgYWJvdmUgaXQuIAoKUGFyYWdyYXBoIDIgb2YgdGhlIGNsb3NpbmcgdGV4dCwgd2hpY2ggcmVhZHMgb24gYWZ0ZXIgdGhlIGNvbnRlbnQgYWJvdmUgaXQuIFBhcmFncmFwaCAyIG9mIHRoZSBjbG9zaW5nIHRleHQsIHdoaWNoIHJlYWRzIG9uIGFmdGVyIHRoZSBjb250ZW50IGFib3ZlIGl0LiBQYXJhZ3JhcGggMiBvZiB0aGUgY2xvc2luZyB0ZXh0LCB3aGljaCByZWFkcyBvbiBhZnRlciB0aGUgY29udGVudCBhYm92ZSBpdC4gCg=="
       }
     ],
     "build": {

@@ -38,8 +38,7 @@ ISSUES = {
 
 
 def _fields(number: int, **changes: object) -> dict:
-    return {"kind": "issue", "repo": "widgets", "number": number, "updated": f"2026-11-0{number}T10:00:00Z",
-            **ISSUES[number], **changes}
+    return {"kind": "issue", "repo": "widgets", "number": number, **ISSUES[number], **changes}
 
 
 def _base(live: bool) -> dict:
