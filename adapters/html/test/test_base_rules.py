@@ -16,6 +16,7 @@ import pytest
 
 from conftest import ROOT
 from documents import chapter, document, node
+from obs_html.base_rules import RULES, first_breach
 from obs_html.config import load_config
 from obs_html.errors import InputError
 from obs_html.render import base_definition_error, render
@@ -59,6 +60,13 @@ def test_a_base_file_names_the_field_without_base_and_a_one_view_table_by_its_in
         assert (error.source, error.field) == ("rules.base", re.sub(r"^views\[0\]", "views[3]", field))
     for accepted in FIXTURE["accepted"]:
         assert base_definition_error(copy.deepcopy(accepted["definition"]), "rules.base") is None, accepted["name"]
+
+
+def test_the_build_breaks_each_refused_case_by_its_rule_and_names_the_rules_the_list_names() -> None:
+    """base_rules.py's rules are the list's, and each refused case breaks the rule it names."""
+    assert RULES == FIXTURE["rules"]
+    assert {case["name"]: first_breach(case["definition"]).rule for case in FIXTURE["refused"]} == \
+        {case["name"]: case["rule"] for case in FIXTURE["refused"]}
 
 
 def _second(document_: dict) -> dict:
