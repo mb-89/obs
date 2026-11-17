@@ -1939,7 +1939,7 @@ separate from artifact presentation.
 
   Besides the entries, the notice center has one passing line, `obsNotices.brief(text)`, for a
   short confirmation such as Send's: plain text directly under the [[#Reading shell|top band]], as
-  wide as the band's content at most and wrapping onto more lines where it needs them, never
+  wide as the band's content and no wider, wrapping onto more lines where it needs them, never
   covering the band's controls or what opens from them.
 
   The line fades after `artifact.reading.briefNoticeMilliseconds` (`cfg.json`) and then leaves the

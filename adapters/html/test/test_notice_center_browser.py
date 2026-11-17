@@ -294,7 +294,7 @@ def test_a_confirmed_send_shows_the_sinks_name_under_the_band_and_the_line_goes(
     keep_screenshot(page, f"sent-line-{viewport['width']}-shown")
     box = page.evaluate(LINE_BOX)
     assert box["top"] >= box["bandBottom"] - 0.5 and box["bottom"] <= box["height"] + 0.5, box
-    assert box["left"] >= box["bandLeft"] - 0.5 and box["right"] <= box["bandRight"] + 0.5, box
+    assert abs(box["left"] - box["bandLeft"]) <= 0.5 and abs(box["right"] - box["bandRight"]) <= 0.5, box
     assert box["left"] >= 0 and box["right"] <= box["width"], box
     shown = page.evaluate(BAND_BOXES)
     assert page.evaluate(FADES) is True
