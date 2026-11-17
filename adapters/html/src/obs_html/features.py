@@ -334,6 +334,13 @@ FEATURES: tuple[Feature, ...] = (
     Feature("source-file", "a note with a Source file row (artifact.sourceFileLinks): the frontmatter table's "
             "last row, the note's vault path, a link where the core passed --vault-link (cli.md, Source file "
             "links); the panel's own rules lay it out", _source_file, ("source-file.js",), host=False),
+    Feature("style-choice", "a page that carries local themes (reading.styles; spec/configuration.md, Local "
+            "themes): the Settings bar's Theme select", _style_choice, ("style-choice.js",),
+            styles=("style-choice.css",), elements=("style-choice-styles",), host=False, parts=(
+                Part("style-relayout", "a page that carries local themes: its sheets are laid out again, their "
+                     "page numbers measured again, when the reader chooses a theme", _style_choice, ()),
+                Part("style-copy", "a page that carries local themes: a saved copy's root holds the start theme, "
+                     "never the reader's choice", _style_choice, ()))),
 )
 
 
