@@ -40,6 +40,7 @@
     return line;
   };
   document.addEventListener("obs-chapter-change", ({detail}) => {
+    if (!detail?.slug) return;  // An event that names no chapter leaves the row as it is.
     const note = notes.get(detail.slug);
     const body = own();
     if (!note?.sourceFilePath) {
