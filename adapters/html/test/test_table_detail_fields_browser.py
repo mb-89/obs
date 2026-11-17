@@ -205,6 +205,13 @@ def test_a_shown_column_and_a_named_field_still_find_the_row_of_a_text_only_view
     assert len(_row_results(_search(open_chapter("text-only"), query), "text-only")) == 1
 
 
+@pytest.mark.parametrize("field", ["text", "content", "body", "detail", "details"])
+def test_the_row_text_fields_read_the_narrowed_text_as_a_bare_word_does(open_chapter, field) -> None:
+    page = open_chapter("text-only")
+    assert _row_results(_search(page, f"{field}:{DATE}"), "text-only") == []
+    assert len(_row_results(_search(page, f"{field}:first"), "text-only")) == 1
+
+
 def test_a_listed_field_finds_the_row_and_its_preview_shows_it(open_chapter) -> None:
     [row] = _row_results(_search(open_chapter("date"), DATE), "date")
     assert DATE in row["preview"]
