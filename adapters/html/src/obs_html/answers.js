@@ -140,7 +140,7 @@
             }
             return await post(address, text);
         } catch (error) {
-            root.console?.warn(error?.message || error);
+            console.warn(error?.message || error);
             showText(text, true, name);
             throw error;
         }
