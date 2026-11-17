@@ -92,3 +92,41 @@ def test_the_layout_check_names_a_misplaced_measurement_script(tmp_path: Path) -
     assert found[0].startswith("adapters/a/test/browser/speed.py:")
     assert "adapters/a/test/measure/" in found[0]
     assert "architecture.md#repository-layout" in found[0]
+
+
+CLOCK_READ = re.compile(r"\b(?:datetime\.(?:now|utcnow|today)|date\.today|"
+                        r"time\.(?:time_ns|time|gmtime|localtime|ctime))\(")
+"""The wall clock reads the HTML adapter allows only in its build-time module (adapters/html
+spec/architecture.md, Build time); the core writes no build time, so it allows none."""
+
+
+def clock_reads(package: Path) -> list[str]:
+    """Each wall clock read outside a comment in a Python file of ``package``, by its file and line."""
+    found = []
+    for module in sorted(package.rglob("*.py")):
+        for number, line in enumerate(module.read_text(encoding="utf-8").splitlines(), start=1):
+            for match in CLOCK_READ.finditer(line.split("#")[0]):
+                found.append(f"{module.relative_to(package).as_posix()}:{number} reads the clock with "
+                             f"{match.group()!r}; the core writes no build time")
+    return found
+
+
+def test_the_core_reads_no_clock_for_what_it_writes() -> None:
+    found = clock_reads(ROOT / "src" / "obs")
+    assert found == [], "test/structure/test_architecture.py (adapters/html/spec/architecture.md, Build time):\n" \
+        + "\n".join(found)
+
+
+def test_the_core_clock_check_names_each_read_with_its_file_and_line(tmp_path: Path) -> None:
+    """The check is not vacuous: each clock call it refuses is named, and a comment and
+    perf_counter are no read."""
+    calls = ["datetime.now(", "datetime.utcnow(", "datetime.today(", "date.today(", "time.time(",
+             "time.time_ns(", "time.gmtime(", "time.localtime(", "time.ctime("]
+    (tmp_path / "document.py").write_text("".join(f"x = {call})\n" for call in calls) +
+                                          "# datetime.now() in a comment\nstart = perf_counter()\n"
+                                          "y = 1  # time.time()\n", encoding="utf-8")
+
+    found = clock_reads(tmp_path)
+
+    assert [line.split(" reads ")[0] for line in found] == [f"document.py:{number}" for number in range(1, 10)], found
+    assert all(repr(call) in line for call, line in zip(calls, found))

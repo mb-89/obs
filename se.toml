@@ -10,7 +10,7 @@ authored_content = [
 identity = "mb <mb>"
 public_check = true
 release = "workflow"
-version = "3.11.6"
+version = "3.12.0"
 
 # How a landing reaches main: se's README "Landing on main" owns the setting.
 [integrate]
