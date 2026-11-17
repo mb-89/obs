@@ -490,6 +490,31 @@ def test_an_import_the_core_refuses_names_the_field_and_the_owner(tmp_path, retu
     assert str(failure.value).split(": ")[1] == field and OWNER in str(failure.value)
 
 
+def test_a_comment_on_a_block_of_a_note_a_base_selects_resolves(tmp_path) -> None:
+    """A selection in a Base row's note detail targets the note's block under the note's chapter
+    (adapters/html/spec/input-model.md, Comments and the core model): every note a Base selects is a
+    chapter (bases.md, Note records), so the core resolves that target as it is."""
+    manifest = tmp_path / "manifest.md"
+    manifest.write_text("- [[glossary]]\n", encoding="utf-8")
+    (tmp_path / "glossary.md").write_text(
+        "# Glossary\n\n```base\nfilters: 'kind == \"term\"'\nviews:\n  - type: table\n    name: Terms\n"
+        "    order: [file.name, summary]\n```\n", encoding="utf-8")
+    (tmp_path / "terms").mkdir()
+    (tmp_path / "terms" / "alpha.md").write_text(
+        "---\nkind: term\nsummary: The first term.\n---\nAlpha detail prose sits in the note body.\n\n"
+        "A second paragraph.\n", encoding="utf-8")
+    [alpha] = [chapter for chapter in _document(manifest)["chapters"] if chapter["id"] == "terms-alpha"]
+    paragraph = next(node for node in alpha["content"] if node["type"] == "paragraph")
+    target = {"chapter": "terms-alpha", "node": paragraph["id"], "quote": "detail prose sits in",
+              "prefix": "Alpha ", "suffix": " the note body.", "start": 6, "end": 26}
+    _overlay(manifest, "alice", [_comment("c-1", target=target)])
+
+    document = _document(manifest)
+
+    assert not [item["message"] for item in document["diagnostics"] if OWNER in item["message"]]
+    assert [comment["target"] for comment in document["comments"]["comments"]] == [target]
+
+
 def test_a_keyed_rows_target_may_name_a_field_and_a_sync_key_may_not(tmp_path) -> None:
     path = tmp_path / "manifest.comments.alice.json"
     detail = _comment("c-1", target={"chapter": "design", "node": "registers-1:alpha", "field": "status"})
