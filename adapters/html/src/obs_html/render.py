@@ -562,14 +562,16 @@ def base_definition_error(definition: object, source: str, views: list[int] | No
     error = schema_error(list(BASE_VALIDATOR.iter_errors(definition)), source,
                          "obs-html's base.schema.json and its input-model.md, Compact declarative table "
                          "presentation", prefix=prefix)
-    if error is None:
+    if error is not None:
+        field, problem, remedy = error.field, error.problem, error.remedy
+    else:
         breach = first_breach(definition)
-        error = None if breach is None else InputError(source, field_path(breach.field, prefix), breach.problem,
-                                                       breach.remedy)
-    if error is None or views is None:
-        return error
-    field = VIEW_FIELD.sub(lambda match: f"{match[1]}[{views[int(match[2])]}]", error.field)
-    return InputError(error.source, field, error.problem, error.remedy)
+        if breach is None:
+            return None
+        field, problem, remedy = field_path(breach.field, prefix), breach.problem, breach.remedy
+    if views is not None:
+        field = VIEW_FIELD.sub(lambda match: f"{match[1]}[{views[int(match[2])]}]", field)
+    return InputError(source, field, problem, remedy)
 
 
 def _unsupported_filter(filters: object) -> str | None:
