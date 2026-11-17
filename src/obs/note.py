@@ -257,13 +257,17 @@ def _split_frontmatter(source: str, path: Path) -> tuple[dict[str, object], str]
     closing = source.find("\n---", 4)
     if closing < 0:
         raise VaultError(f"Frontmatter is not closed: {path}")
+    # From the opening line's newline on, so PyYAML's line marks are the file's lines.
+    frontmatter = source[3:closing]
     try:
-        metadata = yaml.safe_load(source[4:closing])
+        metadata = yaml.safe_load(frontmatter)
+    except yaml.reader.ReaderError as error:
+        raise VaultError(f"Invalid frontmatter in {path}: {_reader_error_text(error, frontmatter)}") from error
     except yaml.YAMLError as error:
         raise VaultError(f"Invalid frontmatter in {path}: {error}") from error
     except ValueError as error:
-        node = _unloadable_scalar(source[4:closing])
-        where = f"line {node.start_mark.line + 2}: {node.value}" if node else "a value"
+        node = _unloadable_scalar(frontmatter)
+        where = f"line {node.start_mark.line + 1}: {node.value}" if node else "a value"
         raise VaultError(
             f"Invalid frontmatter in {path}: {where} is no real date or time ({error}); quote the value, "
             f"or write a real date or time."
@@ -282,6 +286,14 @@ def _split_frontmatter(source: str, path: Path) -> tuple[dict[str, object], str]
     if source[body_start:body_start + 1] == "\n":
         body_start += 1
     return metadata, source[body_start:]
+
+
+def _reader_error_text(error: yaml.reader.ReaderError, frontmatter: str) -> str:
+    """PyYAML's message for a character it refuses, its position given as the line and the 1-based
+    column that PyYAML's line marks count in ``frontmatter``."""
+    line = frontmatter.count("\n", 0, error.position) + 1
+    column = error.position - frontmatter.rfind("\n", 0, error.position)
+    return f"{str(error).removesuffix(f'position {error.position}')}line {line}, column {column}"
 
 
 def _unloadable_scalar(frontmatter: str) -> yaml.ScalarNode | None:
