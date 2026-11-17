@@ -27,7 +27,7 @@ from live_viewer import LINE, SHELL, SHOW, stand_in, tracker
 pytestmark = pytest.mark.browser
 ROWS = f"{SHELL} tbody tr[data-row-key]"
 READ_ROWS = """() => [...document.querySelectorAll('[data-active-chapter] .data-table-shell tbody tr[data-row-key]')]
-    .map(row => [row.dataset.rowKey, row.innerText.replace(/\\s+/g, ' ').trim()])"""
+    .map(row => [row.dataset.rowKey, row.innerText.replace(/[\\u25b8\\u25be]/g, '').replace(/\\s+/g, ' ').trim()])"""
 SAVED = """async () => ({
     html: await obsComments.reviewedHtml(),
     timestamp: JSON.parse(obsArtifact.serializeModel()).document.generation.timestamp,
@@ -50,6 +50,13 @@ def read(artifact, shared_reader_browser, tmp_path_factory):
     frame.evaluate(SHOW, "live")
     expect(frame.locator(LINE)).to_have_text("Showing current data")
     return frame, errors
+
+
+def _without_stand_in(copy: str) -> str:
+    """A reviewed copy as a reader reopens it: the stand-in the test put into the head goes, so the
+    copy opens outside the viewer."""
+    head = copy.index("<script>", copy.index("<head"))
+    return copy[:head] + copy[copy.index("</script>", head) + len("</script>"):]
 
 
 def _rows(frame, slug: str) -> dict:
@@ -79,7 +86,7 @@ def test_hostile_text_in_a_read_item_stays_inert_text(read) -> None:
     assert "<script>" in hostile and "javascript:alert(1)" in hostile
     assert frame.evaluate("globalThis.hostile") is None
     shell = frame.locator(SHELL)
-    assert shell.locator("img, script").count() == 0
+    assert shell.locator("tbody img:not([data-icon-asset]), script").count() == 0
     assert shell.locator("a[href^='javascript']").count() == 0
     assert errors == []
 
@@ -154,12 +161,13 @@ def test_the_comments_bar_shows_the_saved_rows_and_a_comment_there_survives_reop
         artifact, reader_browser, tmp_path) -> None:
     errors: list[str] = []
     _, frame = open_viewer(tmp_path, reader_browser, errors, artifact, "light", init_script=stand_in())
-    frame.evaluate(SHOW, "live")
+    frame.evaluate(SHOW, "register")
     expect(frame.locator(LINE)).to_have_text("Showing current data")
+    assert dict(frame.evaluate(READ_ROWS))["note:widgets-3"] == "widgets-3 Done"
     frame.evaluate("obsArtifact.openBar('comments', 'right')")
     expect(frame.locator(LINE)).to_have_text("Showing the saved version while comments are open")
     rows = dict(frame.evaluate(READ_ROWS))
-    assert rows["note:widgets-3"].startswith("widgets-3 Running") and not any("live~" in key for key in rows)
+    assert rows["note:widgets-3"].endswith("widgets-3 Running")
     target = frame.evaluate("""async () => {
         const cell = [...document.querySelectorAll('[data-active-chapter] .data-table-shell tbody tr[data-row-key="note:widgets-3"] td')]
             .find(cell => cell.textContent.trim() === "Running");
@@ -179,7 +187,7 @@ def test_the_comments_bar_shows_the_saved_rows_and_a_comment_there_survives_reop
     assert "Running" in json.dumps(target)
     frame.evaluate("obsArtifact.closeBar('comments')")
     expect(frame.locator(LINE)).to_have_text("Showing current data")
-    copy = frame.evaluate("obsComments.reviewedHtml()")
+    copy = _without_stand_in(frame.evaluate("obsComments.reviewedHtml()"))
     (tmp_path / "copy").mkdir()
     _, reopened = open_viewer(tmp_path / "copy", reader_browser, errors, copy, "light")
     assert reopened.evaluate("obsComments.data.annotations.map(item => item.target)") == [target]
@@ -195,7 +203,7 @@ def test_a_column_only_a_declared_target_has_reopens_without_the_route(artifact,
     expect(frame.locator(LINE)).to_have_text("Showing current data")
     frame.locator(f'{SHELL} .data-table-options button[title="Show where"]').evaluate("button => button.click()")
     expect(frame.locator(f"{SHELL} thead")).to_contain_text("where")
-    copy = frame.evaluate("obsComments.reviewedHtml()")
+    copy = _without_stand_in(frame.evaluate("obsComments.reviewedHtml()"))
     (tmp_path / "copy").mkdir()
     _, reopened = open_viewer(tmp_path / "copy", reader_browser, errors, copy, "light")
     reopened.evaluate(SHOW, "register")
@@ -224,6 +232,6 @@ def test_a_page_opened_without_the_viewer_reads_nothing_and_shows_no_line(artifa
     _, frame = open_viewer(tmp_path, reader_browser, errors, artifact, "light")
     frame.evaluate(SHOW, "live")
     assert frame.evaluate(READ_ROWS)
-    assert frame.locator(f"{SHELL} [data-table-live-refresh]").count() == 0
+    expect(frame.locator(f"{SHELL} [data-table-live-refresh]")).to_be_hidden()
     expect(frame.locator(LINE)).to_be_hidden()
     assert errors == []

@@ -496,3 +496,18 @@ def test_the_live_source_part_strips_from_every_file_that_holds_its_regions() ->
         assert kept != stripped and "part live-source" in kept, name
         assert stripped in off and stripped not in on and kept in on, name
     assert "obs-table-rows-change" not in off
+
+
+def test_every_row_owner_site_of_the_tables_reads_through_owner_of() -> None:
+    """generic-tables.md, Projection, One owner lookup: with the part shipped, every lookup of a
+    row's canonical note in tables.js is the canonical argument of ownerOf, so a live table's
+    projected note wins wherever its row is read. The two exceptions read the build's own rows on
+    purpose: livePopulation, the check of a declaration, and savedLiveRows, the rows a read is laid over."""
+    source = feature_source("tables.js", TABLES_PARTS)
+    canonical = [re.search(rf"const {name} = \(?\)?.*?\n    \}}\)?\)?;\n", source, re.S).span()
+                 for name in ("livePopulation", "savedLiveRows")]
+    lookups = [match.start() for match in re.finditer(re.escape("recordsBySlug.get(row.noteId)"), source)]
+    outside = [source.count("\n", 0, start) + 1 for start in lookups
+               if not re.search(r"ownerOf\(row, [\w.]+, (?:/\* \} part live-source \*/)?$", source[:start])
+               and not any(begin <= start < end for begin, end in canonical)]
+    assert len(lookups) >= 14 and outside == []

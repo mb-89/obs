@@ -63,9 +63,9 @@ def tracker() -> dict:
     return build(
         "Tracker",
         chapter("live", "Live", heading(1, "Live"), node("bases", source="", spec=_base(True, 'repo == "widgets"'))),
-        chapter("register", "Register", heading(1, "Register"), node(
+        chapter("register", "Register", heading(1, "Register"), {**node(
             "registers", target="issues.base", heading="", base=register, view=None,
-            rows=[[f"widgets-{number}" for number in ISSUES]])),
+            rows=[[f"widgets-{number}" for number in ISSUES]]), "id": "issues-register"}),
         chapter("plain", "Plain", heading(1, "Plain"), node("bases", source="", spec=_base(False, 'repo == "widgets"'))),
         *notes,
         records=tuple({"id": f"widgets-{number}", "type": "note", "path": f"issues/widgets-{number}.md",
