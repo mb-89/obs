@@ -12,7 +12,7 @@ import json
 import re
 from contextlib import contextmanager
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import datetime
 from html import escape, unescape
 from importlib.metadata import version
 from importlib.resources import files
@@ -21,18 +21,21 @@ from typing import Callable, Iterator
 from urllib.parse import unquote
 
 from jsonschema import Draft202012Validator, validators
+from jsonschema.exceptions import ValidationError
 from referencing import Registry, Resource
 from latex2mathml import exceptions as math_exceptions
 from latex2mathml.converter import convert as mathml
 
+from obs_html.base_rules import FILE_PROPERTIES, first_breach, unsupported_property
 from obs_html.bars import BarDefinition, discover_bars
 from obs_html.config import Config, paper
 from obs_html.errors import DOCUMENT_OF, InputError, field_path, schema_error, warn
-from obs_html import libraries
+from obs_html import build_time, libraries
 from obs_html.agent_note import agent_note_markup
 from obs_html.features import feature_source, included as included_features, pugh_engine
 from obs_html.live_source import live_source_error
 from obs_html.figure_links import FigureLink
+from obs_html.page_pattern import matches as page_pattern_matches
 from obs_html.limited_host import limited_host_markup
 from obs_html.figures import FIGURE_KINDS, render_figure
 from obs_html.artifact_data import encode_artifact_data, prepare_artifact_scripts, serialize_artifact_data
@@ -546,20 +549,30 @@ def _data_table(definition: dict[str, object], rows: list[list[str]] | None, con
     return f'<div class="data-table-placeholder" data-base-table="{escape(key, quote=True)}"></div>\n'
 
 
-FILE_PROPERTIES = ("file.name", "file.path", "file.folder", "file.ext")
 BASE_SCHEMA = json.loads(files("obs_html").joinpath("base.schema.json").read_text(encoding="utf-8"))
 COMPARISON = re.compile(BASE_SCHEMA["$defs"]["comparison"]["pattern"])
 BROWSER_KEYWORDS = frozenset({
-    "$ref", "oneOf", "not", "type", "minimum", "maximum", "enum", "const", "minLength", "maxLength", "pattern",
+    "$ref", "oneOf", "not", "if", "then", "else", "type", "minimum", "maximum", "enum", "const", "minLength", "maxLength", "pattern",
     "minItems", "maxItems", "uniqueItems", "items", "minProperties", "maxProperties", "dependentRequired",
     "required", "properties", "additionalProperties"})
 """The JSON Schema keywords base.js's validator implements (validateNode); test_registers.py holds
-the two to each other. The build checks a Base with these alone, so it refuses nothing the browser
-accepts (input-model.md, Compact declarative table presentation)."""
+the two to each other. The build checks a Base with these alone, and then with base_rules.py's copy
+of what base.js refuses beyond the schema, so it refuses nothing the browser accepts (input-model.md,
+Compact declarative table presentation)."""
+
+
+def page_pattern_keyword(validator, patrn: str, instance: object, schema: object) -> Iterator[ValidationError]:
+    """jsonschema's ``pattern`` keyword with the page's reading of the pattern (page_pattern.py) in
+    place of ``re.search``; it yields the error jsonschema's own yields, so errors.py words it alike."""
+    if validator.is_type(instance, "string") and not page_pattern_matches(patrn, instance):
+        yield ValidationError(f"{instance!r} does not match {patrn!r}")
+
+
 BASE_VALIDATOR = validators.create(
     meta_schema=Draft202012Validator.META_SCHEMA, type_checker=Draft202012Validator.TYPE_CHECKER,
-    validators={keyword: check for keyword, check in Draft202012Validator.VALIDATORS.items()
-                if keyword in BROWSER_KEYWORDS},
+    validators={**{keyword: check for keyword, check in Draft202012Validator.VALIDATORS.items()
+                   if keyword in BROWSER_KEYWORDS},
+                "pattern": page_pattern_keyword},  # Without this line the build reads patterns as Python's re does.
 )(BASE_SCHEMA, registry=Registry().with_resource("assets.schema.json", Resource.from_contents(json.loads(
     files("obs_html").joinpath("assets.schema.json").read_text(encoding="utf-8")))))
 """base.schema.json as base.js reads it, with the assets schema its icon names refer to."""
@@ -567,33 +580,38 @@ VIEW_FIELD = re.compile(r"^((?:base\.)?views)\[(\d+)\]")
 
 
 def base_definition_error(definition: object, source: str, views: list[int] | None = None) -> InputError | None:
-    """The input error of the first part of a Base ``definition`` that base.schema.json refuses, as
-    the browser's base.js refuses it, or None. ``source`` names the note of a fence, whose fields sit
-    under ``base.``, or the .base file; ``views`` maps a one-view table's views to their index in
-    that file."""
+    """The input error of the first part of a Base ``definition`` that base.schema.json refuses, or
+    else of the first rule beyond it that base.js refuses (base_rules.py), as the browser's base.js
+    refuses it, or None. ``source`` names the note of a fence, whose fields sit under ``base.``, or
+    the .base file; ``views`` maps a one-view table's views to their index in that file."""
+    prefix = "" if source.endswith(".base") else "base"
     error = schema_error(list(BASE_VALIDATOR.iter_errors(definition)), source,
                          "obs-html's base.schema.json and its input-model.md, Compact declarative table "
-                         "presentation", prefix="" if source.endswith(".base") else "base")
-    if error is None or views is None:
-        return error
-    field = VIEW_FIELD.sub(lambda match: f"{match[1]}[{views[int(match[2])]}]", error.field)
-    return InputError(error.source, field, error.problem, error.remedy)
+                         "presentation", prefix=prefix)
+    if error is not None:
+        field, problem, remedy = error.field, error.problem, error.remedy
+    else:
+        breach = first_breach(definition)
+        if breach is None:
+            return None
+        field, problem, remedy = field_path(breach.field, prefix), breach.problem, breach.remedy
+    if views is not None:
+        field = VIEW_FIELD.sub(lambda match: f"{match[1]}[{views[int(match[2])]}]", field)
+    return InputError(source, field, problem, remedy)
 
 
 def _unsupported_filter(filters: object) -> str | None:
     """The first filter expression base.js cannot evaluate, as authored, or None.
 
     The schema's comparison pattern owns the comparison syntax (generic-tables, Bases filter
-    grammar); base.js evaluates the same subset at runtime.
+    grammar) and its unsupportedProperty pattern the property names; base.js evaluates the same
+    subset at runtime, testing the plain name or ``note["<name>"]`` as its ``comparison`` does.
     """
     if filters is None:
         return None
     if isinstance(filters, str):
         match = COMPARISON.fullmatch(filters)
-        if not match or match[1] == "recordType" or (match[2] or "").startswith("file."):
-            return filters
-        name = (match[1] or "").removeprefix("note.")
-        if name.startswith(("formula.", "this.", "file.")) and (match[1] != name or name not in FILE_PROPERTIES):
+        if not match or match[1] == "recordType" or unsupported_property(match[1] or f'note["{match[2]}"]'):
             return filters
         return None
     if isinstance(filters, dict) and len(filters) == 1:
@@ -876,10 +894,12 @@ def render(document: dict[str, object], config: Config,
            style_folder: Path | None = None,
            trusted_runtime: tuple[str, str] | None = None,
            embed_attachments: bool = False,
-           styles: DeclaredStyles | None = None) -> str:
+           styles: DeclaredStyles | None = None,
+           built: datetime | None = None) -> str:
     """The artifact of ``document``, styled by ``style_folder``, else by the style the Document
     declares (fetched through ``styles``, by default git into the user's cache), else by the packaged
-    generic module (spec/configuration.md, Declared style)."""
+    generic module (spec/configuration.md, Declared style). ``built`` is the build's instant, by
+    default the clock's (spec/architecture.md, Build time)."""
     if document.get("schemaVersion") != 1:
         raise InputError("Document", "schemaVersion", f"is {document.get('schemaVersion')!r}, not 1, the "
                          "version obs-html renders", "Build the Document with an obs core of schema version 1")
@@ -909,7 +929,8 @@ def render(document: dict[str, object], config: Config,
     _index(document["chapters"], context)
     _index_headings(HOME, document["manifest"].get("abstract", []), context)
     context.chapters[HOME] = document["manifest"]["title"]  # The core links the manifest as home.
-    model = _resolve_icons(_model(document, config, context), assets)
+    built = build_time.instant({}) if built is None else built
+    model = _resolve_icons(_model(document, config, context, built), assets)
     archive = source_archive.package(document, embed_attachments)
     if archive is not None:
         model = source_archive.share(model, archive)
@@ -981,7 +1002,7 @@ def _profile(manifest: dict[str, object], chapters: list[dict[str, object]]) -> 
     return resolved
 
 
-def _model(document: dict[str, object], config: Config, context: Context) -> dict[str, object]:
+def _model(document: dict[str, object], config: Config, context: Context, built: datetime) -> dict[str, object]:
     """The artifact-data island: the runtime's only model of the artifact."""
     manifest = document["manifest"]
     profile = _profile(manifest, document["chapters"])
@@ -1011,7 +1032,7 @@ def _model(document: dict[str, object], config: Config, context: Context) -> dic
             "metadataHtml": metadata_html,
             "pages": profile["pages"],
             "generation": {
-                "timestamp": datetime.now(timezone.utc).isoformat(),
+                "timestamp": build_time.iso(built),
                 "generator": {"name": "obs-html", "version": version("obs-html"), "commit": "unknown"},
                 "target": {"name": title, "version": "unknown", "commit": "unknown"},
             },
@@ -1706,7 +1727,7 @@ def _shell(model: dict[str, object], limits: list[dict[str, str]], overlay: str,
   <script id="zip-rewrite-script">{read("zip-rewrite.js")}</script>
   <script id="payload-script">{read("payloads.js")}</script>
   <script id="assets-script">{read("assets.js")}</script>
-  <script id="notices-script">{read("notices.js")}</script>
+  <script id="notices-script">{feature_source("notices.js", shipped_parts)}</script>
   <script id="canonical-transaction-script">
 {read("canonical-transaction.js")}
 {read("attachment-replacement.js")}

@@ -251,9 +251,11 @@ def test_the_structural_styles_keep_base_css_order_then_the_features_then_the_st
     before the style module, so its rules keep the place in the cascade they had in base.css
     (architecture.md, Rendering and runtime)."""
     styles = feature_artifact.split('<style id="artifact-styles">', 1)[1].split("</style>", 1)[0]
-    parts = [SOURCE.joinpath("base.css").read_text(encoding="utf-8"),
-             *(SOURCE.joinpath(name).read_text(encoding="utf-8") for feature in FEATURES
-               for name in feature.base_styles),
+    # Each stylesheet as it ships (features.py, feature_source): the fixture carries every part, and
+    # the packaged settings turn no option's part on.
+    shipped = [part.key for feature in FEATURES for part in feature.parts if part.enabled(CONFIG.artifact)]
+    parts = [feature_source("base.css", shipped),
+             *(feature_source(name, shipped) for feature in FEATURES for name in feature.base_styles),
              SOURCE.joinpath("styles", "generic", "style.css").read_text(encoding="utf-8")]
     assert len(parts) > 2
     assert styles.strip() == "\n".join(parts).strip()
@@ -304,6 +306,56 @@ def test_a_part_an_option_turns_on_ships_only_with_it_and_its_regions_strip_with
     assert regions == kept.count("// } part verdict") + kept.count("/* } part verdict */") > 0
 
 
+BRIEF_NOTICE_FILES = ("notices.js", "bless.js", "bless.css")
+"""The files that hold the passing line's regions (features.py, the bless feature's part brief-notice)."""
+
+
+def _brief_config(tmp_path, reading: dict | None):
+    """The packaged settings, with a --config file that sets ``reading`` where it is given."""
+    if reading is None:
+        return CONFIG
+    path = tmp_path / "cfg.json"
+    path.write_text(json.dumps({"artifact": {"reading": reading}}), encoding="utf-8")
+    return load_config(path)
+
+
+def test_the_brief_notice_part_turns_on_with_a_positive_setting_and_strips_without_it() -> None:
+    """features.py, the bless feature's part brief-notice: artifact.reading.briefNoticeMilliseconds above 0
+    turns it on, left out or 0 it is off; without it the files that hold its regions carry none of them."""
+    bless = next(feature for feature in FEATURES if feature.key == "bless")
+    part = next(part for part in bless.parts if part.key == "brief-notice")
+    assert part.option == ("reading", "briefNoticeMilliseconds")
+    assert "briefNoticeMilliseconds" in part.condition and "passing line" in part.condition
+    assert part.included is bless.included
+    assert [part.enabled(config) for config in (
+        {}, {"reading": {}}, {"reading": {"briefNoticeMilliseconds": 0}},
+        {"reading": {"briefNoticeMilliseconds": 4000}})] == [False, False, False, True]
+    for name in BRIEF_NOTICE_FILES:
+        stripped, kept = feature_source(name), feature_source(name, ["brief-notice"])
+        assert "brief-notice" not in stripped and "obsNoticeBrief" not in stripped, name
+        assert kept == SOURCE.joinpath(name).read_text(encoding="utf-8") != stripped, name
+        assert kept.count("// part brief-notice {") + kept.count("/* part brief-notice { */") == (
+            kept.count("// } part brief-notice") + kept.count("/* } part brief-notice */")) > 0, name
+
+
+@pytest.mark.parametrize(("reading", "bless", "ships"), [
+    (None, True, False), ({"briefNoticeMilliseconds": 0}, True, False),
+    ({"briefNoticeMilliseconds": 4000}, True, True), ({"briefNoticeMilliseconds": 4000}, False, False)],
+    ids=["absent", "zero", "on", "on-without-send"])
+def test_the_passing_line_ships_only_on_a_page_with_send_and_a_positive_setting(
+        tmp_path, reading: dict | None, bless: bool, ships: bool) -> None:
+    """features.py, the brief-notice part, and cfg.schema.json, artifact.reading.briefNoticeMilliseconds:
+    left out of the packaged settings, the page carries none of the line and its data no setting; a
+    setting given, 0 included, is the page's data."""
+    html = render(with_bless() if bless else plain(), _brief_config(tmp_path, reading))
+    assert ("obsNoticeBrief" in html, "brief-notice" in html) == (ships, ships)
+    data = decode_artifact_data(html)["reading"]
+    if reading is None:
+        assert "briefNoticeMilliseconds" not in data
+    else:
+        assert data["briefNoticeMilliseconds"] == reading["briefNoticeMilliseconds"]
+
+
 EMPTY_GROUPS_FILES = ("table.js", "tables.js", "base.js", "tables.css", "base.schema.json")
 TABLES_PARTS = [part.key for feature in FEATURES if feature.key == "tables" for part in feature.parts]
 
@@ -317,8 +369,9 @@ def _grouped_table(**options: object) -> dict:
 
 def test_the_empty_groups_part_ships_only_where_a_view_sets_the_option_and_strips_without_it() -> None:
     """features.py, the tables feature's part empty-groups: it ships where any view of a Base sets
-    obsHtml.showEmptyGroups, and without it the files the renderer embeds carry none of its regions
-    (the JSON line region of the schema included), so such an artifact is what it was."""
+    obsHtml.showEmptyGroups, to any value, so base.js holds a false one to the schema line it
+    embeds, and without it the files the renderer embeds carry none of its regions (the JSON line
+    region of the schema included), so such an artifact is what it was."""
     part = next(part for feature in FEATURES if feature.key == "tables" for part in feature.parts
                 if part.key == "empty-groups")
     assert part.option == ()
@@ -334,7 +387,7 @@ def test_the_empty_groups_part_ships_only_where_a_view_sets_the_option_and_strip
         html = render(source, CONFIG)
         shipped[label] = [name for name in EMPTY_GROUPS_FILES if feature_source(name, ["empty-groups"]) in html]
         assert not any(feature_source(name) in html for name in EMPTY_GROUPS_FILES) or label != "on", label
-    assert shipped == {"off": [], "false": [], "on": list(EMPTY_GROUPS_FILES)}
+    assert shipped == {"off": [], "false": list(EMPTY_GROUPS_FILES), "on": list(EMPTY_GROUPS_FILES)}
 
 
 PASSING_ROWS_FILES = ("table.js", "tables.js", "base.js", "tables.css", "base.schema.json")

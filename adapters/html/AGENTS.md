@@ -19,6 +19,27 @@ docstring is their reference: `uv run pytest test/test_parity_browser.py`.
 differs from the interim adapter it replaced; its gate, `test/parity/test_parity_table.py`, says
 what each status needs.
 
+After `cmp` finds two builds of the same source different, run this to name what changed in a
+field report:
+
+```powershell
+uv run python test/compare_builds.py BEFORE.html AFTER.html
+```
+
+For a change that must leave obs's other pages as they were, run this and quote its output in the
+field report; obs's spec fetches its two remote badge images on each side, so a fetch that fails on
+one side only shows in that page's report:
+
+```powershell
+uv run python test/unchanged_output.py [--base REF] [--head REF] [--keep FOLDER]
+```
+
 ## Browser tests
 
 A browser test takes its page and its artifact from the shared fixtures, runs on the headless shell unless the named full-Chromium set holds it, adds no init script and reads timings only from the artifact's own performance marks; [test/structure/test_quality.py](test/structure/test_quality.py) refuses one that does not.
+
+## Reader features
+
+A new reader feature, part, table view option or figure kind follows
+[Rendering and runtime](spec/architecture.md#rendering-and-runtime) and
+[Interactive engineering figures](spec/artifact-ui.md#interactive-engineering-figures).

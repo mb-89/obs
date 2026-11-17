@@ -29,7 +29,8 @@ The first that applies takes the payload:
 2. **The local server**: where `obs-html serve` served the page. The page posts the payload to its
    own URL, and the server writes `answers.json` beside the artifact.
 3. **The text**: elsewhere, the notice center shows the payload as text with a Copy answers key,
-   saying that sending is not available here.
+   under the title "Answers: sending is not available here", and its words say only "Copy the
+   answers and hand them over.", naming no command or bundle.
 
 The feature ships only where the Document has a chapter that asks for a bless, as the feature
 `bless` does ([[capabilities/bless]]), whose Send hands its payload here; an artifact without one
@@ -45,7 +46,7 @@ be registered and the text always works.
 ```js
 const result = await obsArtifact.sendAnswers({verdicts: [{chapter: "one", version: "<sha256>", verdict: "bless"},
     {chapter: "two", version: "<sha256>", comment: "Only a thought."}]});
-// result: {sink: "host-save", result} | {sink: "server", written: "answers.json"} | {sink: "text"}
+// result: {sink: "host-save", name: "Claude", result} | {sink: "server", written: "answers.json"} | {sink: "text"}
 ```
 
 Decided by the owner, 11 Nov 2026 (work issue `fix/decision-comments-never-lost-20261111`): sent
@@ -61,9 +62,20 @@ A trusted runtime bundle registers a sink once, after `obsArtifact.registerAppli
 obsArtifact.trustedExtension("obsHtml.answers").register({
     id: "host-save",                 // lowercase letters, digits and hyphens
     send: async payload => save(payload), // its result is the result's result
+    name: "Claude",                  // optional: where the answers go, in the reader's words
 });
 ```
 
+- Name: optional plain text of 1 to 40 characters, without control characters or space at either
+  end, that tells the reader where the answers went ("Sent to Claude."). A malformed name is
+  refused as a malformed id is, naming the remedy. `sendAnswers` returns a registered sink's name
+  as `name` where it gave one; the local server has none.
+- Telling the reader: a bundle tells the reader through the notice center, an entry with
+  `obsNotices.post` or the passing line with `obsNotices.brief`
+  ([[artifact-ui#Dock menu|the notice center]]), never with an element of its own in the top band.
+  `obsNotices.brief` exists only on a page with Send whose settings turn the line on
+  (`artifact.reading.briefNoticeMilliseconds` above 0), so a bundle calls it as
+  `obsNotices.brief?.(text)`.
 - Trust: the namespace and its trust rule are those of
   [[capabilities/attachment-replacement#Namespace and trust|attachment replacement]]; without a
   registered bundle `trustedExtension("obsHtml.answers")` throws and names
@@ -73,6 +85,13 @@ obsArtifact.trustedExtension("obsHtml.answers").register({
   <remedy>.`, the sink being `obsArtifact.sendAnswers` for a payload that is no object, the
   server's address, or the registered sink's id. A failing sink also shows the payload as text,
   so no answer is lost, and `sendAnswers` rejects.
+  - The message is the caller's and the console's: `sendAnswers` rejects with it, and where a sink
+    fails it is written once to the browser console with `console.warn` before the rejection.
+  - The reader's entries say in plain words that the answers were not sent, where they were meant
+    to go where the sink gave a name ("They did not reach Claude. Copy the answers and give them
+    to Claude."), and offer them to copy; they name no file, command, module or sink id. A sink
+    without a name, and the local server, read "They could not be sent from this page. Copy the
+    answers and hand them over."
 
 [`answers.js`](../../src/obs_html/answers.js) implements the sinks and the extension;
 `test/test_answers_browser.py` tests them with `obs-html serve` and a test bundle.

@@ -1,9 +1,9 @@
 name: test
 
-# obs's CI. The job `check` is the check main's ruleset requires by that name, the one se's
-# `work_tickets.py integrate` waits for before it squash-merges a landing pull request (se's README
-# "Landing on main"); it passes only when the public check, on a pull request the work model's issue
-# rule and its field report, every suite shard and the first chapter's job pass.
+# obs's CI. The job `check` is the check se's `work_tickets.py integrate` waits for by that name
+# before it lands a landing pull request (se's README "Landing on main"); it passes only when the
+# public check, on a pull request the work model's issue rule and its field report, every suite
+# shard and the first chapter's job pass.
 on:
   push:
   pull_request:

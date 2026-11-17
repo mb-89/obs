@@ -423,7 +423,8 @@ synthetic subject documents. Existing `displayName` labels apply to group captio
 
 Icon slots use `properties.<slot>.obsHtml.icon` with a catalog resource `name`
 and accessible `label`, plus one of `linkProperty` with `unavailable`,
-`action: sourceArchive`, a fixed action ID registered by the explicitly selected
+`action: sourceArchive` (optionally with `unavailable`, shown on its disabled slot when the
+artifact holds no source archive), a fixed action ID registered by the explicitly selected
 trusted runtime (with `unavailable` when its `card` declares a `link`, see
 [Trusted floating-content actions](#trusted-floating-content-actions)), `help`
 (plain text), or `unavailable` alone.
@@ -461,8 +462,21 @@ omitting them preserves the existing table defaults.
 obs-html checks every Base definition, a `base` fence's or an embedded `.base` file's, against
 the packaged `base.schema.json` when it builds the artifact, with the JSON Schema keywords
 `base.js` implements, so the build refuses what that schema refuses in the browser and nothing
-more. A refused option fails the build naming the note or `.base` file and its field path
+more. The build reads each `pattern` as the page's JavaScript reads it, so `$` is the very end of
+the text, `\s` is JavaScript's set of spaces, and characters count as UTF-16 code units;
+`page_pattern.py` reads the subset the schemas use and refuses any other sign; and
+`test/fixtures/pattern-conformance.json` holds the build and the page to the same answers.
+A refused option fails the build naming the note or `.base` file and its field path
 (`base.views[0].obsHtml.groupOrder` in a fence, `views[0].obsHtml.groupOrder` in a `.base` file).
+The build also refuses what `base.js`'s `validate` refuses beyond the schema, and an expanded
+column no view shows, at the same field paths, and still nothing more; `base_rules.py` repeats
+those rules, whose wording stays with their owners ([Table definition](generic-tables.md#table-definition),
+[Hierarchy, grouping, and sorting](generic-tables.md#hierarchy-grouping-and-sorting),
+[Columns and cells](generic-tables.md#columns-and-cells), `leadingLines` below, and obs's input
+model, Base fences). The schema's `$defs.unsupportedProperty` owns the property names obs-html
+cannot read, for `base.js` and the build alike, as `$defs.comparison` owns the filter syntax.
+Checks that need another note's values, such as an expanded column's source note and its keys,
+stay in the browser.
 The browser checks the definition again with the same schema, since a reader can edit a query in
 the open artifact.
 
@@ -515,7 +529,11 @@ nested under it. The omission rules above still apply, so a listed field the not
 not shown. `detailFields: []` shows no field block at all, only the note's text. The list holds
 unique non-blank field names; any other value fails the view's validation at its own field,
 `views[i].obsHtml.detailFields`, as the other view options fail at theirs. It changes ordinary note
-details only: the tabs of `details: columns` keep their reference metadata. Omitted, an opened row
+details only: the tabs of `details: columns` keep their reference metadata. In such a view a bare search word, in Search and in a table's own filter box alike,
+finds a row that opens its note in place by its cells, its group heading, the fields its opened
+row lists and its note's text, not by a field of the note the opened row leaves out and the view
+neither shows as a column nor groups by; a `field: value` term still reads every field, and the
+note's own result, its page, is unchanged. Omitted, an opened row
 shows every field as before; its code ships only in an artifact with a view that sets it
 ([[architecture#Rendering and runtime]]).
 `screenPageBreaks: false` under the view's `obsHtml` keeps the current table page,
@@ -670,7 +688,9 @@ subject and instructions, because the reader opens the source before following t
 A declared `link` is a precondition of the card: a row whose `link` field renders no
 safe link gets no card, and its action slot is disabled (not dispatched) with the
 icon's authored `unavailable` reason, like other unavailable slots. An action icon
-whose card declares `link` therefore requires `unavailable`.
+whose card declares `link` therefore requires `unavailable`. Any other action icon, one without
+a card `link`, takes no `unavailable`, since the page never shows it; `action: sourceArchive` is
+the exception named under the icon forms.
 
 The author decides which rows qualify through the row data and this declaration; the
 generator does not recognise particular rows. Choosing or dropping a file only stages it.

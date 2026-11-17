@@ -280,6 +280,11 @@ globalThis.obsBless = (() => {
         ...(Object.keys(figures).length ? {figures} : {})};
     })};
   }
+  /** Pure: Send's entry, what was sent ("1 verdict and 2 comments") and, where the sink gives its name, where. */
+  const sentRecord = (what, name) => `${what} sent${name ? ` to ${name}` : ""}.`;
+  /** Pure: Send's entry where the sink failed, what was not sent and that it is kept, never the failure's
+      message (answers.js gives that to the console). */
+  const unsentRecord = (what, kept) => `${what} were not sent. ${kept}`;
   /** Say in the notice center what Send did (artifact-ui.md, Comments that are never lost). */
   const tell = (severity, title, detail) => {
     globalThis.obsNotices?.post({id: "bless-send", severity, title, details: [detail]});
@@ -301,13 +306,16 @@ globalThis.obsBless = (() => {
       for (const entry of given) writeSent(entry.chapter, entry);
       for (const entry of answers.verdicts) store(entry.chapter);
       if (answers.verdicts.some(entry => entry.chapter === active)) { comment.value = ""; closeEntry(); }
-      const where = result.sink === "server" ? `obs-html serve, ${result.written}` : `the sink ${result.sink}`;
-      tell("information", "Sent", `Sent ${what} to ${where}.`);
+      // Plain words: where the sink gives its name, it says where; never a file, command or sink id.
+      tell("information", "Sent", sentRecord(what, result.name));
+      // part brief-notice {
+      globalThis.obsNotices?.brief(globalThis.obsNoticeBrief.sent(result.name));
+      // } part brief-notice
       for (const entry of answers.verdicts) document.dispatchEvent(new CustomEvent("obs-bless-change",
         {detail: {chapter: entry.chapter, verdict: null}}));
-    } catch (error) {
-      // answers.js shows the payload as text and names the failure too.
-      tell("error", "Not sent", `${error?.message || error} ${kept}`);
+    } catch {
+      // answers.js shows the payload as text and says in plain words where it did not get to.
+      tell("error", "Not sent", unsentRecord(what, kept));
     } finally {
       update();
     }

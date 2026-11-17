@@ -245,6 +245,9 @@ records; they never execute artifact-owned algorithms in the converter.
   an evidence replacement or a description edit) sets it to the time of that change, and a saved
   artifact keeps that time.
 
+  Where the build's environment sets `SOURCE_DATE_EPOCH`, the build time is the instant it names,
+  and a rebuild keeps the existing output only when it is byte for byte the same.
+
   A change that returns the content to its state when opened or
   when last saved restores that state's timestamp, so reverting an edit is not a change.
 

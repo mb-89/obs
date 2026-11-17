@@ -4,12 +4,19 @@
     let schemaCache;
     const schema = () => schemaCache ??= JSON.parse(document.querySelector("#base-schema").textContent);
     const isObject = (value) => value !== null && typeof value === "object" && !Array.isArray(value);
+    // The schema's unsupportedProperty pattern owns the property names obs-html cannot read, here
+    // and in the build (base_rules.py).
+    let unsupportedPattern;
     const supportedProperty = field => {
-        if (/^note(?:\.file\.|\["file\.)/.test(field) || /^(?:formula|this)\./.test(field) || field.startsWith("file.") &&
-                !["file.name", "file.path", "file.folder", "file.ext"].includes(field)) {
+        unsupportedPattern ??= new RegExp(schema().$defs.unsupportedProperty.pattern);
+        if (unsupportedPattern.test(field)) {
             throw new TypeError(`Unsupported Bases property: ${field}`);
         }
     };
+
+    // A schema pattern's answer for a text; page_pattern.py gives the build the same answers
+    // (test/fixtures/pattern-conformance.json).
+    const patternMatches = (pattern, text) => new RegExp(pattern).test(text);
 
     // This validator implements only the JSON Schema keywords used by the shared Bases schema.
     const validateNode = (value, rule, path = "root", owner = schema()) => {
@@ -24,27 +31,25 @@
                 (node, key) => node[key.replaceAll("~1", "/").replaceAll("~0", "~")], owner);
             return validateNode(value, target, path, owner);
         }
-        if (rule.oneOf) {
-            const matches = rule.oneOf.filter((choice) => {
-                try {
-                    validateNode(value, choice, path, owner);
-                    return true;
-                } catch (error) {
-                    if (!(error instanceof TypeError)) throw error;
-                    return false;
-                }
-            });
-            if (matches.length !== 1) throw new TypeError(`${path}: unsupported definition value.`);
-        }
-        if (rule.not) {
-            let matches = true;
+        const passes = (choice) => {
             try {
-                validateNode(value, rule.not, path, owner);
+                validateNode(value, choice, path, owner);
+                return true;
             } catch (error) {
                 if (!(error instanceof TypeError)) throw error;
-                matches = false;
+                return false;
             }
-            if (matches) throw new TypeError(`${path}: unsupported combination of properties.`);
+        };
+        if (rule.oneOf) {
+            const matches = rule.oneOf.filter(passes);
+            if (matches.length !== 1) throw new TypeError(`${path}: unsupported definition value.`);
+        }
+        if (rule.not && passes(rule.not)) throw new TypeError(`${path}: unsupported combination of properties.`);
+        // JSON Schema 2020-12's conditional: a value that passes if must pass then, any other value
+        // else; a missing branch accepts.
+        if (rule.if) {
+            const branch = passes(rule.if) ? rule.then : rule.else;
+            if (branch) validateNode(value, branch, path, owner);
         }
         if (rule.type) {
             const valid = rule.type === "object" ? isObject(value)
@@ -67,7 +72,7 @@
         if (typeof value === "string" && (
             (rule.minLength && value.length < rule.minLength) ||
             (rule.maxLength !== undefined && value.length > rule.maxLength) ||
-            (rule.pattern && !new RegExp(rule.pattern).test(value))
+            (rule.pattern && !patternMatches(rule.pattern, value))
         )) throw new TypeError(`${path}: unsupported or empty text.`);
         if (Array.isArray(value)) {
             if ((rule.minItems && value.length < rule.minItems) ||
@@ -346,6 +351,6 @@
     };
     globalThis.obsBases = {
         validate, parse, dump, filterExpression, compileFilter, assigned, recordValue, referenceRecords,
-        project, expandMetadata, textMatcher, escapePattern, fold,
+        project, expandMetadata, textMatcher, escapePattern, fold, patternMatches,
     };
 })();

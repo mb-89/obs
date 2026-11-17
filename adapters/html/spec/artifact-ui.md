@@ -57,6 +57,15 @@ desktop paper width. They stack only when the available reader width cannot supp
 readable columns; the default single-column card layout is not imposed over that
 authored composition.
 
+The chapter scroll's width decides the stacking, never the viewport's: at 42rem or narrower, too
+narrow for two readable columns of about 20rem and their gap, the first column stands above the
+second (`columns.css`, one container query). A printed book stands in no such container, so on
+paper a block stays side by side.
+
+In review mode the two columns stand one below the other at every width, as card groups do,
+because the one review gutter left of the prose column holds every item's controls and no two
+items may share a gutter line.
+
 Content-card grids must not make a short metrics card as tall as an adjacent evidence-table
 card; cards follow their content height while retaining responsive columns. Embedded tables
 in cards use the shared table runtime with compact, readable row spacing, not the full-density
@@ -230,6 +239,29 @@ failures have their form in [[input-model#Chapter content]].
   A kind is one entry of the kind
   registry (`FIGURE_KINDS`): its body renderer, its view options and the reader features it
   needs (`features.py`); adding one never changes the frame.
+
+  Who places a figure. The page layout (`pages.js`, `placeNode`) calls `obsFigures.place` for
+  every figure it places, live or as a print copy, and for a decision figure's details and
+  Proposed winner box; a decision figure's `reveal` (`pugh-figure.js`) calls it for a figure not
+  drawn yet.
+
+  `place` draws at once a kind that draws its body in the page, so the layout measures the height
+  the reader will see: a timeline, a decision figure not drawn yet, and a decision figure's details
+  and Proposed winner box. A print copy is drawn as it prints. Every other kind `place` leaves to
+  `initialize` and `preparePrint`.
+
+  A page layout may move or copy a node it already drew, so such a kind checks what it drew before
+  and draws again where needed: `timeline-figure.js` `render` draws a reused node live again, and
+  `print` draws a print copy once.
+
+  Where a kind's calls sit. A kind drawn in the browser is reached from `figures.js` in
+  `initialize` (its live drawing), `place`, `preparePrint` (its print) and `FIGURE_OPTIONS` (its
+  view options), each where the kind needs it, the Sankey also through `projectSankeys`.
+
+  A kind whose script ships only with its own feature puts each of these calls in that feature's
+  `// part <key>` region (`features.py`, module docstring), as the timeline does, so an artifact
+  without the kind ships `figures.js` as it was; the Sankey, decision and equation calls sit
+  outside any region.
 
   A kind that registers view options gets the figure options menu below its expand button;
   a kind without options shows none. The menu is the tables' options menu, one component
@@ -977,6 +1009,9 @@ row order; this section owns how this adapter draws it.
   At 360 px and wider the row holds every control the band shows, fully visible, without
   sideways scrolling. Where the squares at full size do not fit, they all shrink to one size
   that fits; no control is dropped.
+
+  No notice takes a place in the band's row: the notice center's passing line
+  ([[#Dock menu]]) shows under the band, so a control keeps its size and place while it shows.
 - Each table-options icon shows a small, top-right funnel bubble while its interactive
   filter is active, even if it matches every record. Its label/tooltip expose that state.
   The notice center's applied-filter entry is the sole artifact-wide indicator: no
@@ -1106,9 +1141,22 @@ decision in a deck can carry a comment, and a comment the reader typed is never 
   asking chapters, then "✎2", the chapters with a comment, where there is one; its label says
   both ("Send 1 of 2 verdicts and 2 comments"). It is enabled while either count is above none.
 - **Sent means sent:** once the sink confirms ([[capabilities/answers#Contract]]), the sent
-  chapters' drafts are cleared and the notice center says what was sent and where ("Sent 1
-  verdict and 2 comments to obs-html serve, answers.json"). Where the sink fails, or sending is not
-  available on the page, the drafts stay and the notice says so.
+  chapters' drafts are cleared and the notice center's entry says, in plain words, what was sent
+  and, where the sink gives its name, where ("1 verdict and 2 comments sent to Claude.", or "1
+  verdict and 2 comments sent."); it names no file, command or sink id.
+
+  Where the passing line is on, it says the same in short ("Sent to Claude.", or "Sent."). Where
+  the sink fails, or sending is not available on the page, the drafts stay and the notice says so
+  in plain words, naming no file, command or sink id; where the sink fails, its message goes to the
+  browser console; the passing line is for a confirmed send only.
+
+  The plain entries keep [[#Reader-facing text]]'s rule in the reader's terms. The answers entry
+  names the source: the place the answers were meant to go where the sink gave a name ("They did
+  not reach Claude."), this page otherwise ("They could not be sent from this page."), or, where
+  sending is not available, its title, "Answers: sending is not available here". Its remedy is
+  copying the answers. Send's entry beside it says what was not sent, and its remedy is sending
+  again ("1 verdict and 2 comments were not sent. Your verdicts and comments are kept in the deck;
+  send again.").
 
 ## Screens
 
@@ -1536,6 +1584,12 @@ Implementation decisions (4 Nov 2026, worker, reversible):
 - Links to exported chapters and headings become PDF-internal anchors. Other note links point
   to the companion HTML filename and its original fragment. Keep that HTML beside the PDF;
   PDF link handling is ultimately viewer-dependent. Unlisted notes are not appended.
+  In a PDF obs prints, such a link is relative to the PDF, `./NAME.html#fragment`, and names
+  no folder: `--export-pdf` names the HTML it printed, and a `.pdf` DESTINATION its own name
+  with `.html` (`report.pdf` gives `./report.html#fragment`), never its temporary page. A link
+  to another local file names its path from the HTML's folder (`./files/report.pdf`); one with
+  no such path, on another drive, keeps its text and loses its link. Web links stay.
+  `src/obs_html/pdf_links.py` rewrites the browser's `file:` links so after printing.
   Table cells and repeated continuation fragments retain those same real link targets.
 
   The physical PDF must contain clickable link annotations, not only styled labels or
@@ -1928,6 +1982,22 @@ separate from artifact presentation.
   Notices are transient UI, not printed
   content or a dirty warning embedded into a newly reopened saved HTML. The entries, icons
   and layout are owned by obs-html's `notices.js`, not repeated here.
+
+  Besides the entries, the notice center has one passing line, `obsNotices.brief(text)`, for a
+  short confirmation such as Send's: plain text directly under the [[#Reading shell|top band]], as
+  wide as the band's content and no wider, wrapping onto more lines where it needs them, never
+  covering the band's controls or what opens from them.
+
+  The line fades after `artifact.reading.briefNoticeMilliseconds` (`cfg.json`) and then leaves the
+  layout and the accessibility tree; a new line replaces the shown one and restarts its time, and
+  with reduced motion it goes without the fade. It is transient and never printed.
+
+  Where a figure overlay holds the notice icons, the line shows there with them. The setting's
+  default, 0, keeps the line off, and the packaged `cfg.json` leaves the setting out: the line is
+  then no part of the page, `obsNotices.brief` does not exist and the entry alone says what
+  happened. `obsNotices.brief` exists only on a page with Send whose settings turn the line on
+  (`features.py`, the bless feature's part `brief-notice`), so a caller calls it as
+  `obsNotices.brief?.(text)`. The entry stays the record of what the line said.
 
   The changed-HTML information entry is present whenever the artifact holds a
   [[#What counts as a change|change]] since the last confirmed saved snapshot. It says that this HTML has changed, and its

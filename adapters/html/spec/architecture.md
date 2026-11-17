@@ -92,10 +92,16 @@ page, so a script left out leaves no call behind.
 
 Decided by the user, 14 Nov 2026 (work issue `feat/pugh-engine-computes-the-verdict-20261114`): new
 behaviour ships as a standalone module, or behind an option whose default is today's output. A
-feature's part may need an option of the adapter's configuration (`Part.option`), off where the
-configuration leaves it out; the code a feature's own script runs only with such a part sits in
+feature's part may need an option of the adapter's configuration (`Part.option`), on where it is
+`true` or a number above 0 and off where the configuration leaves it out, as the schema's default
+(`false`, or 0) says; the code a feature's own script runs only with such a part sits in
 that part's marked regions, which the renderer strips where the part does not ship
 (`features.py`, `feature_source`). Without the option an artifact is byte for byte what it was.
+Two builds of one source under one `SOURCE_DATE_EPOCH` show it with `cmp`; where they differ,
+`test/compare_builds.py` names the page's lines and the parts of its data, note by note, that
+changed, and builds and changes nothing. `test/unchanged_output.py` builds obs's reference pages
+at a change's base and at its head this way and names, with that comparison, each page that is
+the same and what changed in the others.
 
 A part may instead turn on with what the Document asks for, as `empty-groups` of the tables
 feature does with a view's `obsHtml.showEmptyGroups`. Its regions may also sit in the scripts,
@@ -104,6 +110,15 @@ stylesheets and schema the renderer embeds whole (`base.js`, `table.js`, the str
 a part is one line of its own whose value carries `"$comment": "part <key>"`, removed where the
 part does not ship. Such an option works only in an artifact that ships its part: in any other
 artifact, the Query view refuses a definition that sets it as an unsupported property.
+
+A new table view option, a view's `obsHtml` key, ships as a part of the tables feature
+(`features.py`, the `tables` entry's `parts`), as `empty-groups`, `passing-rows` and
+`detail-fields` do, so an artifact whose views do not set it carries none of its code.
+
+Two parts' regions never nest. `feature_source` keeps or strips the outermost region it finds as
+a whole, so a kept outer region keeps an inner one whose part does not ship, and a stripped outer
+region strips an inner one whose part does. Regions of two parts in one file stand one after the
+other.
 
 The reader's own Base-table code (a note's tables, their saved presentation and their rows in
 search) is the tables feature's script, `tables.js`. The reader's core (`artifact.js`) reaches it
@@ -178,6 +193,49 @@ Command execution is owned by a separate runner boundary. Markdown parsing suppl
 command and receives escaped output; it does not own process invocation, timeout policy,
 or authorization.
 
+## Build time
+
+A build writes its time in two places: the page's `document.generation.timestamp`, in the ISO form
+`2023-11-14T22:13:20+00:00`, and a PDF's `/CreationDate` and `/ModDate`, in the PDF date form
+`D:20231114221320+00'00'`.
+
+One module, `src/obs_html/build_time.py`, answers what time a build is. Given the environment and
+a clock, it returns the instant the standard `SOURCE_DATE_EPOCH` names where it is set, the
+clock's UTC reading otherwise, and gives both forms. It reads no global state.
+
+It is the one file of the package that reads the wall clock for what a build writes:
+`test/structure/test_architecture.py` refuses a clock read in any other. The core writes no
+build time, and its own structure test refuses a clock read in `src/obs`.
+
+A set value is one or more ASCII digits, the whole seconds since the start of 1970 in UTC, at most
+`253402300799`, the last second of the year 9999. The module adds them to the epoch rather than calling
+`datetime.fromtimestamp`, which on Windows refuses years after 3000.
+
+Any other set value, an empty one included, is an input error of source `obs-html` and field
+`SOURCE_DATE_EPOCH` that quotes the value. The call exits 2 and writes nothing, and a PDF call
+fails before a browser starts.
+
+The calls that write a build time read the variable: every call that renders a Document (a
+DESTINATION, `--check`, `--build-own-spec`, and `obs-document --adapter html`, which passes its
+environment to the adapter) and `--export-pdf`.
+
+The calls that write none never read it, so an invalid value does not fail them:
+`--extract-comments`, `--print-chapter`, `--print-verdicts`, `--export-figures`,
+`--attach-source-to-pdf`, `--check-rendered`, `obs-html serve` and `obs-html-inspect`.
+
+The variable is the switch. Unset, every build is as it was: the page records the clock, a
+rebuild whose content equals the existing page keeps that page (`same_artifact_content`), and a
+PDF keeps the dates the browser printed.
+
+Set, the page records the instant, and a rebuild writes the page unless the destination already
+holds the same bytes, so a written page always carries the instant. A PDF's two dates are set to
+it before the source ZIP is attached, so two prints of one page under one value are equal.
+
+A `.pdf` DESTINATION is printed from a temporary page beside it, but its links name no folder and
+not that page ([[artifact-ui#Pages and PDF]]): their local paths are made relative before the dates
+are set. So two prints under one value to one file name are equal in whatever folder they are made,
+for a `.pdf` DESTINATION and `--export-pdf` alike.
+
 ## Opt-in page shell parts
 
 Decided by the user, 14 Nov 2026 (work issue `feat/page-shell-limited-host-and-provenance-check-20261114`),
@@ -232,7 +290,8 @@ each named on the finding it covers, which then neither warns nor refuses:
 
 - `generation-timestamp`: `document.generation.timestamp` of the data island, the build time obs
   records on purpose; `same_artifact_content` keeps an unchanged rebuild because of it. The check
-  reports it and leaves it as it is.
+  reports it and leaves it as it is, and the instant `SOURCE_DATE_EPOCH` names there
+  ([[architecture#Build time]]) is exempt alike.
 - `vendored-library:<element id>`: a line of a script element that embeds a third-party library as
   its release ships it (`plotly-script`, `maths-script`, `pdf-library-script`, `yaml-script`),
   whose own text, such as Plotly's example dates, says nothing of the build.
