@@ -550,6 +550,11 @@ read when the page opens; [[capabilities/live-data]] is its authoring note. The 
 selected stay underneath: values read later are only laid over them in the open page, never saved
 into it. A Base without the option renders exactly as it would without this section.
 
+A row carries no date, by the owner's decision of 17 Nov 2026 (dates are private): the page
+compares a read item's values with its saved row's, and asks the source for what changed since the
+page was made. No digest is stored either: the page holds each row's values, so comparing them is
+the same test with nothing more stored.
+
 ### Declaration
 
 `obsHtml.liveSource` sits on a Base, in a `base` fence and in a `.base` file a register embeds
@@ -558,11 +563,11 @@ every level:
 
 - `name` (required): the source's name as reader sentences say it, such as `Example Tracker`.
 - `key` (required): 1 to 4 property names that identify an item.
-- `changed` (required): the property that holds the instant an item last changed, an ISO 8601
-  date and time with its offset (`Z` or `±hh:mm`).
 - `notePath` (required): the vault-relative path of an item's note, a template over `key`
   properties only, so a path follows from the key. The path is a row's identity.
 - `refreshMinutes` (optional): a whole number of at least 5, default 10.
+- `lookbackHours` (optional): a whole number from 1 to 720, default 1: how long before the page's
+  generation timestamp a read starts. It is a duration, not an instant, so it carries no date.
 - `fields` (required): `{target: path}` or `{target: {path, lowercase: true}}`.
 - `derive` (optional): `{target: [case, ...]}`. A case is `{where?: conditions, value}`,
   `{where?, path}` or `{where?, keep: true}`. The first case that matches wins; a case without
@@ -581,7 +586,7 @@ every level:
   - `maxPages` is 1 to 5. A route's own `fields` replaces the path of a target that `fields`
     already maps, for that route's answers only, and adds no target.
 
-No key for headers, tokens or credentials exists anywhere.
+No key for headers, tokens or credentials exists anywhere, and none names an instant.
 
 The renderer removes `liveSource` from the definition it embeds, and `obsHtml` with it when
 nothing else is left there, so the Query view never shows the option and a reader's edit cannot
@@ -622,8 +627,7 @@ rest of the definition against `base.schema.json`
   adapter namespaces);
 - a target that a property of the same Base declares `editable`, as a `reference`, as a
   `metadataFormats` source or as a `linkProperty`;
-- a `key` property, `changed`, or a field a condition names, that no `fields` or `set` target
-  maps;
+- a `key` property, or a field a condition names, that no `fields` or `set` target maps;
 - a `notePath` naming a property outside `key`, or any template naming a field that is neither a
   key property, a mapped field nor `since`;
 - a path of more than 8 steps;
@@ -646,11 +650,9 @@ which stay stable:
 - `readPath(value, path)`: the value at a path, or `undefined` where it is absent.
 - `fillTemplate(template, values, {url})`: the filled text, or `undefined` where a name has no
   scalar value; with `url: true` each value is URL-encoded.
-- `instant(text)`: the milliseconds of an ISO 8601 date and time with its offset, else `NaN`.
-  Instants are compared as instants, never as text.
 - `notePath(declaration, fields)`: the note path the key fields give, or `undefined`.
-- `mapItem(declaration, route, request, item, shownFor)`: one item as `{path, changed, fields,
-  body}`, or `null`. It takes the request's `set`, then `fields` with the route's own paths and
+- `mapItem(declaration, route, request, item, shownFor)`: one item as `{path, fields, body}`, or
+  `null`. It takes the request's `set`, then `fields` with the route's own paths and
   `lowercase`, then `exclude`, then `derive` and, for a new item (`shownFor(path)` gives no row),
   `fillNew`, `bodyPath` and `accept`. A `keep` case keeps the shown row's value; a new item whose
   `derive` lands on `keep` is `null`, because the page cannot know its value.
@@ -658,17 +660,33 @@ which stay stable:
   with an `https` URL, and no others. A blank line starts a paragraph, a newline is a line break
   and a bare `https` URL becomes a link; Markdown markers stay visible as text.
 - `validateNodes(nodes)`: the nodes when each is of that subset, else a `TypeError`.
-- `since(declaration, request, population)`: for one request, the newest `changed` among the
-  population's rows that carry the request's `set` values, minus one second, as ISO text; or
-  `undefined` without such a row.
-- `merge(declaration, route, request, items, shown)`: the rows the items change, by note path, as
-  `{rows, partial}`. An item applies only when its `changed` instant is strictly newer than the
-  shown row's. Items are deduplicated by path and `changed`. Past a limit (more than 2000 items in
-  a read, or a value over 64 KiB) the item is dropped and the read is `partial`.
+- `since(declaration, generationTimestamp)`: the one `since` of every request of the page: the
+  page's generation timestamp (`document.generation.timestamp`, which every page carries and the
+  provenance check exempts by name) minus `lookbackHours`, in whole seconds, written
+  `YYYY-MM-DDTHH:MM:SSZ` in UTC.
+- `merge(declaration, route, request, items, saved)`: the rows one request's latest result
+  changes, by note path, as `{rows, partial}`, computed from the saved rows and that result alone.
+  An item is compared with its saved row: its `set` and `fields` targets and the saved note's
+  frontmatter values of the same targets, each as canonical JSON (keys sorted, a list in its order,
+  a target that is absent, `null` or an empty list left out). Equal, the saved row is shown as
+  built, its built cells included; different, the item is laid over it. An item with no saved row
+  is a new row, built from the latest result each time, so its `fillNew` and `bodyPath` values
+  follow the source. `derive` targets are not compared: they follow from the mapped ones, which the
+  check proves for every saved row. An item read more than once in one read keeps its last
+  occurrence. Nothing of this is stored, and no hash is computed. Past a limit (more than 2000
+  items in a read, or a value over 64 KiB) the item is dropped and the read is `partial`.
 - `check(declaration, population)`: the failures of the check below, each `{notePath, check,
   field}`.
 
 A row is `{sourcePath, frontmatter}`, the shape conditions read.
+
+Both sources filter on an item's last update: the connector's `list_issues` lists issues updated
+at or after `since`, the REST list those updated after it. An item changed after the build
+therefore always comes back. The default hour covers a read of the source and a build made in one
+run and a difference between the build's clock and the source's; items of that interval that the
+build already had compare equal and change nothing, so the look-back costs more items, never a
+wrong row. Where `SOURCE_DATE_EPOCH` fixes an earlier build time, the read starts earlier and
+returns more items, never fewer.
 
 ### The check
 
@@ -679,7 +697,6 @@ A fence's population is the note rows its Base-level `filters` select. The check
 row:
 
 - every key property is present and nonblank, and the key is unique (`key`);
-- `changed` parses as an instant (`changed`);
 - `notePath` over the key reproduces the row's `sourcePath` (`notePath`);
 - each `derive` target reproduces the row's own value (`derive`); a `keep` case, and a `path`
   case, which reads an item the row does not have, count as reproducing.
