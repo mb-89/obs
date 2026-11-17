@@ -302,7 +302,7 @@ are Obsidian Bases views in `.base` files of the vault ([[#Base files and member
 embedded where they appear: glossary, references, numeric values, mark registers such as
 open points and document metadata.
 
-The spec vault's `registers.base` is the starter.
+[[capabilities/registers]] shows a starter `registers.base`.
 
 ```markdown
 <!-- open-points.md, listed in the manifest TOC like any chapter -->
@@ -319,7 +319,7 @@ Optional authored introduction.
 - The view's own filter is the fallback and must select something sensible in Obsidian: notes
   with the mark tag, notes with `kind: glossary`, notes with a `url`, numeric-value notes.
 - Filters, columns, titles and grouping are authored in the view. No adapter owns default
-  columns or filters for registers; the spec vault's `.base` file is the documented starter.
+  columns or filters for registers; [[capabilities/registers]] shows a starter `registers.base`.
 - Rows that are not notes (marked paragraphs, glossary terms, chapters with a callout,
   document metadata) come from the shared record projections, selected by the view's
   `obs.records`; a base-level `obs.records` is the default for all its views.
@@ -535,8 +535,8 @@ Generation time remains separate from document revision dates.
 
 ### Callouts
 
-Decided by the user, 4 Nov 2026; implementation pending (`spec/backlog/callout-marks.md`):
-callouts are the one system for marked content.
+Decided by the user, 4 Nov 2026: callouts are the one system for marked content. Mark kinds as
+callout types (below) are not built yet.
 
 - Mark kinds (open point, risk, assumption, issue, decision, warning, question, idea) become
   callout types: `> [!open-point] Label`. The callout's content is the marked item; a callout
@@ -568,9 +568,11 @@ callouts, are the callout body. Presentation is the adapter's.
 | `example` | |
 | `quote` | `cite` |
 | `important` | |
+| `bluf` | |
 
 - Without an authored title, the title is the authored type keyword with its first letter
-  capitalized, as in Obsidian (`[!faq]` shows "Faq"). An authored title replaces it.
+  capitalized, as in Obsidian (`[!faq]` shows "Faq"); an untitled `bluf` is titled "Bottom line".
+  An authored title replaces it.
 - `important` is its own type: an emphasis of key takeaways, not Obsidian's alias of `tip`. An authored title is still shown.
 - Fold markers are accepted for Obsidian compatibility; the callout always renders
   expanded, so screen, search and PDF show its whole body. Interactive folding is not
@@ -579,6 +581,52 @@ callouts, are the callout body. Presentation is the adapter's.
   separating space are not callouts; the blockquote renders as an ordinary quotation that
   keeps its literal `[!...]` text visible rather than approximating an unknown type.
 - Callout markers inside code remain literal code.
+
+#### Bottom lines
+
+Decided by the user, 4 and 17 Nov 2026: a chapter's bottom line is its `[!bluf]` callout, and the
+first paragraph of each bottom line goes up one level. Nothing is copied.
+
+- `bluf` is an ordinary callout type, tone accent, with no alias; its node is the `callouts` node
+  with `kind` `bluf`, and it stays in the note's content where the note writes it, with the id the
+  core gives any callout. A fold marker is accepted, and the body shows in full.
+- A chapter's note, and the manifest's abstract, hold at most one bottom line. It is a block of the
+  note's own flow, never inside a list item, a quote, a callout, a table, a columns block or a
+  card. Each case is an input error in the one message form:
+  - two: `<note path>: [!bluf] callouts, lines <m> and <n>: a note has one bottom line. Keep one,
+    and make the other another callout type or a link to it; see input-model#Bottom lines.`;
+  - nested: `<note path>: [!bluf] callout, line <n>: it sits inside a <list item, quote, callout,
+    table, columns block or card>, and a bottom line belongs to the note itself. Move it out; see
+    input-model#Bottom lines.`;
+    in a card's body, where no note line is known, the message names the fence (`cards fence <k>`)
+    instead of the line.
+- The body begins with a paragraph, the lead: the one block that goes up a level. A body that is
+  empty or begins with another block is an input error: `<note path>: [!bluf] callout, line <n>:
+  its body begins with <the block, or nothing>, so no first paragraph can go up a level. Begin the
+  body with one short paragraph; the marker line holds only the title; see input-model#Bottom
+  lines.`
+- The Document names it: a chapter whose note holds a bottom line carries `bottomLine`,
+  `{"callout": <the callout's id>, "lead": <the id of its first paragraph>}`, set once ids are
+  assigned; the manifest carries the same when its abstract holds one. Every other chapter, and a
+  manifest without one, carry no `bottomLine` ([[capabilities/callouts#Document node]]).
+- For a reader the bottom line is read first, under its page's title, wherever the note writes it.
+  Its lead goes up one level: into the parent's bottom line, as a list of the children's leads
+  each linked to its child, or into Home's for a top-level chapter. How it looks is the adapter's.
+- Only the lead goes up; the rest of a bottom line and its own list stay in its chapter, so
+  nothing travels more than one level.
+- A bottom line names a passage that lives elsewhere, such as a product vision statement in
+  another chapter, by a link (`[[vision#^statement]]`) or by a block embed (the same wikilink with
+  `!` before it), never by copying its text. This is authoring guidance; no check enforces it.
+
+The owner's example, a product chapter: one short sentence says what the product is, then the
+vision statement follows by block embed. Only the sentence goes up into the abstract.
+
+```markdown
+> [!bluf]
+> A tool that turns a vault into one reviewable artifact.
+>
+> ![[vision#^statement]]
+```
 
 ### Reusable query ownership
 

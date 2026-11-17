@@ -368,6 +368,11 @@ FEATURES: tuple[Feature, ...] = (
                 Part("shown-copy", "a block or section embed shown in place: the copy's rules in the structural "
                      "styles, and its headings left out of the embedding chapter's collapsible sections and of "
                      "its comment sections (artifact-ui.md, Content sections)", _shown_copies, ()),)),
+    Feature("bottom-lines", "a bottom line that lists its page's children's leads (artifact-ui.md, Bottom lines); it "
+            "has nothing of its own, only its part", _marked("bottom-line-list"), host=False, parts=(
+                Part("bottom-line-list", "a bottom line that lists its page's children's leads: a link's preview "
+                     "leaves the list out, so a parent's preview holds no child's lead (artifact-ui.md, Bottom "
+                     "lines)", _marked("bottom-line-list"), ()),)),
     Feature("columns", "a two-column block (obs capabilities/columns): its side-by-side and stacking rules",
             _marked("data-content-columns"), host=False, base_styles=("columns.css",)),
     Feature("source-file", "a note with a Source file row (artifact.sourceFileLinks): the frontmatter table's "
