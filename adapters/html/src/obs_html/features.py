@@ -320,7 +320,9 @@ FEATURES: tuple[Feature, ...] = (
                      _detail_fields, ()),
                 Part("live-source", "a Base that declares obsHtml.liveSource: its declaration checked against "
                      "the build's rows when the page starts, and the pure layer that maps fetched items onto "
-                     "them (generic-tables.md, Current data)", _live_source, ("live-data.js",)))),
+                     "them (generic-tables.md, Current data)", _live_source, ("live-data.js",)),
+                Part("style-refit", "a table on a page that carries local themes: its columns are measured "
+                     "again when the reader chooses a theme", _style_choice, ()))),
     Feature("options-menu", "a Base table or a figure: their one options menu (options-menu.js)",
             _options_menu, ("options-menu.js",), host=False, base_styles=("options-menu.css",)),
     Feature("figures", "a figure: its frame's styles and script", _figures,
