@@ -58,6 +58,14 @@ jobs:
         env:
           SE: ${{ runner.temp }}/se
         run: python3 "$SE/scripts/se_workflows.py" --source "$SE" check
+      # obs's RUNME.sh and RUNME.ps1 are se's generic pair, byte for byte (adapters/html/spec/cli.md
+      # "Setup"); $SE is at the newest tag the range admits, so the pair is compared at se.lock's commit.
+      - name: obs's RUNME pair is se's
+        env:
+          SE: ${{ runner.temp }}/se
+        run: |
+          locked=$(python3 -c 'import tomllib; print(tomllib.load(open("se.lock","rb"))["modules"]["se"]["ref"])')
+          git -C "$SE" show "$locked:RUNME.sh" | cmp - RUNME.sh && git -C "$SE" show "$locked:RUNME.ps1" | cmp - RUNME.ps1
       - name: Gate the commits
         env:
           SE: ${{ runner.temp }}/se
