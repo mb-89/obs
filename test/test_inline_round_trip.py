@@ -12,7 +12,7 @@ NOTE = (
     "# A *heading* with `code`\n\n"
     "Plain *em* _em_ **strong** __strong__ ***both*** ~~gone~~ `code` $x^2$ $$y$$ "
     "[a *marked* link](https://example.test) ![Alt](figure.svg) [[target|Target]] "
-    "[[target#Part]] ![[target]] #mark/risk/watch soft\nbreak hard  \nbreak escaped\\\nbreak.\n\n"
+    "[[target#Part]] ![[target]] and ![[target#Part]] #mark/risk/watch soft\nbreak hard  \nbreak escaped\\\nbreak.\n\n"
     "- An *item* with **marks**\n  1. A ~~nested~~ `item`\n\n---\n\n"
     "> A *quoted* $q$\n\n"
     "| *Head* | **Bold** |\n|:---|---:|\n| ~~cell~~ | `x` [[target]] |\n"
@@ -51,8 +51,9 @@ def _node_text(node: dict[str, object], titles: dict[str, str]) -> str:
         unaliased = f"{titles[attrs['chapter']]} > {attrs['heading']}" if heading else attrs["target"]
         label = f"|{attrs['label']}" if attrs["label"] != unaliased else ""
         return f"[[{attrs['target']}{heading}{label}]]"
-    if node["type"] == "embeds":
-        return f"![[{attrs['target']}]]"
+    if node["type"] == "embeds":  # A block or section embed keeps its fragment (capabilities/embeds).
+        heading = f"#{attrs['heading']}" if "heading" in attrs else ""
+        return f"![[{attrs['target']}{heading}]]"
     if node["type"] == "marks":
         return f"#mark/{attrs['category']}/{attrs['id']}"
     if node["type"] == "attachments":

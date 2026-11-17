@@ -44,7 +44,8 @@ from obs.input import (
     validate_project_config,
     validate_quantity,
 )
-from obs.node_ids import block_names
+from obs import embeds
+from obs.node_ids import block_names, named_blocks
 from obs.note import (
     DELIMITER, IGNORED, ColumnsError, Note, VaultError, column_blocks, column_weights, has_delimiters, lines,
     parser, read_note,
@@ -121,6 +122,9 @@ class _Vault:
     """Each parsed note's figure block ids (input-model, Figure captions and references)."""
     block_links: list[tuple[dict[str, object], Path, Path, str]] = field(default_factory=list)
     """Each wikilink with a block heading: its attrs, its note, the note it targets and its syntax."""
+    fragment_embeds: list[tuple[dict[str, object], Path, Path | None, str]] = field(default_factory=list)
+    """Each embed of a note's block or heading: its attrs, its note, the note it targets and its
+    syntax (capabilities/embeds)."""
     titles: dict[Path, str] = field(default_factory=dict)
     """The manifest's and each listed chapter's title, by note."""
 
@@ -347,6 +351,7 @@ def build_document(
                 f"Link the block id of a block there (a ^name at its end, or the ^name line after it) or add "
                 "it; see capabilities/wikilinks")))
         attrs["block"] = attrs["heading"][1:]
+    _check_embeds(vault, contents)
     if "manifest" in (capability_ids or set()):
         manifest_nodes.append({"type": "manifest", "attrs": {}, "children": []})
         capabilities.add("manifest")
@@ -1459,6 +1464,9 @@ def _semantic_text_nodes(text: str, context: _Context) -> list[dict[str, object]
                         f"add {target} to the vault or correct the embed."
                     )
                 attrs["asset"] = _asset(context, target, target, resolved)["id"]
+            elif match["heading"] and Path(target).suffix in {"", ".md"}:
+                attrs["heading"] = match["heading"]
+                vault.fragment_embeds.append((attrs, source_path, resolved, value))
             vault.links.append((attrs, resolved))
             nodes.append({"type": "embeds", "attrs": attrs, "children": []})
             capabilities.add("embeds")
@@ -1473,6 +1481,31 @@ def _semantic_text_nodes(text: str, context: _Context) -> list[dict[str, object]
     if position < len(text):
         nodes.append({"type": "text", "attrs": {}, "children": [], "text": text[position:]})
     return nodes
+
+
+def _check_embeds(vault: _Vault, contents: dict[str, list[dict[str, object]]]) -> None:
+    """Check each block or section embed against its target note, give a block embed its ``block``,
+    and stop at embeds that show each other (capabilities/embeds#Block and section embeds); a heading
+    embed gets its ``block`` once ids are assigned (embeds.assign_sections)."""
+    named: dict[str, dict[str, dict[str, object]]] = {}
+    found: list[embeds.Shown] = []
+    for attrs, source_path, resolved, syntax in vault.fragment_embeds:
+        chapter = attrs["chapter"]
+        if chapter is None or resolved is None:
+            continue  # A missing note stays the missing-note warning.
+        target = vault.relative(resolved)
+        if chapter not in named:
+            named[chapter] = named_blocks(contents[chapter], target)
+        nodes = embeds.shown(contents[chapter], attrs["heading"], named[chapter])
+        if nodes is None:
+            raise VaultError(str(input_error(vault.relative(source_path), f"embed {syntax}", *embeds.missing(
+                attrs["heading"], target, contents[chapter], named[chapter]))))
+        if attrs["heading"].startswith("^"):
+            attrs["block"] = attrs["heading"][1:]
+        found.append(embeds.Shown(attrs, vault.relative(source_path), syntax, nodes))
+    cycle = embeds.cycle(found)
+    if cycle:
+        raise VaultError(str(input_error(cycle[0].note, f"embed {cycle[0].written}", *embeds.cycle_problem(cycle))))
 
 
 def _chapter_contents(chapters: list[dict[str, object]]) -> dict[str, list[dict[str, object]]]:

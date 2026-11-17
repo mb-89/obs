@@ -502,6 +502,10 @@ Generation time remains separate from document revision dates.
   and note-heading fragments are resolvable; ambiguous note references fail generation
   explicitly. Link examples inside code remain literal.
 
+  An embed of a note's block or heading (`![[note#^name]]`, `![[note#Heading]]`) shows that
+  block or section in place; a whole-note embed stays a link to its chapter
+  ([[capabilities/embeds#Block and section embeds]]).
+
   A link's `attrs.chapter` names the chapter of its target; a link to the manifest names
   `home`, which no chapter identifier takes. Name lookup skips the manifest.
 
@@ -2133,7 +2137,10 @@ record file already holds the id for every node kind, not only for chapters.
 
 ## Next Obsidian extension
 
-Evaluate native Bases summaries/formulas, note embeds, and diagrams against
+Block and section embeds are decided (17 Nov 2026): they show their block or section in place,
+and whole-note embeds stay links ([[capabilities/embeds#Block and section embeds]]).
+
+Evaluate native Bases summaries/formulas and diagrams against
 a side-by-side migration of an existing artifact before choosing the next extension. The source is
 the original artifact folder; preserve its original artifact and calculation scripts.
 

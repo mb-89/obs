@@ -46,9 +46,24 @@ def assign_ids(document: dict[str, Any]) -> None:
 def block_names(nodes: list[dict[str, Any]], source: str) -> set[str]:
     """The explicit ids of a chapter's or the abstract's blocks, its block link targets
     (capabilities/wikilinks), read as ``assign_ids`` reads them, leaving ``nodes`` as they are."""
+    return set(named_blocks(nodes, source))
+
+
+def named_blocks(nodes: list[dict[str, Any]], source: str) -> dict[str, dict[str, Any]]:
+    """Each explicit id of ``nodes``, in document order, with the node of ``nodes`` it names, read
+    as ``assign_ids`` reads them, leaving ``nodes`` as they are (capabilities/embeds)."""
+    copies: dict[int, Any] = {}
     explicit: dict[int, str] = {}
-    _read_references(copy.deepcopy(nodes), None, explicit, source)
-    return set(explicit.values())
+    _read_references(copy.deepcopy(nodes, copies), None, explicit, source)
+    originals = {id(copies[id(node)]): node for node in _all(nodes)} if explicit else {}
+    return {name: originals[node] for node, name in explicit.items()}
+
+
+def _all(nodes: list[dict[str, Any]]) -> Iterator[dict[str, Any]]:
+    """Every node of ``nodes`` and of their children, in document order."""
+    for node in nodes:
+        yield node
+        yield from _all(node["children"])
 
 
 def chapter_targets(document: dict[str, Any]) -> dict[str, set[str]]:
