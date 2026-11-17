@@ -1103,3 +1103,96 @@ def test_an_unquoted_valid_date_still_loads_as_a_date(tmp_path) -> None:
     (tmp_path / "dated.md").write_text("---\nwhen: 2026-11-16\n---\nBody.\n", encoding="utf-8")
 
     assert read_note(tmp_path / "dated.md").metadata["when"] == datetime.date(2026, 11, 16)
+
+
+def _embed_vault(tmp_path, chapter: str, target: str) -> Path:
+    """A vault whose chapter m1 holds ``chapter`` and whose note vision, a child chapter, holds ``target``."""
+    vault = tmp_path / "vault"
+    vault.mkdir(parents=True)
+    (vault / "manifest.md").write_text("- [[m1]]\n  - [[vision]]\n", encoding="utf-8")
+    (vault / "m1.md").write_text(chapter, encoding="utf-8")
+    (vault / "vision.md").write_text(target, encoding="utf-8")
+    return vault
+
+
+VISION = ("# Vision\n\nThe statement. ^statement\n\n## Pitch\n\nFor owners.\n\n- One.\n- Two. ^two\n\n"
+          "### Detail\n\nDetail.\n\n## Later\n\nLater.\n")
+
+
+def test_a_fragment_embed_keeps_its_heading_and_names_the_node_it_shows(tmp_path) -> None:
+    vault = _embed_vault(tmp_path, "# M1\n\n![[vision#^statement]]\n\n![[vision#Pitch]]\n\n![[vision#^two]]\n\n"
+                         "![[vision]]\n\n![[vision#detail]]\n", VISION)
+
+    document = build_document(vault / "manifest.md", capability_reference())
+    m1 = document["chapters"][0]
+    vision = m1["children"][0]["content"]
+    sections = {node["children"][0]["text"]: node["id"] for node in vision if node["type"] == "section"}
+    item = next(node for node in vision if node["type"] == "list")["children"][1]
+
+    assert [node["attrs"] for node in m1["content"] if node["type"] == "embeds"] == [
+        {"target": "vision", "chapter": "vision", "heading": "^statement", "block": "statement"},
+        {"target": "vision", "chapter": "vision", "heading": "Pitch", "block": sections["Pitch"]},
+        {"target": "vision", "chapter": "vision", "heading": "^two", "block": item["id"]},
+        {"target": "vision", "chapter": "vision"},  # A whole-note embed is as before.
+        {"target": "vision", "chapter": "vision", "heading": "detail", "block": sections["Detail"]},
+    ]
+    assert item["id"] == "two"
+
+
+@pytest.mark.parametrize(("embed", "candidates"), [
+    ("vision#^nothere", "^statement, ^two"),
+    ("vision#No such heading", "Vision, Pitch, Detail, Later"),
+])
+def test_an_embed_of_a_missing_block_or_heading_names_the_note_and_the_candidates(
+        tmp_path, embed: str, candidates: str) -> None:
+    vault = _embed_vault(tmp_path, f"# M1\n\n![[{embed}]]\n", VISION)
+
+    with pytest.raises(DocumentError) as raised:
+        build_document(vault / "manifest.md", capability_reference())
+
+    message = str(raised.value)
+    assert message.startswith(f"m1.md: embed ![[{embed}]]: ")
+    assert candidates in message and message.endswith("see capabilities/embeds.")
+
+
+def test_an_embed_of_a_note_without_block_ids_says_how_to_add_one(tmp_path) -> None:
+    vault = _embed_vault(tmp_path, "# M1\n\n![[vision#^any]]\n", "# Vision\n\nText.\n")
+
+    with pytest.raises(DocumentError) as raised:
+        build_document(vault / "manifest.md", capability_reference())
+
+    message = str(raised.value)
+    assert message.startswith("m1.md: embed ![[vision#^any]]: ") and "^name" in message
+    assert message.endswith("see capabilities/embeds.")
+
+
+def test_embeds_that_show_each_other_stop_the_build(tmp_path) -> None:
+    vault = tmp_path / "vault"
+    vault.mkdir()
+    (vault / "manifest.md").write_text("- [[a]]\n- [[b]]\n- [[c]]\n", encoding="utf-8")
+    (vault / "a.md").write_text("# A\n\n## Part A\n\n![[b#Part B]]\n", encoding="utf-8")
+    (vault / "b.md").write_text("# B\n\n## Part B\n\n![[a#Part A]]\n", encoding="utf-8")
+    (vault / "c.md").write_text("# C\n\nShown. ^shown\n\n![[a#Part A]]\n", encoding="utf-8")
+
+    with pytest.raises(DocumentError) as raised:
+        build_document(vault / "manifest.md", capability_reference())
+
+    message = str(raised.value)
+    assert message.startswith("a.md: embed ![[b#Part B]]: ")
+    assert message.index("b.md: ![[a#Part A]]") < message.index("a.md: ![[b#Part B]]", 1)
+    assert message.endswith("see capabilities/embeds.")
+
+
+def test_an_embed_inside_a_shown_block_that_closes_no_cycle_builds(tmp_path) -> None:
+    vault = _embed_vault(tmp_path, "# M1\n\n## Shown\n\n![[vision#^statement]]\n\n![[m1#Shown]]\n",
+                         VISION)
+
+    with pytest.raises(DocumentError, match=r"^m1\.md: embed ") as raised:  # The section shows itself.
+        build_document(vault / "manifest.md", capability_reference())
+    assert str(raised.value).endswith("see capabilities/embeds.")
+
+    vault = _embed_vault(tmp_path / "other", "# M1\n\n## Shown\n\n![[vision#^statement]]\n\n## Next\n\n"
+                         "![[m1#Shown]]\n", VISION)
+    document = build_document(vault / "manifest.md", capability_reference())
+    assert [node["attrs"].get("heading") for node in document["chapters"][0]["content"]
+            if node["type"] == "embeds"] == ["^statement", "Shown"]

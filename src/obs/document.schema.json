@@ -292,9 +292,12 @@
           "if": {"properties": {"type": {"const": "embeds"}}},
           "then": {"properties": {"attrs": {
             "type": "object", "additionalProperties": false, "required": ["target", "chapter"],
+            "dependentRequired": {"block": ["heading"]},
             "properties": {
               "target": {"type": "string", "minLength": 1}, "chapter": {"$ref": "#/$defs/chapterReference"},
-    "asset": {"description": "The id in assets of an embedded vault file that is not a note; absent for a note.", "$ref": "#/$defs/id"}
+    "asset": {"description": "The id in assets of an embedded vault file that is not a note; absent for a note.", "$ref": "#/$defs/id"},
+              "heading": {"description": "A block or section embed's fragment as written, ^name or a heading; absent for a whole-note or file embed (capabilities/embeds#Block and section embeds).", "type": "string", "minLength": 1},
+              "block": {"description": "The id of the node a block or section embed shows in chapter: the block that carries ^name, or the heading's section node (capabilities/embeds#Block and section embeds).", "type": "string", "pattern": "^[A-Za-z0-9-]+$"}
             }
           }}}
         },
