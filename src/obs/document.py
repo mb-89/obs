@@ -18,6 +18,7 @@ from obs.comments import SCHEMA_PATH as COMMENTS_SCHEMA_PATH, apply_comments, im
 from obs.sync import SCHEMA_PATH as SYNC_SCHEMA_PATH, apply_result, apply_sync
 from obs.discriminator import discriminating_validator
 from obs.input import InputError, input_error, schema_error
+from obs.embeds import assign_sections
 from obs.node_ids import assign_ids
 from obs.output import write_output
 from obs.sources import SourceError, source_archive, validate_source_archive
@@ -61,6 +62,7 @@ def build_document(
         known = {item["id"] for item in reference["capabilities"]}
         document = _build_document(manifest_path, known, configuration_path, execute_commands)
         assign_ids(document)
+        assign_sections(document)
         if embed_source:
             arguments = [*delivery, *(["--execute-commands"] if execute_commands else []), "--embed-source"]
             document["sourceArchive"] = source_archive(manifest_path.resolve().parent, document["assets"],
