@@ -39,6 +39,9 @@ Both paths are compared resolved, so a symlink that leads into the vault counts 
 counts as inside. With [[cli#Several documents per call|several documents]], each `--destination`
 is checked against the vault of its own `--source`.
 
+The core tells the adapter where the vault lies from the destination's folder, as `--vault-link`,
+by the rule of the [[architecture#Adapter call|adapter call]].
+
 The call has no default source or destination: a build names its `--source` and its `--destination`.
 
 The interim adapter built this repository's spec into a fixed file below `data/data_output` when

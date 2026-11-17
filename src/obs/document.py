@@ -22,6 +22,7 @@ from obs.node_ids import assign_ids
 from obs.output import write_output
 from obs.sources import SourceError, source_archive, validate_source_archive
 from obs.vault import VaultError, build_document as _build_document, manifest_note
+from obs.vault_link import vault_link
 
 
 DOCUMENT_SCHEMA_PATH = Path(__file__).with_name("document.schema.json")
@@ -248,7 +249,7 @@ def _deliver(adapter: dict[str, object], arguments: list[str], configuration_pat
              document: dict[str, object], document_path: Path, destination: Path,
              reference: dict[str, object], label: str = "") -> None:
     """Start the adapter on the validated ``document``, which ``document_path`` holds, with the
-    standard ``arguments`` (``--vault-root``) and its options' arguments after DESTINATION. On
+    standard ``arguments`` (``--vault-root``, then ``--vault-link`` where the rule gives one) and its options' arguments after DESTINATION. On
     success its stderr lines follow on ours, each after ``label`` and its name (cli.md, One-call build)."""
     adapter_name = adapter["name"]
     if adapter["contractVersion"] != document["schemaVersion"]:
@@ -524,7 +525,9 @@ def _build(options: argparse.Namespace, source: Path, destination: Path | None, 
             document_path = Path(folder) / "document.json"
         _write(document, document_path)  # build_document validated it.
         if adapter is not None:  # The vault root as given, for the adapter's messages only.
-            _deliver(adapter, ["--vault-root", str(source.parent), *arguments],
+            link = vault_link(str(destination), str(source.parent))  # Where the vault lies from the page.
+            standard = ["--vault-root", str(source.parent), *(["--vault-link", link] if link is not None else [])]
+            _deliver(adapter, [*standard, *arguments],
                      options.adapter_config, document, document_path, destination, reference, label)
 
 
