@@ -16,14 +16,16 @@ Embed supported note and Base content in authored Markdown.
 
 ```markdown
 ![[shared-note]]
+```
 
+That embed links to the note's chapter. These show the block that carries `^statement`, then the
+section under the heading Pitch:
+
+```markdown
 ![[vision#^statement]]
 
 ![[vision#Pitch]]
 ```
-
-The first links to the note's chapter; the second shows the block that carries `^statement`; the
-third shows the section under the heading Pitch.
 
 ## Document node
 
