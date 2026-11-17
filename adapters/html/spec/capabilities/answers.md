@@ -72,7 +72,6 @@ obsArtifact.trustedExtension("obsHtml.answers").register({
 - Telling the reader: a bundle tells the reader through the notice center, an entry with
   `obsNotices.post` or the passing line with `obsNotices.brief`
   ([[artifact-ui#Dock menu|the notice center]]), never with an element of its own in the top band.
-
 - Trust: the namespace and its trust rule are those of
   [[capabilities/attachment-replacement#Namespace and trust|attachment replacement]]; without a
   registered bundle `trustedExtension("obsHtml.answers")` throws and names
