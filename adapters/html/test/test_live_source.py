@@ -32,11 +32,11 @@ DECLARATION = EXAMPLE["obsHtml"]["liveSource"]
 OWNER = "generic-tables.md, Current data"
 
 ISSUES = [
-    {"repo": "widgets", "number": 1, "state": "open", "labels": ["ready"], "updated": "2026-11-01T10:00:00Z",
+    {"repo": "widgets", "number": 1, "state": "open", "labels": ["ready"],
      "status": "Next", "kind": "issue"},
-    {"repo": "widgets", "number": 2, "state": "closed", "labels": [], "updated": "2026-11-02T10:00:00Z",
+    {"repo": "widgets", "number": 2, "state": "closed", "labels": [],
      "status": "Done", "kind": "issue"},
-    {"repo": "widgets", "number": 3, "state": "open", "labels": ["running"], "updated": "2026-11-03T10:00:00Z",
+    {"repo": "widgets", "number": 3, "state": "open", "labels": ["running"],
      "status": "Running", "kind": "issue"},
 ]
 RECORDS = ({"id": "tracker", "type": "note", "path": "tracker.md", "fields": {}},
@@ -118,9 +118,12 @@ REFUSED_DECLARATIONS = [
     pytest.param(_set(["fillNew"], {"slug": "title"}), "fillNew.slug", id="fill-new-target"),
     pytest.param(_set([*CONNECTOR, "requests", 0, "set", "obs.records"], "x"),
                  "changes[0].requests[0].set.obs.records", id="set-target"),
-    # A key, changed or condition field nothing maps.
+    # A key or condition field nothing maps.
     pytest.param(_set(["key"], ["repo", "id"]), "key[1]", id="key-unmapped"),
-    pytest.param(_set(["changed"], "modified"), "changed", id="changed-unmapped"),
+    # An instant per row has no key: a row carries no date.
+    pytest.param(_set(["changed"], "updated"), "changed", id="schema-no-instant-key"),
+    pytest.param(_set(["lookbackHours"], 0), "lookbackHours", id="schema-lookback-low"),
+    pytest.param(_set(["lookbackHours"], 721), "lookbackHours", id="schema-lookback-high"),
     pytest.param(_set(["exclude"], [{"field": "draft", "exists": True}]), "exclude[0].field",
                  id="condition-unmapped"),
     # Templates.
@@ -250,12 +253,12 @@ def test_rendering_leaves_the_documents_base_as_the_core_gave_it() -> None:
     assert document == before
 
 
-def test_the_capability_notes_authoring_example_builds_and_warns_only_of_its_rows_instants(
+def test_the_capability_notes_authoring_example_builds_without_warnings_even_refusing_provenance(
         tmp_path, capfd, monkeypatch) -> None:
     """spec/capabilities/live-data.md: its example, as the obsHtml of a Base fence over notes whose
-    path follows from their key, builds with the core without a diagnostic and with obs-html
-    without a warning of its own. The one kind of warning left is the provenance check's (architecture.md,
-    Provenance check): a row's changed instant reads as a build timestamp, one finding per row."""
+    path follows from their key, builds with the core without a diagnostic and with obs-html,
+    refusing provenance findings (artifact.refuseProvenance), without a warning: a row carries no
+    date (generic-tables.md, Current data), so a live table adds no provenance finding."""
     import sys
     sys.path.insert(0, str(ROOT / "test" / "fixtures"))
     import build_documents
@@ -277,13 +280,10 @@ def test_the_capability_notes_authoring_example_builds_and_warns_only_of_its_row
     assert refused == {}
     document = json.loads((tmp_path / "live-data.json").read_text(encoding="utf-8"))
     assert document["diagnostics"] == []
-    capfd.readouterr()
     [table] = tables(render(document, CONFIG))
     assert table["live"] == DECLARATION
-    assert capfd.readouterr().err == ""
-    cli.main([str(tmp_path / "live-data.json"), str(tmp_path / "live-data.html")])
-    warnings = [line for line in capfd.readouterr().err.splitlines() if line.startswith("Warning:")]
-    places = sorted(re.findall(r"artifact-data (notes\[\d+\]\.\w+\.\w+): carries provenance \(timestamp\)",
-                               "\n".join(warnings)))
-    assert len(warnings) == len(places) == 2 * len(ISSUES), warnings
-    assert {place.split(".", 1)[1] for place in places} == {"frontmatter.updated", "frontmatterHtml.updated"}
+    config = tmp_path / "refuse.json"
+    config.write_text(json.dumps({"artifact": {"refuseProvenance": True}}), encoding="utf-8")
+    capfd.readouterr()
+    assert cli.main(["--config", str(config), str(tmp_path / "live-data.json"), str(tmp_path / "live-data.html")]) == 0
+    assert "Warning" not in capfd.readouterr().err

@@ -182,9 +182,6 @@ def live_source_error(definition: dict, source: str, views: list[int] | None = N
     for index, name in enumerate(declaration["key"]):
         if name not in mapped:
             return refused(["key", index], f"is {name!r}, which no fields or set target maps", f"Map {name}")
-    if declaration["changed"] not in mapped:
-        return refused(["changed"], f"is {declaration['changed']!r}, which no fields or set target maps",
-                       f"Map {declaration['changed']}")
     for parts, condition in _conditions(declaration):
         if condition["field"] not in mapped:
             return refused([*parts, "field"], f"is {condition['field']!r}, which no fields or set target maps",
