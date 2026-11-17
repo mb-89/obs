@@ -453,25 +453,20 @@
         overflow: hidden;
     }
 
-    .data-table-shell[data-rows-one-line] .data-table-group-toggle {
-        float: inline-start;
-    }
-
-    .data-table-group-line {
-        align-items: baseline;
-        display: flex;
-        min-width: 0;
+    .data-table-shell[data-rows-one-line] .data-table-group-row>th {
+        overflow: hidden;
+        white-space: nowrap;
     }
 
     .data-table-group-label {
-        min-width: 0;
+        display: inline-block;
         overflow: hidden;
         text-overflow: ellipsis;
+        vertical-align: bottom;
         white-space: nowrap;
     }
 
     .data-table-group-count {
-        flex: none;
         white-space: pre;
     }
 }/* } part table-rows-one-line */

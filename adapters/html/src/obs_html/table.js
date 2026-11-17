@@ -1248,6 +1248,13 @@
                 if (!row.getClientRects().length) return;
                 const label = row.matches(".data-table-group-row") && row.querySelector(".data-table-group-label");
                 if (label) {
+                    // The label takes what the caption cell leaves beside its control and its count.
+                    const cell = label.closest("th");
+                    const style = getComputedStyle(cell);
+                    const end = cell.getBoundingClientRect().right - parseFloat(style.paddingRight) -
+                        parseFloat(style.borderRightWidth);
+                    label.style.maxWidth = `${Math.max(0, Math.floor(end - label.getBoundingClientRect().left -
+                        label.nextElementSibling.getBoundingClientRect().width))}px`;
                     if (isCut(label)) label.title = label.textContent + label.nextElementSibling.textContent;
                     else label.removeAttribute("title");
                     return;
@@ -1635,7 +1642,7 @@
                     // cell's last node, after its control (generic-tables.md, group captions).
                     if (rowsOneLine) {
                         cell.lastChild.remove();
-                        const line = document.createElement("div");
+                        const line = document.createElement("span");
                         line.className = "data-table-group-line";
                         const name = document.createElement("span");
                         name.className = "data-table-group-label";
