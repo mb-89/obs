@@ -1,13 +1,13 @@
 (() => {
     // A Base's live source, its pure layer (generic-tables.md, Current data): paths, templates, the
-    // mapping of one fetched item onto a row, the merge over the shown rows, the safe nodes of a new
-    // row's text and the check of a declaration against the build's rows. It uses no page and no
-    // network, and no function returns HTML: fetched text is data. Conditions are the page's one
+    // mapping of one fetched item onto a row, the merge over the saved rows, the safe nodes of a new
+    // row's text, a read's since and the check of a declaration against the build's rows. It uses no
+    // page and no network, and no function returns HTML: fetched text is data. A row carries no
+    // date: an item is compared with its saved row by value. Conditions are the page's one
     // evaluator's (obsQuery.compileConditions), over the mapped fields as a note's frontmatter.
     // Later pieces call these names; they stay stable.
     const LIMITS = Object.freeze({items: 2000, fieldBytes: 65536, pathSteps: 8});
     const TEMPLATE = /\{([^{}]*)\}/g;
-    const INSTANT = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(?::\d{2}(?:\.\d+)?)?(?:Z|[+-]\d{2}:\d{2})$/;
     const UNSAFE_NAMES = new Set(["__proto__", "constructor", "prototype"]);
 
     const isScalar = value => typeof value === "string" || typeof value === "number" || typeof value === "boolean";
@@ -56,9 +56,6 @@
         return missing ? undefined : filled;
     };
 
-    // An ISO 8601 date and time with its offset, in milliseconds; anything else is NaN.
-    const instant = text => typeof text === "string" && INSTANT.test(text) ? Date.parse(text) : NaN;
-
     // A row's field as conditions resolve it (obsBases.recordValue over its frontmatter).
     const rowValue = (row, field) => globalThis.obsBases.recordValue({frontmatter: row.frontmatter || {}}, field);
     const keyValues = (declaration, read) => Object.fromEntries(declaration.key.map(name => [name, read(name)]));
@@ -89,8 +86,7 @@
             assign(fields, name, value);
         });
         const path = notePath(declaration, fields);
-        const changed = instant(fields[declaration.changed]);
-        if (path === undefined || Number.isNaN(changed)) return null;
+        if (path === undefined) return null;
         if (declaration.exclude && matches(declaration.exclude, fields)) return null;
         const shown = shownFor(path);
         for (const [name, cases] of Object.entries(declaration.derive || {})) {
@@ -116,7 +112,7 @@
             }
             if (declaration.accept && !matches(declaration.accept, fields)) return null;
         }
-        return {path, changed, fields, body};
+        return {path, fields, body};
     };
 
     // Raw text as safe content nodes: a blank line starts a paragraph, a newline is a line break
@@ -166,45 +162,57 @@
         const actual = rowValue(row, name);
         return actual !== undefined && actual !== null && String(actual) === String(value);
     });
-    // One request's since: the newest changed of the rows that carry its set values, minus one second.
-    const since = (declaration, request, population) => {
-        const newest = population.filter(row => carries(request, row))
-            .map(row => instant(rowValue(row, declaration.changed))).filter(value => !Number.isNaN(value))
-            .reduce((best, value) => Math.max(best, value), -Infinity);
-        return newest === -Infinity ? undefined : new Date(newest - 1000).toISOString();
+    // A read's since, one for every request of the page: the page's generation timestamp minus
+    // lookbackHours (default 1), in whole seconds, as YYYY-MM-DDTHH:MM:SSZ in UTC.
+    const since = (declaration, generationTimestamp) => {
+        const built = Date.parse(generationTimestamp);
+        if (Number.isNaN(built)) return undefined;
+        const start = Math.floor(built / 1000) * 1000 - (declaration.lookbackHours ?? 1) * 3600 * 1000;
+        return new Date(start).toISOString().replace(/\.\d{3}Z$/, "Z");
     };
 
     const bytes = text => new TextEncoder().encode(text).length;
     const oversized = mapped => [...Object.values(mapped.fields).flat(), ...(mapped.body || []).flatMap(node =>
         node.children.map(child => child.text ?? child.url ?? ""))]
         .some(value => typeof value === "string" && bytes(value) > LIMITS.fieldBytes);
+    // The targets an item is compared by: its request's set and the declaration's fields.
+    const comparedTargets = (declaration, request) => [...new Set([...Object.keys(request.set || {}),
+        ...Object.keys(declaration.fields)])].sort();
     // The targets an item sets on a row the build had: every one it maps, derives or sets.
-    const liveTargets = (declaration, request) => new Set([...Object.keys(request.set || {}),
-        ...Object.keys(declaration.fields), ...Object.keys(declaration.derive || {})]);
+    const liveTargets = (declaration, request) => new Set([...comparedTargets(declaration, request),
+        ...Object.keys(declaration.derive || {})]);
+    // Values as canonical JSON: keys sorted, a list in its order, a target that is absent, null or an
+    // empty list left out, so the same values give the same text.
+    const canonical = (targets, read) => JSON.stringify(Object.fromEntries(targets.flatMap(name => {
+        const value = read(name);
+        return value === undefined || value === null || (Array.isArray(value) && !value.length) ? [] : [[name, value]];
+    })));
 
-    // The rows a read changes, by note path, laid over the shown rows (a Map of note path to
-    // {sourcePath, frontmatter}); an item applies only when its changed instant is strictly newer.
-    const merge = (declaration, route, request, items, shown) => {
+    // The rows one request's latest result changes, by note path, computed from the saved rows (a
+    // Map of note path to {sourcePath, frontmatter}) and that result alone; nothing is stored. An
+    // item whose compared values equal its saved row's changes nothing, so the saved row is shown as
+    // built; one that differs is laid over it; one with no saved row is a new row. An item read more
+    // than once keeps its last occurrence.
+    const merge = (declaration, route, request, items, saved) => {
         let partial = !Array.isArray(items) || items.length > LIMITS.items;
-        const rows = new Map();
-        const seen = new Set();
-        const current = path => rows.get(path) ?? shown.get(path);
+        const latest = new Map();
         (Array.isArray(items) ? items.slice(0, LIMITS.items) : []).forEach(item => {
-            const mapped = mapItem(declaration, route, request, item, path => shown.get(path));
+            const mapped = mapItem(declaration, route, request, item, path => saved.get(path));
             if (!mapped) return;
             if (oversized(mapped)) {
                 partial = true;
                 return;
             }
-            const identity = `${mapped.path}\n${mapped.changed}`;
-            if (seen.has(identity)) return;
-            seen.add(identity);
-            const row = current(mapped.path);
-            const before = row ? instant(rowValue(row, declaration.changed)) : NaN;
-            if (row && !(mapped.changed > before) && !Number.isNaN(before)) return;
-            const base = shown.get(mapped.path);
-            if (base) {
-                const frontmatter = {...base.frontmatter};
+            latest.delete(mapped.path);
+            latest.set(mapped.path, mapped);
+        });
+        const targets = comparedTargets(declaration, request);
+        const rows = new Map();
+        latest.forEach(mapped => {
+            const row = saved.get(mapped.path);
+            if (row) {
+                if (canonical(targets, name => mapped.fields[name]) === canonical(targets, name => rowValue(row, name))) return;
+                const frontmatter = {...row.frontmatter};
                 liveTargets(declaration, request).forEach(name => assign(frontmatter, name, mapped.fields[name]));
                 rows.set(mapped.path, {sourcePath: mapped.path, frontmatter, added: false});
             } else {
@@ -242,7 +250,6 @@
                 keys.set(identity, row.sourcePath);
                 if (notePath(declaration, values) !== row.sourcePath) fail("notePath", declaration.notePath);
             }
-            if (Number.isNaN(instant(rowValue(row, declaration.changed)))) fail("changed", declaration.changed);
             Object.entries(declaration.derive || {}).forEach(([name, cases]) => {
                 if (!reproduces(cases, row, name)) fail("derive", name);
             });
@@ -255,6 +262,6 @@
         return failures;
     };
 
-    globalThis.obsLiveData = {LIMITS, readPath, fillTemplate, instant, notePath, mapItem, lower, validateNodes,
-        since, merge, check};
+    globalThis.obsLiveData = {LIMITS, readPath, fillTemplate, notePath, mapItem, lower, validateNodes, since, merge,
+        check};
 })();
