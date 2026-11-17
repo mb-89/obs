@@ -11,9 +11,9 @@ import pytest
 
 from artifacts import artifact_html
 from browser.viewer import open_viewer
-from documents import chapter, document, heading, paragraph
+from documents import chapter, document, heading, node, paragraph
 from test_appearance_browser import choose, rgba
-from test_features import with_context_note, with_guided_card
+from test_features import with_context_note
 from test_local_themes import fixture_choice
 from test_local_themes_browser import DEFAULT, PAINTED, THEME, rgb, starting_in
 
@@ -72,6 +72,16 @@ def long_page(choice) -> str:
     """A chapter of many paragraphs, which pages over several sheets."""
     paragraphs = [paragraph(f"Paragraph {index}: " + "words that fill the sheet " * 12) for index in range(40)]
     return artifact_html(document("Long", chapter("one", "One", heading(1, "One"), *paragraphs)), style_choice=choice)
+
+
+def table_document() -> dict:
+    """A Base table whose columns take the widths of their contents."""
+    records = [{"id": f"r{index}", "type": "note", "path": f"r{index}.md", "fields": {
+        "kind": "row", "code": f"R-{index}", "owner": "Operations team " * (index % 3 + 1), "state": "open"}}
+        for index in range(4)]
+    base = node("bases", source="", spec={"filters": {"or": ['kind == "row"']}, "views": [{
+        "type": "table", "name": "Rows", "order": ["file.name", "code", "owner", "state"]}]})
+    return document("Table", chapter("one", "One", heading(1, "One"), base), records=records)
 
 
 def open_chapter(frame) -> None:
@@ -151,11 +161,11 @@ def _columns(frame):
 
 def test_choosing_a_theme_measures_the_table_columns_again(tmp_path, reader_browser) -> None:
     errors: list[str] = []
-    contrast = artifact_html(with_guided_card(), style_choice=starting_in(tmp_path, "contrast"))
+    contrast = artifact_html(table_document(), style_choice=starting_in(tmp_path, "contrast"))
     _page, opened = open_viewer(tmp_path, reader_browser, errors, contrast, "light")
     expected = _columns(opened)
     _page, frame = open_viewer(tmp_path, reader_browser, errors, artifact_html(
-        with_guided_card(), style_choice=fixture_choice()), "light")
+        table_document(), style_choice=fixture_choice()), "light")
     before = _columns(frame)
     assert before != expected, "the fixture theme's font and padding size the columns differently"
     pick(frame, "contrast")
