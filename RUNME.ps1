@@ -34,4 +34,3 @@ for ($i = 0; $i -lt $all.Count; $i++) { [Environment]::SetEnvironmentVariable("R
 $env:RUNME_RUN = 'runme_n=${RUNME_ARGC:-0}; runme_i=1; set --; while test "$runme_i" -lt "$runme_n"; do eval "set -- \"\$@\" \"\${RUNME_ARG_$runme_i-}\""; runme_i=$((runme_i + 1)); done; runme_s=${RUNME_ARG_0-}; runme_i=0; while test "$runme_i" -lt "$runme_n"; do unset "RUNME_ARG_$runme_i"; runme_i=$((runme_i + 1)); done; unset RUNME_ARGC RUNME_RUN runme_n runme_i; exec "$BASH" "$runme_s" "$@"'
 & $bash -c 'eval $RUNME_RUN'
 exit $LASTEXITCODE
- 
