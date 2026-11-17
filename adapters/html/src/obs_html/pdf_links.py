@@ -20,13 +20,14 @@ def portable(pdf: bytes, printed: Path, companion: str) -> bytes:
     the HTML the browser printed, names ``./`` and ``companion`` with the URI's fragment; one to another
     file names its path from ``printed``'s folder, and one with no such path loses its link. A PDF with
     no ``file:`` link is returned as given."""
-    if not any(True for _ in _file_links(PdfReader(BytesIO(pdf)).pages)):
+    reader = PdfReader(BytesIO(pdf))
+    if next(_file_links(reader.pages), None) is None:
         return pdf
-    writer = PdfWriter(clone_from=PdfReader(BytesIO(pdf)))
+    writer = PdfWriter(clone_from=reader)
     for page in writer.pages:
         dropped = []
         for annotation, action in _file_links([page]):
-            uri = relative(str(action["/URI"]), printed, companion)
+            uri = _relative(str(action["/URI"]), printed, companion)
             if uri is None:
                 dropped.append(annotation)
             else:
@@ -40,7 +41,7 @@ def portable(pdf: bytes, printed: Path, companion: str) -> bytes:
     return output.getvalue()
 
 
-def relative(uri: str, printed: Path, companion: str) -> str | None:
+def _relative(uri: str, printed: Path, companion: str) -> str | None:
     """The relative URI the ``file:`` URI ``uri`` becomes in a PDF printed from ``printed`` (see
     portable), or None where its file has no path relative to ``printed``'s folder."""
     parts = urlsplit(uri)
