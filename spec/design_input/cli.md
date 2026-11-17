@@ -70,6 +70,8 @@ once, as it reads it; nothing validates it again before it is written or handed 
 
 `--adapter-config` defaults to `adapters.json` in the current folder, the registry at the
 repository root, so the call runs from there.
+RUNME names obs's registry, so a call through RUNME runs from any folder; a later
+`--adapter-config` overrides it.
 
 A build through the core authorizes command fences once, on the core: `--execute-commands` makes
 the core run the vault's command fences from the vault root and put

@@ -1,5 +1,5 @@
 ---
-summary: obs turns an ordered Obsidian Markdown vault into one JSON Document that adapters render into portable artifacts. To use it, download the source archive and follow the README's Install and Run instructions.
+summary: obs turns an ordered Obsidian Markdown vault into one JSON Document that adapters render into portable artifacts. To use it, clone the repository and follow the README's Getting it running.
 ---
 
 # obs

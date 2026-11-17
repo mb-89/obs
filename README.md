@@ -7,22 +7,35 @@ integrated output adapters under `adapters/`; the first is the HTML adapter in
 [adapters/html](adapters/html/README.md), run as `uv run obs-html`. The
 [Repository layout](spec/design_input/architecture.md#repository-layout) owns the structure.
 
-## Install and run
+## Getting it running
 
-Run the platform wrapper from the project folder; it passes its arguments to `obs-document`:
+Install Git with the package manager:
+
+- Windows: `winget install --id Git.Git -e --source winget`
+- Debian and Ubuntu: `sudo apt-get install -y git`
+- Fedora: `sudo dnf install -y git`
+- macOS: `brew install git`
+
+Clone `https://github.com/<owner>/<repository>`, then run RUNME in the clone. It installs what
+[RUNME.conf](RUNME.conf) declares and the machine lacks, then hands every argument to
+`obs-document`, so this prints obs-document's help:
+
+```sh
+./RUNME.sh --help
+```
+
+On Windows:
 
 ```powershell
-.\RUNME.ps1 --help
-.\RUNME.ps1 --source spec/manifest.md --adapter html --destination out.html --execute-commands
+powershell -ExecutionPolicy Bypass -File RUNME.ps1 --help
 ```
 
 The bundled specification embeds live command output through a `cmd` fence. Building it requires
 `--execute-commands`; without that authorization the build stops before running any command.
-
-Through the core, one call builds the specification:
+Through RUNME, one call builds the specification:
 
 ```sh
-uv run obs-document --source spec/manifest.md --adapter html --destination out.html --execute-commands
+./RUNME.sh --source spec/manifest.md --adapter html --destination out.html --execute-commands
 ```
 
 [One-call build](spec/design_input/cli.md#one-call-build) owns what this call reads and writes.

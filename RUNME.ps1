@@ -1,108 +1,36 @@
-param(
-    # Installs every declared tool that is missing, reports each one and exits.
-    [switch]$Setup,
-    # Lists the declared tools with their resolved paths and exits.
-    [switch]$Tools
-)
-
-$ErrorActionPreference = "Stop"
-
-# Windows PowerShell 5.1 turns redirected native stderr (uv progress, obs-html warnings) into
-# error records; under "Stop" the first one would abort. Exit codes alone judge native commands.
-function Invoke-Native([string]$Command, [string[]]$Arguments) {
-    $ErrorActionPreference = "Continue"
-    & $Command @Arguments
-}
-
-# Every tool a contributor or agent needs, declared once: each run installs uv, -Setup installs
-# all of them, and -Tools lists them.
-$DeclaredTools = @(
-    [pscustomobject]@{ Name = "uv"; WingetId = "astral-sh.uv"; Command = "uv"; Files = @() }
-    [pscustomobject]@{ Name = "git"; WingetId = "Git.Git"; Command = "git"; Files = @() }
-    [pscustomobject]@{ Name = "node"; WingetId = "OpenJS.NodeJS.LTS"; Command = "node"; Files = @() }
-    [pscustomobject]@{ Name = "gh"; WingetId = "GitHub.cli"; Command = "gh"; Files = @() }
-    [pscustomobject]@{ Name = "chrome"; WingetId = "Google.Chrome"; Command = $null; Files = @(
-        "$env:ProgramFiles\Google\Chrome\Application\chrome.exe"
-        "${env:ProgramFiles(x86)}\Google\Chrome\Application\chrome.exe"
-        "$env:LOCALAPPDATA\Google\Chrome\Application\chrome.exe"
-    ) }
-)
-
-function Find-Tool($Tool) {
-    if ($Tool.Command) {
-        $found = Get-Command $Tool.Command -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1
-        if ($found) { return $found.Source }
-    }
-    foreach ($file in $Tool.Files) {
-        if (Test-Path -LiteralPath $file -PathType Node) { return $file }
-    }
-    return $null
-}
-
-function Install-Tool($Tool) {
-    $winget = Get-Command winget -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1
-    if (-not $winget) {
-        throw "winget is required to install $($Tool.Name) ($($Tool.WingetId)) on a bare Windows system."
-    }
-    Invoke-Native $winget.Source @("install", "--id", $Tool.WingetId, "--exact", "--accept-package-agreements", "--accept-source-agreements") | Out-Host
-    $code = $LASTEXITCODE
-    # winget records new PATH entries for the next terminal; pick them up in this one.
-    $env:PATH = @(
-        [Environment]::GetEnvironmentVariable("Path", "Machine")
-        [Environment]::GetEnvironmentVariable("Path", "User")
-        $env:PATH
-    ) -join ";"
-    $path = Find-Tool $Tool
-    if (-not $path) {
-        throw "$($Tool.Name) is not available after 'winget install --id $($Tool.WingetId)' (exit $code). Start a new terminal and retry."
-    }
-    return $path
-}
-
-if (($Setup -or $Tools) -and $args.Count) {
-    throw "-Setup and -Tools take no obs-document arguments."
-}
-
-if ($Tools) {
-    # No exit here: it would drop the pending table formatting of a console run.
-    foreach ($tool in $DeclaredTools) {
-        [pscustomobject]@{ Name = $tool.Name; WingetId = $tool.WingetId; Path = Find-Tool $tool }
-    }
-} elseif ($Setup) {
-    $missing = 0
-    foreach ($tool in $DeclaredTools) {
-        $path = Find-Tool $tool
-        $state = "present"
-        if (-not $path) {
-            try {
-                $path = Install-Tool $tool
-                $state = "installed"
-            } catch {
-                Write-Host "$($tool.Name): MISSING - $($_.Exception.Message)"
-                $missing++
-                continue
-            }
+# RUNME.ps1: finds the bash that Git for Windows ships, installing Git with winget where it is
+# missing, and hands every argument to RUNME.sh beside it, passing its exit code on. The same file
+# in every project; RUNME.sh does the rest. Git's winget id is RUNME.conf's line `get git winget <id>`.
+function Find-GitBash {
+    $roots = @()
+    $git = Get-Command git -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1
+    if ($git) { $up = Split-Path -Parent (Split-Path -Parent $git.Source); $roots += $up, (Split-Path -Parent $up) }
+    $roots += @($env:ProgramW6432, $env:ProgramFiles, ${env:ProgramFiles(x86)}) | Where-Object { $_ } | ForEach-Object { Join-Path $_ 'Git' }
+    if ($env:LOCALAPPDATA) { $roots += Join-Path $env:LOCALAPPDATA 'Programs\Git' }
+    foreach ($root in $roots | Where-Object { $_ }) {
+        foreach ($file in 'bin\bash.exe', 'usr\bin\bash.exe') {
+            $bash = Join-Path $root $file
+            if (Test-Path -LiteralPath $bash -PathType Leaf) { return $bash }
         }
-        Write-Host "$($tool.Name): $state ($path)"
     }
-    if ($missing) {
-        Write-Host "$missing of $($DeclaredTools.Count) declared tools are missing."
-        exit 1
-    }
-    Write-Host "All $($DeclaredTools.Count) declared tools are present."
-    exit 0
-} else {
-    $UvTool = $DeclaredTools | Where-Object { $_.Name -eq "uv" }
-    $Uv = Find-Tool $UvTool
-    if (-not $Uv) {
-        $Uv = Install-Tool $UvTool
-    }
-
-    Push-Location $PSScriptRoot
-    try {
-        Invoke-Native $Uv (@("run", "obs-document") + $args)
-    } finally {
-        Pop-Location
-    }
-    exit $LASTEXITCODE
 }
+$bash = Find-GitBash
+if (-not $bash) {
+    $found = Select-String -LiteralPath (Join-Path $PSScriptRoot 'RUNME.conf') -Pattern '^get\s+git\s+winget\s+(\S+)' -ErrorAction SilentlyContinue | Select-Object -First 1
+    $winget = Get-Command winget -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1
+    if (-not ($found -and $winget)) { [Console]::Error.WriteLine('RUNME: install Git for Windows, then run RUNME again: RUNME runs in the bash Git ships'); exit 1 }
+    $id = $found.Matches[0].Groups[1].Value
+    [Console]::Error.WriteLine("RUNME: installing Git for Windows: winget install --id $id -e --source winget")
+    & $winget.Source install --id $id -e --source winget --accept-package-agreements --accept-source-agreements 2>&1 | ForEach-Object { [Console]::Error.WriteLine("$_") }
+    $env:Path = [Environment]::GetEnvironmentVariable('Path', 'Machine') + ';' + [Environment]::GetEnvironmentVariable('Path', 'User')
+    $bash = Find-GitBash
+    if (-not $bash) { [Console]::Error.WriteLine("RUNME: Git for Windows is still missing; run: winget install --id $id -e --source winget"); exit 1 }
+}
+# Every argument crosses in variables, never on a Windows command line, which PowerShell 5.1 and
+# the bash runtime quote differently; the line below rebuilds them and execs RUNME.sh.
+$all = @((Join-Path $PSScriptRoot 'RUNME.sh').Replace('\', '/')) + $args
+$env:RUNME_ARGC = [string]$all.Count
+for ($i = 0; $i -lt $all.Count; $i++) { [Environment]::SetEnvironmentVariable("RUNME_ARG_$i", [string]$all[$i], 'Process') }
+$env:RUNME_RUN = 'runme_n=${RUNME_ARGC:-0}; runme_i=1; set --; while test "$runme_i" -lt "$runme_n"; do eval "set -- \"\$@\" \"\${RUNME_ARG_$runme_i-}\""; runme_i=$((runme_i + 1)); done; runme_s=${RUNME_ARG_0-}; runme_i=0; while test "$runme_i" -lt "$runme_n"; do unset "RUNME_ARG_$runme_i"; runme_i=$((runme_i + 1)); done; unset RUNME_ARGC RUNME_RUN runme_n runme_i; exec "$BASH" "$runme_s" "$@"'
+& $bash -c 'eval $RUNME_RUN'
+exit $LASTEXITCODE
