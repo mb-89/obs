@@ -14,6 +14,11 @@ import tiers
 
 
 network_guard.install()
+# No test, and no build a test starts, reads the build machine's local themes (obs-html
+# spec/configuration.md, Local themes): the folder named here does not exist. A test that needs
+# themes sets the variable for its own call.
+os.environ["OBS_HTML_LOCAL_FOLDER"] = str(
+    Path(__file__).resolve().parents[1] / "adapters" / "html" / "test" / "fixtures" / "no-local-folder")
 
 
 def pytest_sessionstart(session):
