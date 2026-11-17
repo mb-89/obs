@@ -494,7 +494,31 @@ def test_a_given_document_is_kept_and_the_vault_root_is_passed_as_given(tmp_path
 
     assert json.loads((tmp_path / "kept.json").read_text(encoding="utf-8"))["manifest"]["path"] == "manifest.md"
     assert json.loads((tmp_path / "out.json").read_text(encoding="utf-8"))["arguments"] == [
-        str((tmp_path / "kept.json").resolve()), str((tmp_path / "out.json").resolve()), "--vault-root", "vault"]
+        str((tmp_path / "kept.json").resolve()), str((tmp_path / "out.json").resolve()), "--vault-root", "vault",
+        "--vault-link", "vault"]
+
+
+@pytest.mark.parametrize(("destination", "link"), [
+    ("proj/site/deep/out.json", ["--vault-link", "../../notes"]),  # Below the vault's parent.
+    ("proj/out.json", ["--vault-link", "notes"]),  # In the vault's parent itself.
+    ("far/out.json", []),  # Outside the vault's parent: no link.
+])
+def test_the_vault_link_follows_the_vault_root_where_the_rule_gives_one(tmp_path, monkeypatch,
+                                                                         destination, link) -> None:
+    vault = tmp_path / "proj" / "notes"
+    vault.mkdir(parents=True)
+    (vault / "manifest.md").write_text("- [[chapter]]\n", encoding="utf-8")
+    (vault / "chapter.md").write_text("Content.\n", encoding="utf-8")
+    (tmp_path / destination).parent.mkdir(parents=True, exist_ok=True)
+    recording_adapter(tmp_path)
+    monkeypatch.chdir(tmp_path)
+
+    assert main(["--source", "proj/notes", "--document", "kept.json", "--adapter", "fixture",
+                 "--destination", destination]) == 0
+
+    arguments = json.loads((tmp_path / destination).read_text(encoding="utf-8"))["arguments"]
+    assert arguments[2:] == ["--vault-root", str(Path("proj/notes")), *link]
+    assert "vault-link" not in (tmp_path / "kept.json").read_text(encoding="utf-8")
 
 
 def test_an_adapter_called_on_a_document_gets_no_vault_root(tmp_path) -> None:

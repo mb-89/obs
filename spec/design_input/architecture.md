@@ -129,7 +129,7 @@ destination, the standard arguments and the arguments of the options the call pa
 exists only where the manifest's `options` declare it, and each kind of option has one form on the
 command line ([[cli#Adapter options]]). The core never names an adapter or one of its options.
 
-The one standard argument is `--vault-root ROOT`, which every adapter accepts. Where the core built
+The first standard argument is `--vault-root ROOT`, which every adapter accepts. Where the core built
 the Document from a manifest, ROOT is the manifest's folder as the user gave it (`spec` for
 `--source spec/manifest.md`), and the adapter names each vault-relative path in its messages below
 it, so they read `spec/manifest.md: …`.
@@ -137,6 +137,19 @@ it, so they read `spec/manifest.md: …`.
 ROOT is for messages only: the Document stays
 machine-independent and never carries it, and neither does the artifact. Without the argument, on
 a direct adapter call on a Document, messages name paths relative to the vault.
+
+The second standard argument is `--vault-link LINK`, which every adapter accepts and may ignore:
+the way from the destination's folder to the vault folder, with `/` between its parts, such as
+`../notes`. The core passes it right after ROOT only where the destination's folder is the vault
+folder's parent or lies below it, and where no rule is in doubt; otherwise it passes nothing.
+
+The rule is the pure `vault_link` of `src/obs/vault_link.py`, whose docstring names each case it
+refuses: it climbs with `..` alone and names one folder, the vault's own, because a link that
+climbs further would spell the folders between page and notes, often a user or client name.
+
+An artifact may then carry the vault folder's own name and the notes' vault paths in links, never
+ROOT and never a folder outside the vault. The Document, `--document` and the source archive's
+recorded command never carry LINK.
 
 An adapter writes each warning to stderr, one per line, in the error form of
 [[input-model#Chapter content|contract failures]] after `Warning: `:
@@ -463,7 +476,9 @@ The concrete contracts and execution boundaries are owned by [[input-model]].
 - Invalid configuration fails before generation begins.
 - Manifest and content links may not escape the containing vault.
 - Command fences execute only when the build grants explicit authorization.
-- A generated artifact never refers to source-machine local files.
+- A generated artifact never names a path of the source machine; it refers to local files only by
+  relative links, the author's and the source file links [[#Adapter call]] allows. The owner's request
+  of 17 Nov 2026 changed this boundary, which before allowed no reference to local files at all.
 - Comment text is rendered with DOM text APIs and serialized with script-closing characters
 	escaped. A returned artifact is untrusted input to the read-only extractor.
 

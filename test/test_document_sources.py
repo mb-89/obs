@@ -244,7 +244,8 @@ def test_one_call_builds_each_source_into_the_destination_that_follows_it(tmp_pa
     for name, manifest in (("first", first), ("second", second)):
         called = json.loads((tmp_path / f"{name}.json").read_text(encoding="utf-8"))
         assert called["arguments"][1:] == [str((tmp_path / f"{name}.json").resolve()),
-                                           "--vault-root", str(manifest.parent)]
+                                           "--vault-root", str(manifest.parent),
+                                           "--vault-link", manifest.parent.name]
 
 
 @pytest.mark.parametrize(("adapter", "extra", "named"), [
@@ -293,7 +294,7 @@ def test_a_vault_folder_builds_from_its_manifest_note(tmp_path) -> None:
 
     called = json.loads(destination.read_text(encoding="utf-8"))
     assert called["manifest"] == "manifest.md"
-    assert called["arguments"][2:] == ["--vault-root", str(vault)]
+    assert called["arguments"][2:] == ["--vault-root", str(vault), "--vault-link", vault.name]
 
 
 def test_core_configuration_names_the_manifest_note_of_a_vault_folder(tmp_path) -> None:
