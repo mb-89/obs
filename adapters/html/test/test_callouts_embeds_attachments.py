@@ -308,3 +308,15 @@ def test_an_embed_whose_block_is_not_in_its_chapter_is_refused(vision: tuple[dic
     assert failure.value.source == "Document of manifest.md"
     assert re.fullmatch(r"chapters\[\d+\]\.content\[\d+\]\.attrs\.block", failure.value.field)
     assert "obs-document" in failure.value.remedy
+
+
+def test_a_shown_figure_keeps_the_number_it_has_where_it_lives() -> None:
+    document = json.loads((ROOT / "test" / "fixtures" / "documents" / "figure-references.json").read_text(encoding="utf-8"))
+    chapters = {chapter_["id"]: chapter_ for chapter_ in document["chapters"]}
+    chapters["one"]["content"].append(node("embeds", target="two", chapter="two", heading="^d", block="d"))
+    notes = {note["slug"]: note["html"] for note in decode_artifact_data(render(document, CONFIG))["notes"]}
+    [copy] = _copies(notes["one"])
+
+    assert '<span class="figure-number">Figure 2.4:</span> Figure d.' in copy
+    assert '<span class="figure-number">Figure 2.4:</span> Figure d.' in notes["two"]
+    assert not re.search(r'\s(?:id|data-node-id)="', copy)
