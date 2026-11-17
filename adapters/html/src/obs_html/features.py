@@ -25,7 +25,9 @@ ships exactly where its feature or part is included.
 A part may also need an option of the adapter's configuration (``Part.option``, a path in
 ``artifact`` of cfg.json) that is off by default, so an artifact built without it is what it was:
 the part ships where the option is true or a number above 0, and not where the configuration
-leaves it out, as the schema's default (false, or 0) says.
+leaves it out, as the schema's default (false, or 0) says. ``artifact.tableRowsOneLine`` is the one
+such option on as packaged, by the owner's decision of 17 Nov 2026 (architecture.md, Rendering and
+runtime): the packaged cfg.json sets it true, so its parts ship unless a configuration sets it false.
 A feature script holds the code it runs only with a part inside that part's regions, a line region
 (``// part <key> {`` to ``// } part <key>`` on lines of their own) or an inline one (``/* part
 <key> { */`` to ``/* } part <key> */``); ``feature_source`` strips every region of a part that does
@@ -95,11 +97,13 @@ class Part:
     code: tuple[str, ...]
     option: tuple[str, ...] = ()
     """The path in the adapter's ``artifact`` configuration (cfg.json) of the boolean, or the number,
-    that turns the part on; empty for a part its condition alone ships."""
+    that turns the part on; empty for a part its condition alone ships. Such an option is off by
+    default, but for ``tableRowsOneLine``, on as packaged."""
 
     def enabled(self, artifact_config: dict | None) -> bool:
         """Whether the configuration turns the part on: it names no option, or that option is true or
-        a number above 0; left out, it is off, as the schema's default (false, or 0) says."""
+        a number above 0; left out, it is off, as the schema's default (false, or 0) says. The packaged
+        cfg.json always sets ``tableRowsOneLine``, on as packaged, so its parts ship unless it is false."""
         value: object = artifact_config if self.option else True
         for key in self.option:
             value = value.get(key) if isinstance(value, dict) else None
@@ -203,6 +207,15 @@ def _source_archive(model: dict, _trusted_runtime: bool) -> bool:
 def _tables(model: dict, _trusted_runtime: bool) -> bool:
     """A note holds a Base table (render.py, the bases renderer; artifact.js, renderChapterTables)."""
     return any(note["tables"] for note in model["notes"])
+
+
+PIPE_TABLE = re.compile(r"<table[ >]")
+"""The opening tag render.py's _table writes for a pipe table, with or without its core id."""
+
+
+def _pipe_tables(model: dict, _trusted_runtime: bool) -> bool:
+    """A note's html holds a pipe table (render.py, _table)."""
+    return any(PIPE_TABLE.search(note["html"]) for note in model["notes"])
 
 
 def _empty_groups(model: dict, _trusted_runtime: bool) -> bool:
@@ -320,7 +333,19 @@ FEATURES: tuple[Feature, ...] = (
                      _detail_fields, ()),
                 Part("live-source", "a Base that declares obsHtml.liveSource: its declaration checked against "
                      "the build's rows when the page starts, and the pure layer that maps fetched items onto "
-                     "them (generic-tables.md, Current data)", _live_source, ("live-data.js",)))),
+                     "them (generic-tables.md, Current data)", _live_source, ("live-data.js",)),
+                Part("style-refit", "a table on a page that carries local themes: its columns are measured "
+                     "again when the reader chooses a theme", _style_choice, ()),
+                Part("table-rows-one-line", "a Base table in an artifact built with artifact.tableRowsOneLine on, "
+                     "as packaged: on screen each collapsed row and group caption is one line until the reader "
+                     "opens it (generic-tables.md, Columns and cells, One line per row)", _tables, (),
+                     option=("tableRowsOneLine",)))),
+    Feature("pipe-tables", "a note with a pipe table (render.py, _table); it has nothing of its own, only its "
+            "part", _pipe_tables, host=False, parts=(
+                Part("pipe-table-rows-one-line", "a pipe table in an artifact built with artifact.tableRowsOneLine "
+                     "on, as packaged: on screen each body row is one line until the reader opens it "
+                     "(generic-tables.md, Pipe tables)", _pipe_tables, ("pipe-tables.js",),
+                     option=("tableRowsOneLine",)),)),
     Feature("options-menu", "a Base table or a figure: their one options menu (options-menu.js)",
             _options_menu, ("options-menu.js",), host=False, base_styles=("options-menu.css",)),
     Feature("figures", "a figure: its frame's styles and script", _figures,
@@ -334,6 +359,13 @@ FEATURES: tuple[Feature, ...] = (
     Feature("source-file", "a note with a Source file row (artifact.sourceFileLinks): the frontmatter table's "
             "last row, the note's vault path, a link where the core passed --vault-link (cli.md, Source file "
             "links); the panel's own rules lay it out", _source_file, ("source-file.js",), host=False),
+    Feature("style-choice", "a page that carries local themes (reading.styles; spec/configuration.md, Local "
+            "themes): the Settings bar's Theme select", _style_choice, ("style-choice.js",),
+            styles=("style-choice.css",), elements=("style-choice-styles",), host=False, parts=(
+                Part("style-relayout", "a page that carries local themes: its sheets are laid out again, their "
+                     "page numbers measured again, when the reader chooses a theme", _style_choice, ()),
+                Part("style-copy", "a page that carries local themes: a saved copy's root holds the start theme, "
+                     "never the reader's choice", _style_choice, ()))),
 )
 
 
