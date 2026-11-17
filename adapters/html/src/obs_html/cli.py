@@ -124,6 +124,13 @@ Timings:
   (the packaged timing-baselines.json) by both timings.relativeThreshold and
   timings.absoluteThresholdSeconds of the settings; the warning never fails the call.
 
+Build time:
+  SOURCE_DATE_EPOCH, where the environment sets it, fixes every build time obs-html writes: the
+  page's generation timestamp and a PDF's creation and change dates are that instant, so two builds
+  of one input give the same bytes. It takes whole seconds since 1970-01-01T00:00:00Z, digits
+  only, up to 253402300799; any other value fails the call. A DESTINATION, --check,
+  --build-own-spec and --export-pdf read it; unset, the build records the clock as before.
+
 Examples:
   obs-html document.json artifact.html
   obs-html document.json artifact.pdf
