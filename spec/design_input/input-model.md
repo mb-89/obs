@@ -240,15 +240,6 @@ records; they never execute artifact-owned algorithms in the converter.
   `(generated)` suffix, and no separate generator-version row duplicating `generator`).
   `timestamp` is the time of the last change to the document's content.
 
-  `generator.commit` is the HEAD commit of the running obs-html source checkout.
-  `target.version` is the nonempty `product.version` metadata when supplied, else the
-  target vault's Git description (`git describe --tags --always`); `target.commit` is
-  that vault's HEAD commit.
-
-  The core supplies the vault as `--vault-root`; a direct obs-html call uses its working
-  directory. A value that cannot be resolved is `"unknown"`. When none of these
-  provenance values resolves, the build warns once.
-
   It starts as the build time; a rebuild whose content equals the existing output keeps
   that output and its timestamp. Each committed canonical change in the artifact (for example
   an evidence replacement or a description edit) sets it to the time of that change, and a saved
