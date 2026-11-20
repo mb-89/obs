@@ -44,7 +44,7 @@ from obs.input import (
     validate_project_config,
     validate_quantity,
 )
-from obs import embeds
+from obs import bottom_lines, embeds
 from obs.node_ids import block_names, named_blocks
 from obs.note import (
     DELIMITER, IGNORED, ColumnsError, Note, VaultError, column_blocks, column_weights, has_delimiters, lines,
@@ -299,6 +299,7 @@ def build_document(
             })
             capabilities.add("chapter-inclusion")
         parsed = _nodes(chapter_body, context)
+        _check_bottom_line(parsed, context)
         if parsed and "markdown" in (capability_ids or set()):
             content.append({"type": "markdown", "attrs": {}, "children": []})
             capabilities.add("markdown")
@@ -314,6 +315,7 @@ def build_document(
     _metadata_links(metadata, manifest_path, vault)
     manifest_context = replace(context_of(manifest_path, metadata), first_line=body[:abstract].count("\n"))
     abstract_nodes = _nodes(body[abstract:], manifest_context)
+    _check_bottom_line(abstract_nodes, manifest_context)
     manifest_nodes = _frontmatter_nodes(metadata, manifest_context)
     unlisted: list[dict[str, object]] = []
     while vault.reached:
@@ -780,6 +782,11 @@ class _Context:
     first_line: int | None = 0
     """The note body's 0-based line the parsed text starts on, or None where the text is not
     the note's own (a card body), for messages that name a note line."""
+    card: str = ""
+    """The cards fence a card body belongs to (``cards fence 1``), which messages name for its lines."""
+    places: dict[int, str] = field(default_factory=dict)
+    """Where each ``[!bluf]`` callout of the note stands (``line 3``, ``cards fence 1``), by its node's
+    identity, for the bottom-line messages (bottom_lines.problem)."""
 
 
 def _nodes(source: str, context: _Context) -> list[dict[str, object]]:
@@ -1012,11 +1019,23 @@ def _callout(
         rest.content = inline.content.split("\n", 1)[1]
         body_tokens[1] = rest
     context.capabilities.add("callouts")
-    return {
+    node = {
         "type": "callouts",
         "attrs": {"kind": callout["type"], "title": _inline_text(callout["title"], context)},
         "children": _blocks(body_tokens, 0, len(body_tokens), context),
     }
+    if callout["type"] == bottom_lines.KIND:
+        line = _note_line(context, tokens[position].map[0]) if tokens[position].map else None
+        context.places[id(node)] = context.card if line is None else f"line {line}"
+    return node
+
+
+def _check_bottom_line(nodes: list[dict[str, object]], context: _Context) -> None:
+    """Refuse a note's ``[!bluf]`` callouts where they make no bottom line (input-model#Bottom lines)."""
+    callouts = bottom_lines.found(nodes)
+    found = bottom_lines.problem(callouts, [context.places.get(id(node), "") for node, _ in callouts])
+    if found is not None:
+        raise VaultError(str(input_error(context.vault.relative(context.source_path), *found)))
 
 
 def _fence_node(token: Token, context: _Context) -> dict[str, object]:
@@ -1044,7 +1063,7 @@ def _fence_node(token: Token, context: _Context) -> dict[str, object]:
         elif language == "cards":
             specification = parse_card_spec(token.content, source_path, place)
             card_bodies = []
-            body_context = replace(context, capabilities=set(), fences={}, first_line=None)
+            body_context = replace(context, capabilities=set(), fences={}, first_line=None, card=place)
             for card in specification["cards"]:
                 _card_selection(card, source_path, vault)
                 card_bodies.append({"type": "document", "attrs": {
