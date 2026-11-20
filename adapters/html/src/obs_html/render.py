@@ -12,16 +12,17 @@ import base64
 import json
 import re
 import subprocess
+import tomllib
 from contextlib import contextmanager
 from dataclasses import dataclass, field
 from datetime import datetime
-from functools import cache
 from html import escape, unescape
-from importlib.metadata import version
+from importlib.metadata import PackageNotFoundError, distribution, version
 from importlib.resources import files
 from pathlib import Path, PurePosixPath
 from typing import Callable, Iterator
-from urllib.parse import unquote
+from urllib.parse import unquote, urlsplit
+from urllib.request import url2pathname
 
 from jsonschema import Draft202012Validator, validators
 from jsonschema.exceptions import ValidationError
@@ -1378,7 +1379,6 @@ def _document_identity(manifest: dict[str, object]) -> str:
     return PurePosixPath(manifest["path"]).stem.replace("-", " ").title()
 
 
-@cache
 def _git_output(directory: Path, *arguments: str) -> str | None:
     """Run a bounded read-only Git query; unavailable Git or a non-checkout resolves to None."""
     try:
@@ -1391,6 +1391,83 @@ def _git_output(directory: Path, *arguments: str) -> str | None:
     return result.stdout.strip() or None
 
 
+def _project_name(path: Path) -> str | None:
+    try:
+        project = tomllib.loads(path.read_text(encoding="utf-8")).get("project")
+    except (OSError, UnicodeDecodeError, tomllib.TOMLDecodeError):
+        return None
+    return project.get("name") if isinstance(project, dict) else None
+
+
+def _editable_source_commit(source: Path) -> str | None:
+    try:
+        source = source.resolve(strict=True)
+    except (OSError, RuntimeError):
+        return None
+    if not source.is_dir():
+        return None
+    repository_text = _git_output(source, "rev-parse", "--show-toplevel")
+    if repository_text is None:
+        return None
+    try:
+        repository = Path(repository_text).resolve(strict=True)
+        relative = source.relative_to(repository).as_posix()
+    except (OSError, RuntimeError, ValueError):
+        return None
+    if (relative != "adapters/html" or _project_name(repository / "pyproject.toml") != "obs"
+            or _project_name(source / "pyproject.toml") != "obs-html"):
+        return None
+    return _git_output(repository, "rev-parse", "HEAD")
+
+
+def _generator_commit() -> str | None:
+    """Resolve only a commit tied to the installed obs-html distribution's source."""
+    try:
+        origin_text = distribution("obs-html").read_text("direct_url.json")
+    except (PackageNotFoundError, OSError):
+        return None
+    if not origin_text:
+        return None
+    try:
+        origin = json.loads(origin_text)
+    except json.JSONDecodeError:
+        return None
+    if not isinstance(origin, dict):
+        return None
+
+    vcs = origin.get("vcs_info")
+    directory = origin.get("dir_info")
+    if isinstance(directory, dict) and directory.get("editable") is True:
+        url = origin.get("url")
+        if isinstance(url, str):
+            try:
+                parsed = urlsplit(url)
+            except ValueError:
+                parsed = None
+            if parsed and parsed.scheme == "file" and parsed.netloc in ("", "localhost"):
+                try:
+                    source = Path(url2pathname(parsed.path))
+                except (OSError, ValueError):
+                    source = None
+            elif isinstance(vcs, dict) and vcs.get("vcs") == "git":
+                source = Path(__file__).resolve().parents[2]
+            else:
+                source = None
+            if source is not None:
+                commit = _editable_source_commit(source)
+                if commit is not None:
+                    return commit
+
+    if isinstance(vcs, dict) and vcs.get("vcs") == "git":
+        commit = vcs.get("commit_id")
+        if not isinstance(commit, str) or not re.fullmatch(
+            r"(?:[0-9a-f]{40}|[0-9a-f]{64})", commit, re.IGNORECASE
+        ):
+            return None
+        return commit.lower()
+    return None
+
+
 def _generation(manifest: dict[str, object], built: datetime, target_root: Path,
                 identity: str) -> dict[str, object]:
     """Record the running generator and target repository provenance, warning only when none resolves."""
@@ -1398,7 +1475,7 @@ def _generation(manifest: dict[str, object], built: datetime, target_root: Path,
     declared_version = product.get("version") if isinstance(product, dict) else None
     if not isinstance(declared_version, str) or not declared_version.strip():
         declared_version = None
-    generator_commit = _git_output(Path(__file__).resolve().parent, "rev-parse", "HEAD")
+    generator_commit = _generator_commit()
     target_version = declared_version or _git_output(target_root, "describe", "--tags", "--always")
     target_commit = _git_output(target_root, "rev-parse", "HEAD")
     if not any((generator_commit, target_version, target_commit)):

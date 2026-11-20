@@ -2327,7 +2327,9 @@ separate from artifact presentation.
 
 The generation record names the generator and target:
 
-- `generator.commit` is the HEAD commit of the running `obs-html` checkout.
+- `generator.commit` uses the commit declared by the installed distribution's Git origin, or the
+  HEAD of a verified source checkout of this `obs-html` project. If its own source commit cannot
+  be verified, it is `"unknown"`; a consumer repository's Git commit is never a substitute.
 - `target.version` uses nonempty `product.version` metadata when supplied; otherwise it uses
   the target vault's Git description (`git describe --tags --always`).
 - `target.commit` is the target vault's HEAD commit.
