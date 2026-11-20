@@ -134,9 +134,10 @@ the Document from a manifest, ROOT is the manifest's folder as the user gave it 
 `--source spec/manifest.md`), and the adapter names each vault-relative path in its messages below
 it, so they read `spec/manifest.md: …`.
 
-ROOT is for messages only: the Document stays
-machine-independent and never carries it, and neither does the artifact. Without the argument, on
-a direct adapter call on a Document, messages name paths relative to the vault.
+ROOT stays outside the Document and artifact, so both remain machine-independent. An adapter may
+use it for local build context; obs-html uses it to resolve the target's Git version and commit.
+Without the argument, a direct obs-html call uses its working directory for that provenance, and
+messages name paths relative to the vault.
 
 The second standard argument is `--vault-link LINK`, which every adapter accepts and may ignore:
 the way from the destination's folder to the vault folder, with `/` between its parts, such as

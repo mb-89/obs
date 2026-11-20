@@ -220,9 +220,9 @@ records; they never execute artifact-owned algorithms in the converter.
 
   An explicitly empty string suppresses only that visible heading; it does not remove the
   cover, subtitle, metadata, Home, or abstract. Browser, navigation, and canonical Home
-  identity use the document identity from available document metadata before falling
-  back to the filename. A technical manifest filename is not the document's display
-  identity when a project/document name is supplied.
+  identity use the nonempty `product.name` metadata before falling back to the manifest
+  filename. A technical manifest filename is not the document's display identity when a
+  product name is supplied.
 
   Whitespace-only strings and non-string titles remain invalid.
   When such an authored cover is also present as an ordinary source note (for
@@ -239,6 +239,15 @@ records; they never execute artifact-owned algorithms in the converter.
   exactly `timestamp`, `generator`, and `target` (no `generation.` prefix, no
   `(generated)` suffix, and no separate generator-version row duplicating `generator`).
   `timestamp` is the time of the last change to the document's content.
+
+  `generator.commit` is the HEAD commit of the running obs-html source checkout.
+  `target.version` is the nonempty `product.version` metadata when supplied, else the
+  target vault's Git description (`git describe --tags --always`); `target.commit` is
+  that vault's HEAD commit.
+
+  The core supplies the vault as `--vault-root`; a direct obs-html call uses its working
+  directory. A value that cannot be resolved is `"unknown"`. When none of these
+  provenance values resolves, the build warns once.
 
   It starts as the build time; a rebuild whose content equals the existing output keeps
   that output and its timestamp. Each committed canonical change in the artifact (for example

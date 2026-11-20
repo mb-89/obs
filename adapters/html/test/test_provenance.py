@@ -15,7 +15,7 @@ import pytest
 from artifacts import artifact_html
 from conftest import CORE_ROOT, ROOT, spec_build
 from documents import chapter, document, heading, paragraph
-from obs_html import cli, provenance
+from obs_html import artifact_data, cli, provenance, render as renderer
 from obs_html.errors import InputError
 from obs_html.provenance import CheckException, excepted, findings, local_list, local_terms, reported
 
@@ -98,6 +98,66 @@ def test_the_example_bless_deck_shows_only_the_documented_exemption(tmp_path: Pa
     found = findings((tmp_path / "deck.html").read_text(encoding="utf-8"))
     assert "carries provenance" not in capsys.readouterr().err
     assert shown(found) == [(provenance.GENERATION_TIMESTAMP, "timestamp", "generation-timestamp")]
+
+
+@pytest.mark.parametrize(("product_version", "expected_version"), [
+    (None, "target-tag"),
+    ("2.7.0", "2.7.0"),
+], ids=["git-version", "declared-version"])
+def test_a_build_resolves_generation_provenance_from_the_generator_and_target(
+    tmp_path: Path, capsys, monkeypatch, product_version, expected_version
+) -> None:
+    source = tmp_path / "document.json"
+    target_root = tmp_path / "target"
+    target_root.mkdir()
+    metadata = {"product": {"name": "Target"}}
+    if product_version is not None:
+        metadata["product"]["version"] = product_version
+    source.write_text(json.dumps(document("Target", chapter("one", "One", paragraph("Content.")),
+                                          metadata=metadata)), encoding="utf-8")
+    generator_root = Path(renderer.__file__).resolve().parent
+
+    def git_output(folder: Path, *arguments: str) -> str | None:
+        folder = Path(folder).resolve()
+        if arguments == ("rev-parse", "HEAD"):
+            if folder == generator_root:
+                return "generator-commit"
+            if folder == target_root:
+                return "target-commit"
+        if arguments == ("describe", "--tags", "--always") and folder == target_root:
+            return "target-tag"
+        return None
+
+    monkeypatch.setattr(renderer, "_git_output", git_output, raising=False)
+    destination = tmp_path / "artifact.html"
+
+    assert cli.main(["--vault-root", str(target_root), str(source), str(destination)]) == 0
+
+    generation = artifact_data.decode_artifact_data(destination.read_text(encoding="utf-8"))["document"]["generation"]
+    assert generation["generator"]["commit"] == "generator-commit"
+    assert generation["target"] == {
+        "name": "Target", "version": expected_version, "commit": "target-commit",
+    }
+    assert "generation provenance" not in capsys.readouterr().err
+
+
+def test_a_build_warns_when_no_generation_provenance_resolves(tmp_path: Path, capsys, monkeypatch) -> None:
+    source = tmp_path / "document.json"
+    target_root = tmp_path / "target"
+    target_root.mkdir()
+    source.write_text(json.dumps(document("Target", chapter("one", "One", paragraph("Content.")))),
+                      encoding="utf-8")
+    monkeypatch.setattr(renderer, "_git_output", lambda *_args: None, raising=False)
+
+    assert cli.main(["--vault-root", str(target_root), str(source), str(tmp_path / "artifact.html")]) == 0
+
+    error = capsys.readouterr().err
+    artifact = (tmp_path / "artifact.html").read_text(encoding="utf-8")
+    generation = artifact_data.decode_artifact_data(artifact)["document"]["generation"]
+    assert generation["generator"]["commit"] == "unknown"
+    assert generation["target"]["version"] == "unknown"
+    assert generation["target"]["commit"] == "unknown"
+    assert "generation provenance" in error and "Warning" in error
 
 
 def test_a_vendored_librarys_own_lines_are_exempt_by_name() -> None:
