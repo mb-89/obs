@@ -1,0 +1,818 @@
+"""Native-browser tier: bless verdicts in the top band, the swipe walk, Send and the screens the deck
+opens in (bless.js, screens.js; artifact-ui.md, Bless verdicts, Screens and Reading shell;
+spec/capabilities/bless.md).
+
+Reader: whoever changes the verdict keys, Send, the answered record, the chapter swipe or screens.
+
+The artifact is the example deck of obs's spec (spec/examples/bless-deck), built through the core
+once per run: Home, then two chapters that ask for a bless, each with a decision figure, so it opens
+in screens (artifact-ui.md, Screens: the default of a deck); the phone checks open it so, on a phone. Send posts
+to the real obs-html serve (test/serving.py); the answers it writes build the answered deck, which
+shows each verdict read-only.
+"""
+import json
+import re
+import subprocess
+import sys
+from pathlib import Path
+
+import pytest
+from jsonschema import Draft202012Validator
+
+import serving
+from artifacts import artifact_html
+from conftest import CORE_ROOT, built_once
+from documents import chapter, document, heading, paragraph
+from obs_html import cli
+
+pytestmark = pytest.mark.browser
+DECK = CORE_ROOT / "spec" / "examples" / "bless-deck" / "manifest.md"
+ANSWERS_SCHEMA = CORE_ROOT / "src" / "obs" / "answers.schema.json"
+FIGURE = "record--figure-1"
+DETAILS = f'[data-pugh-details="{FIGURE}"]'
+"""Where the figure's tabs are: its chapter's Details (artifact-ui.md, Decision figures)."""
+PHONE = {"width": 390, "height": 800}
+PENDING = "Bless pending"
+
+
+def _artifact(folder: Path, name: str, answers: Path | None = None) -> Path:
+    """The deck's Document, as obs-document builds it (with ``answers``, --answers), and its artifact."""
+    subprocess.run([sys.executable, "-m", "obs.document", "--source", str(DECK), "--document", str(folder / f"{name}.json"),
+                    *(["--answers", str(answers)] if answers else [])], check=True)
+    assert cli.main([str(folder / f"{name}.json"), str(folder / f"{name}.html")]) == 0
+    return folder / f"{name}.html"
+
+
+def _versions(folder: Path) -> dict[str, str]:
+    document = json.loads((folder / "deck.json").read_text(encoding="utf-8"))
+    return {chapter["id"]: chapter["bless"]["version"] for chapter in document["chapters"] if "bless" in chapter}
+
+
+def _answers(versions: dict[str, str]) -> dict:
+    """The verdicts the Send test gives, at the deck's versions."""
+    return {"verdicts": [
+        {"chapter": "record", "version": versions["record"], "verdict": "pick", "comment": "C needs no second place.",
+         "pick": {"figure": FIGURE, "option": "C"},
+         "figures": {FIGURE: {"weights": {"places": 1}, "marks": {}, "rulings": {}, "winner": "B"}}},
+        {"chapter": "swipe", "version": versions["swipe"], "verdict": "bless"}]}
+
+
+def _build(folder: Path) -> None:
+    """The deck, and the deck built with the answers the Send test gives (obs-document --answers)."""
+    _artifact(folder, "deck")
+    (folder / "answers").mkdir()
+    (folder / "answers" / "answers.json").write_text(json.dumps(_answers(_versions(folder))), encoding="utf-8")
+    _artifact(folder, "answered", folder / "answers" / "answers.json")
+
+
+@pytest.fixture(scope="module")
+def built(tmp_path_factory) -> Path:
+    return built_once(tmp_path_factory, "bless-deck", _build)
+
+
+@pytest.fixture(scope="module")
+def deck(built) -> Path:
+    return built / "deck.html"
+
+
+def _open(reader_browser, url: str, viewport: dict | None = None, chapter: str = "record"):
+    page = reader_browser.new_page(viewport=viewport)
+    errors: list[str] = []
+    page.on("pageerror", lambda error: errors.append(str(error)))
+    page.on("dialog", lambda dialog: errors.append(f"dialog: {dialog.message}"))
+    page.goto(f"{url}#{chapter}")
+    page.wait_for_function("document.documentElement.dataset.artifactStatus === 'ready'")
+    page.evaluate("obsPages.setPaged(false)")
+    return page, errors
+
+
+def _active(page) -> str:
+    return page.locator("[data-active-chapter]").get_attribute("data-chapter")
+
+
+# Each shown control of the top band: its name, its box and whether a pointer at its centre reaches it;
+# the breadcrumbs' choosers (toggle) are small triangles, not squares.
+BAND = """() => [...document.querySelectorAll(
+        '.top-band a.chapter-home-link, .top-band button, .top-band [data-bless-pill], '
+        + '.top-band summary.chapter-breadcrumb-toggle')]
+    .filter(node => node.checkVisibility() && !node.closest('.notice-list, .bless-entry, .chapter-breadcrumb-menu'))
+    .map(node => {
+        const box = node.getBoundingClientRect(), hit = document.elementFromPoint(
+            box.left + box.width / 2, box.top + box.height / 2);
+        return {name: node.getAttribute('aria-label') || node.textContent.trim(), pill: node.matches('[data-bless-pill]'),
+                toggle: node.matches('summary'),
+                left: box.left, right: box.right, width: box.width, height: box.height,
+                reached: Boolean(hit) && node.contains(hit)};
+    })"""
+
+
+def _fits(page) -> list[dict]:
+    """No sideways page scroll, and every shown control of the band inside the viewport, reached by a
+    pointer at its centre (none lies under another), and every control but the pill a square of one
+    size; returns the controls."""
+    controls = page.evaluate(BAND)
+    width = page.evaluate("innerWidth")
+    assert page.evaluate("document.documentElement.scrollWidth") == width
+    assert [item["name"] for item in controls if item["left"] < -0.5 or item["right"] > width + 0.5
+            or not item["reached"]] == []
+    squares = {(round(item["width"]), round(item["height"])) for item in controls
+               if not item["pill"] and not item["toggle"]}
+    assert len(squares) == 1 and len({*squares.pop()}) == 1, controls
+    return controls
+
+
+SWIPE = """([selector, across]) => {
+    const target = document.querySelector(selector), box = target.getBoundingClientRect();
+    const x = box.left + box.width / 2, y = box.top + Math.min(box.height / 2, 20);
+    const touch = (clientX) => new Touch({identifier: 1, target, clientX, clientY: y});
+    const pointer = (type, clientX) => new PointerEvent(type, {pointerType: "touch", isPrimary: true, clientX, clientY: y,
+        bubbles: true});
+    target.dispatchEvent(pointer("pointerdown", x));
+    target.dispatchEvent(new TouchEvent("touchstart", {touches: [touch(x)], changedTouches: [touch(x)], bubbles: true}));
+    target.dispatchEvent(pointer("pointerup", x + across));
+    target.dispatchEvent(new TouchEvent("touchend", {touches: [], changedTouches: [touch(x + across)], bubbles: true}));
+}"""
+"""A touch swipe of ``across`` pixels from the middle of the first ``selector``: its pointer and its touch events."""
+
+
+def test_the_pill_and_keys_show_only_on_asking_chapters_and_the_page_fits_a_phone(deck, reader_browser) -> None:
+    from playwright.sync_api import expect
+
+    page, errors = _open(reader_browser, deck.as_uri(), PHONE)
+    expect(page.locator("[data-bless-pill]")).to_have_text("Bless pending")
+    assert page.locator("[data-bless-key]:visible").evaluate_all(
+        "keys => keys.map(key => key.getAttribute('aria-label'))") == ["Bless", "Decline", "Ask", "Pick"]
+    expect(page.locator("[data-bless-send]")).to_have_text("Send 0/2")
+    expect(page.locator("[data-bless-send]")).to_be_disabled()
+    _fits(page)
+
+    page.evaluate("obsPages.setPaged(true); obsArtifact.activateChapter('home')")  # Screens have no Home.
+    expect(page.locator("[data-active-chapter]")).to_have_attribute("data-chapter", "home")
+    expect(page.locator("[data-bless-pill]")).to_be_hidden()
+    expect(page.locator("[data-bless-key]:visible")).to_have_count(0)
+    expect(page.locator("[data-bless-send]")).to_be_visible()
+    _fits(page)
+    assert errors == []
+
+
+@pytest.mark.parametrize("width", [360, 390])
+def test_the_band_holds_every_key_in_one_row_at_phone_width_with_the_notices_shown(deck, reader_browser,
+                                                                                   width: int) -> None:
+    """The band of a chapter with a decision figure, all three notice icons shown, as in a real deck."""
+    page, errors = _open(reader_browser, deck.as_uri(), {"width": width, "height": 800})
+    page.evaluate("""() => obsNotices.severities.forEach(severity =>
+        obsNotices.post({id: severity, severity, title: severity}))""")
+    names = [item["name"] for item in _fits(page)]
+    assert names == ["Home", "Choose chapter", "Show frontmatter", PENDING, "Bless", "Decline", "Ask", "Pick", "Comment",
+                     "Send 0 of 2 verdicts",
+                     "Errors: 1 notice", "Warnings: 1 notice", "Information: 1 notice", "Open bars menu"]
+    # Short of space, the breadcrumb has shrunk and the pill is a square of the band's size showing
+    # only its state colour, its label its tooltip and accessible name.
+    pill = page.locator("[data-bless-pill]")
+    assert pill.get_attribute("title") == PENDING
+    box, menu = pill.bounding_box(), page.locator("[data-menu-button]").bounding_box()
+    assert (round(box["width"]), round(box["height"])) == (round(menu["width"]), round(menu["height"]))
+    assert pill.evaluate("node => parseFloat(getComputedStyle(node).fontSize)") == 0
+    assert errors == []
+
+
+def test_the_pill_keeps_its_text_while_the_band_has_room(deck, reader_browser) -> None:
+    """The breadcrumb shrinks first: on a wide band the pill shows its label."""
+    page, errors = _open(reader_browser, deck.as_uri(), {"width": 1100, "height": 800})
+    pill = page.locator("[data-bless-pill]")
+    assert pill.evaluate(
+        "node => node.scrollWidth <= node.clientWidth && parseFloat(getComputedStyle(node).fontSize) > 0")
+    assert pill.bounding_box()["width"] > page.locator("[data-menu-button]").bounding_box()["width"] * 1.5
+    _fits(page)
+    assert errors == []
+
+
+def test_decline_without_a_comment_cannot_be_sent_and_a_complete_verdict_stays(deck, reader_browser) -> None:
+    from playwright.sync_api import expect
+
+    page, errors = _open(reader_browser, deck.as_uri(), PHONE)
+    page.locator('[data-bless-key="decline"]').click()
+    comment = page.locator("[data-bless-comment]")
+    expect(comment).to_be_focused()
+    expect(page.locator("[data-bless-pill]")).to_have_text("Declined · needs a comment")
+    expect(page.locator("[data-bless-send]")).to_be_disabled()
+    _fits(page)
+    comment.press("Enter")  # Without a comment nothing completes, and the chapter stays.
+    assert _active(page) == "record" and page.evaluate("obsBless.payload()") == {"verdicts": []}
+
+    comment.fill("It keeps the verdict in two places.")
+    expect(page.locator("[data-bless-send]")).to_have_text("Send 1/2 ✎1")
+    expect(page.locator("[data-bless-send]")).to_be_enabled()
+    comment.press("Enter")
+    expect(page.locator("[data-bless-entry]")).to_be_hidden()
+    expect(page.locator("[data-bless-pill]")).to_have_text("Declined")
+    assert _active(page) == "record"  # The reader walks, not the verdict.
+    assert errors == []
+
+
+# The review's acceptance and rejection colours, as its own summary draws them, and the band's
+# pill and pressed keys as they show now.
+COLOURS = """() => {
+    const probe = document.createElement('div');
+    probe.className = 'comment-review-summary';
+    probe.innerHTML = '<span data-review-summary-state="accepted"><strong>1</strong></span>'
+        + '<span data-review-summary-state="rejected"><strong>1</strong></span>';
+    document.body.append(probe);
+    const [accept, reject] = [...probe.querySelectorAll('strong')].map(node => getComputedStyle(node).color);
+    probe.remove();
+    const style = node => node && {background: getComputedStyle(node).backgroundColor, border: getComputedStyle(node).borderTopColor};
+    return {accept, reject, pill: style(document.querySelector('[data-bless-pill]')),
+            pressed: style(document.querySelector('[data-bless-key][aria-pressed="true"]'))};
+}"""
+
+
+def test_bless_and_decline_take_the_reviews_acceptance_and_rejection_colours(deck, reader_browser) -> None:
+    """artifact-ui.md, Bless verdicts: Bless and every accepted state, the pill and the pressed key, use
+    the review's acceptance colour, Decline its rejection colour; Ask keeps its own."""
+    from playwright.sync_api import expect
+
+    page, errors = _open(reader_browser, deck.as_uri(), PHONE)
+    page.locator('[data-bless-key="bless"]').click()
+    expect(page.locator("[data-bless-pill]")).to_have_text("Blessed")
+    blessed = page.evaluate(COLOURS)
+    page.locator('[data-bless-key="decline"]').click()
+    page.locator("[data-bless-comment]").fill("It keeps the verdict in two places.")
+    page.locator("[data-bless-comment]").press("Enter")
+    expect(page.locator("[data-bless-pill]")).to_have_text("Declined")
+    declined = page.evaluate(COLOURS)
+    page.locator('[data-bless-key="ask"]').click()
+    page.locator("[data-bless-comment]").fill("Why two places?")
+    page.locator("[data-bless-comment]").press("Enter")
+    expect(page.locator("[data-bless-pill]")).to_have_text("Question")
+    asked = page.evaluate(COLOURS)
+
+    accept, reject = blessed["accept"], blessed["reject"]
+    assert accept != reject
+    assert blessed["pill"]["border"] == accept and blessed["pressed"] == {"background": accept, "border": accept}
+    assert declined["pill"]["border"] == reject and declined["pressed"] == {"background": reject, "border": reject}
+    assert asked["pill"]["border"] not in (accept, reject) and asked["pressed"]["border"] not in (accept, reject)
+    assert errors == []
+
+
+def test_a_swipe_walks_the_chapters_and_does_not_decide(deck, reader_browser) -> None:
+    from playwright.sync_api import expect
+
+    page, errors = _open(reader_browser, deck.as_uri(), PHONE)
+    page.evaluate(SWIPE, ["[data-chapter-body] h1", -120])
+    expect(page.locator("[data-active-chapter]")).to_have_attribute("data-chapter", "swipe")
+    page.evaluate(SWIPE, ["[data-chapter-body] h1", 120])
+    expect(page.locator("[data-active-chapter]")).to_have_attribute("data-chapter", "record")
+    assert page.evaluate("obsBless.verdicts()") == {}
+    expect(page.locator("[data-bless-pill]")).to_have_text("Bless pending")
+
+    # A swipe that starts in a box that scrolls sideways stays with it. At this width the figure's
+    # matrix is rows and scrolls no more (artifact-ui.md, Decision figures), so the box is built here.
+    page.wait_for_selector(f"#{FIGURE}.figure-pugh-ready")
+    page.wait_for_selector(f"{DETAILS} [data-pugh-form='rows']")
+    assert page.evaluate("""() => {
+        const box = Object.assign(document.createElement('div'), {className: 'swipe-box'});
+        box.style.overflowX = 'auto';
+        box.append(Object.assign(document.createElement('p'), {textContent: 'wide'}));
+        box.firstChild.style.width = '200vw';
+        document.querySelector('[data-active-chapter] [data-chapter-body], [data-chapter-body]').append(box);
+        return box.scrollWidth > box.clientWidth;
+    }""")
+    page.evaluate(SWIPE, [".swipe-box p", -120])
+    assert _active(page) == "record"
+    assert errors == []
+
+
+def test_send_hands_the_payload_with_the_weights_the_reader_set(built, reader_browser, tmp_path: Path) -> None:
+    from playwright.sync_api import expect
+
+    artifact = tmp_path / "deck.html"  # Served alone, so its answers.json is this test's.
+    artifact.write_bytes((built / "deck.html").read_bytes())
+    served = serving.started(artifact, "--wait", "--timeout", serving.WAIT)
+    try:
+        page, errors = _open(reader_browser, served.url)
+        weight = page.locator(f'{DETAILS} [data-pugh-weight="places"]')
+        weight.fill("1")
+        weight.dispatch_event("change")
+        expect(page.locator(f"#{FIGURE}")).to_have_attribute("data-pugh-winner", "B")
+        page.locator(f'#{FIGURE} [data-pugh-pick="C"]').click()
+        expect(page.locator("[data-bless-comment]")).to_be_focused()
+        page.locator("[data-bless-comment]").fill("C needs no second place.")
+        page.locator("[data-bless-comment]").press("Enter")
+        assert _active(page) == "record"
+        page.locator('[data-step="1"]').click()
+        expect(page.locator("[data-active-chapter]")).to_have_attribute("data-chapter", "swipe")
+        page.locator('[data-bless-key="bless"]').click()
+        expect(page.locator("[data-bless-send]")).to_have_text("Send 2/2 ✎1")
+        page.locator("[data-bless-send]").click()
+        code, out, err = served.finished()
+    finally:
+        served.stop()
+    assert code == 0, err
+    payload = json.loads((tmp_path / "answers.json").read_text(encoding="utf-8"))
+    assert json.loads(out.strip().splitlines()[-1]) == payload
+    Draft202012Validator(json.loads(ANSWERS_SCHEMA.read_text(encoding="utf-8"))).validate(payload)
+    assert payload == _answers(_versions(built))
+    expect(page.locator("[data-bless-pill]")).to_have_text("Blessed · sent")
+    assert errors == []
+
+
+def test_the_answered_deck_shows_each_verdict_read_only(built, reader_browser) -> None:
+    from playwright.sync_api import expect
+
+    page, errors = _open(reader_browser, (built / "answered.html").as_uri())
+    record = page.locator("[data-bless-record]")
+    expect(record).to_have_attribute("data-bless-record", "answer")
+    expect(record.locator("[data-bless-record-verdict]")).to_have_text("Picked C · Answers file alone")
+    expect(record.locator("[data-bless-record-comment]")).to_have_text("C needs no second place.")
+    expect(record).to_contain_text("Weight of Places that hold it: 1 (was 3)")
+    expect(page.locator("[data-bless-pill]")).to_have_text("Picked C · Answers file alone · recorded")
+    expect(page.locator("[data-bless-key]:visible")).to_have_count(0)
+    expect(page.locator("[data-bless-send]")).to_be_hidden()
+    expect(page.locator(f"{DETAILS} [data-pugh-weight]")).to_have_count(0)  # The figure shows the answer read-only.
+    expect(page.locator(f'{DETAILS} [data-pugh-criterion="places"] .pugh-weight')).to_have_text("1")
+    assert errors == []
+
+
+# What the reader shows as a page: paper sheets, their running headers and footers, and the cover.
+PAGE_FRAME = """() => [...document.querySelectorAll(
+        '.paper-sheet, .paper-header, .paper-footer, .paper-page-number, .document-heading')]
+    .filter(node => node.checkVisibility()).length"""
+
+
+@pytest.mark.parametrize("width", [360, 390])
+def test_the_deck_opens_in_screens_on_a_phone_that_fit_and_walk_by_swipe_and_keys(deck, phone_browser,
+                                                                                  width: int) -> None:
+    """artifact-ui.md, Screens: no sideways scroll, no page frame, the band's title and no counter, and the
+    band fits (Reading shell, the top band); swipe and the keys walk, the arrows are hidden on touch, and
+    the walk has no Home."""
+    from playwright.sync_api import expect
+
+    page = phone_browser.new_page(viewport={"width": width, "height": 780})
+    errors: list[str] = []
+    page.on("pageerror", lambda error: errors.append(str(error)))
+    page.goto(f"{deck.as_uri()}#record")
+    page.wait_for_function("document.documentElement.dataset.artifactStatus === 'ready'")
+    assert page.evaluate("[matchMedia('(pointer: coarse)').matches, innerWidth]") == [True, width]
+    assert page.evaluate("document.documentElement.className.split(' ').filter(name => name.endsWith('-mode'))") \
+        == ["screens-mode"]
+    # No chapter counter: the band shows no "1 / 2", as a document shows none.
+    expect(page.locator(".screens-position, [data-screens-position]")).to_have_count(0)
+    assert not re.search(r"\d+ / \d+", page.locator("[data-top-band]").inner_text())
+    expect(page.locator("[data-screens-title]")).to_have_attribute("title", "Bless verdicts, two decisions")
+    assert page.evaluate(PAGE_FRAME) == 0
+    assert not any(re.fullmatch(r"Chapter \d+ of \d+", item["name"]) for item in _fits(page))
+    # The chapter takes the reader's width; on touch the arrows are hidden.
+    body = page.locator("[data-chapter-body]").bounding_box()
+    assert body["width"] >= width - 2 * 32
+    expect(page.locator("[data-step]")).to_have_count(2)
+    assert page.locator("[data-step]").evaluate_all("steps => steps.filter(step => step.getClientRects().length)") == []
+
+    page.evaluate(SWIPE, ["[data-chapter-body] h1", -120])
+    expect(page.locator("[data-active-chapter]")).to_have_attribute("data-chapter", "swipe")
+    _fits(page)
+    page.evaluate(SWIPE, ["[data-chapter-body] h1", 120])
+    expect(page.locator("[data-active-chapter]")).to_have_attribute("data-chapter", "record")
+    page.evaluate("obsArtifact.whenChapterReady()")
+    page.keyboard.press("ArrowLeft")  # The walk has no Home: chapter 1 is its first screen.
+    page.evaluate("obsArtifact.whenChapterReady()")
+    assert _active(page) == "record"
+    assert page.evaluate(PAGE_FRAME) == 0
+    _fits(page)
+    assert errors == []
+
+
+def test_printing_from_screens_prints_each_screen_from_a_new_page_without_a_page_frame(deck, reader_browser) -> None:
+    """artifact-ui.md, Screens: the print projection holds Home without its cover, then each chapter
+    from a new sheet, with no front pages, running header, footer or page number."""
+    page, errors = _open(reader_browser, deck.as_uri(), PHONE)
+    page.evaluate("dispatchEvent(new Event('beforeprint'))")
+    sheets = page.evaluate("""() => [...document.querySelectorAll('.print-book > .paper-sheet')].map(sheet => ({
+        chapter: sheet.dataset.pageChapter, id: sheet.id,
+        frame: sheet.querySelectorAll('.paper-header, .paper-footer, .document-heading, .title-page').length}))""")
+    page.evaluate("dispatchEvent(new Event('afterprint'))")
+    assert [sheet["chapter"] for sheet in sheets if sheet["id"]] == ["home", "record", "swipe"]
+    assert {sheet["frame"] for sheet in sheets} == {0}
+    assert page.evaluate("document.documentElement.classList.contains('screens-mode')")
+    assert errors == []
+
+
+def _nested_deck() -> str:
+    """A deck whose second chapter, with a decision figure, is a subchapter of the first: its
+    breadcrumbs hold two choosers, Choose chapter and Choose subchapter."""
+    decisions = json.loads((Path(__file__).parent / "fixtures" / "documents" / "pugh.json").read_text(encoding="utf-8"))
+    figure = next(item for entry in decisions["chapters"] for item in entry["content"]
+                  if item["type"] == "figures" and item["attrs"]["kind"] == "pugh")
+    asks = {"obs": {"bless": "pending"}}
+    source = document("Nested deck", chapter(
+        "parent", "Parent decision", heading(1, "Parent decision"), paragraph("Bless this."), metadata=asks,
+        children=(chapter("child", "Child decision", heading(1, "Child decision"), figure, metadata=asks),)))
+    for entry in (source["chapters"][0], source["chapters"][0]["children"][0]):
+        entry["bless"] = {"version": "0" * 64}
+    return artifact_html(source)
+
+
+def test_the_band_of_a_nested_bless_chapter_fits_at_360_px(phone_browser, tmp_path: Path) -> None:
+    """Both breadcrumb choosers, the pill and every key in one row, none under another."""
+    from playwright.sync_api import expect
+
+    (tmp_path / "nested.html").write_text(_nested_deck(), encoding="utf-8")
+    page = phone_browser.new_page(viewport={"width": 360, "height": 780})
+    errors: list[str] = []
+    page.on("pageerror", lambda error: errors.append(str(error)))
+    page.goto(f"{(tmp_path / 'nested.html').as_uri()}#child")
+    page.wait_for_function("document.documentElement.dataset.artifactStatus === 'ready'")
+    expect(page.locator("[data-active-chapter]")).to_have_attribute("data-chapter", "child")
+    names = [item["name"] for item in _fits(page)]
+    assert names == ["Home", "Choose chapter", "Choose subchapter", "Show frontmatter", PENDING,
+                     "Bless", "Decline", "Ask", "Pick", "Comment",
+                     "Send 0 of 2 verdicts", "Open bars menu"]
+    # A pick names its option by the figure's short name; the band still fits.
+    page.locator('[data-bless-key="pick"]').click()
+    page.locator("[data-bless-pick]:not([data-bless-pick$=':none'])").last.click()
+    assert re.fullmatch(r"Picked [A-Z] · \S.* · needs a comment", page.locator("[data-bless-pill]").get_attribute("title"))
+    _fits(page)
+    assert errors == []
+
+
+# What the pill shows: its parts on its one visible line (bless.css, the pill), and its label.
+PILL = """() => { const pill = document.querySelector('[data-bless-pill]'), box = pill.getBoundingClientRect();
+    return {label: pill.title, shown: [...pill.children].filter(part => {
+        const line = part.getBoundingClientRect();
+        return line.width > 0 && line.bottom <= box.bottom + 0.5;
+    }).map(part => part.textContent).join('')}; }"""
+SHORT = "Picked C · Answers file alone"
+
+
+@pytest.mark.parametrize(("width", "shown"), [(360, ""), (390, ""), (520, "Picked C"), (660, SHORT), (1100, SHORT)])
+def test_the_pill_names_the_pick_by_its_short_name_where_the_band_has_room(deck, phone_browser, width: int,
+                                                                         shown: str) -> None:
+    """artifact-ui.md, Bless verdicts: "Picked C · <short name>" where the band has room; short of it,
+    the details drop whole ("Picked C"), and on a phone's bless band the pill is a square, its label
+    its tooltip. The short name is the decision figure's own (obsPugh.options)."""
+    page = phone_browser.new_page(viewport={"width": width, "height": 780})
+    errors: list[str] = []
+    page.on("pageerror", lambda error: errors.append(str(error)))
+    page.goto(f"{deck.as_uri()}#record")
+    page.wait_for_function("document.documentElement.dataset.artifactStatus === 'ready'")
+    page.locator('[data-bless-key="pick"]').click()
+    page.locator(f'[data-bless-pick="{FIGURE}:C"]').click()
+    assert page.evaluate(PILL) == {"label": f"{SHORT} · needs a comment", "shown": shown}
+    _fits(page)
+    assert errors == []
+
+
+def _phone(phone_browser, url: str, width: int = 390):
+    """The deck on the shared phone pool, opened as a reader opens it: without a chapter in the URL."""
+    page = phone_browser.new_page(viewport={"width": width, "height": 780})
+    errors: list[str] = []
+    page.on("pageerror", lambda error: errors.append(str(error)))
+    page.goto(url)
+    page.wait_for_function("document.documentElement.dataset.artifactStatus === 'ready'")
+    return page, errors
+
+
+def test_screens_open_on_the_first_chapter_and_home_goes_there(deck, phone_browser) -> None:
+    """artifact-ui.md, Screens: no title screen; Home and stepping back stay on chapter 1, and the
+    walk holds chapters only. Shown as pages, Home is the cover again."""
+    from playwright.sync_api import expect
+
+    page, errors = _phone(phone_browser, deck.as_uri())
+    assert page.evaluate("document.documentElement.classList.contains('screens-mode')")
+    expect(page.locator("[data-active-chapter]")).to_have_attribute("data-chapter", "record")
+    page.evaluate("obsArtifact.whenChapterReady()")
+    page.keyboard.press("ArrowLeft")
+    page.evaluate("obsArtifact.whenChapterReady()")
+    assert _active(page) == "record"
+    page.keyboard.press("ArrowRight")
+    expect(page.locator("[data-active-chapter]")).to_have_attribute("data-chapter", "swipe")
+    page.locator(".top-band a.chapter-home-link").click()
+    expect(page.locator("[data-active-chapter]")).to_have_attribute("data-chapter", "record")
+    _fits(page)
+
+    page.evaluate("obsPages.setPaged(true)")
+    page.locator(".top-band a.chapter-home-link").click()
+    expect(page.locator("[data-active-chapter]")).to_have_attribute("data-chapter", "home")
+    assert errors == []
+
+
+def test_a_verdict_never_walks_and_a_second_press_clears_it(deck, phone_browser) -> None:
+    """artifact-ui.md, Bless verdicts: a complete verdict stays on its chapter; the active key, the
+    active pick, pressed again, clears the verdict to pending, closes the comment entry and lowers
+    Send's verdicts, the comment kept (Comments that are never lost)."""
+    from playwright.sync_api import expect
+
+    page, errors = _phone(phone_browser, f"{deck.as_uri()}#record")
+    pill, send, entry = (page.locator("[data-bless-pill]"), page.locator("[data-bless-send]"),
+                         page.locator("[data-bless-entry]"))
+    events = page.evaluate_handle("""() => {
+        const seen = [];
+        document.addEventListener('obs-bless-change', ({detail}) => seen.push(detail.chapter));
+        return seen;
+    }""")
+    page.locator('[data-bless-key="bless"]').click()
+    expect(pill).to_have_text("Blessed")
+    expect(send).to_have_text("Send 1/2")
+    assert _active(page) == "record"
+    page.locator('[data-bless-key="bless"]').click()
+    expect(pill).to_have_text(PENDING)
+    expect(send).to_have_text("Send 0/2")
+
+    for verdict in ("decline", "ask", "pick"):
+        page.locator(f'[data-bless-key="{verdict}"]').click()
+        if verdict == "pick":
+            page.locator(f'[data-bless-pick="{FIGURE}:C"]').click()
+        page.locator("[data-bless-comment]").fill("Because.")
+        page.locator("[data-bless-comment]").press("Enter")
+        expect(send).to_have_text("Send 1/2 ✎1")
+        assert _active(page) == "record"
+        page.locator(f'[data-bless-key="{verdict}"]').click()
+        expect(pill).to_have_text(PENDING)
+        expect(entry).to_be_hidden()
+        expect(send).to_have_text("Send 0/2 ✎1")  # The verdict clears; the comment stays.
+    _fits(page)
+
+    # The active pick, pressed again, clears too; the API toggles the same way.
+    page.locator('[data-bless-key="pick"]').click()
+    page.locator(f'[data-bless-pick="{FIGURE}:C"]').click()
+    assert page.evaluate(f"obsBless.picked('{FIGURE}')") == "C"
+    # The options list's radios show the band's pick and clear with it (artifact-ui.md, Decision figures).
+    expect(page.locator(f'#{FIGURE} [data-pugh-pick="C"]')).to_be_checked()
+    page.locator(f'[data-bless-pick="{FIGURE}:C"]').click()
+    expect(pill).to_have_text(PENDING)
+    expect(entry).to_be_hidden()
+    assert page.evaluate(f"obsBless.picked('{FIGURE}')") is None
+    expect(page.locator(f'#{FIGURE} [data-pugh-pick]:checked')).to_have_count(0)
+    page.evaluate(f"obsBless.pick('{FIGURE}', 'C')")
+    expect(pill).to_have_text("Picked C · Answers file alone")  # The comment given before is kept.
+    page.evaluate(f"obsBless.pick('{FIGURE}', 'C')")
+    expect(pill).to_have_text(PENDING)
+    assert events.json_value() and set(events.json_value()) == {"record"}
+    assert errors == []
+
+
+def test_none_of_the_above_needs_a_comment_and_sends_a_none_pick(built, phone_browser) -> None:
+    """artifact-ui.md, Bless verdicts: Pick offers None of the above beside the letters; like Decline
+    it needs a comment, and the payload records ``option: none`` (answers.schema.json)."""
+    from playwright.sync_api import expect
+
+    page, errors = _phone(phone_browser, f"{(built / 'deck.html').as_uri()}#record")
+    page.locator('[data-bless-key="pick"]').click()
+    none = page.locator(f'[data-bless-pick="{FIGURE}:none"]')
+    expect(none).to_have_text("None of the above")
+    none.click()
+    expect(none).to_have_attribute("aria-pressed", "true")
+    assert page.evaluate(f"obsBless.picked('{FIGURE}')") == "none"
+    expect(page.locator("[data-bless-pill]")).to_have_text("None of the above · needs a comment")
+    expect(page.locator("[data-bless-send]")).to_be_disabled()
+    page.locator("[data-bless-comment]").press("Enter")
+    assert page.evaluate("obsBless.payload()") == {"verdicts": []}
+    _fits(page)
+
+    page.locator("[data-bless-comment]").fill("Neither place holds it.")
+    expect(page.locator("[data-bless-send]")).to_be_enabled()
+    payload = page.evaluate("obsBless.payload()")
+    Draft202012Validator(json.loads(ANSWERS_SCHEMA.read_text(encoding="utf-8"))).validate(payload)
+    assert payload == {"verdicts": [{"chapter": "record", "version": _versions(built)["record"], "verdict": "pick",
+                                     "comment": "Neither place holds it.", "pick": {"figure": FIGURE, "option": "none"}}]}
+    assert errors == []
+
+
+def test_an_artifact_outside_screens_keeps_home(phone_browser, tmp_path: Path) -> None:
+    """artifact-ui.md, Screens: only screens drop Home; scrolling and paged open on it as before."""
+    from playwright.sync_api import expect
+
+    source = document("Plain", chapter("one", "One", heading(1, "One"), paragraph("Text.")))
+    (tmp_path / "plain.html").write_text(artifact_html(source), encoding="utf-8")
+    page, errors = _phone(phone_browser, (tmp_path / "plain.html").as_uri())
+    assert not page.evaluate("document.documentElement.classList.contains('screens-mode')")
+    expect(page.locator("[data-active-chapter]")).to_have_attribute("data-chapter", "home")
+    for paged in (False, True):
+        page.evaluate(f"obsPages.setPaged({str(paged).lower()})")
+        page.evaluate("obsArtifact.activateChapter('one')")
+        page.locator(".top-band a.chapter-home-link").click()
+        expect(page.locator("[data-active-chapter]")).to_have_attribute("data-chapter", "home")
+    assert errors == []
+
+
+# Comments that are never lost (artifact-ui.md, Comments that are never lost; capabilities/bless.md,
+# Drafts): at phone width and on a desktop.
+WIDTHS = [{"width": 390, "height": 800}, {"width": 1100, "height": 800}]
+TYPED = "Kept  exactly, as typed: ✓ ünïcode."
+"""A comment with a doubled space and non-ASCII letters, so a change of any kind shows."""
+DRAFTS = """() => Object.fromEntries(Object.keys(sessionStorage).filter(key => key.startsWith('obs-bless-draft:'))
+    .map(key => [key.split(':').pop(), JSON.parse(sessionStorage.getItem(key))]))"""
+"""The deck's drafts in session storage, by chapter."""
+
+
+def _typed(page) -> str:
+    """The active chapter's comment as the reader sees it: the entry opened by the Comment key where
+    it is closed, and closed again after."""
+    entry, key = page.locator("[data-bless-entry]"), page.locator("[data-bless-comment-key]")
+    closed = entry.is_hidden()
+    if closed:
+        key.click()
+    value = page.locator("[data-bless-comment]").input_value()
+    if closed:
+        key.click()
+    return value
+
+
+def _walk(page, step: int, chapter: str) -> None:
+    from playwright.sync_api import expect
+
+    page.locator(f'[data-step="{step}"]').click()
+    expect(page.locator("[data-active-chapter]")).to_have_attribute("data-chapter", chapter)
+
+
+@pytest.mark.parametrize("viewport", WIDTHS, ids=["phone", "desktop"])
+def test_a_comment_stays_as_typed_through_every_click(deck, reader_browser, viewport: dict) -> None:
+    """Requirement 2: pressing or changing a verdict key, clearing it, walking away and back, opening
+    and closing the figure's options and tabs, and Send where it cannot send keep the comment."""
+    from playwright.sync_api import expect
+
+    page, errors = _open(reader_browser, deck.as_uri(), viewport)
+    page.locator("[data-bless-comment-key]").click()
+    comment = page.locator("[data-bless-comment]")
+    expect(comment).to_be_focused()
+    comment.fill(TYPED)
+    assert page.evaluate("obsBless.payload()")["verdicts"] == [
+        {"chapter": "record", "version": page.evaluate(DRAFTS)["record"]["version"], "comment": TYPED}]
+
+    for key in ("bless", "decline", "ask", "decline", "decline", "bless", "bless"):  # Press, change, clear.
+        page.locator(f'[data-bless-key="{key}"]').click()
+        assert _typed(page) == TYPED, key
+    page.locator('[data-bless-key="pick"]').click()
+    page.locator(f'[data-bless-pick="{FIGURE}:C"]').click()
+    assert _typed(page) == TYPED
+    expect(page.locator("[data-bless-pill]")).to_have_text("Picked C · Answers file alone")
+
+    _walk(page, 1, "swipe")
+    assert _typed(page) == ""  # Each decision has its own draft.
+    _walk(page, -1, "record")
+    assert _typed(page) == TYPED
+
+    page.wait_for_selector(f"#{FIGURE}.figure-pugh-ready")
+    option = page.locator(f"#{FIGURE} details summary").first
+    option.click()
+    option.click()
+    for tab in ("sensitivity", "pareto", "matrix"):  # Checklist is disabled: this figure has no items.
+        page.locator(f'{DETAILS} [data-pugh-tab="{tab}"]').click()
+    assert _typed(page) == TYPED
+
+    expect(page.locator("[data-bless-send]")).to_have_text("Send 1/2 ✎1")
+    page.locator("[data-bless-send]").click()  # On a file, sending is not available: nothing is sent.
+    expect(page.locator('[data-notice="bless-send"]')).to_contain_text("kept")
+    assert _typed(page) == TYPED
+    assert page.evaluate(DRAFTS)["record"]["comment"] == TYPED
+    _fits(page)
+    assert errors == []
+
+
+@pytest.mark.parametrize("viewport", WIDTHS, ids=["phone", "desktop"])
+def test_a_reload_restores_each_decisions_draft_from_session_storage_only(deck, reader_browser, viewport: dict) -> None:
+    """Requirement 2, the reload: the draft is reader state in session storage, per deck and per
+    decision, never in local storage or the artifact's markup."""
+    from playwright.sync_api import expect
+
+    page, errors = _open(reader_browser, deck.as_uri(), viewport)
+    page.locator('[data-bless-key="decline"]').click()
+    page.locator("[data-bless-comment]").fill(TYPED)
+    _walk(page, 1, "swipe")
+    page.locator("[data-bless-comment-key]").click()
+    page.locator("[data-bless-comment]").fill("Only a thought.")
+
+    page.reload()
+    page.wait_for_function("document.documentElement.dataset.artifactStatus === 'ready'")
+    page.evaluate("obsArtifact.activateChapter('record')")
+    expect(page.locator("[data-bless-pill]")).to_have_text("Declined")
+    assert _typed(page) == TYPED
+    _walk(page, 1, "swipe")
+    expect(page.locator("[data-bless-pill]")).to_have_text(PENDING)
+    assert _typed(page) == "Only a thought."
+    drafts = page.evaluate(DRAFTS)
+    assert {chapter: {key: value for key, value in draft.items() if key != "version"}
+            for chapter, draft in drafts.items()} == {
+        "record": {"verdict": "decline", "comment": TYPED}, "swipe": {"comment": "Only a thought."}}
+    assert page.evaluate("Object.keys(localStorage).filter(key => key.startsWith('obs-bless-draft'))") == []
+    assert page.evaluate("(text) => document.documentElement.outerHTML.includes(text)", "Only a thought.") is False
+    assert errors == []
+
+
+@pytest.mark.parametrize("viewport", WIDTHS, ids=["phone", "desktop"])
+def test_a_comment_with_no_verdict_is_sent_and_a_confirmed_send_clears_the_drafts(built, reader_browser, tmp_path: Path,
+                                                                                  viewport: dict) -> None:
+    """Requirements 1, 3 and 4: Bless takes an optional comment, a comment with no verdict is sent
+    under its decision, Send counts both first, and the confirmed send clears the drafts and says
+    what went where; obs-document --answers reads the payload back."""
+    from playwright.sync_api import expect
+
+    artifact = tmp_path / "deck.html"
+    artifact.write_bytes((built / "deck.html").read_bytes())
+    served = serving.started(artifact, "--wait", "--timeout", serving.WAIT)
+    try:
+        page, errors = _open(reader_browser, served.url, viewport)
+        page.locator("[data-bless-comment-key]").click()
+        page.locator("[data-bless-comment]").fill("  Only a thought.  ")
+        _walk(page, 1, "swipe")
+        page.locator('[data-bless-key="bless"]').click()
+        page.locator("[data-bless-comment-key]").click()
+        page.locator("[data-bless-comment]").fill("Reads well.")
+        send = page.locator("[data-bless-send]")
+        expect(send).to_have_text("Send 1/2 ✎2")
+        expect(send).to_have_attribute("aria-label", "Send 1 of 2 verdicts and 2 comments")
+        _fits(page)
+        send.click()
+        code, out, err = served.finished()
+    finally:
+        served.stop()
+    assert code == 0, err
+    payload = json.loads((tmp_path / "answers.json").read_text(encoding="utf-8"))
+    Draft202012Validator(json.loads(ANSWERS_SCHEMA.read_text(encoding="utf-8"))).validate(payload)
+    versions = _versions(built)
+    assert payload == {"verdicts": [
+        {"chapter": "record", "version": versions["record"], "comment": "Only a thought."},
+        {"chapter": "swipe", "version": versions["swipe"], "verdict": "bless", "comment": "Reads well."}]}
+    notice = page.locator('[data-notice="bless-send"]')
+    expect(notice.locator("[data-notice-details]")).to_have_text("1 verdict and 2 comments sent.", use_inner_text=False)
+    assert "answers.json" not in notice.text_content() and "obs-html serve" not in notice.text_content()
+    assert page.evaluate(DRAFTS) == {}
+    expect(page.locator("[data-bless-pill]")).to_have_text("Blessed · sent")
+    assert _typed(page) == ""
+
+    subprocess.run([sys.executable, "-m", "obs.document", "--source", str(DECK), "--document", str(tmp_path / "read.json"),
+                    "--answers", str(tmp_path / "answers.json")], check=True)
+    chapters = {chapter["id"]: chapter for chapter in json.loads((tmp_path / "read.json").read_text())["chapters"]}
+    assert chapters["record"]["bless"] == {"version": versions["record"], "comment": payload["verdicts"][0]}
+    assert chapters["swipe"]["bless"]["answer"] == payload["verdicts"][1]
+    assert errors == []
+
+
+@pytest.mark.parametrize("viewport", WIDTHS, ids=["phone", "desktop"])
+def test_a_failed_send_keeps_the_draft_and_says_so(built, reader_browser, tmp_path: Path, viewport: dict) -> None:
+    """Requirement 4: where the sink fails, the drafts stay, on the page and after a reload, and the
+    notice says nothing was sent."""
+    from playwright.sync_api import expect
+
+    artifact = tmp_path / "deck.html"
+    artifact.write_bytes((built / "deck.html").read_bytes())
+    served = serving.started(artifact)
+    try:
+        page, errors = _open(reader_browser, served.url, viewport)
+        page.locator('[data-bless-key="ask"]').click()
+        page.locator("[data-bless-comment]").fill(TYPED)
+        page.locator("[data-bless-comment]").press("Enter")
+    finally:
+        served.stop()  # The sink fails: the server is gone.
+    console: list = []
+    page.on("console", lambda message: console.append((message.type, message.text)))
+    page.locator("[data-bless-send]").click()
+    notice = page.locator('[data-notice="bless-send"]')
+    expect(notice).to_contain_text("Not sent")
+    expect(notice).to_contain_text("kept")
+    expect(page.locator("[data-bless-pill]")).to_have_text("Question")
+    assert _typed(page) == TYPED
+    assert page.evaluate(DRAFTS)["record"]["comment"] == TYPED
+    assert errors == []
+    # Plain words for the reader (artifact-ui.md, Sent means sent); the failure's message goes to the console.
+    expect(notice.locator("[data-notice-details] > p")).to_have_text(
+        "1 verdict and 1 comment were not sent. Your verdicts and comments are kept in the deck; send again.")
+    answers = page.locator('[data-notice="answers"]')
+    expect(answers.locator("[data-notice-details] > p").first).to_have_text(
+        "They could not be sent from this page. Copy the answers and hand them over.")
+    address = served.url.split("#")[0].split("?")[0].lower()
+    for entry in (notice, answers.locator("[data-notice-title], [data-notice-details] > p")):
+        text = " ".join(entry.all_text_contents()).lower()
+        assert "obs-html" not in text and address not in text and "server" not in text, text
+    warnings = [text for kind, text in console if kind == "warning"]  # The browser logs the refused fetch itself.
+    assert len(warnings) == 1 and warnings[0].startswith("obsHtml.answers: obs-html serve at "), console
+
+
+@pytest.mark.parametrize("viewport", WIDTHS, ids=["phone", "desktop"])
+def test_opening_the_chapters_in_another_order_finds_each_draft_back(deck, reader_browser, viewport: dict) -> None:
+    """Requirement 6, changes after filing: obs-html restores each decision's draft verdict, pick and
+    comment itself, a bless on any chapter as every other verdict, whichever chapter opens first."""
+    from playwright.sync_api import expect
+
+    page, errors = _open(reader_browser, deck.as_uri(), viewport)
+    page.locator('[data-bless-key="pick"]').click()
+    page.locator(f'[data-bless-pick="{FIGURE}:C"]').click()
+    page.locator("[data-bless-comment]").fill(TYPED)
+    _walk(page, 1, "swipe")
+    page.locator('[data-bless-key="bless"]').click()
+    page.locator("[data-bless-comment-key]").click()
+    page.locator("[data-bless-comment]").fill("Reads well.")
+
+    page.evaluate("location.hash = '#swipe'")  # The deck opens on the chapter given last, not the first.
+    page.reload()
+    page.wait_for_function("document.documentElement.dataset.artifactStatus === 'ready'")
+    expect(page.locator("[data-active-chapter]")).to_have_attribute("data-chapter", "swipe")
+    expect(page.locator("[data-bless-pill]")).to_have_text("Blessed")
+    expect(page.locator('[data-bless-key="bless"]')).to_have_attribute("aria-pressed", "true")
+    assert _typed(page) == "Reads well."
+    _walk(page, -1, "record")
+    expect(page.locator("[data-bless-pill]")).to_have_text("Picked C · Answers file alone")
+    expect(page.locator(f'#{FIGURE} [data-pugh-pick="C"]')).to_be_checked()
+    assert _typed(page) == TYPED
+    expect(page.locator("[data-bless-send]")).to_have_text("Send 2/2 ✎2")
+    _fits(page)
+    assert errors == []

@@ -1,0 +1,308 @@
+"""Registers: a ``registers`` node renders from its attrs alone (obs capabilities/registers, Document node).
+
+The core-built Document ``fixtures/documents/registers.json`` (vault ``registers`` in
+``fixtures/build_documents.py``) embeds ``points.base`` whole and by one view heading, and
+``types.base``, which has one view per record type. The DOM tier shows each view's rows as the
+reader sees them; the core selected them, and the adapter evaluates no selection.
+"""
+import re
+import copy
+import json
+from pathlib import Path
+
+import pytest
+
+from conftest import CORE_ROOT, ROOT
+from documents import chapter, document as build, node, paragraph, without_node_ids
+from obs_html.artifact_data import decode_artifact_data
+from obs_html.config import load_config
+from obs_html.errors import InputError
+from obs_html.render import BROWSER_KEYWORDS, base_definition_error, render
+from test_dom import run_artifact_dom_contract
+
+
+CONFIG = load_config()
+REGISTERS = json.loads((ROOT / "test" / "fixtures" / "documents" / "registers.json").read_text(encoding="utf-8"))
+RECORD_TYPES = json.loads((CORE_ROOT / "src" / "obs" / "document.schema.json").read_text(encoding="utf-8"))[
+    "$defs"]["record"]["properties"]["type"]["enum"]
+
+
+def _inspect(document: dict, folder: Path, chapters: list[str]) -> dict:
+    artifact = folder / "registers.html"
+    artifact.write_text(render(document, CONFIG), encoding="utf-8")
+    output = run_artifact_dom_contract(artifact, "--inspect-json", arguments=(json.dumps(chapters),))
+    return json.loads(output)["chapters"]
+
+
+def _register(document: dict, chapter_id: str) -> dict:
+    """The first registers node of a chapter, at any depth (a register can sit in a list item or a callout)."""
+    stack = list(next(item for item in document["chapters"] if item["id"] == chapter_id)["content"])
+    while stack[0]["type"] != "registers":
+        stack[:1] = stack[0]["children"]
+    return stack[0]
+
+
+@pytest.fixture(scope="module")
+def inspected(tmp_path_factory) -> dict:
+    return _inspect(REGISTERS, tmp_path_factory.mktemp("registers"), ["points", "second", "types"])
+
+
+def test_the_registers_document_is_contract_valid(document_validator) -> None:
+    document_validator.validate(REGISTERS)
+    assert "registers" in REGISTERS["capabilities"]
+
+
+@pytest.mark.dom
+def test_a_register_embed_renders_every_view_with_the_rows_the_core_selected(inspected) -> None:
+    [views] = inspected["points"]["views"]
+    assert [view["name"] for view in views] == ["Labelled", "Second"]
+    assert sorted(views[0]["rows"]) == ["note:a-point", "note:c-point"]
+    assert views[1]["rows"] == ["note:b-point"]
+
+
+@pytest.mark.dom
+def test_a_view_heading_embed_renders_that_one_view_without_a_selector(inspected) -> None:
+    assert inspected["second"]["views"] == [[{"name": "", "rows": ["note:b-point"], "labels": []}]]
+
+
+# The view of types.base over each record type, and the rows the reader sees: the core's rows, and
+# for documentMetadata also the adapter's generation provenance (generic-tables, Bases filter grammar).
+TYPE_VIEWS = {
+    "note": ("Notes", ["note:a-point", "note:b-point", "note:c-point", "note:d-point"]),
+    "chapter": ("Chapters", ["points", "second", "types"]),
+    "tag": ("Tags", ["second:risk:second_risk"]),
+    "glossary": ("Glossary", ["glossary:datum"]),
+    "documentMetadata": ("Metadata", ["metadata:status", "generation:timestamp", "generation:generator",
+                                      "generation:target"]),
+    "documentHistory": ("History", ["history:0", "history:1"]),
+}
+
+
+def test_a_register_renders_between_the_paragraphs_of_the_text_around_it() -> None:
+    """A register's table is a block beside the paragraphs, as the core places it (obs
+    capabilities/markdown#Document nodes): the text around the embed stays paragraphs, in order,
+    and an embed alone leaves no empty paragraph."""
+    alone = render(REGISTERS, CONFIG)
+    notes = {note["slug"]: note["html"] for note in decode_artifact_data(alone)["notes"]}
+    assert '<h1 id="points--points">Points</h1>\n<p>All views.</p>\n<div class="data-table-placeholder" ' \
+        in without_node_ids(notes["points"])
+    register = _register(REGISTERS, "points")
+    document = build("Doc", chapter(
+        "one", "One", paragraph("Before "), register,
+        paragraph(" after"),
+    ), records=tuple(REGISTERS["records"]))
+    html = next(note["html"] for note in decode_artifact_data(render(document, CONFIG))["notes"]
+                if note["slug"] == "one")
+    assert html.startswith('<p>Before </p>\n<div class="data-table-placeholder" data-base-table="one-base-1"></div>\n'
+                           "<p> after</p>\n"), html
+
+
+def test_the_record_type_views_cover_every_record_type_of_the_core_schema() -> None:
+    assert sorted(TYPE_VIEWS) == sorted(RECORD_TYPES)
+
+
+@pytest.mark.dom
+@pytest.mark.parametrize("record_type", sorted(TYPE_VIEWS))
+def test_a_view_over_each_record_type_renders_the_rows_the_core_selected(inspected, record_type: str) -> None:
+    name, rows = TYPE_VIEWS[record_type]
+    [views] = inspected["types"]["views"]
+    view = next(view for view in views if view["name"] == name)
+    assert sorted(view["rows"]) == sorted(rows)
+
+
+def test_records_other_than_notes_do_not_become_notes() -> None:
+    slugs = {note["slug"] for note in decode_artifact_data(render(REGISTERS, CONFIG))["notes"]}
+    assert {"a-point", "datum", "points"} <= slugs
+    assert not slugs & {record["id"] for record in REGISTERS["records"] if record["type"] != "note"}
+
+
+@pytest.mark.dom
+def test_views_with_different_members_show_the_core_rows_in_member_order_with_their_labels(inspected) -> None:
+    [views] = inspected["points"]["views"]
+    assert views[0] == {"name": "Labelled", "rows": ["note:c-point", "note:a-point"], "labels": ["C", "A"]}
+
+
+@pytest.mark.dom
+def test_members_label_the_core_rows_in_the_order_received_without_sorting_them(tmp_path: Path) -> None:
+    """The core emits a members view's rows in member order (obs generic-tables); the adapter keeps
+    the order it receives, so rows the core sent in another order stay in it."""
+    document = copy.deepcopy(REGISTERS)
+    _register(document, "points")["attrs"]["rows"][0] = ["a-point", "c-point"]
+    [views] = _inspect(document, tmp_path, ["points"])["points"]["views"]
+    assert views[0] == {"name": "Labelled", "rows": ["note:a-point", "note:c-point"], "labels": ["A", "C"]}
+
+
+@pytest.mark.dom
+def test_the_adapter_shows_the_core_rows_and_evaluates_no_selection(tmp_path: Path) -> None:
+    """Rows the filter and members would not select show when the core names them, in its order, and
+    no others."""
+    document = copy.deepcopy(REGISTERS)
+    _register(document, "second")["attrs"]["rows"][1] = ["d-point", "a-point"]
+    assert _inspect(document, tmp_path, ["second"])["second"]["views"][0][0]["rows"] == ["note:d-point",
+                                                                                          "note:a-point"]
+
+
+def test_no_members_evaluation_remains_in_the_adapter() -> None:
+    runtime = "".join((ROOT / "src" / "obs_html" / name).read_text(encoding="utf-8")
+                      for name in ("artifact.js", "tables.js"))
+    assert "definition.obs?.members" not in runtime
+    assert "Missing Bases member note" not in runtime
+
+
+def test_a_register_row_the_records_do_not_hold_fails_naming_the_register_and_the_remedy() -> None:
+    document = copy.deepcopy(REGISTERS)
+    _register(document, "second")["attrs"]["rows"][1] = ["gone"]
+    with pytest.raises(InputError) as failure:
+        render(document, CONFIG)
+    assert failure.value.source == "Document of manifest.md"
+    assert re.fullmatch(r"chapters\[\d+\]\.content\[\d+\]\.attrs\.rows\[1\]", failure.value.field), failure.value.field
+    assert "obs-document" in failure.value.remedy
+
+
+def test_a_base_fence_with_members_fails_naming_the_field_and_the_remedy() -> None:
+    spec = {"views": [{"type": "table", "order": ["file.name"],
+                       "obs": {"members": [{"path": "a.md", "label": "A"}]}}]}
+    with pytest.raises(InputError) as failure:
+        render(build("Doc", chapter("one", "One", node("bases", source="", spec=spec))), CONFIG)
+    assert (failure.value.source, failure.value.field) == ("chapter one", "base.views[0].obs.members")
+
+
+def test_the_base_schema_leaves_the_cores_keys_to_the_core() -> None:
+    """records and members are the core's (obs input-model#Core and adapter namespaces): the core's
+    schema owns them, and the adapter's own namespace has no place for them."""
+    schema = json.loads((ROOT / "src" / "obs_html" / "base.schema.json").read_text(encoding="utf-8"))
+    view = schema["properties"]["views"]["items"]["properties"]
+    for namespace in (schema["properties"]["obsHtml"], view["obsHtml"]):
+        assert not {"records", "members"} & set(namespace["properties"])
+    assert schema["properties"]["obs"] == view["obs"] == {"$ref": "#/$defs/core"}
+
+
+@pytest.mark.parametrize("filters", ["status > 3", {"and": ['status == "verified"', "formula.done == true"]}])
+def test_a_passing_filter_obs_html_cannot_evaluate_fails_at_its_field(filters: object) -> None:
+    """generic-tables.md, Query and filtering (obsHtml.passing): the passing filter is held to the
+    view's filter grammar, so one obs-html cannot evaluate fails the build at its own field, in a
+    Base fence and in a register's .base file alike."""
+    view = {"type": "table", "order": ["file.name"],
+            "obsHtml": {"passing": {"filters": filters, "label": "verified"}}}
+    with pytest.raises(InputError) as fence:
+        render(build("Doc", chapter("one", "One", node("bases", source="", spec={"views": [view]}))), CONFIG)
+    assert (fence.value.source, fence.value.field) == ("chapter one", "base.views[0].obsHtml.passing.filters")
+    document = copy.deepcopy(REGISTERS)
+    register = _register(document, "points")  # the whole .base file: its views keep their index
+    assert register["attrs"]["view"] is None
+    register["attrs"]["base"]["views"][1]["obsHtml"] = view["obsHtml"]
+    with pytest.raises(InputError) as dotbase:
+        render(document, CONFIG)
+    assert (dotbase.value.source, dotbase.value.field) == (register["attrs"]["target"], "views[1].obsHtml.passing.filters")
+
+
+def _fence(spec: dict, home: bool = False) -> dict:
+    """A Document with one Base fence of ``spec``, in a chapter or on the home page."""
+    fence = node("bases", source="", spec=spec)
+    return build("Doc", abstract=(fence,)) if home else build("Doc", chapter("one", "One", fence))
+
+
+@pytest.mark.parametrize(("options", "field"), [
+    ({"groupOrder": []}, "base.views[0].obsHtml.groupOrder"),
+    ({"groupOrdr": ["a"]}, "base.views[0].obsHtml.groupOrdr"),
+    ({"passing": {"filters": "x == 1"}}, "base.views[0].obsHtml.passing.label"),
+])
+@pytest.mark.parametrize("home", [False, True], ids=["chapter", "home"])
+def test_a_base_fence_view_option_the_schema_refuses_fails_the_build_at_its_field(
+        options: dict, field: str, home: bool) -> None:
+    """input-model.md, Compact declarative table presentation: the build checks a Base fence
+    against base.schema.json, as the browser does, and names the note and the field."""
+    spec = {"views": [{"type": "table", "order": ["file.name"], "groupBy": {"property": "kind"},
+                       "obsHtml": options}]}
+    with pytest.raises(InputError) as failure:
+        render(_fence(spec, home), CONFIG)
+    assert (failure.value.source, failure.value.field) == ("manifest.md" if home else "chapter one", field)
+    assert "base.schema.json" in failure.value.remedy
+
+
+@pytest.mark.parametrize(("options", "field"), [
+    ({"passing": {"filters": "x == 1"}}, "obsHtml.passing.label"),
+    ({"groupOrder": []}, "obsHtml.groupOrder"),
+    ({"detailFeilds": ["kind"]}, "obsHtml.detailFeilds"),
+])
+def test_a_base_file_view_option_the_schema_refuses_fails_the_build_at_its_field(options: dict, field: str) -> None:
+    """The same check for a .base file a register embeds, whole (views keep their index) and by one
+    view heading (the view is named by its index in the file, not in the one-view table)."""
+    document = copy.deepcopy(REGISTERS)
+    whole = _register(document, "points")
+    assert whole["attrs"]["view"] is None
+    whole["attrs"]["base"]["views"][1]["obsHtml"] = options
+    with pytest.raises(InputError) as failure:
+        render(document, CONFIG)
+    assert (failure.value.source, failure.value.field) == (whole["attrs"]["target"], f"views[1].{field}")
+    document = copy.deepcopy(REGISTERS)
+    one = _register(document, "second")
+    index = one["attrs"]["view"]
+    assert index is not None and index > 0
+    one["attrs"]["base"]["views"][index]["obsHtml"] = options
+    with pytest.raises(InputError) as failure:
+        render(document, CONFIG)
+    assert (failure.value.source, failure.value.field) == (one["attrs"]["target"], f"views[{index}].{field}")
+
+
+VIEW = {"type": "table", "order": ["file.name"]}
+
+
+def test_base_definition_error_names_the_field_in_a_fence_and_in_a_base_file() -> None:
+    """The pure check behind the build's: None for a valid definition; a fence's fields under
+    base., a .base file's at the top, and a one-view table's view by its index in the file."""
+    assert base_definition_error({"views": [VIEW]}, "chapter one") is None
+    refused = {"views": [{**VIEW, "obsHtml": {"pageSize": 0}}]}
+    fence = base_definition_error(refused, "chapter one")
+    assert (fence.source, fence.field) == ("chapter one", "base.views[0].obsHtml.pageSize")
+    dotbase = base_definition_error(refused, "points.base", views=[2])
+    assert (dotbase.source, dotbase.field) == ("points.base", "views[2].obsHtml.pageSize")
+    top = base_definition_error({"views": [VIEW], "filter": "x == 1"}, "points.base", views=[2])
+    assert (top.source, top.field) == ("points.base", "filter")
+
+
+ACTION_ICONS = json.loads((ROOT / "test" / "fixtures" / "action-icons.json").read_text(encoding="utf-8"))
+
+
+def _icon_slot(icon: dict, many: bool) -> dict:
+    """A Base definition whose slot run shows ``icon``, alone or second in an icons list."""
+    slot = {"icons": [{"name": "upload", "label": "Run", "action": "app.run"}, icon]} if many else {"icon": icon}
+    return {"properties": {"run": {"obsHtml": slot}}, "views": [VIEW]}
+
+
+def test_base_definition_error_holds_an_action_icon_to_its_unavailable_rules() -> None:
+    """base.schema.json's rules for an action icon's unavailable reason (input-model.md, Trusted
+    floating-content actions; fixtures/action-icons.json, which base-schema.test.js runs through
+    base.js): a card link requires it, any other action but sourceArchive refuses it, at the icon's
+    unavailable field, in a fence and in a .base file, under icon and under icons."""
+    for case in ACTION_ICONS["refused"]:
+        for many, slot in ((False, "icon"), (True, "icons[1]")):
+            definition = _icon_slot(case["icon"], many)
+            fence = base_definition_error(definition, "chapter one")
+            assert fence is not None, case["name"]
+            assert (fence.source, fence.field) == ("chapter one", f"base.properties.run.obsHtml.{slot}.unavailable")
+            assert "base.schema.json" in fence.remedy
+            dotbase = base_definition_error(definition, "points.base")
+            assert dotbase is not None, case["name"]
+            assert (dotbase.source, dotbase.field) == ("points.base", f"properties.run.obsHtml.{slot}.unavailable")
+    for case in ACTION_ICONS["accepted"]:
+        for many in (False, True):
+            assert base_definition_error(_icon_slot(case["icon"], many), "chapter one") is None, case["name"]
+    both = {"properties": {"run": {"obsHtml": {"icon": ACTION_ICONS["accepted"][1]["icon"],
+                                               "icons": [ACTION_ICONS["accepted"][1]["icon"]]}}}, "views": [VIEW]}
+    assert base_definition_error(both, "chapter one").field == "base.properties.run.obsHtml"
+
+
+def test_a_base_fence_whose_card_link_icon_has_no_unavailable_fails_the_build() -> None:
+    spec = _icon_slot(ACTION_ICONS["refused"][0]["icon"], many=False)
+    with pytest.raises(InputError) as failure:
+        render(build("Doc", chapter("one", "One", node("bases", source="", spec=spec))), CONFIG)
+    assert (failure.value.source, failure.value.field) == ("chapter one", "base.properties.run.obsHtml.icon.unavailable")
+
+
+def test_the_builds_base_keywords_are_those_base_js_implements() -> None:
+    """BROWSER_KEYWORDS names exactly the keywords validateNode in base.js reads off a rule."""
+    script = (ROOT / "src" / "obs_html" / "base.js").read_text(encoding="utf-8")
+    body = script[script.index("const validateNode"):script.index("const validate =")]
+    read = set(re.findall(r"\brule\.(\$?[A-Za-z]+)", body)) | set(re.findall(r'hasOwn\(rule, "(\w+)"\)', body))
+    assert read == BROWSER_KEYWORDS

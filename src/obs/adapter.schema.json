@@ -1,0 +1,46 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "adapter.schema.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["name", "command", "contractVersion", "capabilities"],
+  "properties": {
+    "name": {"type": "string", "pattern": "^[a-z][a-z0-9-]*$"},
+    "command": {
+      "type": "array",
+      "minItems": 1,
+      "items": {"type": "string", "minLength": 1}
+    },
+    "contractVersion": {"type": "integer", "minimum": 1},
+    "serve": {
+      "description": "The command obs-document --serve runs after the build, with the artifact's path, then --wait with --wait and --timeout S with --timeout (spec/design_input/cli.md, One-call build).",
+      "type": "array",
+      "minItems": 1,
+      "items": {"type": "string", "minLength": 1}
+    },
+    "capabilities": {
+      "type": "array",
+      "items": {"type": "string", "pattern": "^[a-z][a-z0-9-]*$"},
+      "uniqueItems": true
+    },
+    "options": {
+      "description": "The options obs-document --adapter-option NAME=VALUE may pass. A boolean option is passed as --NAME when its value is true and left out when it is false. A vault-file option's VALUE is ID=PATH, PATH relative to the vault; the core passes --NAME ID=<the resolved file> (spec/design_input/cli.md, Adapter options).",
+      "type": "object",
+      "propertyNames": {"pattern": "^[a-z][a-z0-9-]*$"},
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["type", "summary"],
+        "properties": {
+          "type": {"enum": ["boolean", "vault-file"]},
+          "summary": {"type": "string", "minLength": 1},
+          "repeats": {
+            "description": "Whether --adapter-option may give this option more than once; a single-valued option given twice fails the call (spec/design_input/cli.md, Adapter options).",
+            "type": "boolean",
+            "default": false
+          }
+        }
+      }
+    }
+  }
+}

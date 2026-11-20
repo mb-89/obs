@@ -1,0 +1,58 @@
+[project]
+name = "obs-html"
+version = "0.1.0"
+description = "Render a JSON Document as portable HTML or PDF."
+requires-python = ">=3.11"
+license = "MIT"
+license-files = ["LICENSE"]
+dependencies = [
+    "obs",
+    "jsonschema>=4.26.0",
+    "latex2mathml>=3.81.1",
+    "markdown-it-py>=3.0",
+    "pillow>=13.0.0",
+    "playwright>=1.64.0",
+    "pypdf>=6.21.2",
+    "pypdfium2>=5.14.0",
+    "pyyaml>=6.0",
+    "tinycss2>=1.5.1",
+]
+
+[project.scripts]
+obs-html = "obs_html.cli:main"
+obs-html-inspect = "obs_html.pdf_inspect:main"
+
+[tool.uv.sources]
+obs = { workspace = true }
+
+[dependency-groups]
+dev = [
+    "filelock>=4.2.9",
+    "pytest>=8.0",
+    "pytest-timeout>=2.4.0",
+    "pytest-xdist>=3.8.0",
+]
+
+[tool.uv]
+# Build the adapter again when what hatch_build.py generates or copies from changes.
+cache-keys = [{ file = "pyproject.toml" }, { file = "hatch_build.py" }, { file = "maths/package-lock.json" },
+              { file = "spec/**" }]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/obs_html"]
+
+[tool.hatch.build.targets.wheel.hooks.custom]
+# hatch_build.py: the browser assets built from lockfiles, such as src/obs_html/vendor/maths/math.js,
+# and the adapter's specification, src/obs_html/spec/.
+
+[tool.pytest.ini_options]
+testpaths = ["test"]
+markers = [
+    "dom: runs the embedded artifact runtime in Node (needs `npm --prefix test/browser ci`).",
+    "browser: opens a real Chromium through Playwright.",
+    "build: builds a whole Document, artifact or package from inputs it does not make itself (the tier rule: the core's spec/design_input/quality.md, Testing boundaries).",
+]

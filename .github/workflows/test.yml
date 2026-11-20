@@ -1,0 +1,196 @@
+name: test
+
+# obs's CI. The job `check` is the check se's `work_tickets.py integrate` waits for by that name
+# before it lands a landing pull request (se's README "Landing on main"); it passes only when the
+# public check, on a pull request the work model's issue rule and its field report, every suite
+# shard and the first chapter's job pass.
+on:
+  push:
+  pull_request:
+    types: [opened, synchronize, reopened, edited, labeled, unlabeled]
+
+permissions:
+  contents: read
+  issues: read
+
+jobs:
+  # se's public check on the pushed commits or a pull request's commits, and on a pull request the
+  # work model's issue rule and its field report (AGENTS.md "Public safety"), at the newest se
+  # release se.toml's [modules.se] range admits. The checks are se's scripts; obs keeps no copy.
+  gate:
+    runs-on: ubuntu-26.04
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+      - name: Clone se at the pin
+        env:
+          SE: ${{ runner.temp }}/se
+          # se beside obs on its host, as se's README "Workflows" reaches it, so no line names an owner.
+          SE_URL: ${{ github.server_url }}/${{ github.repository_owner }}/SE.git
+        run: |
+          # se.toml's [modules.se] version range, resolved as se's scripts/se_modules.py resolves
+          # it: the newest vMAJOR.MINOR.PATCH tag the range admits. se_modules is loaded from the
+          # commit se.lock holds, and the check then runs at the resolved tag.
+          git clone --quiet --no-checkout --filter=blob:none "$SE_URL" "$SE"
+          locked=$(python3 -c 'import tomllib; print(tomllib.load(open("se.lock", "rb"))["modules"]["se"]["ref"])')
+          git -C "$SE" checkout --quiet "$locked"
+          tag=$(python3 - "$SE" <<'PY'
+          import sys, tomllib
+          from pathlib import Path
+          se = Path(sys.argv[1])
+          sys.path.insert(0, str(se / "scripts"))
+          import se_modules
+          pin = tomllib.loads(Path("se.toml").read_text(encoding="utf-8"))["modules"]["se"]["version"]
+          bounds = se_modules.version_bounds("se", pin)
+          tags = se_modules.tagged_versions(se)
+          print(tags[max(v for v in tags if se_modules.matches(v, bounds))])
+          PY
+          )
+          git -C "$SE" checkout --quiet "$tag"
+          echo "public-check: se $tag, the newest release se.toml's [modules.se] range admits"
+      # The copies of se's workflows and actions obs calls (`uses: ./.github/...`) are what se.lock's
+      # pin generates (se's README "Workflows"); `se_workflows.py write` regenerates a stale one.
+      - name: se's workflow copies match the pin
+        env:
+          SE: ${{ runner.temp }}/se
+        run: python3 "$SE/scripts/se_workflows.py" --source "$SE" check
+      # obs's RUNME.sh and RUNME.ps1 are se's generic pair, byte for byte (adapters/html/spec/cli.md
+      # "Setup"); $SE is at the newest tag the range admits, so the pair is compared at se.lock's commit.
+      - name: obs's RUNME pair is se's
+        env:
+          SE: ${{ runner.temp }}/se
+        run: |
+          locked=$(python3 -c 'import tomllib; print(tomllib.load(open("se.lock","rb"))["modules"]["se"]["ref"])')
+          git -C "$SE" show "$locked:RUNME.sh" | cmp - RUNME.sh && git -C "$SE" show "$locked:RUNME.ps1" | cmp - RUNME.ps1
+      - name: Gate the commits
+        env:
+          SE: ${{ runner.temp }}/se
+          BASE_REF: ${{ github.event.pull_request.base.ref }}
+          BEFORE: ${{ github.event.before }}
+          AFTER: ${{ github.event.pull_request.head.sha || github.sha }}
+          BRANCH: ${{ github.event.pull_request.base.ref || github.ref_name }}
+          DEFAULT: ${{ github.event.repository.default_branch }}
+        run: |
+          # A pull request: its commits, those its head holds and its base branch does not, and the
+          # tree of the checked-out merge of its head into its base, the tree its landing lands,
+          # judged by that tree's allow list. A push: the pushed tree and the commits se's
+          # public_check.py takes for it (its push_range), so obs keeps no copy of that rule. Pushed
+          # to main, the integration branch: the commits after its old tip, or,
+          # where that tip is unknown, those no other branch holds. Pushed to any other branch: the
+          # commits after its old tip, or all its commits where that tip is unknown, without those
+          # main holds.
+          refused="::error::public-check (se's scripts/public_check.py, AGENTS.md 'Public safety') refused the commits it names: amend each named commit as its line says (for a Co-authored-by line, without the line, and turn off the editor's co-author setting, se's README 'Install'), then push again"
+          if [ -n "$BASE_REF" ]; then
+            range="refs/remotes/origin/$BASE_REF..$AFTER"
+            echo "public-check: gating $range, the commits of the pull request into $BRANCH"
+            if ! python3 "$SE/scripts/public_check.py" --repo . --rev HEAD --range "$range"; then
+              echo "$refused"; exit 1
+            fi
+          elif ! python3 "$SE/scripts/public_check.py" --repo . --rev "$AFTER" --push "$BEFORE" --branch "$BRANCH" --default-branch "$DEFAULT"; then
+            echo "$refused"; exit 1
+          fi
+      # se's work model's issue rule (its SKILL.md "Integration branch"): the description names an
+      # open work issue, a landing's through the work pull request it lands.
+      - name: The pull request names an open work issue
+        if: github.event_name == 'pull_request'
+        env:
+          SE: ${{ runner.temp }}/se
+          GITHUB_TOKEN: ${{ github.token }}
+        run: python3 "$SE/scripts/pr_issues.py" --repo .
+      - name: The pull request's field report follows se's template
+        if: github.event_name == 'pull_request'
+        env:
+          SE: ${{ runner.temp }}/se
+          PR_BODY: ${{ github.event.pull_request.body }}
+          GH_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+        run: |
+          # A worker's pull request carries its field report; it is checked against its work issue,
+          # the issue its first line `Fixes|Refs <issue url>` names. A landing pull request carries
+          # `<!-- se:field-report-in <n> -->` instead: the report is the description of the work
+          # pull request <n>, read from there (se's README "Landing on main"). A pull request
+          # without either marker has no report to check.
+          body="$RUNNER_TEMP/pr-body.md"
+          printf '%s\n' "$PR_BODY" > "$body"
+          work=$(sed -nE 's#^<!-- se:field-report-in ([0-9]+) -->[[:space:]]*$#\1#p' "$body" | head -n 1)
+          if [ -n "$work" ]; then
+            echo "field-report: the landing's report is the description of pull request $work"
+            gh api "repos/$REPOSITORY/pulls/$work" --jq .body > "$body"
+          fi
+          if ! grep -q '<!-- se:field-report -->' "$body"; then
+            echo "field-report: no field report in the description, nothing to check"
+            exit 0
+          fi
+          # se's pr_issues.py owns how a description names its issue, for this step and the one above.
+          if ! issue=$(python3 "$SE/scripts/pr_issues.py" --work-issue "$body" --repository "$REPOSITORY"); then
+            echo "::error::field-report: the description's first line names no work issue of $REPOSITORY (Fixes|Refs <issue url>, as se's work_tickets.py pr-body writes it, or Refs #<n>)"
+            exit 1
+          fi
+          gh api "repos/$REPOSITORY/issues/$issue" --jq .body > "$RUNNER_TEMP/issue-body.md"
+          python3 "$SE/scripts/work_tickets.py" field-report --check "$body" --issue-body "$RUNNER_TEMP/issue-body.md"
+  # The complete suite in shards, one job each (test/suite.py, --shard): CI runners differ in speed,
+  # and one job per shard keeps each under the suite's time limit. se's suite-shard action runs and
+  # times each shard and uploads its record for `check` (se's README "Test budget"); it is the copy
+  # se writes at the commit se.lock pins (se's README "Workflows").
+  shard:
+    name: suite (shard ${{ matrix.shard }}/2)
+    runs-on: ubuntu-26.04
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2]
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+      - run: uv run python test/suite.py --setup
+      - uses: ./.github/actions/suite-shard
+        env:
+          SE_TEST_REPORTS: ${{ runner.temp }}/junit
+        with:
+          name: ${{ matrix.shard }}
+          command: uv run python test/suite.py --shard ${{ matrix.shard }}/2
+      # Each shard's JUnit reports, from which `test/suite.py --measure-weights` measures SHARD_WEIGHTS.
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: junit-shard-${{ matrix.shard }}
+          path: ${{ runner.temp }}/junit
+  # The spec artifact's first chapter within a second (adapters/html/spec/artifact-ui.md), judged
+  # outside the suite's shards: test/first_chapter.py runs that one test alone five times and
+  # judges their median; its docstring owns how, and its BLOCKING whether a miss fails this job.
+  # Until then it only warns, so `check`, which needs this job, stays green on a miss.
+  first-chapter:
+    name: first chapter
+    runs-on: ubuntu-26.04
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+      - run: uv run python test/suite.py --setup
+      - name: First chapter, median of five runs alone
+        run: uv run python test/first_chapter.py
+  # One status for the gate and the whole suite, whichever shards it has: the required check. se's
+  # suite-time action reports CI's suite time, the slowest shard's, as the `se suite time` notice
+  # se's budget reads from this job, and holds it to se.toml's [tests] budget (se's README "Test
+  # budget"); it fails where a shard failed or left no record.
+  check:
+    needs: [gate, shard, first-chapter]
+    if: always()
+    runs-on: ubuntu-26.04
+    steps:
+      - uses: actions/checkout@v7
+      - uses: ./.github/actions/suite-time
+        with:
+          shards: 2
+      - run: |
+          test "${{ needs.gate.result }}" = success && test "${{ needs.shard.result }}" = success &&
+            test "${{ needs.first-chapter.result }}" = success

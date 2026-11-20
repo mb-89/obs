@@ -1,0 +1,747 @@
+import json
+import re
+import subprocess
+import sys
+from pathlib import Path
+
+from jsonschema import Draft202012Validator, ValidationError
+import pytest
+from referencing import Registry, Resource
+
+from obs.adapter import AdapterError, load_adapter
+from obs.discriminator import discriminating_validator
+from obs.document import STRUCTURAL_NODE_TYPES, DocumentError, call_adapter, main, write_document
+from obs.vault import build_document
+
+from schemas import capability_reference, validate
+
+ROOT = Path(__file__).parents[1]
+
+
+def write_reference(path: Path) -> Path:
+    path.write_text(json.dumps(capability_reference()), encoding="utf-8")
+    return path
+
+
+def document_fixture(capabilities: list[str] | None = None) -> dict[str, object]:
+    return {
+        "schemaVersion": 1,
+        "manifest": {"title": "Fixture", "path": "manifest.md", "metadata": {"kind": "artifact"}},
+        "chapters": [{
+            "id": "chapter",
+            "title": "Chapter",
+            "content": [{"type": "paragraph", "attrs": {}, "children": [{"type": "text", "attrs": {}, "children": [], "text": "Content."}]}],
+            "children": [],
+        }],
+        "links": [{"id": "reference", "href": "https://example.test/reference", "label": "Reference"}],
+        "assets": [{"id": "asset", "href": "assets/figure.svg", "mediaType": "image/svg+xml"}],
+        "records": [{"id": "record", "type": "note", "path": "record.md", "fields": {"status": "open"}, "fieldNodes": [
+            {"type": "field", "attrs": {"name": "status"}, "children": [
+                {"type": "text", "attrs": {}, "children": [], "text": "open"},
+            ]},
+        ]}],
+        "semanticResources": [{"id": "resource", "type": "finding", "attrs": {}}],
+        "diagnostics": [],
+        "capabilities": capabilities or ["manifest"],
+        "cssSnippets": [],
+    }
+
+
+def figure_descriptor() -> dict[str, object]:
+    return {
+        "schemaVersion": 1,
+        "id": "comparison",
+        "data": {"traces": [{"x": [0, 1, 2], "y": [2, 5, 3]}]},
+        "panels": [{
+            "id": "overview",
+            "bounds": {"x": 0, "y": 0, "width": 720, "height": 320},
+            "grid": {"row": 0, "column": 0, "rowSpan": 1, "columnSpan": 1},
+            "axes": [{
+                "id": "time",
+                "scale": "linear",
+                "limits": {"minimum": 0, "maximum": 2},
+                "label": "Time",
+            }],
+        }],
+        "provenance": {"command": ["generate-figure", "--input", "measurements.json"]},
+    }
+
+
+def capability_node_attrs(identifier: str) -> dict[str, object]:
+    attrs = {
+        "attachments": {"asset": "asset", "label": "Attachment"},
+        "callouts": {"kind": "note", "title": []},
+        "cards-metrics": {"source": "", "spec": {}},
+        "columns": {"weights": [1, 2]},
+        "command-fences": {"source": "echo derived\n", "output": "derived\n"},
+        "chapter-inclusion": {"id": "chapter"},
+        "count-query": {"query": {}},
+        "markdown-frontmatter": {"metadata": {}},
+        "profiles": {"profile": {}},
+        "quantities": {"metadata": {}, "quantity": {"unit": "", "dimension": {}}},
+        "queries": {"query": {}},
+        "references": {"metadata": {}},
+        "property-editors": {"source": "", "spec": {}, "writes": ["explanation"]},
+        "registers": {
+            "target": "register.base", "heading": "Open",
+            "base": {"views": [{"type": "table", "name": "Open", "order": ["file.name"]}]},
+            "view": 0, "rows": [["chapter"]],
+        },
+        "wikilinks": {"target": "chapter", "chapter": "chapter", "heading": "", "label": "chapter"},
+        "embeds": {"target": "outside", "chapter": None},
+        "figures": {"kind": "plot"},
+    }
+    return attrs.get(identifier, {})
+
+
+def capability_node_children(identifier: str) -> list[dict[str, object]]:
+    """A figure's one child is its kind's body and a columns block's two are its columns; every other
+    fixture node has none."""
+    if identifier == "figures":
+        return [{"type": "plot", "attrs": {"descriptor": figure_descriptor()}, "children": []}]
+    if identifier == "columns":
+        return [{"type": "document", "attrs": {}, "children": []} for _ in range(2)]
+    return []
+
+
+def test_document_schema_validates_a_core_document() -> None:
+    schema = json.loads((ROOT / "src" / "obs" / "document.schema.json").read_text(encoding="utf-8"))
+
+    validate(document_fixture(), schema)
+
+
+@pytest.mark.parametrize("node", [
+    {"type": "wikilinks", "attrs": {"target": "chapter", "heading": "", "label": "chapter"}},
+    {"type": "embeds", "attrs": {"target": "chapter", "chapter": "Not An Id"}},
+])
+def test_document_schema_requires_a_resolved_chapter_on_note_links(node) -> None:
+    schema = json.loads((ROOT / "src" / "obs" / "document.schema.json").read_text(encoding="utf-8"))
+    document = document_fixture()
+    document["chapters"][0]["content"] = [{**node, "children": []}]
+
+    with pytest.raises(ValidationError, match="chapter|Not An Id"):
+        validate(document, schema)
+
+
+def test_document_cli_writes_a_vault_document(tmp_path) -> None:
+    vault = tmp_path / "vault"
+    vault.mkdir()
+    (vault / "manifest.md").write_text("- [[chapter]]\n", encoding="utf-8")
+    (vault / "chapter.md").write_text("Content.\n", encoding="utf-8")
+    reference = write_reference(tmp_path / "capabilities.json")
+    output = tmp_path / "document.json"
+
+    assert main([
+        "--source", str(vault / "manifest.md"),
+        "--document", str(output),
+        "--capability-reference", str(reference),
+    ]) == 0
+
+    document = json.loads(output.read_text(encoding="utf-8"))
+    assert document["chapters"][0]["content"][2]["children"][0]["text"] == "Content."
+
+
+def test_the_manifest_carries_its_note_s_vault_relative_path(tmp_path) -> None:
+    """An adapter's error about the manifest names its note, as one about a chapter names the chapter's."""
+    vault = tmp_path / "vault"
+    vault.mkdir()
+    (vault / "report.md").write_text("- [[chapter]]\n", encoding="utf-8")
+    (vault / "chapter.md").write_text("Content.\n", encoding="utf-8")
+
+    assert build_document(vault / "report.md")["manifest"]["path"] == "report.md"
+
+
+def test_the_document_schema_requires_the_manifest_path() -> None:
+    schema = json.loads((ROOT / "src" / "obs" / "document.schema.json").read_text(encoding="utf-8"))
+    document = document_fixture()
+    del document["manifest"]["path"]
+
+    with pytest.raises(ValidationError) as failure:
+        validate(document, schema)
+    assert (list(failure.value.absolute_path), failure.value.validator) == (["manifest"], "required")
+
+
+@pytest.mark.parametrize("block", [
+    {"type": "registers", "attrs": capability_node_attrs("registers"), "children": []},
+    {"type": "embeds", "attrs": {"target": "chapter", "chapter": "chapter"}, "children": []},
+])
+def test_document_refuses_a_block_node_inside_a_paragraph(tmp_path, block) -> None:
+    document = document_fixture(["registers", "embeds"])
+    paragraph = document["chapters"][0]["content"][0]
+    paragraph["children"].append(block)
+
+    with pytest.raises(DocumentError, match=r"chapters\[0\]\.content\[0\]\.children\[1\]: .*"
+                                            r"\(capabilities/markdown#Document nodes\)"):
+        write_document(document, tmp_path / "document.json", capability_reference())
+
+
+def _node(type_: str, attrs: dict[str, object] | None = None, children: list[object] | None = None,
+          **extra: object) -> dict[str, object]:
+    return {"type": type_, "attrs": attrs if attrs is not None else capability_node_attrs(type_),
+            "children": children if children is not None else capability_node_children(type_), **extra}
+
+
+_TEXT = {"type": "text", "attrs": {}, "children": [], "text": "Text."}
+_ONE_WRONG_NODE_PER_TYPE = [
+    *[(kind, _node(kind, {"extra": True}, [_TEXT]), ".attrs") for kind in
+      ["quote", "table", "table-row", "emphasis", "strong", "strikethrough"]],
+    ("paragraph", _node("paragraph", {}, [_TEXT, _node("section", {}, [])]), ".children[1]"),
+    ("rule", _node("rule", {}, [_TEXT]), ".children"),
+    ("table-cell", _node("table-cell", {}, [_TEXT]), ".attrs.header"),
+    ("list", _node("list", {"ordered": True}, []), ".attrs.tight"),
+    ("math", _node("math", {"display": False}, []), ".text"),
+    ("field", _node("field", {}, [_TEXT]), ".attrs.name"),
+    ("command-fences", _node("command-fences", {"source": "echo\n"}), ".attrs"),
+    ("figures", _node("figures", {"kind": "plot", "extra": True}), ".attrs.extra"),
+    ("attachments", _node("attachments", {"asset": "asset"}), ".attrs.label"),
+    ("chapter-inclusion", _node("chapter-inclusion", {"id": "Not An Id"}), ".attrs.id"),
+    ("callouts", _node("callouts", {"kind": "note"}), ".attrs.title"),
+    ("cards-metrics", _node("cards-metrics", children=[_node("paragraph", {}, [])]), ".children[0].type"),
+    ("property-editors", _node("property-editors", {"source": "", "spec": {}, "writes": []}), ".attrs.writes"),
+    ("markdown-frontmatter", _node("markdown-frontmatter", {}), ".attrs.metadata"),
+    ("references", _node("references", {}), ".attrs.metadata"),
+    ("quantities", _node("quantities", {"metadata": {}, "quantity": {"unit": ""}}), ".attrs.quantity.dimension"),
+    ("queries", _node("queries", {}), ".attrs.query"),
+    ("count-query", _node("count-query", {}), ".attrs.query"),
+    ("profiles", _node("profiles", {}), ".attrs.profile"),
+    ("wikilinks", _node("wikilinks", {"target": "chapter", "heading": "", "label": "chapter"}), ".attrs.chapter"),
+    ("embeds", _node("embeds", {"target": "chapter", "chapter": "chapter", "extra": True}), ".attrs.extra"),
+    ("registers", _node("registers", {**capability_node_attrs("registers"), "view": -1}), ".attrs.view"),
+    ("text", _node("text", {}, [], text="Text.", extra=True), ".extra"),
+    ("section", _node("section", {}, [_node("list", {"ordered": True}, [])]), ".children[0].attrs.tight"),
+]
+
+
+@pytest.mark.parametrize(("kind", "node", "path"), _ONE_WRONG_NODE_PER_TYPE,
+                         ids=[case[0] for case in _ONE_WRONG_NODE_PER_TYPE])
+def test_a_wrong_node_of_each_type_is_refused_at_its_field_path(tmp_path, kind, node, path) -> None:
+    """Pins each node type's refusal: its field path and the schema that owns the rule, wherever the
+    node sits (chapter content, nested children, a note record's fieldNodes)."""
+    document = document_fixture(sorted({kind, "manifest"} - STRUCTURAL_NODE_TYPES))
+    document["chapters"][0]["content"] = [node]
+    owner = r"; see src/obs/document\.schema\.json\.$"
+
+    with pytest.raises(DocumentError, match=rf"^Invalid Document: chapters\[0\]\.content\[0\]{re.escape(path)}: .*{owner}"):
+        write_document(document, tmp_path / "document.json", capability_reference())
+
+    document["chapters"][0]["content"] = [_node("list-item", {}, [node])]
+    with pytest.raises(DocumentError, match=rf"^Invalid Document: chapters\[0\]\.content\[0\]\.children\[0\]{re.escape(path)}: .*{owner}"):
+        write_document(document, tmp_path / "document.json", capability_reference())
+
+
+@pytest.mark.parametrize(("kind", "node", "path"), _ONE_WRONG_NODE_PER_TYPE,
+                         ids=[case[0] for case in _ONE_WRONG_NODE_PER_TYPE])
+def test_the_type_dispatch_finds_every_error_a_standard_validator_finds(kind, node, path) -> None:
+    """document.schema.json's discriminators only skip clauses that cannot apply: a standard
+    validator, which tries every clause, reports the very same errors."""
+    schema = json.loads((ROOT / "src" / "obs" / "document.schema.json").read_text(encoding="utf-8"))
+    figure = json.loads((ROOT / "src" / "obs" / "figure.schema.json").read_text(encoding="utf-8"))
+    registry = Registry().with_resource("figure.schema.json", Resource.from_contents(figure))
+    document = document_fixture()
+    document["chapters"][0]["content"] = [node, _node("paragraph", {}, [_TEXT, node])]
+
+    def errors(validator: type[Draft202012Validator]) -> list[tuple[object, ...]]:
+        found = validator(schema, registry=registry).iter_errors(document)
+        return sorted((list(error.absolute_path), list(error.absolute_schema_path), error.message) for error in found)
+
+    assert errors(discriminating_validator(schema)) == errors(Draft202012Validator)
+
+
+def test_a_discriminated_clause_must_be_keyed_by_its_property() -> None:
+    schema = {"discriminator": {"propertyName": "type"}, "allOf": [{"if": {"required": ["type"]}, "then": {}}]}
+
+    with pytest.raises(ValueError, match=r"^#/allOf/0/if: .*src/obs/discriminator\.py\.$"):
+        discriminating_validator(schema)
+
+
+def test_a_discriminated_branch_a_paragraph_rule_negates_must_be_keyed_by_its_property() -> None:
+    schema = {"$defs": {"block": {"discriminator": {"propertyName": "type"}, "anyOf": [{"required": ["type"]}]}},
+              "items": {"not": {"$ref": "#/$defs/block"}}}
+
+    with pytest.raises(ValueError, match=r"^#/\$defs/block/anyOf/0: .*src/obs/discriminator\.py\.$"):
+        discriminating_validator(schema)
+
+
+def test_a_wrong_field_node_on_a_note_record_is_refused_at_its_field_path(tmp_path) -> None:
+    document = document_fixture()
+    document["records"][0]["fieldNodes"][0]["attrs"] = {}
+
+    with pytest.raises(DocumentError, match=r"^Invalid Document: records\[0\]\.fieldNodes\[0\]\.attrs\.name: "
+                                            r".*; see src/obs/document\.schema\.json\.$"):
+        write_document(document, tmp_path / "document.json", capability_reference())
+
+
+def test_document_keeps_an_asset_embed_inside_a_paragraph(tmp_path) -> None:
+    document = document_fixture(["embeds"])
+    document["chapters"][0]["content"][0]["children"].append(
+        {"type": "embeds", "attrs": {"target": "figure.svg", "chapter": None, "asset": "asset"}, "children": []},
+    )
+
+    write_document(document, tmp_path / "document.json", capability_reference())
+
+
+def test_document_validates_figure_descriptor_at_the_plot_figure_s_body(tmp_path) -> None:
+    document = document_fixture(["figures"])
+    document["chapters"][0]["content"] = [{
+        "type": "figures", "attrs": {"kind": "plot"}, "children": capability_node_children("figures"),
+    }]
+
+    write_document(document, tmp_path / "document.json", capability_reference())
+
+    document["chapters"][0]["content"][0]["children"][0]["attrs"]["descriptor"]["panels"] = []
+    with pytest.raises(DocumentError, match=r"figure body plot\.descriptor\.panels: .*figureBodies"):
+        write_document(document, tmp_path / "invalid-document.json", capability_reference())
+
+
+def test_adapter_is_discovered_by_name_from_configuration(tmp_path) -> None:
+    manifest = tmp_path / "adapter.json"
+    manifest.write_text(json.dumps({
+        "name": "fixture",
+        "command": ["node", "adapter.js"],
+        "contractVersion": 1,
+        "capabilities": ["manifest"],
+    }), encoding="utf-8")
+    configuration = tmp_path / "adapters.json"
+    configuration.write_text(json.dumps({"adapters": {"fixture": "adapter.json"}}), encoding="utf-8")
+
+    assert load_adapter("fixture", configuration) == {
+        "name": "fixture",
+        "command": ["node", "adapter.js"],
+        "contractVersion": 1,
+        "capabilities": ["manifest"],
+    }
+
+
+def test_core_writes_document_and_calls_adapter(tmp_path) -> None:
+    document = tmp_path / "document.json"
+    reference = write_reference(tmp_path / "capabilities.json")
+    write_document(document_fixture(), document, capability_reference())
+    manifest = tmp_path / "adapter.json"
+    manifest.write_text(json.dumps({
+        "name": "fixture",
+        "command": [sys.executable, "-c", "from pathlib import Path; Path(__import__('sys').argv[2]).write_text('ok')"],
+        "contractVersion": 1,
+        "capabilities": [item["id"] for item in capability_reference()["capabilities"]],
+    }), encoding="utf-8")
+    configuration = tmp_path / "adapters.json"
+    configuration.write_text(json.dumps({"adapters": {"fixture": "adapter.json"}}), encoding="utf-8")
+    destination = tmp_path / "output.txt"
+
+    assert main([
+        "--document", str(document),
+        "--adapter", "fixture",
+        "--adapter-config", str(configuration),
+        "--capability-reference", str(reference),
+        "--destination", str(destination),
+    ]) == 0
+
+    assert destination.read_text(encoding="utf-8") == "ok"
+
+
+@pytest.mark.parametrize(
+    ("contract_version", "capabilities", "message"),
+    [(2, ["manifest"], "contract version 2 does not match Document schema version 1"),
+     (1, [], "does not support Document capabilities: manifest")],
+)
+def test_core_rejects_mismatched_adapter_contracts(
+        tmp_path, contract_version, capabilities, message) -> None:
+    document = tmp_path / "document.json"
+    reference = write_reference(tmp_path / "capabilities.json")
+    write_document(document_fixture(), document, capability_reference())
+    manifest = tmp_path / "adapter.json"
+    manifest.write_text(json.dumps({
+        "name": "fixture",
+        "command": [sys.executable, "-c", "pass"],
+        "contractVersion": contract_version,
+        "capabilities": capabilities,
+    }), encoding="utf-8")
+    configuration = tmp_path / "adapters.json"
+    configuration.write_text(json.dumps({"adapters": {"fixture": "adapter.json"}}), encoding="utf-8")
+
+    with pytest.raises(AdapterError, match=message):
+        call_adapter("fixture", configuration, document, tmp_path / "output.txt", reference)
+
+
+def test_node_adapter_receives_the_document_and_writes_output(tmp_path) -> None:
+    document = tmp_path / "document.json"
+    reference = write_reference(tmp_path / "capabilities.json")
+    write_document(document_fixture(), document, capability_reference())
+    manifest = tmp_path / "adapter.json"
+    fixture = ROOT / "test" / "fixtures" / "document-adapter.js"
+    manifest.write_text(json.dumps({
+        "name": "node-fixture",
+        "command": ["node", str(fixture)],
+        "contractVersion": 1,
+        "capabilities": [item["id"] for item in capability_reference()["capabilities"]],
+    }), encoding="utf-8")
+    configuration = tmp_path / "adapters.json"
+    configuration.write_text(json.dumps({"adapters": {"node-fixture": "adapter.json"}}), encoding="utf-8")
+    destination = tmp_path / "output.json"
+
+    call_adapter("node-fixture", configuration, document, destination, reference)
+
+    assert json.loads(destination.read_text(encoding="utf-8")) == {
+        "schemaVersion": 1,
+        "capabilities": ["manifest"],
+    }
+
+
+def test_document_core_import_has_no_renderer_or_browser_dependencies() -> None:
+    result = subprocess.run(
+        [sys.executable, "-c",
+         "import sys; import obs; "
+         "print(','.join(name for name in sys.modules if name.split('.')[0] in {'obs_html', 'playwright'}))"],
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+
+    assert result.stdout.strip() == ""
+
+
+def test_document_accepts_one_node_for_each_input_capability(tmp_path) -> None:
+    reference = capability_reference()
+    document = document_fixture([item["id"] for item in reference["capabilities"]])
+    document["chapters"][0]["content"] = [
+        {
+            "type": item["id"],
+            "attrs": capability_node_attrs(item["id"]),
+            "children": capability_node_children(item["id"]),
+            "text": item["id"],
+        }
+        for item in reference["capabilities"]
+    ]
+
+    write_document(document, tmp_path / "document.json", reference)
+
+
+def test_document_rejects_unknown_capability_and_requires_dependency_closure(tmp_path) -> None:
+    reference = capability_reference()
+    document = tmp_path / "document.json"
+    unknown = document_fixture(["unknown"])
+    with pytest.raises(Exception, match="unknown capabilities"):
+        write_document(unknown, document, reference)
+    dependent = next(item for item in reference["capabilities"] if item["dependsOn"])
+    document_data = document_fixture([dependent["id"]])
+    write_document(document_data, document, reference)
+    reference_path = write_reference(tmp_path / "capabilities.json")
+    manifest = tmp_path / "adapter.json"
+    manifest.write_text(json.dumps({
+        "name": "fixture", "command": [sys.executable, "-c", "pass"],
+        "contractVersion": 1, "capabilities": [dependent["id"]],
+    }), encoding="utf-8")
+    configuration = tmp_path / "adapters.json"
+    configuration.write_text(json.dumps({"adapters": {"fixture": "adapter.json"}}), encoding="utf-8")
+
+    with pytest.raises(AdapterError, match="does not support Document capabilities"):
+        call_adapter("fixture", configuration, document, tmp_path / "output.txt", reference_path)
+
+
+SPEC_MANIFEST = ROOT / "spec" / "manifest.md"
+# A fixture adapter: writes its arguments and the Document's manifest path to DESTINATION.
+RECORDING_ADAPTER = (
+    "import json, sys; from pathlib import Path; document = json.loads(Path(sys.argv[1]).read_text("
+    "encoding='utf-8')); Path(sys.argv[2]).write_text(json.dumps({'arguments': sys.argv[1:], "
+    "'manifest': document['manifest']['path']}), encoding='utf-8')"
+)
+
+
+def recording_adapter(folder: Path, **declared: object) -> Path:
+    """An adapters.json in ``folder`` registering the recording adapter ``fixture``."""
+    (folder / "adapter.json").write_text(json.dumps({
+        "name": "fixture", "command": [sys.executable, "-c", RECORDING_ADAPTER], "contractVersion": 1,
+        "capabilities": [item["id"] for item in capability_reference()["capabilities"]], **declared,
+    }), encoding="utf-8")
+    configuration = folder / "adapters.json"
+    configuration.write_text(json.dumps({"adapters": {"fixture": "adapter.json"}}), encoding="utf-8")
+    return configuration
+
+
+@pytest.fixture
+def shared_spec_build(monkeypatch, spec_document):
+    """The one-call build's Document is the run's shared build of the spec (test/spec_build.py)."""
+    from obs import document as core
+
+    monkeypatch.setattr(core, "build_document", lambda *_arguments: spec_document)
+
+
+def test_one_call_builds_the_spec_without_a_capability_reference_or_a_document(
+        tmp_path, monkeypatch, shared_spec_build) -> None:
+    """The packaged capability reference and a temporary Document; adapters.json in the current folder."""
+    recording_adapter(tmp_path)
+    monkeypatch.chdir(tmp_path)
+    destination = tmp_path / "spec.out"
+
+    assert main(["--source", str(SPEC_MANIFEST), "--adapter", "fixture", "--destination", str(destination),
+                 "--execute-commands"]) == 0
+
+    called = json.loads(destination.read_text(encoding="utf-8"))
+    assert called["manifest"] == "manifest.md"
+    assert called["arguments"][1:] == [str(destination.resolve()), "--vault-root", str(SPEC_MANIFEST.parent)]
+    assert not Path(called["arguments"][0]).exists(), "the temporary Document outlives the build"
+
+
+def test_a_given_document_is_kept_and_the_vault_root_is_passed_as_given(tmp_path, monkeypatch) -> None:
+    vault = tmp_path / "vault"
+    vault.mkdir()
+    (vault / "manifest.md").write_text("- [[chapter]]\n", encoding="utf-8")
+    (vault / "chapter.md").write_text("Content.\n", encoding="utf-8")
+    recording_adapter(tmp_path)
+    monkeypatch.chdir(tmp_path)
+
+    assert main(["--source", "vault/manifest.md", "--document", "kept.json", "--adapter", "fixture",
+                 "--destination", "out.json"]) == 0
+
+    assert json.loads((tmp_path / "kept.json").read_text(encoding="utf-8"))["manifest"]["path"] == "manifest.md"
+    assert json.loads((tmp_path / "out.json").read_text(encoding="utf-8"))["arguments"] == [
+        str((tmp_path / "kept.json").resolve()), str((tmp_path / "out.json").resolve()), "--vault-root", "vault",
+        "--vault-link", "vault"]
+
+
+@pytest.mark.parametrize(("destination", "link"), [
+    ("proj/site/deep/out.json", ["--vault-link", "../../notes"]),  # Below the vault's parent.
+    ("proj/out.json", ["--vault-link", "notes"]),  # In the vault's parent itself.
+    ("far/out.json", []),  # Outside the vault's parent: no link.
+])
+def test_the_vault_link_follows_the_vault_root_where_the_rule_gives_one(tmp_path, monkeypatch,
+                                                                         destination, link) -> None:
+    vault = tmp_path / "proj" / "notes"
+    vault.mkdir(parents=True)
+    (vault / "manifest.md").write_text("- [[chapter]]\n", encoding="utf-8")
+    (vault / "chapter.md").write_text("Content.\n", encoding="utf-8")
+    (tmp_path / destination).parent.mkdir(parents=True, exist_ok=True)
+    recording_adapter(tmp_path)
+    monkeypatch.chdir(tmp_path)
+
+    assert main(["--source", "proj/notes", "--document", "kept.json", "--adapter", "fixture",
+                 "--destination", destination]) == 0
+
+    arguments = json.loads((tmp_path / destination).read_text(encoding="utf-8"))["arguments"]
+    assert arguments[2:] == ["--vault-root", str(Path("proj/notes")), *link]
+    assert "vault-link" not in (tmp_path / "kept.json").read_text(encoding="utf-8")
+
+
+def test_an_adapter_called_on_a_document_gets_no_vault_root(tmp_path) -> None:
+    document = tmp_path / "document.json"
+    write_document(document_fixture(), document, capability_reference())
+    configuration = recording_adapter(tmp_path)
+
+    assert main(["--document", str(document), "--adapter", "fixture", "--adapter-config", str(configuration),
+                 "--destination", str(tmp_path / "out.json")]) == 0
+
+    assert json.loads((tmp_path / "out.json").read_text(encoding="utf-8"))["arguments"] == [
+        str(document.resolve()), str((tmp_path / "out.json").resolve())]
+
+
+@pytest.mark.parametrize(("value", "passed"), [("true", ["--flag"]), ("false", [])])
+def test_a_declared_adapter_option_is_passed_as_the_adapter_declares_it(tmp_path, value, passed) -> None:
+    document = tmp_path / "document.json"
+    write_document(document_fixture(), document, capability_reference())
+    configuration = recording_adapter(tmp_path, options={"flag": {"type": "boolean", "summary": "A flag."}})
+
+    assert main(["--document", str(document), "--adapter", "fixture", "--adapter-config", str(configuration),
+                 "--destination", str(tmp_path / "out.json"), "--adapter-option", f"flag={value}"]) == 0
+
+    assert json.loads((tmp_path / "out.json").read_text(encoding="utf-8"))["arguments"][2:] == passed
+
+
+@pytest.mark.parametrize("option", ["other=true", "flag", "flag=yes"])
+def test_an_adapter_option_the_adapter_does_not_declare_names_the_adapter_and_its_options(
+        tmp_path, option) -> None:
+    document = tmp_path / "document.json"
+    write_document(document_fixture(), document, capability_reference())
+    configuration = recording_adapter(tmp_path, options={"flag": {"type": "boolean", "summary": "A flag."}})
+
+    with pytest.raises(SystemExit) as failure:
+        main(["--document", str(document), "--adapter", "fixture", "--adapter-config", str(configuration),
+              "--destination", str(tmp_path / "out.json"), "--adapter-option", option])
+
+    message = str(failure.value.code)
+    assert "--adapter-option" in message and str(tmp_path / "adapter.json") in message and "flag" in message
+    assert not (tmp_path / "out.json").exists()
+
+
+def test_a_document_is_required_without_an_adapter(tmp_path) -> None:
+    (tmp_path / "manifest.md").write_text("Text.\n", encoding="utf-8")
+
+    with pytest.raises(SystemExit) as failure:
+        main(["--source", str(tmp_path / "manifest.md")])
+
+    assert "--document" in str(failure.value.code)
+
+
+def test_document_and_capability_reference_writers_replace_their_output_atomically(tmp_path) -> None:
+    """architecture, Safety boundaries: output is replaced atomically, and an unchanged output
+    stays untouched; two builds of one vault (a producer and its reader) never see a partial file."""
+    from obs.capabilities import main as capabilities_main
+
+    reference = capability_reference()
+    document = tmp_path / "document.json"
+    capabilities = tmp_path / "capabilities.json"
+    write_document(document_fixture(), document, reference)
+    capabilities_main(["--notes", str(ROOT / "spec" / "capabilities"), "--output", str(capabilities)])
+    written = {path: path.stat() for path in (document, capabilities)}
+
+    write_document(document_fixture(), document, reference)
+    capabilities_main(["--notes", str(ROOT / "spec" / "capabilities"), "--output", str(capabilities)])
+    for path, before in written.items():
+        assert path.stat().st_mtime_ns == before.st_mtime_ns, f"{path.name}: unchanged output was rewritten"
+
+    changed = document_fixture()
+    changed["manifest"]["title"] = "Changed"
+    write_document(changed, document, reference)
+    assert json.loads(document.read_text(encoding="utf-8"))["manifest"]["title"] == "Changed"
+    assert document.stat().st_ino != written[document].st_ino, "document.json: rewritten in place, not replaced"
+    assert sorted(path.name for path in tmp_path.iterdir()) == ["capabilities.json", "document.json"]
+
+
+def small_vault(folder: Path) -> Path:
+    vault = folder / "vault"
+    vault.mkdir()
+    (vault / "manifest.md").write_text("- [[chapter]]\n", encoding="utf-8")
+    (vault / "chapter.md").write_text("Content.\n", encoding="utf-8")
+    return vault / "manifest.md"
+
+
+@pytest.mark.parametrize("path", ["source and document", "one call", "source, document and adapter",
+                                  "document and adapter"])
+def test_each_build_validates_the_document_exactly_once(tmp_path, monkeypatch, path) -> None:
+    """One validation per build, before the Document is written or handed to the adapter."""
+    from obs import document as core
+
+    configuration = recording_adapter(tmp_path)
+    reference = write_reference(tmp_path / "capabilities.json")
+    kept = tmp_path / "kept.json"
+    if path == "document and adapter":
+        write_document(document_fixture(), kept, capability_reference())
+    calls = []
+    validate = core.validate_document
+    monkeypatch.setattr(core, "validate_document", lambda *given: (calls.append(1), validate(*given))[1])
+    source = ["--source", str(small_vault(tmp_path))] if path != "document and adapter" else []
+    document = ["--document", str(kept)] if path != "one call" else []
+    adapter = ["--adapter", "fixture", "--adapter-config", str(configuration),
+               "--destination", str(tmp_path / "out.json")] if "adapter" in path or path == "one call" else []
+
+    assert main([*source, *document, *adapter, "--capability-reference", str(reference)]) == 0
+
+    assert len(calls) == 1
+
+
+def test_an_invalid_document_is_refused_before_the_adapter_runs(tmp_path) -> None:
+    """The one validation names the field path and the schema that owns it; the adapter never starts."""
+    configuration = recording_adapter(tmp_path)
+    document = document_fixture()
+    document["chapters"][0]["id"] = "Not An Id"
+    path = tmp_path / "document.json"
+    path.write_text(json.dumps(document), encoding="utf-8")
+
+    with pytest.raises(SystemExit, match=r"chapters\[0\]\.id.*src/obs/document\.schema\.json"):
+        main(["--document", str(path), "--adapter", "fixture", "--adapter-config", str(configuration),
+              "--destination", str(tmp_path / "out.json")])
+
+    assert not (tmp_path / "out.json").exists()
+
+
+# A fixture adapter that warns as an adapter does (architecture.md, Adapter call): one line per
+# warning on stderr, in the error form, naming the note below the vault root; it exits with EXIT.
+WARNING_ADAPTER = (
+    "import sys; from pathlib import Path; root = sys.argv[sys.argv.index('--vault-root') + 1]; "
+    "print(f'Warning: {root}/chapter.md: figure.style: has the at-rule @import, which applies to the whole '"
+    "'page and cannot be kept inside the figure; it is dropped. Remove it from the figure.', file=sys.stderr); "
+    "Path(sys.argv[2]).write_text('built', encoding='utf-8'); raise SystemExit({exit})"
+)
+
+
+def warning_adapter(folder: Path, exit: int = 0) -> Path:
+    """An adapters.json in ``folder`` registering ``fixture``, which writes one figure-style warning."""
+    configuration = recording_adapter(folder)
+    manifest = json.loads((folder / "adapter.json").read_text(encoding="utf-8"))
+    manifest["command"] = [sys.executable, "-c", WARNING_ADAPTER.replace("{exit}", str(exit))]
+    (folder / "adapter.json").write_text(json.dumps(manifest), encoding="utf-8")
+    return configuration
+
+
+def _figure_style_warnings(capsys) -> list[str]:
+    return [line for line in capsys.readouterr().err.splitlines() if ": figure.style: " in line]
+
+
+def test_a_one_call_build_shows_the_adapter_s_warnings_prefixed_with_its_name(tmp_path, monkeypatch, capsys) -> None:
+    """cli.md, One-call build: a successful adapter's stderr reaches the person, line by line."""
+    small_vault(tmp_path)
+    warning_adapter(tmp_path)
+    monkeypatch.chdir(tmp_path)
+
+    assert main(["--source", "vault/manifest.md", "--adapter", "fixture", "--destination", "out.html"]) == 0
+
+    assert [line.split(": figure.style: ")[0] for line in _figure_style_warnings(capsys)] == [
+        "fixture: Warning: vault/chapter.md"]
+
+
+def test_several_documents_name_the_source_of_each_adapter_warning(tmp_path, monkeypatch, capsys) -> None:
+    """cli.md, Several documents per call: each document's warnings name its --source."""
+    for name in ("a", "b"):
+        (tmp_path / name).mkdir()
+        small_vault(tmp_path / name)
+    warning_adapter(tmp_path)
+    monkeypatch.chdir(tmp_path)
+    a, b = str(Path("a", "vault", "manifest.md")), str(Path("b", "vault", "manifest.md"))
+
+    assert main(["--adapter", "fixture", "--source", a, "--destination", "a.html",
+                 "--source", b, "--destination", "b.html"]) == 0
+
+    assert [line.split(": figure.style: ")[0] for line in _figure_style_warnings(capsys)] == [
+        f"--source {a}: fixture: Warning: {Path(a).parent}/chapter.md",
+        f"--source {b}: fixture: Warning: {Path(b).parent}/chapter.md"]
+
+
+def test_a_failing_adapter_s_stderr_is_only_in_the_failure(tmp_path, monkeypatch, capsys) -> None:
+    """On failure the behaviour is unchanged: the stderr is the detail of the one failure message."""
+    small_vault(tmp_path)
+    warning_adapter(tmp_path, exit=1)
+    monkeypatch.chdir(tmp_path)
+
+    with pytest.raises(SystemExit, match=r"^obs-document: Adapter 'fixture' exited with code 1: "
+                                         r"Warning: vault/chapter\.md: figure\.style: "):
+        main(["--source", "vault/manifest.md", "--adapter", "fixture", "--destination", "out.html"])
+
+    assert _figure_style_warnings(capsys) == []
+
+
+# A fixture serve command: prints its arguments as JSON and exits with 3, as a server run ends.
+SERVING = "import json, sys; print(json.dumps(sys.argv[1:])); raise SystemExit(3)"
+
+
+def test_serve_starts_the_adapters_serve_command_on_the_built_artifact_and_returns_its_exit(
+        tmp_path, monkeypatch, capfd, shared_spec_build) -> None:
+    recording_adapter(tmp_path, serve=[sys.executable, "-c", SERVING])
+    monkeypatch.chdir(tmp_path)
+    destination = tmp_path / "spec.out"
+
+    assert main(["--source", str(SPEC_MANIFEST), "--adapter", "fixture", "--destination", str(destination),
+                 "--execute-commands", "--serve", "--wait", "--timeout", "60"]) == 3
+
+    assert json.loads(destination.read_text(encoding="utf-8"))["manifest"] == "manifest.md"  # Built first.
+    assert json.loads(capfd.readouterr().out.strip().splitlines()[-1]) == [
+        str(destination.resolve()), "--wait", "--timeout", "60"]
+
+
+@pytest.mark.parametrize("arguments, declared, field", [
+    (["--serve"], {}, "--serve"),
+    (["--wait"], {"serve": ["serve"]}, "--wait"),
+    (["--serve", "--timeout", "60"], {"serve": ["serve"]}, "--timeout"),
+    (["--serve", "--source", str(SPEC_MANIFEST), "--destination", "second.out"], {"serve": ["serve"]}, "--serve"),
+], ids=["adapter-without-serve", "wait-without-serve", "timeout-without-wait", "several-sources"])
+def test_serve_is_refused_before_the_build_naming_its_option(tmp_path, monkeypatch, arguments, declared, field,
+                                                            shared_spec_build) -> None:
+    recording_adapter(tmp_path, **declared)
+    monkeypatch.chdir(tmp_path)
+
+    with pytest.raises(SystemExit) as refused:
+        main(["--source", str(SPEC_MANIFEST), "--adapter", "fixture", "--destination", "spec.out", *arguments])
+
+    assert str(refused.value).startswith(f"obs-document: {field} ")
+    assert not (tmp_path / "spec.out").exists()
+
+
+def test_the_html_adapter_declares_its_serve_command() -> None:
+    assert load_adapter("html", ROOT / "adapters.json")["serve"] == ["uv", "run", "obs-html", "serve"]

@@ -1,0 +1,24 @@
+# Generated artifacts
+/data/data_output/*
+!/data/data_output/.gitkeep
+/spec/design_output/*
+!/spec/design_output/.gitkeep
+
+# Local Python state
+/.pytest_cache/
+/src/.venv/
+**/__pycache__/
+*.py[cod]
+
+# Worktree-local worker queues
+/.se/
+# The core's packaged capability reference, written by every build (hatch_build.py)
+/src/obs/capability-reference.json
+# The diagram renderers, written by every build from their lockfile (hatch_build.py)
+/src/obs/vendor/diagrams/
+# From before the build packaged them or the package was removed; test/structure/test_node_modules.py
+# asks to delete it
+/src/obs/diagrams/node_modules/
+/test/browser/node_modules/
+.public-check.local
+.check-exceptions.local.json

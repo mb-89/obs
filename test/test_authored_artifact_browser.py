@@ -1,0 +1,103 @@
+"""Native acceptance boundary for an actual freshly built artifact, not a synthetic vault."""
+import os
+from pathlib import Path
+
+import pytest
+
+from obs.input import InputError, input_error
+
+VARIABLE = "OBS_HTML_TEST_NATIVE_BROWSER"
+
+
+def launch(browser_type, executable: str):
+    """Launch the native browser; a browser that does not start names the variable and the remedy."""
+    from playwright.sync_api import Error
+
+    try:
+        return browser_type.launch(executable_path=executable)
+    except Error as error:
+        message = input_error(
+            "test/test_authored_artifact_browser.py", f"{VARIABLE}={executable!r}",
+            "the browser does not launch",
+            f"Remedy: set {VARIABLE} to the absolute path of a Chromium or Chrome executable that "
+            "starts, or unset it to skip; see quality#Testing boundaries")
+        raise InputError(f"{message}\n{str(error).strip()}") from error
+
+
+class _RefusingChromium:
+    def launch(self, **_options):
+        from playwright.sync_api import Error
+
+        raise Error("BrowserType.launch: Executable doesn't exist at /missing/chromium")
+
+
+@pytest.mark.unit
+def test_a_browser_that_does_not_launch_names_the_variable_the_owner_and_the_remedy():
+    with pytest.raises(InputError) as raised:
+        launch(_RefusingChromium(), "/missing/chromium")
+
+    message = str(raised.value)
+    assert message.startswith(f"test/test_authored_artifact_browser.py: {VARIABLE}='/missing/chromium': ")
+    assert "see quality#Testing boundaries" in message
+    assert message.endswith("BrowserType.launch: Executable doesn't exist at /missing/chromium")
+
+
+def test_authored_artifact_all_chapters_modes_and_pdf(tmp_path):
+    executable = os.environ.get(VARIABLE)
+    authored = os.environ.get("OBS_HTML_TEST_AUTHORED_ARTIFACT")
+    if not executable or not authored:
+        pytest.skip("Set OBS_HTML_TEST_NATIVE_BROWSER and OBS_HTML_TEST_AUTHORED_ARTIFACT.")
+    from playwright.sync_api import sync_playwright
+    from pypdf import PdfReader
+
+    with sync_playwright() as playwright:
+        browser = launch(playwright.chromium, executable)
+        page = browser.new_page()
+        errors = []
+        page.on("pageerror", lambda error: errors.append(str(error)))
+        page.on("console", lambda message: errors.append(message.text)
+                if message.type == "error" and "Page layout failed" in message.text else None)
+        page.goto(Path(authored).resolve().as_uri())
+        # The artifact starts asynchronously; its status says when its runtime is ready.
+        page.wait_for_function("['ready', 'error'].includes(document.documentElement.dataset.artifactStatus)")
+        slugs = page.evaluate("JSON.parse(document.querySelector('[data-artifact-data]').textContent).toc")
+        assert slugs
+        for width, height in [(1440, 900), (1920, 1440), (2560, 2160), (390, 844)]:
+            page.set_viewport_size({"width": width, "height": height})
+            for slug in slugs:
+                for paged in [False, True]:
+                    page.evaluate("""({slug,paged}) => {
+                        obsPages.setPaged(paged);
+                        obsArtifact.activateChapter(slug);
+                    }""", {"slug": slug, "paged": paged})
+                    assert "Page layout failed" not in page.locator("[data-export-status]").inner_text(), (
+                        width, height, slug, paged)
+                    assert page.evaluate("document.documentElement.classList.contains('paged-mode')") == paged
+                    projection = ".paged-reader" if paged else "[data-chapter-body]"
+                    if paged:
+                        assert page.locator(".paged-reader .paper-sheet").count()
+                    assert page.locator(projection + " figure > img").evaluate_all("""images =>
+                        images.every(image => {
+                            if (getComputedStyle(image).display === 'none') {
+                                return image.closest('figure').querySelector('.figure-live')
+                                    ?.getBoundingClientRect().height > 0;
+                            }
+                            const bounds = image.getBoundingClientRect();
+                            const frame = image.closest('figure').getBoundingClientRect();
+                            return image.complete && image.naturalWidth > 0 && bounds.height > 0 &&
+                                bounds.width > 0 && bounds.right <= frame.right + 1 &&
+                                bounds.left >= frame.left - 1 && bounds.bottom <= frame.bottom + 1 &&
+                                Math.abs(bounds.width / bounds.height -
+                                    image.naturalWidth / image.naturalHeight) < .03;
+                        })"""), (width, height, slug, paged)
+        page.evaluate("window.print = () => {}; obsPages.exportPDF()")
+        page.emulate_media(media="print")
+        assert page.locator(".print-book .paper-content").evaluate_all("""areas =>
+            areas.every(area => area.scrollHeight <= area.clientHeight + 1 &&
+                area.closest('.paper-sheet').scrollWidth <=
+                    area.closest('.paper-sheet').clientWidth + 1)""")
+        output = tmp_path / "authored-artifact.pdf"
+        page.pdf(path=str(output), prefer_css_page_size=True, print_background=True)
+        assert PdfReader(output).pages
+        assert errors == []
+        browser.close()

@@ -1,0 +1,24 @@
+{
+  "sections": {
+    "Manifest contract": "input",
+    "Document home and abstract": "input",
+    "Profiles": "input",
+    "Registers": "input",
+    "Cover metadata and history": "adapter",
+    "Chapter content": "input",
+    "Callouts": "input",
+    "Reusable query ownership": "input",
+    "Numeric-value notes": "input",
+    "Reference notes and link text": "input",
+    "Remaining chapter content": "input",
+    "Figure descriptor": "input",
+    "Equation figures": "input", "Pugh decision figures": "input", "Timeline figures": "input",
+    "Markdown body and frontmatter": "input",
+    "Mark tags": "input",
+    "Base fences": "input",
+    "Command-derived content": "input",
+    "Reviewed copy": "input",
+    "One count query": "input",
+    "Next Obsidian extension": "input"
+  }
+}

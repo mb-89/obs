@@ -1,0 +1,67 @@
+[project]
+name = "obs"
+version = "0.2.3"
+description = "Generate portable HTML documents from Obsidian-compatible Markdown vaults."
+requires-python = ">=3.11"
+license = "MIT"
+license-files = ["LICENSE"]
+dependencies = [
+    "jsonschema>=4.26.0",
+    "markdown-it-py>=4.2.0",
+    "mdit-py-plugins>=0.6.1",
+    "pint>=0.25.3",
+    "playwright>=1.64.0",
+    "pyyaml>=6.0.3",
+    "sympy>=1.14.0",
+]
+
+[project.scripts]
+obs-document = "obs.document:main"
+
+[dependency-groups]
+dev = [
+    "filelock>=4.2.9",
+    "obs-html",
+    "pytest>=8.0",
+    "pytest-timeout>=2.4.0",
+    "pytest-xdist>=3.8.0",
+]
+
+[tool.uv]
+# Build the core again when what hatch_build.py generates from changes.
+cache-keys = [{ file = "pyproject.toml" }, { file = "hatch_build.py" }, { file = "spec/capabilities/**" },
+              { file = "src/obs/capabilities.py" }, { file = "src/obs/diagrams/package-lock.json" },
+              { file = "src/obs/diagram.py" }]
+
+[tool.uv.workspace]
+members = ["adapters/html"]
+
+[tool.uv.sources]
+obs-html = { workspace = true }
+
+[build-system]
+# pyyaml: hatch_build.py writes the packaged capability reference from the capability notes.
+requires = ["hatchling", "pyyaml"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/obs"]
+
+[tool.hatch.build.targets.wheel.hooks.custom]
+# hatch_build.py: the packaged capability reference, src/obs/capability-reference.json, and the
+# diagram renderers, src/obs/vendor/diagrams.
+
+[tool.hatch.build]
+directory = "data/data_output/dist"
+
+[tool.pytest.ini_options]
+testpaths = ["test"]
+# Tiers are assigned in test/conftest.py (test/tiers.py). A bare `pytest` runs every tier except
+# external, which runs only when selected with -m external; naming a test runs it whatever its tier.
+markers = [
+    "unit: in-process Python checks (the tier rule: spec/design_input/quality.md, Testing boundaries)",
+    "dom: Node.js + linkedom DOM contract checks",
+    "browser: native Chrome via Playwright (needs OBS_HTML_TEST_NATIVE_BROWSER)",
+    "build: builds a whole Document, artifact or package from inputs it does not make itself",
+    "external: needs data outside both repositories; runs only when selected with -m external",
+]

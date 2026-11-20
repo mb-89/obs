@@ -1,0 +1,808 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "document.schema.json",
+  "description": "A neutral Document. Node types are the structural types $defs/structuralType lists, or capability identifiers from the supplied capability reference.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "manifest", "chapters", "links", "assets", "records", "semanticResources", "diagnostics", "capabilities", "cssSnippets"],
+  "properties": {
+    "schemaVersion": {"const": 1},
+    "manifest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["title", "path", "metadata"],
+      "properties": {
+        "title": {"type": "string", "minLength": 1},
+        "path": {"description": "The manifest note's vault-relative POSIX path, which an adapter's messages about the manifest name.", "type": "string", "pattern": "^(?!/)(?!.*(^|/)\\.\\.?(/|$)).+\\.md$"},
+        "metadata": {"type": "object"},
+        "abstract": {"type": "array", "items": {"$ref": "#/$defs/node"}}
+      }
+    },
+    "chapters": {"type": "array", "items": {"$ref": "#/$defs/chapter"}},
+    "links": {"type": "array", "items": {"$ref": "#/$defs/link"}},
+    "assets": {"type": "array", "items": {"$ref": "#/$defs/asset"}},
+    "records": {"type": "array", "items": {"$ref": "#/$defs/record"}},
+    "semanticResources": {"type": "array", "items": {"$ref": "#/$defs/resource"}},
+    "diagnostics": {
+      "type": "array",
+      "items": {
+        "type": "object", "additionalProperties": false, "required": ["level", "message"],
+        "properties": {"level": {"enum": ["error", "warning", "info"]}, "message": {"type": "string", "minLength": 1}}
+      }
+    },
+    "style": {
+      "description": "The identity of the style module the manifest's obs.style declares, as declared, never its files; an adapter that offers styles resolves and applies it (architecture.md, Declared style).",
+      "$ref": "#/$defs/styleIdentity"
+    },
+    "cssSnippets": {
+      "description": "The vault's CSS snippets, every .css file of its snippet folder in name order (architecture.md, CSS snippets).",
+      "type": "array", "items": {"$ref": "#/$defs/cssSnippet"}
+    },
+    "projectConfig": {
+      "description": "The vault's project configuration, present where the vault holds one: its vault-relative path and its top-level keys other than the core's, unread (architecture.md, Project configuration).",
+      "type": "object", "additionalProperties": false, "required": ["path", "settings"],
+      "properties": {"path": {"type": "string", "minLength": 1}, "settings": {"type": "object"}}
+    },
+    "sourceArchive": {
+      "description": "The vault's source files, present only when the build was asked to disclose them (architecture.md, Source archive).",
+      "type": "object", "additionalProperties": false, "required": ["files", "build"],
+      "properties": {"files": {"type": "array", "items": {"$ref": "#/$defs/sourceFile"}}, "build": {"$ref": "#/$defs/sourceBuild"}}
+    },
+    "capabilities": {"type": "array", "items": {"$ref": "#/$defs/id"}, "uniqueItems": true},
+    "comments": {
+      "description": "The union of the manifest's comment overlay files, present only where it has one (input-model#Comments and reviews).",
+      "$ref": "comments.schema.json#/$defs/resolved"
+    },
+    "sync": {
+      "description": "Every sync record file of the manifest, by namespace, present only where it has one (input-model#Sync records).",
+      "$ref": "sync.schema.json#/$defs/resolved"
+    }
+  },
+  "$defs": {
+    "id": {"type": "string", "pattern": "^[a-z][a-z0-9-]*$"},
+    "nodeId": {
+      "description": "A block node's id, unique within its chapter or the abstract: an Obsidian block reference's name, else <type>-<hash> of its normalized text (input-model#Block node ids).",
+      "type": "string", "pattern": "^[A-Za-z0-9-]+$"
+    },
+    "identifiedType": {
+      "description": "The block node types the core gives an id wherever they stand in a block position (src/obs/node_ids.py; input-model#Block node ids).",
+      "enum": [
+        "section", "paragraph", "list", "list-item", "quote", "callouts", "table", "table-row", "code", "math",
+        "rule", "command-fences", "figures", "bases", "registers", "cards-metrics", "document", "property-editors",
+        "embeds", "columns"
+      ]
+    },
+    "structuralType": {
+      "description": "The node types every adapter renders, whatever capabilities it declares: Markdown's own blocks and inline marks (capabilities/markdown) and frontmatter fields (capabilities/markdown-frontmatter).",
+      "enum": [
+        "document", "section", "paragraph", "text", "list", "list-item", "code", "quote",
+        "table", "table-row", "table-cell", "emphasis", "strong", "strikethrough", "math", "field", "rule",
+        "break"
+      ]
+    },
+    "inlineNodes": {
+      "description": "Inline nodes of a string the author wrote as inline Markdown, never a block node (capabilities/markdown#Document nodes).",
+      "type": "array", "items": {"allOf": [{"$ref": "#/$defs/node"}, {"not": {"$ref": "#/$defs/blockNode"}}]}
+    },
+    "blockNode": {
+      "description": "A block node: never a paragraph's child, always its sibling (capabilities/markdown#Document nodes). An embed is a block node unless it names an asset. Each branch is keyed by type, so a paragraph's children are checked by their types (src/obs/discriminator.py).",
+      "required": ["type"],
+      "discriminator": {"propertyName": "type"},
+      "anyOf": [
+        {"properties": {"type": {"enum": [
+          "section", "paragraph", "list", "list-item", "quote", "table", "table-row", "table-cell", "rule",
+          "registers", "figures", "cards-metrics", "callouts", "columns"
+        ]}}},
+        {"properties": {"type": {"const": "embeds"}, "attrs": {"not": {"required": ["asset"]}}}}
+      ]
+    },
+    "node": {
+      "description": "A Document node. Its type selects the one allOf clause keyed by that type (if.properties.type), by lookup (src/obs/discriminator.py); a type no clause names has no rule beyond these properties.",
+      "type": "object", "additionalProperties": false, "required": ["type", "attrs", "children"],
+      "discriminator": {"propertyName": "type"},
+      "properties": {
+        "type": {"$ref": "#/$defs/id"},
+        "attrs": {"type": "object"},
+        "children": {"type": "array", "items": {"$ref": "#/$defs/node"}},
+        "text": {"type": "string"},
+        "id": {"$ref": "#/$defs/nodeId"}
+      },
+      "allOf": [
+        {
+          "description": "Containers that carry no attributes: a quotation's blocks, a table's rows, a row's cells, and a mark's inline nodes.",
+          "if": {"properties": {"type": {"enum": ["quote", "table", "table-row", "emphasis", "strong", "strikethrough"]}}},
+          "then": {"properties": {"attrs": {"maxProperties": 0}}}
+        },
+        {
+          "description": "A paragraph: its children are inline nodes, never a block node (capabilities/markdown#Document nodes).",
+          "if": {"properties": {"type": {"const": "paragraph"}}},
+          "then": {"properties": {"children": {"items": {"not": {
+            "description": "Place the block node beside the paragraph, never inside it (capabilities/markdown#Document nodes)",
+            "$ref": "#/$defs/blockNode"
+          }}}}}
+        },
+        {
+          "description": "A thematic break, or a hard line break inside inline content (capabilities/markdown#Document nodes): no attributes and no children.",
+          "if": {"properties": {"type": {"enum": ["rule", "break"]}}},
+          "then": {"properties": {"attrs": {"maxProperties": 0}, "children": {"maxItems": 0}}}
+        },
+        {
+          "description": "A table cell: whether it is a header cell and its authored alignment; its children are inline nodes.",
+          "if": {"properties": {"type": {"const": "table-cell"}}},
+          "then": {"properties": {"attrs": {
+            "type": "object", "additionalProperties": false, "required": ["header"],
+            "properties": {"header": {"type": "boolean"}, "align": {"enum": ["left", "center", "right"]}}
+          }}}
+        },
+        {
+          "description": "A list: whether it is numbered and whether it was authored tight (no blank line between its items); its children are list-item nodes.",
+          "if": {"properties": {"type": {"const": "list"}}},
+          "then": {"properties": {"attrs": {
+            "type": "object", "additionalProperties": false, "required": ["ordered", "tight"],
+            "properties": {"ordered": {"type": "boolean"}, "tight": {"type": "boolean"}}
+          }}}
+        },
+        {
+          "description": "TeX math: the formula is text, display is true for a $$ formula.",
+          "if": {"properties": {"type": {"const": "math"}}},
+          "then": {"required": ["text"], "properties": {"children": {"maxItems": 0}, "attrs": {
+            "type": "object", "additionalProperties": false, "required": ["display"],
+            "properties": {"display": {"type": "boolean"}}
+          }}}
+        },
+        {
+          "description": "One frontmatter string value parsed as inline Markdown; name is its dotted field path (list items by index).",
+          "if": {"properties": {"type": {"const": "field"}}},
+          "then": {"properties": {"attrs": {
+            "type": "object", "additionalProperties": false, "required": ["name"],
+            "properties": {"name": {"type": "string", "minLength": 1}}
+          }}}
+        },
+        {
+          "description": "A command fence: its authored source; a producer is silent and renders nothing, every other fence carries the output the core captured on an authorized build (capabilities/command-fences).",
+          "if": {"properties": {"type": {"const": "command-fences"}}},
+          "then": {"properties": {"attrs": {
+            "type": "object", "additionalProperties": false, "required": ["source"],
+            "properties": {"source": {"type": "string"}, "silent": {"const": true}, "output": {"type": "string"}},
+            "oneOf": [{"required": ["silent"]}, {"required": ["output"]}]
+          }}}
+        },
+        {
+          "description": "A figure of any kind (capabilities/figures): what every kind shares; its one child is the kind's body, whose type is the kind and whose attrs $defs/figureBodies owns per kind (obs.document checks it; src/obs/figure.py's FIGURE_KINDS reads each kind's content).",
+          "if": {"properties": {"type": {"const": "figures"}}},
+          "then": {"properties": {
+            "attrs": {
+              "type": "object", "additionalProperties": false, "required": ["kind"],
+              "properties": {
+                "kind": {"$ref": "#/$defs/id"},
+                "caption": {"description": "Paragraph nodes, parsed like note content.", "type": "array", "minItems": 1,
+                            "items": {"properties": {"type": {"const": "paragraph"}}}},
+                "alt": {"type": "string"},
+                "block": {"description": "The figure's Obsidian block id, without its ^.", "type": "string", "pattern": "^[A-Za-z0-9-]+$"}
+              }
+            },
+            "children": {"minItems": 1, "maxItems": 1}
+          }}
+        },
+        {
+          "if": {"properties": {"type": {"const": "attachments"}}},
+          "then": {"properties": {"attrs": {
+            "type": "object", "additionalProperties": false, "required": ["asset", "label"],
+            "properties": {"asset": {"$ref": "#/$defs/id"}, "label": {"type": "string"}}
+          }}}
+        },
+        {
+          "if": {"properties": {"type": {"const": "chapter-inclusion"}}},
+          "then": {"properties": {"attrs": {
+            "type": "object", "additionalProperties": false, "required": ["id"],
+            "properties": {"id": {"$ref": "#/$defs/id"}}
+          }}}
+        },
+        {
+          "description": "A callout: its canonical type and its title as inline nodes (the authored one parsed as inline Markdown, or the default input-model.md#Callouts names; none for an untitled important); its children are the parsed body, the same block and inline nodes as chapter content, including nested callouts.",
+          "if": {"properties": {"type": {"const": "callouts"}}},
+          "then": {"properties": {"attrs": {
+            "type": "object", "additionalProperties": false, "required": ["kind", "title"],
+            "properties": {"kind": {"$ref": "#/$defs/id"}, "title": {"$ref": "#/$defs/inlineNodes"}}
+          }}}
+        },
+        {
+          "description": "A cards fence: its authored source and validated spec; its children are one document node per card, in the spec's order, holding that card's body parsed like chapter content, its title and each metric's label (in the order of its metrics) as inline nodes.",
+          "if": {"properties": {"type": {"const": "cards-metrics"}}},
+          "then": {"properties": {
+            "attrs": {
+              "type": "object", "additionalProperties": false, "required": ["source", "spec"],
+              "properties": {"source": {"type": "string"}, "spec": {"type": "object"}}
+            },
+            "children": {"items": {"properties": {"type": {"const": "document"}, "attrs": {
+              "type": "object", "additionalProperties": false, "required": ["title", "labels"],
+              "properties": {"title": {"$ref": "#/$defs/inlineNodes"},
+                             "labels": {"type": "array", "items": {"$ref": "#/$defs/inlineNodes"}}}
+            }}}}
+          }}
+        },
+        {
+          "description": "A two-column block (capabilities/columns#Document node): its weight pair, [1, 1] where none is authored; its children are exactly two document nodes, the first and the second column, each holding that column's blocks parsed like chapter content.",
+          "if": {"properties": {"type": {"const": "columns"}}},
+          "then": {"properties": {
+            "attrs": {
+              "type": "object", "additionalProperties": false, "required": ["weights"],
+              "properties": {"weights": {"type": "array", "minItems": 2, "maxItems": 2,
+                                         "items": {"type": "integer", "minimum": 1, "maximum": 8}}}
+            },
+            "children": {"minItems": 2, "maxItems": 2, "items": {"properties": {
+              "type": {"const": "document"}, "attrs": {"maxProperties": 0}
+            }}}
+          }}
+        },
+        {
+          "description": "A property-editor fence: its authored source, the mapping input.schema.json (propertyEditor) validated, and the fields it may write (capabilities/property-editors#Document node).",
+          "if": {"properties": {"type": {"const": "property-editors"}}},
+          "then": {"properties": {"attrs": {
+            "type": "object", "additionalProperties": false, "required": ["source", "spec", "writes"],
+            "properties": {
+              "source": {"type": "string"}, "spec": {"type": "object"},
+              "writes": {"type": "array", "minItems": 1, "uniqueItems": true, "items": {"type": "string", "minLength": 1}}
+            }
+          }}}
+        },
+        {
+          "if": {"properties": {"type": {"enum": ["markdown-frontmatter", "references"]}}},
+          "then": {"properties": {"attrs": {
+            "type": "object", "additionalProperties": false, "required": ["metadata"],
+            "properties": {"metadata": {"type": "object"}}
+          }}}
+        },
+        {
+          "description": "A quantity note's frontmatter, and its quantity: value, display unit, SI value and dimension (capabilities/quantities#Document node).",
+          "if": {"properties": {"type": {"const": "quantities"}}},
+          "then": {"properties": {"attrs": {
+            "type": "object", "additionalProperties": false, "required": ["metadata", "quantity"],
+            "properties": {"metadata": {"type": "object"}, "quantity": {"$ref": "#/$defs/quantity"}}
+          }}}
+        },
+        {
+          "if": {"properties": {"type": {"enum": ["queries", "count-query"]}}},
+          "then": {"properties": {"attrs": {
+            "type": "object", "additionalProperties": false, "required": ["query"],
+            "properties": {"query": {"type": "object"}}
+          }}}
+        },
+        {
+          "if": {"properties": {"type": {"const": "profiles"}}},
+          "then": {"properties": {"attrs": {
+            "type": "object", "additionalProperties": false, "required": ["profile"],
+            "properties": {"profile": {"type": "object"}}
+          }}}
+        },
+        {
+          "if": {"properties": {"type": {"const": "wikilinks"}}},
+          "then": {"properties": {"attrs": {
+            "type": "object", "additionalProperties": false, "required": ["target", "chapter", "heading", "label"],
+            "properties": {
+              "target": {"description": "The note as written; empty for a link within its own note ([[#Heading]], [[#^name]]).", "type": "string"},
+              "chapter": {"$ref": "#/$defs/chapterReference"},
+              "heading": {"type": "string"}, "label": {"description": "The text an adapter shows (capabilities/wikilinks#Link text).", "type": "string", "minLength": 1},
+              "block": {"description": "A block link's target: the explicit id, without its ^, of the block node in chapter that carries it, a figure or any other block (capabilities/wikilinks).", "type": "string", "pattern": "^[A-Za-z0-9-]+$"},
+              "svg": {"description": "Only on a link inside a figure, a child of the figure's body: the link exactly as the figure's SVG holds it, an a element's href or the wikilink text with its brackets (capabilities/wikilinks#Links inside a figure).", "type": "string", "minLength": 1}
+            }
+          }}}
+        },
+        {
+          "if": {"properties": {"type": {"const": "embeds"}}},
+          "then": {"properties": {"attrs": {
+            "type": "object", "additionalProperties": false, "required": ["target", "chapter"],
+            "dependentRequired": {"block": ["heading"]},
+            "properties": {
+              "target": {"type": "string", "minLength": 1}, "chapter": {"$ref": "#/$defs/chapterReference"},
+    "asset": {"description": "The id in assets of an embedded vault file that is not a note; absent for a note.", "$ref": "#/$defs/id"},
+              "heading": {"description": "A block or section embed's fragment as written, ^name or a heading; absent for a whole-note or file embed (capabilities/embeds#Block and section embeds).", "type": "string", "minLength": 1},
+              "block": {"description": "The id of the node a block or section embed shows in chapter: the block that carries ^name, or the heading's section node (capabilities/embeds#Block and section embeds).", "type": "string", "pattern": "^[A-Za-z0-9-]+$"}
+            }
+          }}}
+        },
+        {
+          "if": {"properties": {"type": {"const": "registers"}}},
+          "then": {"properties": {"attrs": {
+            "description": "A register embed with everything an adapter renders it from (capabilities/registers, Document node).",
+            "type": "object", "additionalProperties": false, "required": ["target", "heading", "base", "view", "rows"],
+            "properties": {
+              "target": {"type": "string", "minLength": 1}, "heading": {"type": "string"},
+              "base": {"description": "The embedded Base definition; base.schema.json validates it.", "type": "object", "required": ["views"]},
+              "view": {"description": "The index in base.views of the view heading names; null embeds all views.", "oneOf": [{"type": "integer", "minimum": 0}, {"type": "null"}]},
+              "rows": {
+                "description": "Per view of base.views, in order: the ids of the records it selects, of the record type its obs.records names, in the order of its obs.members where it declares them.",
+                "type": "array", "items": {"type": "array", "items": {"$ref": "#/$defs/id"}}
+              }
+            }
+          }}}
+        }
+      ]
+    },
+    "pughMatrix": {
+      "description": "A Pugh decision matrix (capabilities/pugh-decisions; input-model, Pugh decision figures): the shape of the upstream Pugh engine's matrix, without its options' figures and its overrides, with the chosen option, each option's short name, sentence, wins and losses, and a checklist. An option's letter is its place in candidates (A for the first). The core also checks what no schema states (src/obs/figure.py): a short name of at most 5 words, unique keys, the criteria, options and letters a field names, values for measured and marks for judged criteria, and no criterion keyed checklist.",
+      "type": "object", "additionalProperties": false, "required": ["criteria", "candidates"],
+      "properties": {
+        "title": {"type": "string", "minLength": 1},
+        "kind": {"description": "What is decided, before the title in a heading.", "type": "string", "minLength": 1},
+        "context": {"description": "The situation the decision is taken in, one phrase, for its Y-statement.", "type": "string", "minLength": 1},
+        "concern": {"description": "The concern the decision answers, one phrase, for its Y-statement.", "type": "string", "minLength": 1},
+        "supersededBy": {"description": "The decision that replaces this one, as the text that names it.", "type": "string", "minLength": 1},
+        "nouns": {"type": "object", "additionalProperties": false,
+                  "properties": {"options": {"type": "string", "minLength": 1}, "datum": {"type": "string", "minLength": 1}}},
+        "notes": {"type": "array", "items": {"type": "string", "minLength": 1}},
+        "criteria": {"type": "array", "minItems": 1, "maxItems": 64, "items": {
+          "type": "object", "additionalProperties": false, "required": ["key", "weight", "better"],
+          "properties": {
+            "key": {"type": "string", "minLength": 1}, "label": {"type": "string", "minLength": 1},
+            "weight": {"type": "number", "minimum": 0}, "better": {"enum": ["lower", "higher"]},
+            "tolerance": {"type": "number", "minimum": 0}, "floor": {"type": "number", "minimum": 0},
+            "kind": {"enum": ["measured", "judged"]}
+          }}},
+        "candidates": {"description": "The options, lettered A to Z in this order.", "type": "array", "minItems": 1, "maxItems": 26, "items": {
+          "type": "object", "additionalProperties": false, "required": ["key"],
+          "properties": {
+            "key": {"type": "string", "minLength": 1}, "label": {"type": "string", "minLength": 1},
+            "short": {"description": "The option's short name, at most 5 words (src/obs/figure.py checks the count), shown after its letter where there is room.", "type": "string", "minLength": 1},
+            "what": {"description": "One sentence on what the option is.", "type": "string", "minLength": 1},
+            "success": {"description": "The option's success criterion: one line on what marks it successful once done.", "type": "string", "minLength": 1},
+            "wins": {"description": "The option's own gains, unweighted: a short text or a list of them.", "$ref": "#/$defs/pughTexts"},
+            "losses": {"description": "The option's own losses, unweighted: a short text or a list of them.", "$ref": "#/$defs/pughTexts"},
+            "values": {"description": "Measured criteria: a number, or null where it was not measured.",
+                       "type": "object", "additionalProperties": {"type": ["number", "null"]}},
+            "marks": {"description": "Judged criteria: a mark from -2 to 2 against the datum, or a list of them, one per rater; or the mark with the reason for it.",
+                      "type": "object", "additionalProperties": {"oneOf": [
+                        {"$ref": "#/$defs/pughMark"},
+                        {"type": "object", "additionalProperties": false, "required": ["mark", "because"], "properties": {
+                          "mark": {"$ref": "#/$defs/pughMark"},
+                          "because": {"description": "Why the option has this mark; an adapter shows it as an argument for or against the option.", "type": "string", "minLength": 1}}}]}},
+            "fits": {"type": "boolean"}, "whyNot": {"type": "string", "minLength": 1},
+            "suggestable": {"type": "boolean"}, "keep": {"type": "boolean"}, "tieBreak": {"type": "number"},
+            "note": {"type": "string", "minLength": 1}
+          }}},
+        "gates": {"type": "array", "items": {
+          "type": "object", "additionalProperties": false, "required": ["criterion"],
+          "oneOf": [{"required": ["maxRatio"]}, {"required": ["max"]}, {"required": ["min"]}],
+          "properties": {
+            "criterion": {"type": "string", "minLength": 1}, "maxRatio": {"type": "number", "minimum": 1},
+            "max": {"type": "number"}, "min": {"type": "number"}, "why": {"type": "string", "minLength": 1}
+          }}},
+        "datum": {"type": "object", "additionalProperties": false, "required": ["prefer"],
+                  "properties": {"prefer": {"type": "array", "minItems": 1, "items": {"type": "string", "minLength": 1}}}},
+        "strong": {"type": "number", "exclusiveMinimum": 1},
+        "sensitivity": {"type": "object", "additionalProperties": false, "properties": {
+          "step": {"type": "number", "minimum": 0}, "draws": {"type": "integer", "minimum": 0, "maximum": 100000},
+          "seed": {"type": "number", "minimum": 0}, "holdShare": {"type": "number", "minimum": 0, "maximum": 1},
+          "runnersUp": {"type": "integer", "minimum": 0}
+        }},
+        "chosen": {"description": "The key of the option the author chose; an adapter says where it is not the winner.", "type": "string", "minLength": 1},
+        "checklist": {"description": "Questions the decision must pass; a failed item that names options marks them on a weighted Checklist row.", "type": "array", "items": {
+          "type": "object", "additionalProperties": false, "required": ["item", "answer", "pass"],
+          "properties": {
+            "item": {"description": "The question.", "type": "string", "minLength": 1},
+            "answer": {"description": "One line.", "type": "string", "minLength": 1},
+            "pass": {"type": "boolean"},
+            "options": {"description": "The letters of the options the item fails.", "type": "array", "minItems": 1, "uniqueItems": true,
+                        "items": {"type": "string", "pattern": "^[A-Z]$"}}
+          }}},
+        "checklistWeight": {"description": "The weight of the Checklist row; 3 by default.", "type": "number", "minimum": 0}
+      }
+    },
+    "pughMark": {"oneOf": [{"type": "integer", "minimum": -2, "maximum": 2},
+                           {"type": "array", "minItems": 1, "items": {"type": "integer", "minimum": -2, "maximum": 2}}]},
+    "pughTexts": {"oneOf": [{"type": "string", "minLength": 1},
+                            {"type": "array", "minItems": 1, "items": {"type": "string", "minLength": 1}}]},
+    "timelineField": {
+      "description": "The name of a record's frontmatter field a timeline figure reads (input-model, Timeline figures).",
+      "type": "string", "minLength": 1, "maxLength": 256
+    },
+    "timelineDay": {"description": "A day, yyyy-mm-dd; the core also checks it is a calendar day.",
+                    "type": "string", "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"},
+    "figureBodies": {
+      "timeline": {
+        "description": "A timeline figure (capabilities/timeline-figures; input-model, Timeline figures): the checked content as authored, which an adapter draws from the records its query selects.",
+        "type": "object", "additionalProperties": false, "required": ["records", "date", "lane", "today"],
+        "dependentRequired": {"band": ["bands"], "bands": ["band"]},
+        "properties": {
+          "records": {
+            "description": "The query that selects the records: its conditions and an optional from owner (capabilities/queries).",
+            "type": "object", "additionalProperties": false, "required": ["where"],
+            "properties": {"where": {"$ref": "input.schema.json#/$defs/conditions"},
+                           "from": {"$ref": "input.schema.json#/$defs/queryReference"}}
+          },
+          "date": {"$ref": "#/$defs/timelineField"},
+          "lane": {"$ref": "#/$defs/timelineField"},
+          "today": {"$ref": "#/$defs/timelineDay"},
+          "lanes": {"description": "The lanes in display order.", "type": "array", "minItems": 1, "maxItems": 8,
+                    "uniqueItems": true, "items": {"type": "string", "minLength": 1, "maxLength": 256}},
+          "band": {"$ref": "#/$defs/timelineField"},
+          "bands": {
+            "description": "The named bands in order: at today between the past and the planned rows, at end after them.",
+            "type": "array", "minItems": 1, "maxItems": 16,
+            "items": {"type": "object", "additionalProperties": false, "required": ["value", "label", "at"],
+                      "properties": {"value": {"type": "string", "minLength": 1, "maxLength": 512},
+                                     "label": {"type": "string", "minLength": 1, "maxLength": 256},
+                                     "at": {"enum": ["today", "end"]}}}
+          },
+          "anchor": {"description": "today, or the value of one of bands: the row a reader sees first.",
+                     "type": "string", "minLength": 1, "maxLength": 512},
+          "label": {"$ref": "#/$defs/timelineField"},
+          "text": {"$ref": "#/$defs/timelineField"},
+          "flags": {"$ref": "#/$defs/timelineField"},
+          "marker": {"$ref": "#/$defs/timelineField"}
+        }
+      },
+      "pugh": {
+        "description": "A Pugh decision figure (capabilities/pugh-decisions): the matrix as data, which an adapter decides.",
+        "type": "object", "additionalProperties": false, "required": ["matrix", "shortNames"],
+        "properties": {"matrix": {"$ref": "#/$defs/pughMatrix"},
+          "shortNames": {"description": "Each option's short name, in the order of candidates, as the core resolved it (input-model, Pugh decision figures): its short, else its label where that has at most 5 words, else null and its letter stands alone.",
+            "type": "array", "minItems": 1, "maxItems": 26, "items": {"type": ["string", "null"], "minLength": 1}}}
+      },
+      "image": {
+        "type": "object", "additionalProperties": false, "required": ["mediaType", "data"],
+        "properties": {
+          "mediaType": {"type": "string", "pattern": "^image/"},
+          "data": {"description": "The image's bytes, base64-encoded (RFC 4648, padded).", "type": "string", "contentEncoding": "base64", "pattern": "^[A-Za-z0-9+/]*={0,2}$"}
+        }
+      },
+      "svg": {
+        "type": "object", "additionalProperties": false, "required": ["svg"],
+        "properties": {
+          "svg": {"description": "The exact SVG drawing's markup.", "type": "string", "minLength": 1},
+          "panels": {
+            "type": "array", "minItems": 1, "maxItems": 64,
+            "items": {
+              "type": "object", "additionalProperties": false, "required": ["id", "title", "box"],
+              "properties": {
+                "id": {"type": "string", "minLength": 1}, "title": {"type": "string"},
+                "box": {"description": "x, y, width and height in viewBox units.", "type": "array", "minItems": 4, "maxItems": 4, "items": {"type": "number"}}
+              }
+            }
+          }
+        }
+      },
+      "sankey": {
+        "type": "object", "additionalProperties": false, "required": ["graph"],
+        "properties": {
+          "graph": {"description": "The Sankey graph (input-model, Figure input direction); the core also checks that its links name its nodes.", "$ref": "figure.schema.json#/$defs/sankeyGraph"},
+          "countLabels": {"$ref": "figure.schema.json#/$defs/countLabels"}
+        }
+      },
+      "plot": {
+        "type": "object", "additionalProperties": false, "required": ["descriptor"],
+        "properties": {"descriptor": {"$ref": "figure.schema.json"}}
+      },
+      "mermaid": {"$ref": "#/$defs/diagramBody"},
+      "plantuml": {"$ref": "#/$defs/diagramBody"},
+      "equations": {
+        "description": "An equation figure (capabilities/equation-figures; input-model, Equation figures): its equations, variables and unknowns, the solution or the system to solve numerically, and the initial plot. Every expression is a $defs/expression tree evaluated with SI values.",
+        "type": "object", "additionalProperties": false, "required": ["equations", "variables", "unknowns", "solution", "plot"],
+        "properties": {
+          "equations": {"type": "array", "minItems": 1, "items": {
+            "type": "object", "additionalProperties": false, "required": ["source", "lhs", "rhs"],
+            "properties": {"source": {"description": "The equation as authored.", "type": "string"}, "lhs": {"$ref": "#/$defs/expression"}, "rhs": {"$ref": "#/$defs/expression"}}
+          }},
+          "variables": {
+            "type": "object", "minProperties": 1, "propertyNames": {"type": "string", "pattern": "^[A-Za-z][A-Za-z0-9_]{0,39}$"},
+            "additionalProperties": {
+              "description": "A variable: its quantity, whose value is its default and whose range is where it can move (without a range it is fixed; an unknown may have no value); the quantity note it comes from; for a function, the variable it is a function of.",
+              "type": "object", "additionalProperties": false, "required": ["quantity"],
+              "properties": {"quantity": {"$ref": "#/$defs/quantity"}, "note": {"description": "The quantity note's vault-relative POSIX path.", "type": "string", "minLength": 1}, "of": {"type": "string", "pattern": "^[A-Za-z][A-Za-z0-9_]{0,39}$"}}
+            }
+          },
+          "unknowns": {"type": "array", "minItems": 1, "uniqueItems": true, "items": {"type": "string", "pattern": "^[A-Za-z][A-Za-z0-9_]{0,39}$"}},
+          "solution": {"oneOf": [
+            {
+              "description": "Explicit solutions: each branch gives every unknown as a tree of the other variables (and the independent variable). Where its numeric condition holds for a curve's values of the variables besides the sweep, the curve is solved numerically from the numeric system instead.",
+              "type": "object", "additionalProperties": false, "required": ["method", "branches"],
+              "properties": {"method": {"const": "exact"}, "branches": {"type": "array", "minItems": 1, "items": {
+                "type": "object", "propertyNames": {"type": "string", "pattern": "^[A-Za-z][A-Za-z0-9_]{0,39}$"}, "minProperties": 1, "additionalProperties": {"$ref": "#/$defs/expression"}
+              }}, "numeric": {"type": "object", "additionalProperties": false, "required": ["when", "system"], "properties": {
+                "when": {"$ref": "#/$defs/condition"}, "system": {"$ref": "#/$defs/numericSystem"}
+              }}}
+            },
+            {"$ref": "#/$defs/numericSystem"}
+          ]},          "plot": {
+            "description": "The initial plot: sweep is the variable swept over its range; x and each y are plotted expressions; family gives one curve per value (display unit and SI); parallelCoordinates lists its axes.",
+            "type": "object", "additionalProperties": false, "required": ["sweep", "x", "y"],
+            "properties": {
+              "sweep": {"type": "string", "pattern": "^[A-Za-z][A-Za-z0-9_]{0,39}$"},
+              "x": {"$ref": "#/$defs/plottedExpression"},
+              "y": {"type": "array", "minItems": 1, "items": {"allOf": [
+                {"$ref": "#/$defs/plottedExpression"}, {"required": ["axis"]}
+              ]}},
+              "family": {
+                "type": "object", "additionalProperties": false, "required": ["variable", "values", "siValues"],
+                "properties": {"variable": {"type": "string", "pattern": "^[A-Za-z][A-Za-z0-9_]{0,39}$"}, "values": {"type": "array", "minItems": 1, "items": {"type": "number"}}, "siValues": {"type": "array", "minItems": 1, "items": {"type": "number"}}}
+              },
+              "parallelCoordinates": {
+                "description": "The parallel-coordinates plot (input-model, Equation figures): shown says whether it shows from the start; its axes are the grid variables, then the computed axes. The core computes the grid; the adapter evaluates every computed axis over the combinations.",
+                "type": "object", "additionalProperties": false, "required": ["shown", "axes"],
+                "properties": {
+                  "shown": {"type": "boolean"},
+                  "axes": {"type": "array", "minItems": 1, "items": {"oneOf": [
+                    {
+                      "description": "A grid variable: its values in its unit and in SI.",
+                      "type": "object", "additionalProperties": false, "required": ["label", "variable", "dimension", "values", "siValues"],
+                      "properties": {
+                        "label": {"type": "string", "minLength": 1}, "variable": {"type": "string", "pattern": "^[A-Za-z][A-Za-z0-9_]{0,39}$"},
+                        "dimension": {"$ref": "#/$defs/quantity/properties/dimension"},
+                        "values": {"type": "array", "minItems": 1, "items": {"type": "number"}},
+                        "siValues": {"type": "array", "minItems": 1, "items": {"type": "number"}}
+                      }
+                    },
+                    {
+                      "description": "An expression of the variables without the x sweep, evaluated once per combination.",
+                      "type": "object", "additionalProperties": false, "required": ["label", "source", "tree", "dimension"],
+                      "properties": {
+                        "label": {"type": "string", "minLength": 1}, "source": {"type": "string", "minLength": 1},
+                        "tree": {"$ref": "#/$defs/expression"}, "dimension": {"$ref": "#/$defs/quantity/properties/dimension"}
+                      }
+                    },
+                    {
+                      "description": "A summary of the curve of `of` over the full x range: maximum, minimum, the x at either, the final value, the area under the curve or under its absolute value, the value at siAt (SI), or the settling time, the first x after which the curve stays within tolerance times |final - first value| of its final value.",
+                      "type": "object", "additionalProperties": false, "required": ["label", "summary", "of", "dimension"],
+                      "properties": {
+                        "label": {"type": "string", "minLength": 1},
+                        "summary": {"enum": ["maximum", "minimum", "xAtMaximum", "xAtMinimum", "final", "area", "absoluteArea", "valueAt", "settlingTime"]},
+                        "of": {"$ref": "#/$defs/plottedExpression"}, "dimension": {"$ref": "#/$defs/quantity/properties/dimension"},
+                        "at": {"type": "number"}, "siAt": {"type": "number"},
+                        "tolerance": {"type": "number", "exclusiveMinimum": 0, "exclusiveMaximum": 1}
+                      },
+                      "allOf": [
+                        {"if": {"properties": {"summary": {"const": "valueAt"}}}, "then": {"required": ["at", "siAt"]}, "else": {"not": {"anyOf": [{"required": ["at"]}, {"required": ["siAt"]}]}}},
+                        {"if": {"properties": {"summary": {"const": "settlingTime"}}}, "then": {"required": ["tolerance"]}, "else": {"not": {"required": ["tolerance"]}}}
+                      ]
+                    }
+                  ]}}
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "diagramBody": {
+      "description": "A diagram figure: its text as authored, kept for review, and the SVG the core drew from it at build time (input-model, Figure input direction), so no adapter needs the diagram's library.",
+      "type": "object", "additionalProperties": false, "required": ["source", "svg"],
+      "properties": {
+        "source": {"description": "The diagram's text in its language.", "type": "string", "minLength": 1},
+        "svg": {"description": "The drawing's SVG markup.", "type": "string", "minLength": 1}
+      }
+    },
+    "expression": {
+      "description": "An expression tree (capabilities/equation-figures), never a string to execute: a dimensionless number, a variable (a function's value at the independent variable), a function's derivative of an order, the imaginary unit, an operator applied to its arguments, or a piecewise expression: the value of its first case whose condition holds (a case without one always holds), no point where none holds. It evaluates in complex arithmetic with principal branches; heaviside's optional second argument is its value at 0, 1/2 without it. test/fixtures/expression-vectors.json holds shared vectors.",
+      "oneOf": [
+        {"type": "object", "additionalProperties": false, "required": ["number"], "properties": {"number": {"type": "number"}}},
+        {"type": "object", "additionalProperties": false, "required": ["symbol"], "properties": {"symbol": {"type": "string", "pattern": "^[A-Za-z][A-Za-z0-9_]{0,39}$"}}},
+        {"type": "object", "additionalProperties": false, "required": ["derivative", "order"], "properties": {"derivative": {"type": "string", "pattern": "^[A-Za-z][A-Za-z0-9_]{0,39}$"}, "order": {"type": "integer", "minimum": 1}}},
+        {"type": "object", "additionalProperties": false, "required": ["constant"], "properties": {"constant": {"const": "i"}}},
+        {"type": "object", "additionalProperties": false, "required": ["piecewise"], "properties": {"piecewise": {"type": "array", "minItems": 1, "items": {
+          "type": "object", "additionalProperties": false, "required": ["value"],
+          "properties": {"when": {"$ref": "#/$defs/condition"}, "value": {"$ref": "#/$defs/expression"}}
+        }}}},
+        {
+          "type": "object", "additionalProperties": false, "required": ["op", "args"],
+          "properties": {
+            "op": {"enum": ["add", "mul", "pow", "exp", "log", "sin", "cos", "tan", "asin", "acos", "atan", "atan2", "sinh", "cosh", "tanh", "abs", "sign", "min", "max", "heaviside"]},
+            "args": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/expression"}}
+          },
+          "if": {"properties": {"op": {"const": "heaviside"}}}, "then": {"properties": {"args": {"maxItems": 2}}}
+        }
+      ]
+    },
+    "numericSystem": {
+      "description": "A system the live evaluator solves numerically: algebraic equations, or a differential system in state form.",
+      "oneOf": [
+        {
+          "description": "Algebraic equations to solve numerically: residuals that vanish at the solution, and the SI starting guess of each unknown.",
+          "type": "object", "additionalProperties": false, "required": ["method", "residuals", "guess"],
+          "properties": {
+            "method": {"const": "algebraic"},
+            "residuals": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/expression"}},
+            "guess": {"type": "object", "propertyNames": {"type": "string", "pattern": "^[A-Za-z][A-Za-z0-9_]{0,39}$"}, "additionalProperties": {"type": "number"}}
+          }
+        },
+        {
+          "description": "A differential system in state form, to integrate numerically from start (SI) over the independent variable's range: the derivative of state[i] is derivatives[i], and initial[i] is state[i] at start (SI).",
+          "type": "object", "additionalProperties": false, "required": ["method", "independent", "start", "state", "derivatives", "initial"],
+          "properties": {
+            "method": {"const": "differential"}, "independent": {"type": "string", "pattern": "^[A-Za-z][A-Za-z0-9_]{0,39}$"}, "start": {"type": "number"},
+            "state": {"type": "array", "minItems": 1, "items": {
+              "type": "object", "additionalProperties": false, "required": ["of", "order"],
+              "properties": {"of": {"type": "string", "pattern": "^[A-Za-z][A-Za-z0-9_]{0,39}$"}, "order": {"type": "integer", "minimum": 0}}
+            }},
+            "derivatives": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/expression"}},
+            "initial": {"type": "array", "minItems": 1, "items": {"type": "number"}}
+          }
+        }
+      ]
+    },
+    "condition": {
+      "description": "A piecewise case's condition: a relation of two real values (eq holds where they differ by at most 1e-9 of the larger magnitude, ne where eq does not), all or any of conditions, or not a condition. A relation of a value that is not real gives no point.",
+      "oneOf": [
+        {"type": "object", "additionalProperties": false, "required": ["relation", "args"], "properties": {
+          "relation": {"enum": ["eq", "ne", "lt", "le", "gt", "ge"]},
+          "args": {"type": "array", "minItems": 2, "maxItems": 2, "items": {"$ref": "#/$defs/expression"}}
+        }},
+        {"type": "object", "additionalProperties": false, "required": ["all"], "properties": {"all": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/condition"}}}},
+        {"type": "object", "additionalProperties": false, "required": ["any"], "properties": {"any": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/condition"}}}},
+        {"type": "object", "additionalProperties": false, "required": ["not"], "properties": {"not": {"$ref": "#/$defs/condition"}}}
+      ]
+    },
+    "plottedExpression": {
+      "description": "An expression of an equation figure's plot: as authored, its tree, its dimension (as $defs/quantity's), and for a y expression its axis.",
+      "type": "object", "additionalProperties": false, "required": ["source", "tree", "dimension"],
+      "properties": {
+        "source": {"type": "string", "minLength": 1}, "tree": {"$ref": "#/$defs/expression"},
+        "dimension": {"$ref": "#/$defs/quantity/properties/dimension"}, "axis": {"enum": ["primary", "secondary"]}
+      }
+    },
+    "chapterReference": {
+      "description": "The id of the included chapter a note link resolves to, home for the manifest, or null when the target does not exist.",
+      "oneOf": [{"$ref": "#/$defs/id"}, {"type": "null"}]
+    },
+    "chapter": {
+      "type": "object", "additionalProperties": false, "required": ["id", "title", "content", "children"],
+      "properties": {
+        "id": {"$ref": "#/$defs/id"}, "title": {"type": "string", "minLength": 1},
+        "content": {"type": "array", "items": {"$ref": "#/$defs/node"}},
+        "children": {"type": "array", "items": {"$ref": "#/$defs/chapter"}},
+        "metadata": {"type": "object"},
+        "bless": {
+          "description": "The chapter's bless request (input-model#Bless requests): its version, and the reader's answer at it, an outdated answer at another version, or a comment with no verdict (input-model#Answers).",
+          "type": "object", "additionalProperties": false, "required": ["version"],
+          "properties": {
+            "version": {"$ref": "answers.schema.json#/$defs/version"},
+            "answer": {"$ref": "answers.schema.json#/$defs/verdict"},
+            "outdated": {"$ref": "answers.schema.json#/$defs/verdict"},
+            "comment": {"allOf": [{"$ref": "answers.schema.json#/$defs/verdict"}, {"not": {"required": ["verdict"]}}]}
+          },
+          "maxProperties": 2
+        },
+        "toc": {"const": false, "description": "An included note the manifest does not list; it follows the TOC chapters at the top level."}
+      }
+    },
+    "link": {
+      "type": "object", "additionalProperties": false, "required": ["id", "href", "label"],
+      "properties": {"id": {"$ref": "#/$defs/id"}, "href": {"type": "string", "minLength": 1}, "label": {"type": "string", "minLength": 1}}
+    },
+    "cssSnippet": {
+      "description": "One CSS snippet: its name (the file name without .css), its vault-relative POSIX path and its text.",
+      "type": "object", "additionalProperties": false, "required": ["name", "path", "text"],
+      "properties": {
+        "name": {"type": "string", "minLength": 1},
+        "path": {"type": "string", "pattern": "^(?!/)(?!.*(^|/)\\.\\.?(/|$)).+\\.css$"},
+        "text": {"type": "string"}
+      }
+    },
+    "styleIdentity": {
+      "description": "A style module pinned to a commit: its public https clone URL, the full commit SHA and optionally its folder in that repository (architecture.md, Declared style).",
+      "type": "object", "additionalProperties": false, "required": ["url", "ref"],
+      "properties": {
+        "url": {"type": "string", "pattern": "^https://[^\\s/@]+/\\S+$"},
+        "ref": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+        "path": {"type": "string", "minLength": 1}
+      }
+    },
+    "sourceBuild": {
+      "description": "What rebuilds the artifact: obs's public repository, the commit of the checkout obs ran from, the package versions of every lockfile Git tracks there by repository-relative path, the obs-document arguments of the call without the build machine's paths and the declared style (architecture.md, Source archive).",
+      "type": "object", "additionalProperties": false, "required": ["repository", "commit", "lockfiles", "arguments"],
+      "properties": {
+        "repository": {"type": "string", "minLength": 1},
+        "commit": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+        "lockfiles": {"type": "object", "additionalProperties": {"type": "object", "additionalProperties": {"type": "string"}}},
+        "arguments": {"type": "array", "items": {"type": "string"}, "contains": {"const": "--embed-source"}},
+        "style": {"$ref": "#/$defs/styleIdentity", "description": "The style the manifest declares, which a rebuild resolves again (architecture.md, Declared style)."}
+      }
+    },
+    "sourceFile": {
+      "description": "One source file of the vault: its vault-relative POSIX path and either its bytes as base64 data or the id of the asset that holds them (architecture.md, Source archive).",
+      "type": "object", "additionalProperties": false, "required": ["path"],
+      "properties": {
+        "path": {"type": "string", "pattern": "^(?!/)(?!.*(^|/)\\.\\.?(/|$)).+$"},
+        "data": {"type": "string", "contentEncoding": "base64", "pattern": "^[A-Za-z0-9+/]*={0,2}$"},
+        "asset": {"$ref": "#/$defs/id"}
+      },
+      "oneOf": [{"required": ["data"]}, {"required": ["asset"]}]
+    },
+    "asset": {
+      "description": "A file the Document references as an image or a marked attachment (architecture.md, Asset bytes). A vault file carries its path and bytes, so an adapter never reads the vault; a remote (http or https) image carries the bytes fetched at build time and no path, or neither when the fetch failed.",
+      "type": "object", "additionalProperties": false, "required": ["id", "href", "mediaType"],
+      "properties": {
+        "id": {"$ref": "#/$defs/id"},
+        "href": {"description": "The reference as authored.", "type": "string", "minLength": 1},
+        "mediaType": {"type": "string", "minLength": 1},
+        "path": {"description": "The vault-relative POSIX path of the referenced file.", "type": "string", "pattern": "^(?!/)(?!.*(^|/)\\.\\.?(/|$)).+$"},
+        "data": {"description": "The file's bytes, base64-encoded (RFC 4648, padded).", "type": "string", "contentEncoding": "base64", "pattern": "^[A-Za-z0-9+/]*={0,2}$"}
+      },
+      "dependentRequired": {"path": ["data"]},
+      "if": {"required": ["data"], "not": {"required": ["path"]}},
+      "then": {"properties": {"href": {"pattern": "^[Hh][Tt][Tt][Pp][Ss]?://"}}}
+    },
+    "record": {
+      "description": "A selectable row for Bases and queries, of one record type; a Base view selects one type with obs.records (capabilities/registers). The fields of a row other than a note are its own fields (generic-tables, Bases filter grammar).",
+      "type": "object", "additionalProperties": false, "required": ["id", "type", "fields"],
+      "properties": {
+        "id": {"$ref": "#/$defs/id"},
+        "type": {"enum": ["note", "chapter", "tag", "glossary", "documentMetadata", "documentHistory"]},
+        "path": {"type": "string", "pattern": "^(?!/)(?!.*(^|/)\\.\\.?(/|$)).+\\.md$"},
+        "note": {"description": "The id of the note record the row comes from; a chapter or glossary row's other properties resolve on its frontmatter and path.", "$ref": "#/$defs/id"},
+        "fields": {"type": "object"},
+        "fieldNodes": {
+          "description": "A note's frontmatter as parsed nodes: one field node per nonempty string value of fields, exactly as the children of its markdown-frontmatter node (capabilities/markdown-frontmatter#Document node); every note record carries it. A row a note owns finds its values here, by the note's id.",
+          "type": "array", "items": {"allOf": [{"$ref": "#/$defs/node"}, {"properties": {"type": {"const": "field"}}}]}
+        },
+        "ignored": {"const": true, "description": "Present on an ignored note: queries and Bases never select it or a row it owns (markdown-frontmatter, Ignored notes)."},
+        "quantity": {"description": "Present on the record of every quantity note the Document includes: its quantity, as on its quantities node.", "$ref": "#/$defs/quantity"}
+      },
+      "allOf": [
+        {
+          "description": "A note: one vault note, its vault-relative POSIX path, its frontmatter as fields and as fieldNodes.",
+          "if": {"properties": {"type": {"const": "note"}}},
+          "then": {"required": ["path", "fieldNodes"], "not": {"required": ["note"]}},
+          "else": {"not": {"anyOf": [{"required": ["path"]}, {"required": ["ignored"]}, {"required": ["fieldNodes"]}, {"required": ["quantity"]}]}}
+        },
+        {
+          "description": "A chapter: one manifest TOC chapter, in TOC order; depth 0 at the top level and slug its chapter id.",
+          "if": {"properties": {"type": {"const": "chapter"}}},
+          "then": {"required": ["note"], "properties": {"fields": {
+            "additionalProperties": false, "required": ["chapter", "title", "depth", "slug", "sourcePath"],
+            "properties": {
+              "chapter": {"type": "string"}, "title": {"type": "string"}, "depth": {"type": "string", "pattern": "^(0|[1-9][0-9]*)$"},
+              "slug": {"$ref": "#/$defs/id"}, "sourcePath": {"type": "string"}
+            }
+          }}}
+        },
+        {
+          "description": "A tag: one mark of a marked paragraph (capabilities/marks); text is the paragraph without its marks, source its note's title.",
+          "if": {"properties": {"type": {"const": "tag"}}},
+          "then": {"required": ["note"], "properties": {"fields": {
+            "additionalProperties": false, "required": ["sourcePath", "type", "label", "text", "source"],
+            "properties": {
+              "sourcePath": {"type": "string"}, "type": {"type": "string"}, "label": {"type": "string"},
+              "text": {"type": "string"}, "source": {"type": "string"}
+            }
+          }}}
+        },
+        {
+          "description": "A glossary term: one note with kind glossary (input-model, Glossary).",
+          "if": {"properties": {"type": {"const": "glossary"}}},
+          "then": {"required": ["note"], "properties": {"fields": {
+            "additionalProperties": false, "required": ["sourcePath", "term", "definition", "aliases"],
+            "properties": {"sourcePath": {"type": "string"}, "term": {}, "definition": {}, "aliases": {"type": "array"}}
+          }}}
+        },
+        {
+          "description": "A document metadata entry: one manifest frontmatter key other than history, obs and an adapter's namespace (obs followed by a capital letter), its value as authored.",
+          "if": {"properties": {"type": {"const": "documentMetadata"}}},
+          "then": {"not": {"required": ["note"]}, "properties": {"fields": {
+            "additionalProperties": false, "required": ["key", "value"], "properties": {"key": {"type": "string"}, "value": {}}
+          }}}
+        },
+        {
+          "description": "A document history entry: one item of the manifest's history, its keys as authored and date empty when it has none.",
+          "if": {"properties": {"type": {"const": "documentHistory"}}},
+          "then": {"not": {"required": ["note"]}, "properties": {"fields": {"required": ["date"]}}}
+        }
+      ]
+    },
+    "quantity": {
+      "description": "A quantity in the unit system (capabilities/quantities#Document node): its display unit as authored (empty for a plain number), its dimension as the nonzero exponent of each base dimension, and, for a quantity with a value, that value and its value in SI base units; a range adds both bounds in the display unit and in SI base units. An adapter converts between units from these alone.",
+      "type": "object", "additionalProperties": false, "required": ["unit", "dimension"],
+      "properties": {
+        "unit": {"type": "string"},
+        "dimension": {"type": "object", "propertyNames": {"pattern": "^[a-z_]+$"}, "additionalProperties": {"type": "number", "not": {"const": 0}}},
+        "value": {"type": "number"}, "siValue": {"type": "number"},
+        "range": {"$ref": "#/$defs/quantityRange"}, "siRange": {"$ref": "#/$defs/quantityRange"}
+      },
+      "dependentRequired": {"value": ["siValue"], "siValue": ["value"], "range": ["siRange"], "siRange": ["range"]}
+    },
+    "quantityRange": {"type": "array", "prefixItems": [{"type": "number"}, {"type": "number"}], "minItems": 2, "maxItems": 2},
+    "resource": {
+      "type": "object", "additionalProperties": false, "required": ["id", "type", "attrs"],
+      "properties": {"id": {"$ref": "#/$defs/id"}, "type": {"$ref": "#/$defs/id"}, "attrs": {"type": "object"}}
+    }
+  }
+}

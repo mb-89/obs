@@ -1,0 +1,391 @@
+"""Reader features that not every artifact needs: the one place such a feature is declared.
+
+Reader: whoever adds or changes a reader feature whose code, styles or page elements ship only
+with the Documents that use it, or one that needs something of the page showing the HTML
+(artifact-ui.md, notice center).
+
+Each entry names the feature's key, the condition that puts it in the artifact, the package
+scripts that hold its own code and controls (beyond the reader's shared scripts), the page
+elements the renderer writes only for it (by id), and, for a feature that needs something of the
+page showing the HTML (``host``), its canary, ``canaries/<key>.js``, which declares the feature's
+name, why a host blocks it, the remedy and the probe that capabilities.js runs. The renderer
+includes a feature's code, elements and canary only when its condition holds, so a feature the
+Document does not use has no code, control, element, canary or notice.
+A figure kind that needs a host ability, a library or a script of its own names the feature's key in its
+FigureKind.features (figures.py); the feature's condition reads those declarations, so the kind
+registry has no inclusion mechanism of its own. A feature's part ships code only where its own condition holds as
+well, under the feature's canary: the downloads feature's source-archive part attaches the source
+ZIP to a PDF only in an artifact that has one. A part may read the host yet have no canary: the
+tables feature's live-source part, because a host that refuses it leaves the saved rows and the
+table's own line says so (artifact-ui.md, Dock menu). A library the renderer delivers itself (the
+plotting library, by artifact.figures.plotlyDelivery, the maths library and the PDF library of the
+source-archive part, each through its door, libraries.py, and the upstream decision engine ``vendor/pugh.js``)
+ships exactly where its feature or part is included.
+
+A part may also need an option of the adapter's configuration (``Part.option``, a path in
+``artifact`` of cfg.json) that is off by default, so an artifact built without it is what it was:
+the part ships where the option is true or a number above 0, and not where the configuration
+leaves it out, as the schema's default (false, or 0) says. ``artifact.tableRowsOneLine`` is the one
+such option on as packaged, by the owner's decision of 17 Nov 2026 (architecture.md, Rendering and
+runtime): the packaged cfg.json sets it true, so its parts ship unless a configuration sets it false.
+A feature script holds the code it runs only with a part inside that part's regions, a line region
+(``// part <key> {`` to ``// } part <key>`` on lines of their own) or an inline one (``/* part
+<key> { */`` to ``/* } part <key> */``); ``feature_source`` strips every region of a part that does
+not ship, so where it does not, the script ships as it would without the part. A part may instead
+turn on with what the Document asks for (its condition alone), and its regions may sit in the files
+the renderer embeds whole as well (base.js, table.js, artifact.js, pages.js, the dock bars' scripts, the
+structural styles and base.schema.json).
+JSON has no comments, so a schema property of a part is a JSON line region: one line of its own,
+``"<name>": {..., "$comment": "part <key>"},``, removed where the part does not ship.
+The figure frame's script, figures.js, holds a figure kind's calls into its feature's script the
+same way, in regions named by the feature's key, so an artifact without the feature ships figures.js
+as it was.
+"""
+from __future__ import annotations
+
+from dataclasses import dataclass
+from importlib.resources import files
+import re
+from typing import Callable, Iterable
+
+from .artifact_data import serialize_artifact_data
+from .errors import InputError
+from .figures import FIGURE_KINDS
+
+
+ENGINE_EXPORT = re.compile(r"^export const \{[^}]*\} = pughEngine\(\);\s*\Z", re.M)
+"""The last line of the upstream engine module (vendor/pugh.js), which a classic script cannot hold."""
+
+
+def pugh_engine() -> str:
+    """The upstream Pugh engine (vendor/pugh.js, its header naming the upstream commit) as the classic script the
+    pugh feature embeds: the file as it is, its module export replaced by ``globalThis.obsPughEngine``."""
+    source = files("obs_html").joinpath("vendor", "pugh.js").read_text(encoding="utf-8")
+    if not ENGINE_EXPORT.search(source):
+        raise InputError("obs_html/vendor/pugh.js", "last line", "is not the upstream project's export of pughEngine()",
+                         "Copy the upstream project's src/core/pugh.js again unchanged under its header; see features.py, pugh_engine")
+    return ENGINE_EXPORT.sub("globalThis.obsPughEngine = pughEngine();\n", source)
+
+
+PART_REGION = re.compile(
+    r"^[ \t]*// part (?P<line>[a-z][a-z0-9-]*) \{\n.*?^[ \t]*// \} part (?P=line)\n"
+    r"|/\* part (?P<inline>[a-z][a-z0-9-]*) \{ \*/.*?/\* \} part (?P=inline) \*/"
+    r'|^[ \t]*"[^"\n]+": \{[^\n]*"\$comment": "part (?P<json>[a-z][a-z0-9-]*)"\},?\n', re.M | re.S)
+"""A part's region in a feature script: a line region, an inline one or a JSON line one (the module docstring)."""
+
+
+def strip_parts(source: str, parts: Iterable[str] = ()) -> str:
+    """``source`` with every region of a part not in ``parts`` stripped."""
+    kept = set(parts)
+    return PART_REGION.sub(lambda region: region[0] if (
+        region["line"] or region["inline"] or region["json"]) in kept else "", source)
+
+
+def feature_source(name: str, parts: Iterable[str] = ()) -> str:
+    """The package script ``name`` (a path under the package, ``/`` between its parts) as an artifact
+    ships it: every region of a part not in ``parts`` stripped."""
+    return strip_parts(files("obs_html").joinpath(*name.split("/")).read_text(encoding="utf-8"), parts)
+
+
+@dataclass(frozen=True)
+class Part:
+    """Code of a feature that ships only where the part's own condition holds as well, and, where
+    it names an ``option``, only where that option of the artifact configuration is true or a number above 0."""
+    key: str
+    condition: str
+    included: Callable[[dict, bool], bool]
+    code: tuple[str, ...]
+    option: tuple[str, ...] = ()
+    """The path in the adapter's ``artifact`` configuration (cfg.json) of the boolean, or the number,
+    that turns the part on; empty for a part its condition alone ships. Such an option is off by
+    default, but for ``tableRowsOneLine``, on as packaged."""
+
+    def enabled(self, artifact_config: dict | None) -> bool:
+        """Whether the configuration turns the part on: it names no option, or that option is true or
+        a number above 0; left out, it is off, as the schema's default (false, or 0) says. The packaged
+        cfg.json always sets ``tableRowsOneLine``, on as packaged, so its parts ship unless it is false."""
+        value: object = artifact_config if self.option else True
+        for key in self.option:
+            value = value.get(key) if isinstance(value, dict) else None
+        return value is True or (type(value) in (int, float) and value > 0)
+
+
+@dataclass(frozen=True)
+class Feature:
+    key: str
+    condition: str
+    """What puts the feature in the artifact, in words."""
+    included: Callable[[dict, bool], bool]
+    """Whether the artifact meets the condition, given its model (render.py's artifact-data
+    island) and whether it bundles a trusted application runtime."""
+    code: tuple[str, ...] = ()
+    parts: tuple[Part, ...] = ()
+    styles: tuple[str, ...] = ()
+    """Package stylesheets that ship with the feature, after the packaged styles."""
+    base_styles: tuple[str, ...] = ()
+    """Package stylesheets of the feature's share of the structural styles: they follow base.css inside
+    the artifact styles, in registry order and before the style module, so each rule keeps the place in
+    the cascade it had in base.css (architecture.md, Rendering and runtime)."""
+    elements: tuple[str, ...] = ()
+    """Ids of the page elements (render.py, _shell) the renderer writes only with the feature."""
+    host: bool = True
+    """Whether the feature needs something of the page showing the HTML, so it has a canary."""
+
+    def shipped(self, model: dict, trusted_runtime: bool, artifact_config: dict | None = None) -> tuple[Part, ...]:
+        """The parts the artifact carries along with the feature."""
+        return tuple(part for part in self.parts
+                     if part.included(model, trusted_runtime) and part.enabled(artifact_config))
+
+    @property
+    def canary(self) -> str | None:
+        return f"canaries/{self.key}.js" if self.host else None
+
+
+def _always(_model: dict, _trusted_runtime: bool) -> bool:
+    return True
+
+
+def _icons(value: object):
+    """Every table icon of a Base definition, wherever its property presentation names one."""
+    if isinstance(value, dict):
+        for key, item in value.items():
+            if key == "icon" and isinstance(item, dict):
+                yield item
+            elif key == "icons" and isinstance(item, list):
+                yield from (icon for icon in item if isinstance(icon, dict))
+            else:
+                yield from _icons(item)
+    elif isinstance(value, list):
+        for item in value:
+            yield from _icons(item)
+
+
+def _floating_window(model: dict, trusted_runtime: bool) -> bool:
+    """A guided card (a table icon's card), a note a link opens as context (one outside the
+    reading order or not a document: artifact.js, followNoteLink), or a trusted runtime, which
+    may open the window (obsArtifact.openFloatingWindow)."""
+    toc = set(model["toc"])
+    return trusted_runtime or any(
+        any("card" in icon for table in note["tables"] for icon in _icons(table["definition"]))
+        or note["slug"] not in toc
+        or (note["frontmatter"].get("obs") or {}).get("document") is False
+        for note in model["notes"])
+
+
+FIGURE_KIND = re.compile(r'data-figure-kind="([a-z][a-z0-9-]*)"')
+
+
+def _figures_need(key: str) -> Callable[[dict, bool], bool]:
+    """Whether a figure of the artifact is of a kind that declares the feature ``key`` (figures.py,
+    FigureKind.features): a figure kind needs a host ability, a library or a script of its own only through here."""
+    def included(model: dict, _trusted_runtime: bool) -> bool:
+        kinds = {kind for note in model["notes"] for kind in FIGURE_KIND.findall(note["html"])}
+        return any(key in FIGURE_KINDS[kind].features for kind in kinds if kind in FIGURE_KINDS)
+    return included
+
+
+def _style_choice(model: dict, _trusted_runtime: bool) -> bool:
+    """A page that carries local themes (style_choice.py): its reading names them."""
+    return "styles" in model["reading"]
+
+
+def _bless(model: dict, _trusted_runtime: bool) -> bool:
+    """A chapter of the Document asks for a bless (obs input-model, Bless requests)."""
+    return any("bless" in note for note in model["notes"])
+
+
+def _screens(model: dict, _trusted_runtime: bool) -> bool:
+    """The artifact opens in screens (artifact-ui.md, Screens; render.py, _layout)."""
+    return model["reading"]["layout"] == "screens"
+
+
+def _source_archive(model: dict, _trusted_runtime: bool) -> bool:
+    """The Document carries its sources (obs-document --embed-source; source_archive.py)."""
+    return model.get("sourceArchiveComplete") is True
+
+
+def _tables(model: dict, _trusted_runtime: bool) -> bool:
+    """A note holds a Base table (render.py, the bases renderer; artifact.js, renderChapterTables)."""
+    return any(note["tables"] for note in model["notes"])
+
+
+PIPE_TABLE = re.compile(r"<table[ >]")
+"""The opening tag render.py's _table writes for a pipe table, with or without its core id."""
+
+
+def _pipe_tables(model: dict, _trusted_runtime: bool) -> bool:
+    """A note's html holds a pipe table (render.py, _table)."""
+    return any(PIPE_TABLE.search(note["html"]) for note in model["notes"])
+
+
+def _empty_groups(model: dict, _trusted_runtime: bool) -> bool:
+    """A Base table's view sets obsHtml.showEmptyGroups, to any value, so the view's validation
+    holds that value to its schema line (generic-tables.md, groupOrder); false draws no empty group."""
+    return any(isinstance(view.get("obsHtml"), dict) and "showEmptyGroups" in view["obsHtml"]
+               for note in model["notes"] for table in note["tables"]
+               for view in table["definition"].get("views") or [] if isinstance(view, dict))
+
+
+def _passing_rows(model: dict, _trusted_runtime: bool) -> bool:
+    """A Base table's view sets obsHtml.passing (generic-tables.md, Query and filtering)."""
+    return any(isinstance((view.get("obsHtml") or {}).get("passing"), dict)
+               for note in model["notes"] for table in note["tables"]
+               for view in table["definition"].get("views") or [] if isinstance(view, dict))
+
+
+def _detail_fields(model: dict, _trusted_runtime: bool) -> bool:
+    """A Base table's view sets obsHtml.detailFields, to any value, so the view's validation holds
+    that value to its schema line (input-model.md, Compact declarative table presentation)."""
+    return any(isinstance(view.get("obsHtml"), dict) and "detailFields" in view["obsHtml"]
+               for note in model["notes"] for table in note["tables"]
+               for view in table["definition"].get("views") or [] if isinstance(view, dict))
+
+
+def _live_source(model: dict, _trusted_runtime: bool) -> bool:
+    """A Base table's entry carries live: its Base declares obsHtml.liveSource (generic-tables.md,
+    Current data)."""
+    return any("live" in table for note in model["notes"] for table in note["tables"])
+
+
+def _source_file(model: dict, _trusted_runtime: bool) -> bool:
+    """A note with a `Source file` row (source_files.py, note_fields): with the packaged settings, every
+    artifact, since home always has one."""
+    return any("sourceFilePath" in note for note in model["notes"])
+
+
+def _marked(marker: str) -> Callable[[dict, bool], bool]:
+    """Whether the artifact's model holds ``marker``, the attribute the renderer writes on the
+    element a feature's script finds (a figure, a record card, a property editor)."""
+    def included(model: dict, _trusted_runtime: bool) -> bool:
+        return marker in serialize_artifact_data(model)
+    return included
+
+
+def _figures(model: dict, trusted_runtime: bool) -> bool:
+    """A figure (figures.py): its frame, styles and script."""
+    return _marked("data-artifact-figure")(model, trusted_runtime)
+
+
+def _options_menu(model: dict, trusted_runtime: bool) -> bool:
+    """A Base table or a figure, which share the one options menu (artifact-ui.md, Interactive engineering figures)."""
+    return _tables(model, trusted_runtime) or _figures(model, trusted_runtime)
+
+
+SHOWN_COPY = '<div class="embed" data-embed-chapter="'
+"""The opening of the element render.py's _embed writes for a block or section embed shown in place."""
+
+
+def _shown_copies(model: dict, _trusted_runtime: bool) -> bool:
+    """A note shows a copy of a block or section (render.py, _embed; artifact-ui.md, Content sections)."""
+    return any(SHOWN_COPY in note["html"] for note in model["notes"])
+
+
+def _cards(model: dict, trusted_runtime: bool) -> bool:
+    """Record cards, or a quantity note that counts by a query (cards.js)."""
+    return _marked("data-record-cards")(model, trusted_runtime) or any(
+        note["frontmatter"].get("kind") == "quantity" and "query" in note["frontmatter"]
+        for note in model["notes"])
+
+
+FEATURES: tuple[Feature, ...] = (
+    Feature("history", "always: every chapter has an address", _always),
+    Feature("storage", "always: reader settings are kept", _always),
+    Feature("printing", "always: Settings offers Print to PDF", _always),
+    Feature("downloads", "always: Download HTML, Download source ZIP and, in the evidence edition, "
+            "attachment downloads, each saved through the file offers (spec/capabilities/file-offers.md)",
+            _always, ("file-offers.js", "attachment-download.js"), parts=(
+                Part("source-archive", "a source archive (obs-document --embed-source): Download source ZIP "
+                     "and Attach source ZIP to PDF, with the PDF library", _source_archive, ("archive.js",)),)),
+    Feature("clipboard", "always: the Comments bar offers Copy comments", _always),
+    Feature("answers", "a chapter that asks for a bless: the page hands a reader's answers to a sink "
+            "(obsArtifact.sendAnswers; spec/capabilities/answers.md)", _bless, ("answers.js",)),
+    Feature("bless", "a chapter that asks for a bless: the top band's verdict pill and keys, and Send "
+            "(spec/capabilities/bless.md)", _bless, ("bless.js",), base_styles=("bless.css",), parts=(
+                Part("brief-notice", "a chapter that asks for a bless in an artifact built with "
+                     "artifact.reading.briefNoticeMilliseconds above 0: the notice center's passing line, "
+                     "Send's short confirmation under the top band (artifact-ui.md, Dock menu: the notice "
+                     "center's passing line)", _bless, (), option=("reading", "briefNoticeMilliseconds")),)),
+    Feature("screens", "an artifact that opens in screens (obsHtml.layout, or a deck whose chapters all ask "
+            "for a bless): the band's title and position (artifact-ui.md, Screens)", _screens, ("screens.js",),
+            styles=("screens.css",)),
+    Feature("popups", "a guided card, a note a link opens as context, or a trusted runtime",
+            _floating_window, ("guided-card.js",), base_styles=("popups.css",), parts=(
+                Part("style-sync", "a guided card's window on a page that carries local themes: the window "
+                     "shows the page's theme", _style_choice, ()),)),
+    Feature("plotting", "a figure of a kind that needs the plotting library (figures.py, FIGURE_KINDS): "
+            "a stored-data plot or an equation figure", _figures_need("plotting"),
+            elements=("plotly-script",)),
+    Feature("equations", "a figure of a kind that needs the maths library (figures.py, FIGURE_KINDS): "
+            "an equation figure", _figures_need("equations"), ("equations.js",),
+            elements=("maths-script",)),
+    Feature("pugh", "a figure of a kind that needs the decision engine (figures.py, FIGURE_KINDS): "
+            "a decision figure", _figures_need("pugh"), ("pugh-figure.js",),
+            elements=("pugh-engine-script",), base_styles=("pugh.css",), parts=(
+                Part("verdict", "a decision figure in an artifact built with artifact.figures.decisionVerdict on: "
+                     "the engine's verdict, runners-up and vetoes, and the reader's vetoes, lifts and datum "
+                     "(artifact-ui.md, The engine's bottom line)", _figures_need("pugh"), ("pugh-verdict.js",),
+                     option=("figures", "decisionVerdict")),)),
+    Feature("sankey", "a figure of a kind drawn by the Sankey script (figures.py, FIGURE_KINDS): a Sankey "
+            "figure", _figures_need("sankey"), ("sankey-figure.js",), host=False),
+    Feature("timeline", "a figure of a kind drawn by the timeline script (figures.py, FIGURE_KINDS): a timeline "
+            "figure", _figures_need("timeline"), ("timeline-figure.js",), styles=("timeline.css",), host=False),
+    Feature("tables", "a note with a Base table: the reader's table code, the data table, the Bases schema "
+            "and the YAML library its definition editor reads", _tables, ("tables.js",),
+            elements=("data-table-script", "base-schema", "yaml-script"), host=False,
+            base_styles=("tables.css",), parts=(
+                Part("empty-groups", "a view that sets obsHtml.showEmptyGroups: its groupOrder values no row has "
+                     "drawn as groups with the count (0) (generic-tables.md, groupOrder)", _empty_groups, ()),
+                Part("passing-rows", "a view that sets obsHtml.passing: its passing rows folded into one count "
+                     "line that opens them (generic-tables.md, Query and filtering)", _passing_rows, ()),
+                Part("detail-fields", "a view that sets obsHtml.detailFields: an opened row shows only the "
+                     "fields it lists, in its order (input-model.md, Compact declarative table presentation)",
+                     _detail_fields, ()),
+                Part("live-source", "a Base that declares obsHtml.liveSource: its declaration checked against "
+                     "the build's rows when the page starts, and the pure layer that maps fetched items onto "
+                     "them (generic-tables.md, Current data)", _live_source, ("live-data.js",)),
+                Part("style-refit", "a table on a page that carries local themes: its columns are measured "
+                     "again when the reader chooses a theme", _style_choice, ()),
+                Part("table-rows-one-line", "a Base table in an artifact built with artifact.tableRowsOneLine on, "
+                     "as packaged: on screen each collapsed row and group caption is one line until the reader "
+                     "opens it (generic-tables.md, Columns and cells, One line per row)", _tables, (),
+                     option=("tableRowsOneLine",)),
+                Part("detail-comments", "a Base table: a selection in a row's note detail comments on the "
+                     "block of the note it starts in, the row's badge counts it and its Target opens the "
+                     "row's details (input-model.md, Comments and the core model)", _tables, ()))),
+    Feature("pipe-tables", "a note with a pipe table (render.py, _table); it has nothing of its own, only its "
+            "part", _pipe_tables, host=False, parts=(
+                Part("pipe-table-rows-one-line", "a pipe table in an artifact built with artifact.tableRowsOneLine "
+                     "on, as packaged: on screen each body row is one line until the reader opens it "
+                     "(generic-tables.md, Pipe tables)", _pipe_tables, ("pipe-tables.js",),
+                     option=("tableRowsOneLine",)),)),
+    Feature("options-menu", "a Base table or a figure: their one options menu (options-menu.js)",
+            _options_menu, ("options-menu.js",), host=False, base_styles=("options-menu.css",)),
+    Feature("figures", "a figure: its frame's styles and script", _figures,
+            elements=("figure-styles", "figure-script"), host=False),
+    Feature("cards", "record cards, or a quantity note that counts by a query", _cards,
+            elements=("cards-script",), host=False, base_styles=("cards.css",)),
+    Feature("property-editor", "a property editor", _marked("data-property-editor"),
+            elements=("property-editor-script",), host=False),
+    Feature("shown-copies", "a block or section embed shown in place (obs capabilities/embeds); it has nothing "
+            "of its own, only its part", _shown_copies, host=False, parts=(
+                Part("shown-copy", "a block or section embed shown in place: the copy's rules in the structural "
+                     "styles, and its headings left out of the embedding chapter's collapsible sections and of "
+                     "its comment sections (artifact-ui.md, Content sections)", _shown_copies, ()),)),
+    Feature("columns", "a two-column block (obs capabilities/columns): its side-by-side and stacking rules",
+            _marked("data-content-columns"), host=False, base_styles=("columns.css",)),
+    Feature("source-file", "a note with a Source file row (artifact.sourceFileLinks): the frontmatter table's "
+            "last row, the note's vault path, a link where the core passed --vault-link (cli.md, Source file "
+            "links); the panel's own rules lay it out", _source_file, ("source-file.js",), host=False),
+    Feature("style-choice", "a page that carries local themes (reading.styles; spec/configuration.md, Local "
+            "themes): the Settings bar's Theme select", _style_choice, ("style-choice.js",),
+            styles=("style-choice.css",), elements=("style-choice-styles",), host=False, parts=(
+                Part("style-relayout", "a page that carries local themes: its sheets are laid out again, their "
+                     "page numbers measured again, when the reader chooses a theme", _style_choice, ()),
+                Part("style-copy", "a page that carries local themes: a saved copy's root holds the start theme, "
+                     "never the reader's choice", _style_choice, ()))),
+)
+
+
+def included(model: dict, trusted_runtime: bool) -> tuple[Feature, ...]:
+    """The features the artifact carries, in registry order."""
+    return tuple(feature for feature in FEATURES if feature.included(model, trusted_runtime))

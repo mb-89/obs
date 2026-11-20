@@ -1,0 +1,3038 @@
+{
+  "schemaVersion": 1,
+  "manifest": {
+    "title": "Test document",
+    "path": "manifest.md",
+    "metadata": {
+      "title": "Test document",
+      "subtitle": "Bridge **subtitle** ![Obsidian](obsidian.svg) ![HTML](html.svg)",
+      "status": "active",
+      "owners": {
+        "team": [
+          "Ada",
+          "Lin"
+        ]
+      }
+    },
+    "abstract": [
+      {
+        "type": "markdown-frontmatter",
+        "attrs": {
+          "metadata": {
+            "title": "Test document",
+            "subtitle": "Bridge **subtitle** ![Obsidian](obsidian.svg) ![HTML](html.svg)",
+            "status": "active",
+            "owners": {
+              "team": [
+                "Ada",
+                "Lin"
+              ]
+            }
+          }
+        },
+        "children": [
+          {
+            "type": "field",
+            "attrs": {
+              "name": "title"
+            },
+            "children": [
+              {
+                "type": "text",
+                "attrs": {},
+                "children": [],
+                "text": "Test document"
+              }
+            ]
+          },
+          {
+            "type": "field",
+            "attrs": {
+              "name": "subtitle"
+            },
+            "children": [
+              {
+                "type": "text",
+                "attrs": {},
+                "children": [],
+                "text": "Bridge "
+              },
+              {
+                "type": "strong",
+                "attrs": {},
+                "children": [
+                  {
+                    "type": "text",
+                    "attrs": {},
+                    "children": [],
+                    "text": "subtitle"
+                  }
+                ]
+              },
+              {
+                "type": "text",
+                "attrs": {},
+                "children": [],
+                "text": " "
+              },
+              {
+                "type": "attachments",
+                "attrs": {
+                  "asset": "obsidian",
+                  "label": "Obsidian"
+                },
+                "children": []
+              },
+              {
+                "type": "text",
+                "attrs": {},
+                "children": [],
+                "text": " "
+              },
+              {
+                "type": "attachments",
+                "attrs": {
+                  "asset": "html",
+                  "label": "HTML"
+                },
+                "children": []
+              }
+            ]
+          },
+          {
+            "type": "field",
+            "attrs": {
+              "name": "status"
+            },
+            "children": [
+              {
+                "type": "text",
+                "attrs": {},
+                "children": [],
+                "text": "active"
+              }
+            ]
+          },
+          {
+            "type": "field",
+            "attrs": {
+              "name": "owners.team.0"
+            },
+            "children": [
+              {
+                "type": "text",
+                "attrs": {},
+                "children": [],
+                "text": "Ada"
+              }
+            ]
+          },
+          {
+            "type": "field",
+            "attrs": {
+              "name": "owners.team.1"
+            },
+            "children": [
+              {
+                "type": "text",
+                "attrs": {},
+                "children": [],
+                "text": "Lin"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "type": "manifest",
+        "attrs": {},
+        "children": []
+      },
+      {
+        "type": "markdown",
+        "attrs": {},
+        "children": []
+      },
+      {
+        "type": "callouts",
+        "attrs": {
+          "kind": "important",
+          "title": []
+        },
+        "children": [
+          {
+            "type": "paragraph",
+            "attrs": {},
+            "children": [
+              {
+                "type": "text",
+                "attrs": {},
+                "children": [],
+                "text": "Abstract prose."
+              }
+            ],
+            "id": "paragraph-033bb4a8"
+          }
+        ],
+        "id": "callouts-3f969cad"
+      },
+      {
+        "type": "bases",
+        "attrs": {
+          "source": "filters: 'note[\"bottom line\"] != null'\nviews:\n  - type: table\n    name: Conclusions\n    order: [chapter, bottom line]\nobs: {records: chapter}\n",
+          "spec": {
+            "filters": "note[\"bottom line\"] != null",
+            "views": [
+              {
+                "type": "table",
+                "name": "Conclusions",
+                "order": [
+                  "chapter",
+                  "bottom line"
+                ]
+              }
+            ],
+            "obs": {
+              "records": "chapter"
+            }
+          }
+        },
+        "children": [],
+        "id": "bases-75b4abd1"
+      },
+      {
+        "type": "section",
+        "attrs": {
+          "level": 2
+        },
+        "children": [
+          {
+            "type": "text",
+            "attrs": {},
+            "children": [],
+            "text": "Metadata"
+          }
+        ],
+        "id": "section-731e0eab"
+      },
+      {
+        "type": "bases",
+        "attrs": {
+          "source": "filters:\n  not:\n    or:\n      - 'key == \"title\"'\n      - 'key == \"subtitle\"'\nviews:\n  - type: table\n    name: Metadata\n    order: [key, value]\nobs: {records: documentMetadata}\n",
+          "spec": {
+            "filters": {
+              "not": {
+                "or": [
+                  "key == \"title\"",
+                  "key == \"subtitle\""
+                ]
+              }
+            },
+            "views": [
+              {
+                "type": "table",
+                "name": "Metadata",
+                "order": [
+                  "key",
+                  "value"
+                ]
+              }
+            ],
+            "obs": {
+              "records": "documentMetadata"
+            }
+          }
+        },
+        "children": [],
+        "id": "bases-470e5287"
+      }
+    ]
+  },
+  "chapters": [
+    {
+      "id": "parent",
+      "title": "Parent",
+      "content": [
+        {
+          "type": "chapter-inclusion",
+          "attrs": {
+            "id": "parent"
+          },
+          "children": []
+        },
+        {
+          "type": "markdown",
+          "attrs": {},
+          "children": []
+        },
+        {
+          "type": "section",
+          "attrs": {
+            "level": 1
+          },
+          "children": [
+            {
+              "type": "text",
+              "attrs": {},
+              "children": [],
+              "text": "Parent"
+            }
+          ],
+          "id": "section-80795102"
+        },
+        {
+          "type": "paragraph",
+          "attrs": {},
+          "children": [
+            {
+              "type": "wikilinks",
+              "attrs": {
+                "target": "node",
+                "chapter": "node",
+                "heading": "Extra",
+                "label": "Node > Extra"
+              },
+              "children": []
+            }
+          ],
+          "id": "paragraph-40513982"
+        },
+        {
+          "type": "paragraph",
+          "attrs": {},
+          "children": [
+            {
+              "type": "text",
+              "attrs": {
+                "link": "item-1"
+              },
+              "children": [],
+              "text": "1"
+            }
+          ],
+          "id": "paragraph-6b86b273"
+        },
+        {
+          "type": "paragraph",
+          "attrs": {},
+          "children": [
+            {
+              "type": "attachments",
+              "attrs": {
+                "asset": "shared-image",
+                "label": "Shared image"
+              },
+              "children": []
+            }
+          ],
+          "id": "paragraph-94a1172a"
+        }
+      ],
+      "children": [
+        {
+          "id": "child",
+          "title": "Child",
+          "content": [
+            {
+              "type": "markdown-frontmatter",
+              "attrs": {
+                "metadata": {
+                  "bottom line": "Child result."
+                }
+              },
+              "children": [
+                {
+                  "type": "field",
+                  "attrs": {
+                    "name": "bottom line"
+                  },
+                  "children": [
+                    {
+                      "type": "text",
+                      "attrs": {},
+                      "children": [],
+                      "text": "Child result."
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "chapter-inclusion",
+              "attrs": {
+                "id": "child"
+              },
+              "children": []
+            },
+            {
+              "type": "markdown",
+              "attrs": {},
+              "children": []
+            },
+            {
+              "type": "section",
+              "attrs": {
+                "level": 1
+              },
+              "children": [
+                {
+                  "type": "text",
+                  "attrs": {},
+                  "children": [],
+                  "text": "Child"
+                }
+              ],
+              "id": "section-525b79fa"
+            },
+            {
+              "type": "paragraph",
+              "attrs": {},
+              "children": [
+                {
+                  "type": "text",
+                  "attrs": {},
+                  "children": [],
+                  "text": "Question. "
+                },
+                {
+                  "type": "marks",
+                  "attrs": {
+                    "category": "question",
+                    "id": "child_question"
+                  },
+                  "children": []
+                }
+              ],
+              "id": "paragraph-99b834e8"
+            },
+            {
+              "type": "paragraph",
+              "attrs": {},
+              "children": [
+                {
+                  "type": "text",
+                  "attrs": {},
+                  "children": [],
+                  "text": "Resolve this. "
+                },
+                {
+                  "type": "marks",
+                  "attrs": {
+                    "category": "open_point",
+                    "id": "child_open"
+                  },
+                  "children": []
+                }
+              ],
+              "id": "paragraph-011d8aac"
+            },
+            {
+              "type": "paragraph",
+              "attrs": {},
+              "children": [
+                {
+                  "type": "attachments",
+                  "attrs": {
+                    "asset": "shared-image",
+                    "label": "Shared image"
+                  },
+                  "children": []
+                }
+              ],
+              "id": "paragraph-94a1172a"
+            }
+          ],
+          "children": [
+            {
+              "id": "node",
+              "title": "Node",
+              "content": [
+                {
+                  "type": "markdown-frontmatter",
+                  "attrs": {
+                    "metadata": {
+                      "bottom line": "Node result.",
+                      "owner": {
+                        "team": [
+                          "Ada",
+                          "Lin"
+                        ]
+                      },
+                      "description": "Long metadata Long metadata Long metadata Long metadata Long metadata Long metadata Long metadata Long metadata Long metadata Long metadata Long metadata Long metadata Long metadata Long metadata Long metadata Long metadata Long metadata Long metadata Long metadata Long metadata",
+                      "status": "draft",
+                      "extra": "omitted"
+                    }
+                  },
+                  "children": [
+                    {
+                      "type": "field",
+                      "attrs": {
+                        "name": "bottom line"
+                      },
+                      "children": [
+                        {
+                          "type": "text",
+                          "attrs": {},
+                          "children": [],
+                          "text": "Node result."
+                        }
+                      ]
+                    },
+                    {
+                      "type": "field",
+                      "attrs": {
+                        "name": "owner.team.0"
+                      },
+                      "children": [
+                        {
+                          "type": "text",
+                          "attrs": {},
+                          "children": [],
+                          "text": "Ada"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "field",
+                      "attrs": {
+                        "name": "owner.team.1"
+                      },
+                      "children": [
+                        {
+                          "type": "text",
+                          "attrs": {},
+                          "children": [],
+                          "text": "Lin"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "field",
+                      "attrs": {
+                        "name": "description"
+                      },
+                      "children": [
+                        {
+                          "type": "text",
+                          "attrs": {},
+                          "children": [],
+                          "text": "Long metadata Long metadata Long metadata Long metadata Long metadata Long metadata Long metadata Long metadata Long metadata Long metadata Long metadata Long metadata Long metadata Long metadata Long metadata Long metadata Long metadata Long metadata Long metadata Long metadata"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "field",
+                      "attrs": {
+                        "name": "status"
+                      },
+                      "children": [
+                        {
+                          "type": "text",
+                          "attrs": {},
+                          "children": [],
+                          "text": "draft"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "field",
+                      "attrs": {
+                        "name": "extra"
+                      },
+                      "children": [
+                        {
+                          "type": "text",
+                          "attrs": {},
+                          "children": [],
+                          "text": "omitted"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "chapter-inclusion",
+                  "attrs": {
+                    "id": "node"
+                  },
+                  "children": []
+                },
+                {
+                  "type": "markdown",
+                  "attrs": {},
+                  "children": []
+                },
+                {
+                  "type": "section",
+                  "attrs": {
+                    "level": 1
+                  },
+                  "children": [
+                    {
+                      "type": "text",
+                      "attrs": {},
+                      "children": [],
+                      "text": "Node"
+                    }
+                  ],
+                  "id": "section-58f8d7f1"
+                },
+                {
+                  "type": "section",
+                  "attrs": {
+                    "level": 2
+                  },
+                  "children": [
+                    {
+                      "type": "text",
+                      "attrs": {},
+                      "children": [],
+                      "text": "Extra"
+                    }
+                  ],
+                  "id": "section-df2faef3"
+                },
+                {
+                  "type": "paragraph",
+                  "attrs": {},
+                  "children": [
+                    {
+                      "type": "text",
+                      "attrs": {},
+                      "children": [],
+                      "text": "Long prose for the preview. Long prose for the preview. Long prose for the preview. Long prose for the preview. Long prose for the preview. Long prose for the preview. Long prose for the preview. Long prose for the preview. Long prose for the preview. Long prose for the preview. Long prose for the preview. Long prose for the preview. Long prose for the preview. Long prose for the preview. Long prose for the preview. Long prose for the preview. Long prose for the preview. Long prose for the preview. Long prose for the preview. Long prose for the preview. Long prose for the preview. Long prose for the preview. Long prose for the preview. Long prose for the preview. Long prose for the preview. Long prose for the preview. Long prose for the preview. Long prose for the preview. Long prose for the preview. Long prose for the preview. Long prose for the preview. Long prose for the preview. Long prose for the preview. Long prose for the preview. Long prose for the preview. Long prose for the preview. Long prose for the preview. Long prose for the preview. Long prose for the preview. Long prose for the preview."
+                    }
+                  ],
+                  "id": "paragraph-cb428568"
+                },
+                {
+                  "type": "code",
+                  "attrs": {
+                    "language": "text"
+                  },
+                  "children": [],
+                  "text": "CODE MUST NOT APPEAR\n",
+                  "id": "code-a0c9c4c3"
+                },
+                {
+                  "type": "bases",
+                  "attrs": {
+                    "source": "filters: 'kind == \"quantity\"'\nproperties:\n  citation:\n    displayName: Citation\nviews:\n  - type: table\n    order: [citation]\n",
+                    "spec": {
+                      "filters": "kind == \"quantity\"",
+                      "properties": {
+                        "citation": {
+                          "displayName": "Citation"
+                        }
+                      },
+                      "views": [
+                        {
+                          "type": "table",
+                          "order": [
+                            "citation"
+                          ]
+                        }
+                      ]
+                    }
+                  },
+                  "children": [],
+                  "id": "bases-0d22a2f6"
+                }
+              ],
+              "children": [],
+              "metadata": {
+                "bottom line": "Node result.",
+                "owner": {
+                  "team": [
+                    "Ada",
+                    "Lin"
+                  ]
+                },
+                "description": "Long metadata Long metadata Long metadata Long metadata Long metadata Long metadata Long metadata Long metadata Long metadata Long metadata Long metadata Long metadata Long metadata Long metadata Long metadata Long metadata Long metadata Long metadata Long metadata Long metadata",
+                "status": "draft",
+                "extra": "omitted"
+              }
+            }
+          ],
+          "metadata": {
+            "bottom line": "Child result."
+          }
+        }
+      ],
+      "metadata": {}
+    },
+    {
+      "id": "glossary",
+      "title": "Glossary",
+      "content": [
+        {
+          "type": "chapter-inclusion",
+          "attrs": {
+            "id": "glossary"
+          },
+          "children": []
+        },
+        {
+          "type": "markdown",
+          "attrs": {},
+          "children": []
+        },
+        {
+          "type": "section",
+          "attrs": {
+            "level": 1
+          },
+          "children": [
+            {
+              "type": "text",
+              "attrs": {},
+              "children": [],
+              "text": "Glossary"
+            }
+          ],
+          "id": "section-d5bbfb72"
+        },
+        {
+          "type": "paragraph",
+          "attrs": {},
+          "children": [
+            {
+              "type": "text",
+              "attrs": {},
+              "children": [],
+              "text": "See "
+            },
+            {
+              "type": "wikilinks",
+              "attrs": {
+                "target": "bluf",
+                "chapter": "bluf",
+                "heading": "",
+                "label": "bluf"
+              },
+              "children": []
+            },
+            {
+              "type": "text",
+              "attrs": {},
+              "children": [],
+              "text": "."
+            }
+          ],
+          "id": "paragraph-193970bc"
+        },
+        {
+          "type": "bases",
+          "attrs": {
+            "source": "obs: {records: glossary}\nviews:\n  - type: table\n    order: [term, definition]\n",
+            "spec": {
+              "obs": {
+                "records": "glossary"
+              },
+              "views": [
+                {
+                  "type": "table",
+                  "order": [
+                    "term",
+                    "definition"
+                  ]
+                }
+              ]
+            }
+          },
+          "children": [],
+          "id": "bases-5aed0ec4"
+        },
+        {
+          "type": "bases",
+          "attrs": {
+            "source": "filters: 'table == \"abbreviations\"'\nproperties:\n  term:\n    displayName: Term\n  citation:\n    displayName: Citation\nviews:\n  - type: table\n    order: [term, citation]\nobs: {records: glossary}\n",
+            "spec": {
+              "filters": "table == \"abbreviations\"",
+              "properties": {
+                "term": {
+                  "displayName": "Term"
+                },
+                "citation": {
+                  "displayName": "Citation"
+                }
+              },
+              "views": [
+                {
+                  "type": "table",
+                  "order": [
+                    "term",
+                    "citation"
+                  ]
+                }
+              ],
+              "obs": {
+                "records": "glossary"
+              }
+            }
+          },
+          "children": [],
+          "id": "bases-7868f21c"
+        }
+      ],
+      "children": [],
+      "metadata": {}
+    },
+    {
+      "id": "tags",
+      "title": "Tags",
+      "content": [
+        {
+          "type": "chapter-inclusion",
+          "attrs": {
+            "id": "tags"
+          },
+          "children": []
+        },
+        {
+          "type": "markdown",
+          "attrs": {},
+          "children": []
+        },
+        {
+          "type": "section",
+          "attrs": {
+            "level": 1
+          },
+          "children": [
+            {
+              "type": "text",
+              "attrs": {},
+              "children": [],
+              "text": "Tags"
+            }
+          ],
+          "id": "section-113f999a"
+        },
+        {
+          "type": "bases",
+          "attrs": {
+            "source": "obs: {records: tag}\nviews:\n  - type: table\n    order: [label, text, source]\n",
+            "spec": {
+              "obs": {
+                "records": "tag"
+              },
+              "views": [
+                {
+                  "type": "table",
+                  "order": [
+                    "label",
+                    "text",
+                    "source"
+                  ]
+                }
+              ]
+            }
+          },
+          "children": [],
+          "id": "bases-6640a5ad"
+        }
+      ],
+      "children": [],
+      "metadata": {}
+    },
+    {
+      "id": "references",
+      "title": "References",
+      "content": [
+        {
+          "type": "chapter-inclusion",
+          "attrs": {
+            "id": "references"
+          },
+          "children": []
+        },
+        {
+          "type": "markdown",
+          "attrs": {},
+          "children": []
+        },
+        {
+          "type": "section",
+          "attrs": {
+            "level": 1
+          },
+          "children": [
+            {
+              "type": "text",
+              "attrs": {},
+              "children": [],
+              "text": "References"
+            }
+          ],
+          "id": "section-4f3bae6c"
+        },
+        {
+          "type": "registers",
+          "attrs": {
+            "target": "numbered.base",
+            "heading": "",
+            "base": {
+              "filters": "kind == \"reference\"",
+              "properties": {
+                "obsHtml.label": {
+                  "displayName": "No."
+                }
+              },
+              "views": [
+                {
+                  "type": "table",
+                  "order": [
+                    "obsHtml.label",
+                    "document",
+                    "description"
+                  ],
+                  "obs": {
+                    "members": [
+                      {
+                        "path": "reference.md",
+                        "label": "[1]"
+                      },
+                      {
+                        "path": "quiet-reference.md",
+                        "label": "[2]"
+                      }
+                    ]
+                  }
+                }
+              ]
+            },
+            "view": null,
+            "rows": [
+              [
+                "reference",
+                "quiet-reference"
+              ]
+            ]
+          },
+          "children": [],
+          "id": "registers-1df4c36f"
+        },
+        {
+          "type": "registers",
+          "attrs": {
+            "target": "lettered.base",
+            "heading": "",
+            "base": {
+              "filters": "kind == \"reference\"",
+              "views": [
+                {
+                  "type": "table",
+                  "order": [
+                    "obsHtml.label",
+                    "document"
+                  ],
+                  "obs": {
+                    "members": [
+                      {
+                        "path": "quiet-reference.md",
+                        "label": "B"
+                      },
+                      {
+                        "path": "reference.md",
+                        "label": "A"
+                      }
+                    ]
+                  }
+                }
+              ]
+            },
+            "view": null,
+            "rows": [
+              [
+                "quiet-reference",
+                "reference"
+              ]
+            ]
+          },
+          "children": [],
+          "id": "registers-10c523c5"
+        }
+      ],
+      "children": [],
+      "metadata": {}
+    },
+    {
+      "id": "bluf",
+      "title": "BLUF",
+      "toc": false,
+      "content": [
+        {
+          "type": "markdown-frontmatter",
+          "attrs": {
+            "metadata": {
+              "kind": "glossary",
+              "term": "BLUF",
+              "aliases": [
+                "Conclusion upfront"
+              ],
+              "definition": "The principle of presenting the [[bottom line]] first.",
+              "source": "[[details]]"
+            }
+          },
+          "children": [
+            {
+              "type": "field",
+              "attrs": {
+                "name": "kind"
+              },
+              "children": [
+                {
+                  "type": "text",
+                  "attrs": {},
+                  "children": [],
+                  "text": "glossary"
+                }
+              ]
+            },
+            {
+              "type": "field",
+              "attrs": {
+                "name": "term"
+              },
+              "children": [
+                {
+                  "type": "text",
+                  "attrs": {},
+                  "children": [],
+                  "text": "BLUF"
+                }
+              ]
+            },
+            {
+              "type": "field",
+              "attrs": {
+                "name": "aliases.0"
+              },
+              "children": [
+                {
+                  "type": "text",
+                  "attrs": {},
+                  "children": [],
+                  "text": "Conclusion upfront"
+                }
+              ]
+            },
+            {
+              "type": "field",
+              "attrs": {
+                "name": "definition"
+              },
+              "children": [
+                {
+                  "type": "text",
+                  "attrs": {},
+                  "children": [],
+                  "text": "The principle of presenting the "
+                },
+                {
+                  "type": "wikilinks",
+                  "attrs": {
+                    "target": "bottom line",
+                    "chapter": "conclusion",
+                    "heading": "",
+                    "label": "bottom line"
+                  },
+                  "children": []
+                },
+                {
+                  "type": "text",
+                  "attrs": {},
+                  "children": [],
+                  "text": " first."
+                }
+              ]
+            },
+            {
+              "type": "field",
+              "attrs": {
+                "name": "source"
+              },
+              "children": [
+                {
+                  "type": "wikilinks",
+                  "attrs": {
+                    "target": "details",
+                    "chapter": "details",
+                    "heading": "",
+                    "label": "details"
+                  },
+                  "children": []
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "references",
+          "attrs": {
+            "metadata": {
+              "kind": "glossary",
+              "term": "BLUF",
+              "aliases": [
+                "Conclusion upfront"
+              ],
+              "definition": "The principle of presenting the [[bottom line]] first.",
+              "source": "[[details]]"
+            }
+          },
+          "children": []
+        },
+        {
+          "type": "chapter-inclusion",
+          "attrs": {
+            "id": "bluf"
+          },
+          "children": []
+        },
+        {
+          "type": "markdown",
+          "attrs": {},
+          "children": []
+        },
+        {
+          "type": "section",
+          "attrs": {
+            "level": 1
+          },
+          "children": [
+            {
+              "type": "text",
+              "attrs": {},
+              "children": [],
+              "text": "BLUF"
+            }
+          ],
+          "id": "section-ce3a16ba"
+        },
+        {
+          "type": "paragraph",
+          "attrs": {},
+          "children": [
+            {
+              "type": "wikilinks",
+              "attrs": {
+                "target": "details",
+                "chapter": "details",
+                "heading": "",
+                "label": "details"
+              },
+              "children": []
+            }
+          ],
+          "id": "paragraph-5e2c6006"
+        },
+        {
+          "type": "bases",
+          "attrs": {
+            "source": "obs: {records: glossary}\nviews:\n  - type: table\n    order: [term, definition]\n",
+            "spec": {
+              "obs": {
+                "records": "glossary"
+              },
+              "views": [
+                {
+                  "type": "table",
+                  "order": [
+                    "term",
+                    "definition"
+                  ]
+                }
+              ]
+            }
+          },
+          "children": [],
+          "id": "bases-5aed0ec4"
+        }
+      ],
+      "children": [],
+      "metadata": {
+        "kind": "glossary",
+        "term": "BLUF",
+        "aliases": [
+          "Conclusion upfront"
+        ],
+        "definition": "The principle of presenting the [[bottom line]] first.",
+        "source": "[[details]]"
+      }
+    },
+    {
+      "id": "conclusion",
+      "title": "Conclusion",
+      "toc": false,
+      "content": [
+        {
+          "type": "markdown-frontmatter",
+          "attrs": {
+            "metadata": {
+              "kind": "glossary",
+              "term": "Conclusion",
+              "aliases": [
+                "bottom line"
+              ],
+              "definition": "The conclusion.",
+              "table": "abbreviations",
+              "citation": "See [[details]] **source note**."
+            }
+          },
+          "children": [
+            {
+              "type": "field",
+              "attrs": {
+                "name": "kind"
+              },
+              "children": [
+                {
+                  "type": "text",
+                  "attrs": {},
+                  "children": [],
+                  "text": "glossary"
+                }
+              ]
+            },
+            {
+              "type": "field",
+              "attrs": {
+                "name": "term"
+              },
+              "children": [
+                {
+                  "type": "text",
+                  "attrs": {},
+                  "children": [],
+                  "text": "Conclusion"
+                }
+              ]
+            },
+            {
+              "type": "field",
+              "attrs": {
+                "name": "aliases.0"
+              },
+              "children": [
+                {
+                  "type": "text",
+                  "attrs": {},
+                  "children": [],
+                  "text": "bottom line"
+                }
+              ]
+            },
+            {
+              "type": "field",
+              "attrs": {
+                "name": "definition"
+              },
+              "children": [
+                {
+                  "type": "text",
+                  "attrs": {},
+                  "children": [],
+                  "text": "The conclusion."
+                }
+              ]
+            },
+            {
+              "type": "field",
+              "attrs": {
+                "name": "table"
+              },
+              "children": [
+                {
+                  "type": "text",
+                  "attrs": {},
+                  "children": [],
+                  "text": "abbreviations"
+                }
+              ]
+            },
+            {
+              "type": "field",
+              "attrs": {
+                "name": "citation"
+              },
+              "children": [
+                {
+                  "type": "text",
+                  "attrs": {},
+                  "children": [],
+                  "text": "See "
+                },
+                {
+                  "type": "wikilinks",
+                  "attrs": {
+                    "target": "details",
+                    "chapter": "details",
+                    "heading": "",
+                    "label": "details"
+                  },
+                  "children": []
+                },
+                {
+                  "type": "text",
+                  "attrs": {},
+                  "children": [],
+                  "text": " "
+                },
+                {
+                  "type": "strong",
+                  "attrs": {},
+                  "children": [
+                    {
+                      "type": "text",
+                      "attrs": {},
+                      "children": [],
+                      "text": "source note"
+                    }
+                  ]
+                },
+                {
+                  "type": "text",
+                  "attrs": {},
+                  "children": [],
+                  "text": "."
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "references",
+          "attrs": {
+            "metadata": {
+              "kind": "glossary",
+              "term": "Conclusion",
+              "aliases": [
+                "bottom line"
+              ],
+              "definition": "The conclusion.",
+              "table": "abbreviations",
+              "citation": "See [[details]] **source note**."
+            }
+          },
+          "children": []
+        },
+        {
+          "type": "chapter-inclusion",
+          "attrs": {
+            "id": "conclusion"
+          },
+          "children": []
+        },
+        {
+          "type": "markdown",
+          "attrs": {},
+          "children": []
+        },
+        {
+          "type": "section",
+          "attrs": {
+            "level": 1
+          },
+          "children": [
+            {
+              "type": "text",
+              "attrs": {},
+              "children": [],
+              "text": "Conclusion"
+            }
+          ],
+          "id": "section-6350acdd"
+        }
+      ],
+      "children": [],
+      "metadata": {
+        "kind": "glossary",
+        "term": "Conclusion",
+        "aliases": [
+          "bottom line"
+        ],
+        "definition": "The conclusion.",
+        "table": "abbreviations",
+        "citation": "See [[details]] **source note**."
+      }
+    },
+    {
+      "id": "details",
+      "title": "Extra details",
+      "toc": false,
+      "content": [
+        {
+          "type": "chapter-inclusion",
+          "attrs": {
+            "id": "details"
+          },
+          "children": []
+        },
+        {
+          "type": "markdown",
+          "attrs": {},
+          "children": []
+        },
+        {
+          "type": "section",
+          "attrs": {
+            "level": 1
+          },
+          "children": [
+            {
+              "type": "text",
+              "attrs": {},
+              "children": [],
+              "text": "Extra details"
+            }
+          ],
+          "id": "section-2f03faa6"
+        },
+        {
+          "type": "paragraph",
+          "attrs": {},
+          "children": [
+            {
+              "type": "wikilinks",
+              "attrs": {
+                "target": "bottom line",
+                "chapter": "conclusion",
+                "heading": "",
+                "label": "bottom line"
+              },
+              "children": []
+            },
+            {
+              "type": "text",
+              "attrs": {},
+              "children": [],
+              "text": " "
+            },
+            {
+              "type": "wikilinks",
+              "attrs": {
+                "target": "metadata-only",
+                "chapter": "metadata-only",
+                "heading": "",
+                "label": "metadata-only"
+              },
+              "children": []
+            }
+          ],
+          "id": "paragraph-54c5c909"
+        },
+        {
+          "type": "section",
+          "attrs": {
+            "level": 2
+          },
+          "children": [
+            {
+              "type": "text",
+              "attrs": {},
+              "children": [],
+              "text": "More"
+            }
+          ],
+          "id": "section-5fed87bc"
+        },
+        {
+          "type": "paragraph",
+          "attrs": {},
+          "children": [
+            {
+              "type": "text",
+              "attrs": {},
+              "children": [],
+              "text": "Nested content."
+            }
+          ],
+          "id": "paragraph-31910dd7"
+        }
+      ],
+      "children": [],
+      "metadata": {}
+    },
+    {
+      "id": "flatness",
+      "title": "Flatness",
+      "toc": false,
+      "content": [
+        {
+          "type": "markdown-frontmatter",
+          "attrs": {
+            "metadata": {
+              "kind": "quantity",
+              "value": 20,
+              "unit": "\u00b5m",
+              "aliases": [
+                "flatness_A"
+              ],
+              "source": "[[details]]",
+              "citation": "See [[details]] **sheet 2** and $x$."
+            }
+          },
+          "children": [
+            {
+              "type": "field",
+              "attrs": {
+                "name": "kind"
+              },
+              "children": [
+                {
+                  "type": "text",
+                  "attrs": {},
+                  "children": [],
+                  "text": "quantity"
+                }
+              ]
+            },
+            {
+              "type": "field",
+              "attrs": {
+                "name": "unit"
+              },
+              "children": [
+                {
+                  "type": "text",
+                  "attrs": {},
+                  "children": [],
+                  "text": "\u00b5m"
+                }
+              ]
+            },
+            {
+              "type": "field",
+              "attrs": {
+                "name": "aliases.0"
+              },
+              "children": [
+                {
+                  "type": "text",
+                  "attrs": {},
+                  "children": [],
+                  "text": "flatness_A"
+                }
+              ]
+            },
+            {
+              "type": "field",
+              "attrs": {
+                "name": "source"
+              },
+              "children": [
+                {
+                  "type": "wikilinks",
+                  "attrs": {
+                    "target": "details",
+                    "chapter": "details",
+                    "heading": "",
+                    "label": "details"
+                  },
+                  "children": []
+                }
+              ]
+            },
+            {
+              "type": "field",
+              "attrs": {
+                "name": "citation"
+              },
+              "children": [
+                {
+                  "type": "text",
+                  "attrs": {},
+                  "children": [],
+                  "text": "See "
+                },
+                {
+                  "type": "wikilinks",
+                  "attrs": {
+                    "target": "details",
+                    "chapter": "details",
+                    "heading": "",
+                    "label": "details"
+                  },
+                  "children": []
+                },
+                {
+                  "type": "text",
+                  "attrs": {},
+                  "children": [],
+                  "text": " "
+                },
+                {
+                  "type": "strong",
+                  "attrs": {},
+                  "children": [
+                    {
+                      "type": "text",
+                      "attrs": {},
+                      "children": [],
+                      "text": "sheet 2"
+                    }
+                  ]
+                },
+                {
+                  "type": "text",
+                  "attrs": {},
+                  "children": [],
+                  "text": " and "
+                },
+                {
+                  "type": "math",
+                  "attrs": {
+                    "display": false
+                  },
+                  "children": [],
+                  "text": "x"
+                },
+                {
+                  "type": "text",
+                  "attrs": {},
+                  "children": [],
+                  "text": "."
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "quantities",
+          "attrs": {
+            "metadata": {
+              "kind": "quantity",
+              "value": 20,
+              "unit": "\u00b5m",
+              "aliases": [
+                "flatness_A"
+              ],
+              "source": "[[details]]",
+              "citation": "See [[details]] **sheet 2** and $x$."
+            },
+            "quantity": {
+              "unit": "\u00b5m",
+              "dimension": {
+                "length": 1
+              },
+              "value": 20,
+              "siValue": 2e-05
+            }
+          },
+          "children": []
+        },
+        {
+          "type": "chapter-inclusion",
+          "attrs": {
+            "id": "flatness"
+          },
+          "children": []
+        },
+        {
+          "type": "markdown",
+          "attrs": {},
+          "children": []
+        },
+        {
+          "type": "section",
+          "attrs": {
+            "level": 1
+          },
+          "children": [
+            {
+              "type": "text",
+              "attrs": {},
+              "children": [],
+              "text": "Flatness"
+            }
+          ],
+          "id": "section-c6797862"
+        },
+        {
+          "type": "paragraph",
+          "attrs": {},
+          "children": [
+            {
+              "type": "text",
+              "attrs": {},
+              "children": [],
+              "text": "Canonical datum A flatness."
+            }
+          ],
+          "id": "paragraph-4dffecd7"
+        }
+      ],
+      "children": [],
+      "metadata": {
+        "kind": "quantity",
+        "value": 20,
+        "unit": "\u00b5m",
+        "aliases": [
+          "flatness_A"
+        ],
+        "source": "[[details]]",
+        "citation": "See [[details]] **sheet 2** and $x$."
+      }
+    },
+    {
+      "id": "metadata-only",
+      "title": "Metadata Only",
+      "toc": false,
+      "content": [
+        {
+          "type": "markdown-frontmatter",
+          "attrs": {
+            "metadata": {
+              "owner": "Ada",
+              "citation": "**Canonical** [[details]]"
+            }
+          },
+          "children": [
+            {
+              "type": "field",
+              "attrs": {
+                "name": "owner"
+              },
+              "children": [
+                {
+                  "type": "text",
+                  "attrs": {},
+                  "children": [],
+                  "text": "Ada"
+                }
+              ]
+            },
+            {
+              "type": "field",
+              "attrs": {
+                "name": "citation"
+              },
+              "children": [
+                {
+                  "type": "strong",
+                  "attrs": {},
+                  "children": [
+                    {
+                      "type": "text",
+                      "attrs": {},
+                      "children": [],
+                      "text": "Canonical"
+                    }
+                  ]
+                },
+                {
+                  "type": "text",
+                  "attrs": {},
+                  "children": [],
+                  "text": " "
+                },
+                {
+                  "type": "wikilinks",
+                  "attrs": {
+                    "target": "details",
+                    "chapter": "details",
+                    "heading": "",
+                    "label": "details"
+                  },
+                  "children": []
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "chapter-inclusion",
+          "attrs": {
+            "id": "metadata-only"
+          },
+          "children": []
+        }
+      ],
+      "children": [],
+      "metadata": {
+        "owner": "Ada",
+        "citation": "**Canonical** [[details]]"
+      }
+    },
+    {
+      "id": "quiet-reference",
+      "title": "Quiet Reference",
+      "toc": false,
+      "content": [
+        {
+          "type": "markdown-frontmatter",
+          "attrs": {
+            "metadata": {
+              "document": "Unlinked source",
+              "description": "Selected only by a Bases query.",
+              "kind": "reference"
+            }
+          },
+          "children": [
+            {
+              "type": "field",
+              "attrs": {
+                "name": "document"
+              },
+              "children": [
+                {
+                  "type": "text",
+                  "attrs": {},
+                  "children": [],
+                  "text": "Unlinked source"
+                }
+              ]
+            },
+            {
+              "type": "field",
+              "attrs": {
+                "name": "description"
+              },
+              "children": [
+                {
+                  "type": "text",
+                  "attrs": {},
+                  "children": [],
+                  "text": "Selected only by a Bases query."
+                }
+              ]
+            },
+            {
+              "type": "field",
+              "attrs": {
+                "name": "kind"
+              },
+              "children": [
+                {
+                  "type": "text",
+                  "attrs": {},
+                  "children": [],
+                  "text": "reference"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "references",
+          "attrs": {
+            "metadata": {
+              "document": "Unlinked source",
+              "description": "Selected only by a Bases query.",
+              "kind": "reference"
+            }
+          },
+          "children": []
+        },
+        {
+          "type": "chapter-inclusion",
+          "attrs": {
+            "id": "quiet-reference"
+          },
+          "children": []
+        }
+      ],
+      "children": [],
+      "metadata": {
+        "document": "Unlinked source",
+        "description": "Selected only by a Bases query.",
+        "kind": "reference"
+      }
+    },
+    {
+      "id": "reference",
+      "title": "Reference",
+      "toc": false,
+      "content": [
+        {
+          "type": "markdown-frontmatter",
+          "attrs": {
+            "metadata": {
+              "document": "[Source document](details.md)",
+              "description": "A source whose metadata is its complete content.",
+              "kind": "reference"
+            }
+          },
+          "children": [
+            {
+              "type": "field",
+              "attrs": {
+                "name": "document"
+              },
+              "children": [
+                {
+                  "type": "text",
+                  "attrs": {
+                    "link": "source-document"
+                  },
+                  "children": [],
+                  "text": "Source document"
+                }
+              ]
+            },
+            {
+              "type": "field",
+              "attrs": {
+                "name": "description"
+              },
+              "children": [
+                {
+                  "type": "text",
+                  "attrs": {},
+                  "children": [],
+                  "text": "A source whose metadata is its complete content."
+                }
+              ]
+            },
+            {
+              "type": "field",
+              "attrs": {
+                "name": "kind"
+              },
+              "children": [
+                {
+                  "type": "text",
+                  "attrs": {},
+                  "children": [],
+                  "text": "reference"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "references",
+          "attrs": {
+            "metadata": {
+              "document": "[Source document](details.md)",
+              "description": "A source whose metadata is its complete content.",
+              "kind": "reference"
+            }
+          },
+          "children": []
+        },
+        {
+          "type": "chapter-inclusion",
+          "attrs": {
+            "id": "reference"
+          },
+          "children": []
+        }
+      ],
+      "children": [],
+      "metadata": {
+        "document": "[Source document](details.md)",
+        "description": "A source whose metadata is its complete content.",
+        "kind": "reference"
+      }
+    }
+  ],
+  "links": [
+    {
+      "id": "node-extra",
+      "href": "node",
+      "label": "Node > Extra"
+    },
+    {
+      "id": "item-1",
+      "href": "reference.md",
+      "label": "1"
+    },
+    {
+      "id": "bluf",
+      "href": "bluf",
+      "label": "bluf"
+    },
+    {
+      "id": "details",
+      "href": "details",
+      "label": "details"
+    },
+    {
+      "id": "bottom-line",
+      "href": "bottom line",
+      "label": "bottom line"
+    },
+    {
+      "id": "source-document",
+      "href": "details.md",
+      "label": "Source document"
+    },
+    {
+      "id": "metadata-only",
+      "href": "metadata-only",
+      "label": "metadata-only"
+    }
+  ],
+  "assets": [
+    {
+      "id": "shared-image",
+      "href": "shared.png",
+      "mediaType": "image/png",
+      "path": "shared.png",
+      "data": "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+a8xoAAAAASUVORK5CYII="
+    },
+    {
+      "id": "obsidian",
+      "href": "obsidian.svg",
+      "mediaType": "image/svg+xml",
+      "path": "obsidian.svg",
+      "data": "PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI2MCIgaGVpZ2h0PSIyMCI+PHJlY3Qgd2lkdGg9IjYwIiBoZWlnaHQ9IjIwIi8+PC9zdmc+"
+    },
+    {
+      "id": "html",
+      "href": "html.svg",
+      "mediaType": "image/svg+xml",
+      "path": "html.svg",
+      "data": "PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI2MCIgaGVpZ2h0PSIyMCI+PHJlY3Qgd2lkdGg9IjYwIiBoZWlnaHQ9IjIwIi8+PC9zdmc+"
+    }
+  ],
+  "records": [
+    {
+      "id": "bluf",
+      "type": "note",
+      "path": "bluf.md",
+      "fields": {
+        "kind": "glossary",
+        "term": "BLUF",
+        "aliases": [
+          "Conclusion upfront"
+        ],
+        "definition": "The principle of presenting the [[bottom line]] first.",
+        "source": "[[details]]"
+      },
+      "fieldNodes": [
+        {
+          "type": "field",
+          "attrs": {
+            "name": "kind"
+          },
+          "children": [
+            {
+              "type": "text",
+              "attrs": {},
+              "children": [],
+              "text": "glossary"
+            }
+          ]
+        },
+        {
+          "type": "field",
+          "attrs": {
+            "name": "term"
+          },
+          "children": [
+            {
+              "type": "text",
+              "attrs": {},
+              "children": [],
+              "text": "BLUF"
+            }
+          ]
+        },
+        {
+          "type": "field",
+          "attrs": {
+            "name": "aliases.0"
+          },
+          "children": [
+            {
+              "type": "text",
+              "attrs": {},
+              "children": [],
+              "text": "Conclusion upfront"
+            }
+          ]
+        },
+        {
+          "type": "field",
+          "attrs": {
+            "name": "definition"
+          },
+          "children": [
+            {
+              "type": "text",
+              "attrs": {},
+              "children": [],
+              "text": "The principle of presenting the "
+            },
+            {
+              "type": "wikilinks",
+              "attrs": {
+                "target": "bottom line",
+                "chapter": "conclusion",
+                "heading": "",
+                "label": "bottom line"
+              },
+              "children": []
+            },
+            {
+              "type": "text",
+              "attrs": {},
+              "children": [],
+              "text": " first."
+            }
+          ]
+        },
+        {
+          "type": "field",
+          "attrs": {
+            "name": "source"
+          },
+          "children": [
+            {
+              "type": "wikilinks",
+              "attrs": {
+                "target": "details",
+                "chapter": "details",
+                "heading": "",
+                "label": "details"
+              },
+              "children": []
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "child",
+      "type": "note",
+      "path": "child.md",
+      "fields": {
+        "bottom line": "Child result."
+      },
+      "fieldNodes": [
+        {
+          "type": "field",
+          "attrs": {
+            "name": "bottom line"
+          },
+          "children": [
+            {
+              "type": "text",
+              "attrs": {},
+              "children": [],
+              "text": "Child result."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "conclusion",
+      "type": "note",
+      "path": "conclusion.md",
+      "fields": {
+        "kind": "glossary",
+        "term": "Conclusion",
+        "aliases": [
+          "bottom line"
+        ],
+        "definition": "The conclusion.",
+        "table": "abbreviations",
+        "citation": "See [[details]] **source note**."
+      },
+      "fieldNodes": [
+        {
+          "type": "field",
+          "attrs": {
+            "name": "kind"
+          },
+          "children": [
+            {
+              "type": "text",
+              "attrs": {},
+              "children": [],
+              "text": "glossary"
+            }
+          ]
+        },
+        {
+          "type": "field",
+          "attrs": {
+            "name": "term"
+          },
+          "children": [
+            {
+              "type": "text",
+              "attrs": {},
+              "children": [],
+              "text": "Conclusion"
+            }
+          ]
+        },
+        {
+          "type": "field",
+          "attrs": {
+            "name": "aliases.0"
+          },
+          "children": [
+            {
+              "type": "text",
+              "attrs": {},
+              "children": [],
+              "text": "bottom line"
+            }
+          ]
+        },
+        {
+          "type": "field",
+          "attrs": {
+            "name": "definition"
+          },
+          "children": [
+            {
+              "type": "text",
+              "attrs": {},
+              "children": [],
+              "text": "The conclusion."
+            }
+          ]
+        },
+        {
+          "type": "field",
+          "attrs": {
+            "name": "table"
+          },
+          "children": [
+            {
+              "type": "text",
+              "attrs": {},
+              "children": [],
+              "text": "abbreviations"
+            }
+          ]
+        },
+        {
+          "type": "field",
+          "attrs": {
+            "name": "citation"
+          },
+          "children": [
+            {
+              "type": "text",
+              "attrs": {},
+              "children": [],
+              "text": "See "
+            },
+            {
+              "type": "wikilinks",
+              "attrs": {
+                "target": "details",
+                "chapter": "details",
+                "heading": "",
+                "label": "details"
+              },
+              "children": []
+            },
+            {
+              "type": "text",
+              "attrs": {},
+              "children": [],
+              "text": " "
+            },
+            {
+              "type": "strong",
+              "attrs": {},
+              "children": [
+                {
+                  "type": "text",
+                  "attrs": {},
+                  "children": [],
+                  "text": "source note"
+                }
+              ]
+            },
+            {
+              "type": "text",
+              "attrs": {},
+              "children": [],
+              "text": "."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "details",
+      "type": "note",
+      "path": "details.md",
+      "fields": {},
+      "fieldNodes": []
+    },
+    {
+      "id": "flatness",
+      "type": "note",
+      "path": "flatness.md",
+      "fields": {
+        "kind": "quantity",
+        "value": 20,
+        "unit": "\u00b5m",
+        "aliases": [
+          "flatness_A"
+        ],
+        "source": "[[details]]",
+        "citation": "See [[details]] **sheet 2** and $x$."
+      },
+      "fieldNodes": [
+        {
+          "type": "field",
+          "attrs": {
+            "name": "kind"
+          },
+          "children": [
+            {
+              "type": "text",
+              "attrs": {},
+              "children": [],
+              "text": "quantity"
+            }
+          ]
+        },
+        {
+          "type": "field",
+          "attrs": {
+            "name": "unit"
+          },
+          "children": [
+            {
+              "type": "text",
+              "attrs": {},
+              "children": [],
+              "text": "\u00b5m"
+            }
+          ]
+        },
+        {
+          "type": "field",
+          "attrs": {
+            "name": "aliases.0"
+          },
+          "children": [
+            {
+              "type": "text",
+              "attrs": {},
+              "children": [],
+              "text": "flatness_A"
+            }
+          ]
+        },
+        {
+          "type": "field",
+          "attrs": {
+            "name": "source"
+          },
+          "children": [
+            {
+              "type": "wikilinks",
+              "attrs": {
+                "target": "details",
+                "chapter": "details",
+                "heading": "",
+                "label": "details"
+              },
+              "children": []
+            }
+          ]
+        },
+        {
+          "type": "field",
+          "attrs": {
+            "name": "citation"
+          },
+          "children": [
+            {
+              "type": "text",
+              "attrs": {},
+              "children": [],
+              "text": "See "
+            },
+            {
+              "type": "wikilinks",
+              "attrs": {
+                "target": "details",
+                "chapter": "details",
+                "heading": "",
+                "label": "details"
+              },
+              "children": []
+            },
+            {
+              "type": "text",
+              "attrs": {},
+              "children": [],
+              "text": " "
+            },
+            {
+              "type": "strong",
+              "attrs": {},
+              "children": [
+                {
+                  "type": "text",
+                  "attrs": {},
+                  "children": [],
+                  "text": "sheet 2"
+                }
+              ]
+            },
+            {
+              "type": "text",
+              "attrs": {},
+              "children": [],
+              "text": " and "
+            },
+            {
+              "type": "math",
+              "attrs": {
+                "display": false
+              },
+              "children": [],
+              "text": "x"
+            },
+            {
+              "type": "text",
+              "attrs": {},
+              "children": [],
+              "text": "."
+            }
+          ]
+        }
+      ],
+      "quantity": {
+        "unit": "\u00b5m",
+        "dimension": {
+          "length": 1
+        },
+        "value": 20,
+        "siValue": 2e-05
+      }
+    },
+    {
+      "id": "glossary",
+      "type": "note",
+      "path": "glossary.md",
+      "fields": {},
+      "fieldNodes": []
+    },
+    {
+      "id": "manifest",
+      "type": "note",
+      "path": "manifest.md",
+      "fields": {
+        "title": "Test document",
+        "subtitle": "Bridge **subtitle** ![Obsidian](obsidian.svg) ![HTML](html.svg)",
+        "status": "active",
+        "owners": {
+          "team": [
+            "Ada",
+            "Lin"
+          ]
+        }
+      },
+      "fieldNodes": [
+        {
+          "type": "field",
+          "attrs": {
+            "name": "title"
+          },
+          "children": [
+            {
+              "type": "text",
+              "attrs": {},
+              "children": [],
+              "text": "Test document"
+            }
+          ]
+        },
+        {
+          "type": "field",
+          "attrs": {
+            "name": "subtitle"
+          },
+          "children": [
+            {
+              "type": "text",
+              "attrs": {},
+              "children": [],
+              "text": "Bridge "
+            },
+            {
+              "type": "strong",
+              "attrs": {},
+              "children": [
+                {
+                  "type": "text",
+                  "attrs": {},
+                  "children": [],
+                  "text": "subtitle"
+                }
+              ]
+            },
+            {
+              "type": "text",
+              "attrs": {},
+              "children": [],
+              "text": " "
+            },
+            {
+              "type": "attachments",
+              "attrs": {
+                "asset": "obsidian",
+                "label": "Obsidian"
+              },
+              "children": []
+            },
+            {
+              "type": "text",
+              "attrs": {},
+              "children": [],
+              "text": " "
+            },
+            {
+              "type": "attachments",
+              "attrs": {
+                "asset": "html",
+                "label": "HTML"
+              },
+              "children": []
+            }
+          ]
+        },
+        {
+          "type": "field",
+          "attrs": {
+            "name": "status"
+          },
+          "children": [
+            {
+              "type": "text",
+              "attrs": {},
+              "children": [],
+              "text": "active"
+            }
+          ]
+        },
+        {
+          "type": "field",
+          "attrs": {
+            "name": "owners.team.0"
+          },
+          "children": [
+            {
+              "type": "text",
+              "attrs": {},
+              "children": [],
+              "text": "Ada"
+            }
+          ]
+        },
+        {
+          "type": "field",
+          "attrs": {
+            "name": "owners.team.1"
+          },
+          "children": [
+            {
+              "type": "text",
+              "attrs": {},
+              "children": [],
+              "text": "Lin"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "metadata-only",
+      "type": "note",
+      "path": "metadata-only.md",
+      "fields": {
+        "owner": "Ada",
+        "citation": "**Canonical** [[details]]"
+      },
+      "fieldNodes": [
+        {
+          "type": "field",
+          "attrs": {
+            "name": "owner"
+          },
+          "children": [
+            {
+              "type": "text",
+              "attrs": {},
+              "children": [],
+              "text": "Ada"
+            }
+          ]
+        },
+        {
+          "type": "field",
+          "attrs": {
+            "name": "citation"
+          },
+          "children": [
+            {
+              "type": "strong",
+              "attrs": {},
+              "children": [
+                {
+                  "type": "text",
+                  "attrs": {},
+                  "children": [],
+                  "text": "Canonical"
+                }
+              ]
+            },
+            {
+              "type": "text",
+              "attrs": {},
+              "children": [],
+              "text": " "
+            },
+            {
+              "type": "wikilinks",
+              "attrs": {
+                "target": "details",
+                "chapter": "details",
+                "heading": "",
+                "label": "details"
+              },
+              "children": []
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "node",
+      "type": "note",
+      "path": "node.md",
+      "fields": {
+        "bottom line": "Node result.",
+        "owner": {
+          "team": [
+            "Ada",
+            "Lin"
+          ]
+        },
+        "description": "Long metadata Long metadata Long metadata Long metadata Long metadata Long metadata Long metadata Long metadata Long metadata Long metadata Long metadata Long metadata Long metadata Long metadata Long metadata Long metadata Long metadata Long metadata Long metadata Long metadata",
+        "status": "draft",
+        "extra": "omitted"
+      },
+      "fieldNodes": [
+        {
+          "type": "field",
+          "attrs": {
+            "name": "bottom line"
+          },
+          "children": [
+            {
+              "type": "text",
+              "attrs": {},
+              "children": [],
+              "text": "Node result."
+            }
+          ]
+        },
+        {
+          "type": "field",
+          "attrs": {
+            "name": "owner.team.0"
+          },
+          "children": [
+            {
+              "type": "text",
+              "attrs": {},
+              "children": [],
+              "text": "Ada"
+            }
+          ]
+        },
+        {
+          "type": "field",
+          "attrs": {
+            "name": "owner.team.1"
+          },
+          "children": [
+            {
+              "type": "text",
+              "attrs": {},
+              "children": [],
+              "text": "Lin"
+            }
+          ]
+        },
+        {
+          "type": "field",
+          "attrs": {
+            "name": "description"
+          },
+          "children": [
+            {
+              "type": "text",
+              "attrs": {},
+              "children": [],
+              "text": "Long metadata Long metadata Long metadata Long metadata Long metadata Long metadata Long metadata Long metadata Long metadata Long metadata Long metadata Long metadata Long metadata Long metadata Long metadata Long metadata Long metadata Long metadata Long metadata Long metadata"
+            }
+          ]
+        },
+        {
+          "type": "field",
+          "attrs": {
+            "name": "status"
+          },
+          "children": [
+            {
+              "type": "text",
+              "attrs": {},
+              "children": [],
+              "text": "draft"
+            }
+          ]
+        },
+        {
+          "type": "field",
+          "attrs": {
+            "name": "extra"
+          },
+          "children": [
+            {
+              "type": "text",
+              "attrs": {},
+              "children": [],
+              "text": "omitted"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "parent",
+      "type": "note",
+      "path": "parent.md",
+      "fields": {},
+      "fieldNodes": []
+    },
+    {
+      "id": "quiet-reference",
+      "type": "note",
+      "path": "quiet-reference.md",
+      "fields": {
+        "document": "Unlinked source",
+        "description": "Selected only by a Bases query.",
+        "kind": "reference"
+      },
+      "fieldNodes": [
+        {
+          "type": "field",
+          "attrs": {
+            "name": "document"
+          },
+          "children": [
+            {
+              "type": "text",
+              "attrs": {},
+              "children": [],
+              "text": "Unlinked source"
+            }
+          ]
+        },
+        {
+          "type": "field",
+          "attrs": {
+            "name": "description"
+          },
+          "children": [
+            {
+              "type": "text",
+              "attrs": {},
+              "children": [],
+              "text": "Selected only by a Bases query."
+            }
+          ]
+        },
+        {
+          "type": "field",
+          "attrs": {
+            "name": "kind"
+          },
+          "children": [
+            {
+              "type": "text",
+              "attrs": {},
+              "children": [],
+              "text": "reference"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "reference",
+      "type": "note",
+      "path": "reference.md",
+      "fields": {
+        "document": "[Source document](details.md)",
+        "description": "A source whose metadata is its complete content.",
+        "kind": "reference"
+      },
+      "fieldNodes": [
+        {
+          "type": "field",
+          "attrs": {
+            "name": "document"
+          },
+          "children": [
+            {
+              "type": "text",
+              "attrs": {
+                "link": "source-document"
+              },
+              "children": [],
+              "text": "Source document"
+            }
+          ]
+        },
+        {
+          "type": "field",
+          "attrs": {
+            "name": "description"
+          },
+          "children": [
+            {
+              "type": "text",
+              "attrs": {},
+              "children": [],
+              "text": "A source whose metadata is its complete content."
+            }
+          ]
+        },
+        {
+          "type": "field",
+          "attrs": {
+            "name": "kind"
+          },
+          "children": [
+            {
+              "type": "text",
+              "attrs": {},
+              "children": [],
+              "text": "reference"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "references",
+      "type": "note",
+      "path": "references.md",
+      "fields": {},
+      "fieldNodes": []
+    },
+    {
+      "id": "tags",
+      "type": "note",
+      "path": "tags.md",
+      "fields": {},
+      "fieldNodes": []
+    },
+    {
+      "id": "unreferenced",
+      "type": "note",
+      "path": "unreferenced.md",
+      "fields": {},
+      "fieldNodes": []
+    },
+    {
+      "id": "chapter-parent",
+      "type": "chapter",
+      "note": "parent",
+      "fields": {
+        "chapter": "Parent",
+        "title": "Parent",
+        "depth": "0",
+        "slug": "parent",
+        "sourcePath": "parent.md"
+      }
+    },
+    {
+      "id": "chapter-child",
+      "type": "chapter",
+      "note": "child",
+      "fields": {
+        "chapter": "Child",
+        "title": "Child",
+        "depth": "1",
+        "slug": "child",
+        "sourcePath": "child.md"
+      }
+    },
+    {
+      "id": "chapter-node",
+      "type": "chapter",
+      "note": "node",
+      "fields": {
+        "chapter": "Node",
+        "title": "Node",
+        "depth": "2",
+        "slug": "node",
+        "sourcePath": "node.md"
+      }
+    },
+    {
+      "id": "chapter-glossary",
+      "type": "chapter",
+      "note": "glossary",
+      "fields": {
+        "chapter": "Glossary",
+        "title": "Glossary",
+        "depth": "0",
+        "slug": "glossary",
+        "sourcePath": "glossary.md"
+      }
+    },
+    {
+      "id": "chapter-tags",
+      "type": "chapter",
+      "note": "tags",
+      "fields": {
+        "chapter": "Tags",
+        "title": "Tags",
+        "depth": "0",
+        "slug": "tags",
+        "sourcePath": "tags.md"
+      }
+    },
+    {
+      "id": "chapter-references",
+      "type": "chapter",
+      "note": "references",
+      "fields": {
+        "chapter": "References",
+        "title": "References",
+        "depth": "0",
+        "slug": "references",
+        "sourcePath": "references.md"
+      }
+    },
+    {
+      "id": "glossary-bluf",
+      "type": "glossary",
+      "note": "bluf",
+      "fields": {
+        "sourcePath": "bluf.md",
+        "term": "BLUF",
+        "definition": "The principle of presenting the [[bottom line]] first.",
+        "aliases": [
+          "Conclusion upfront"
+        ]
+      }
+    },
+    {
+      "id": "tag-child-question-child-question",
+      "type": "tag",
+      "note": "child",
+      "fields": {
+        "sourcePath": "child.md",
+        "type": "question",
+        "label": "child_question",
+        "text": "Question.",
+        "source": "Child"
+      }
+    },
+    {
+      "id": "tag-child-open-point-child-open",
+      "type": "tag",
+      "note": "child",
+      "fields": {
+        "sourcePath": "child.md",
+        "type": "open_point",
+        "label": "child_open",
+        "text": "Resolve this.",
+        "source": "Child"
+      }
+    },
+    {
+      "id": "glossary-conclusion",
+      "type": "glossary",
+      "note": "conclusion",
+      "fields": {
+        "sourcePath": "conclusion.md",
+        "term": "Conclusion",
+        "definition": "The conclusion.",
+        "aliases": [
+          "bottom line"
+        ]
+      }
+    },
+    {
+      "id": "document-metadata-title",
+      "type": "documentMetadata",
+      "fields": {
+        "key": "title",
+        "value": "Test document"
+      }
+    },
+    {
+      "id": "document-metadata-subtitle",
+      "type": "documentMetadata",
+      "fields": {
+        "key": "subtitle",
+        "value": "Bridge **subtitle** ![Obsidian](obsidian.svg) ![HTML](html.svg)"
+      }
+    },
+    {
+      "id": "document-metadata-status",
+      "type": "documentMetadata",
+      "fields": {
+        "key": "status",
+        "value": "active"
+      }
+    },
+    {
+      "id": "document-metadata-owners",
+      "type": "documentMetadata",
+      "fields": {
+        "key": "owners",
+        "value": {
+          "team": [
+            "Ada",
+            "Lin"
+          ]
+        }
+      }
+    }
+  ],
+  "semanticResources": [],
+  "diagnostics": [
+    {
+      "level": "warning",
+      "message": "parent.md:7: image without caption. Use a figure fence with kind: image, source: shared.png and a caption; see input-model#Figure captions and references."
+    },
+    {
+      "level": "warning",
+      "message": "child.md:10: image without caption. Use a figure fence with kind: image, source: shared.png and a caption; see input-model#Figure captions and references."
+    },
+    {
+      "level": "warning",
+      "message": "node.md:12: long paragraph (15 estimated lines at 80 characters; maximum 5). Split it into shorter paragraphs; see input-model#Long paragraphs."
+    }
+  ],
+  "capabilities": [
+    "attachments",
+    "bases",
+    "callouts",
+    "chapter-inclusion",
+    "manifest",
+    "markdown",
+    "markdown-frontmatter",
+    "marks",
+    "quantities",
+    "references",
+    "registers",
+    "wikilinks"
+  ],
+  "cssSnippets": []
+}

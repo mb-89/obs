@@ -1,0 +1,3427 @@
+{
+  "schemaVersion": 1,
+  "manifest": {
+    "title": "Fixture document",
+    "path": "manifest.md",
+    "metadata": {
+      "title": "Fixture document",
+      "document type": "Specification",
+      "organization": "Example org",
+      "product": {
+        "name": "Widget",
+        "version": "2"
+      },
+      "authors": [
+        "Ada",
+        "Lin"
+      ],
+      "obsHtml": {
+        "layout": "paged",
+        "print": {
+          "paper": "Letter",
+          "margin": "15mm"
+        },
+        "pages": [
+          {
+            "page": "cover"
+          },
+          {
+            "page": "contents",
+            "title": "Contents"
+          },
+          {
+            "page": "abstract",
+            "title": "Abstract"
+          }
+        ]
+      },
+      "obs": {
+        "document": true
+      }
+    },
+    "abstract": [
+      {
+        "type": "markdown-frontmatter",
+        "attrs": {
+          "metadata": {
+            "title": "Fixture document",
+            "document type": "Specification",
+            "organization": "Example org",
+            "product": {
+              "name": "Widget",
+              "version": "2"
+            },
+            "authors": [
+              "Ada",
+              "Lin"
+            ],
+            "obsHtml": {
+              "layout": "paged",
+              "print": {
+                "paper": "Letter",
+                "margin": "15mm"
+              },
+              "pages": [
+                {
+                  "page": "cover"
+                },
+                {
+                  "page": "contents",
+                  "title": "Contents"
+                },
+                {
+                  "page": "abstract",
+                  "title": "Abstract"
+                }
+              ]
+            },
+            "obs": {
+              "document": true
+            }
+          }
+        },
+        "children": [
+          {
+            "type": "field",
+            "attrs": {
+              "name": "title"
+            },
+            "children": [
+              {
+                "type": "text",
+                "attrs": {},
+                "children": [],
+                "text": "Fixture document"
+              }
+            ]
+          },
+          {
+            "type": "field",
+            "attrs": {
+              "name": "document type"
+            },
+            "children": [
+              {
+                "type": "text",
+                "attrs": {},
+                "children": [],
+                "text": "Specification"
+              }
+            ]
+          },
+          {
+            "type": "field",
+            "attrs": {
+              "name": "organization"
+            },
+            "children": [
+              {
+                "type": "text",
+                "attrs": {},
+                "children": [],
+                "text": "Example org"
+              }
+            ]
+          },
+          {
+            "type": "field",
+            "attrs": {
+              "name": "product.name"
+            },
+            "children": [
+              {
+                "type": "text",
+                "attrs": {},
+                "children": [],
+                "text": "Widget"
+              }
+            ]
+          },
+          {
+            "type": "field",
+            "attrs": {
+              "name": "product.version"
+            },
+            "children": [
+              {
+                "type": "text",
+                "attrs": {},
+                "children": [],
+                "text": "2"
+              }
+            ]
+          },
+          {
+            "type": "field",
+            "attrs": {
+              "name": "authors.0"
+            },
+            "children": [
+              {
+                "type": "text",
+                "attrs": {},
+                "children": [],
+                "text": "Ada"
+              }
+            ]
+          },
+          {
+            "type": "field",
+            "attrs": {
+              "name": "authors.1"
+            },
+            "children": [
+              {
+                "type": "text",
+                "attrs": {},
+                "children": [],
+                "text": "Lin"
+              }
+            ]
+          },
+          {
+            "type": "field",
+            "attrs": {
+              "name": "obsHtml.layout"
+            },
+            "children": [
+              {
+                "type": "text",
+                "attrs": {},
+                "children": [],
+                "text": "paged"
+              }
+            ]
+          },
+          {
+            "type": "field",
+            "attrs": {
+              "name": "obsHtml.print.paper"
+            },
+            "children": [
+              {
+                "type": "text",
+                "attrs": {},
+                "children": [],
+                "text": "Letter"
+              }
+            ]
+          },
+          {
+            "type": "field",
+            "attrs": {
+              "name": "obsHtml.print.margin"
+            },
+            "children": [
+              {
+                "type": "text",
+                "attrs": {},
+                "children": [],
+                "text": "15mm"
+              }
+            ]
+          },
+          {
+            "type": "field",
+            "attrs": {
+              "name": "obsHtml.pages.0.page"
+            },
+            "children": [
+              {
+                "type": "text",
+                "attrs": {},
+                "children": [],
+                "text": "cover"
+              }
+            ]
+          },
+          {
+            "type": "field",
+            "attrs": {
+              "name": "obsHtml.pages.1.page"
+            },
+            "children": [
+              {
+                "type": "text",
+                "attrs": {},
+                "children": [],
+                "text": "contents"
+              }
+            ]
+          },
+          {
+            "type": "field",
+            "attrs": {
+              "name": "obsHtml.pages.1.title"
+            },
+            "children": [
+              {
+                "type": "text",
+                "attrs": {},
+                "children": [],
+                "text": "Contents"
+              }
+            ]
+          },
+          {
+            "type": "field",
+            "attrs": {
+              "name": "obsHtml.pages.2.page"
+            },
+            "children": [
+              {
+                "type": "text",
+                "attrs": {},
+                "children": [],
+                "text": "abstract"
+              }
+            ]
+          },
+          {
+            "type": "field",
+            "attrs": {
+              "name": "obsHtml.pages.2.title"
+            },
+            "children": [
+              {
+                "type": "text",
+                "attrs": {},
+                "children": [],
+                "text": "Abstract"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "type": "profiles",
+        "attrs": {
+          "profile": {
+            "document": true
+          }
+        },
+        "children": []
+      },
+      {
+        "type": "manifest",
+        "attrs": {},
+        "children": []
+      },
+      {
+        "type": "markdown",
+        "attrs": {},
+        "children": []
+      },
+      {
+        "type": "paragraph",
+        "attrs": {},
+        "children": [
+          {
+            "type": "text",
+            "attrs": {},
+            "children": [],
+            "text": "A short <abstract>."
+          }
+        ],
+        "id": "paragraph-8254a15d"
+      }
+    ]
+  },
+  "chapters": [
+    {
+      "id": "intro",
+      "title": "Intro",
+      "content": [
+        {
+          "type": "markdown-frontmatter",
+          "attrs": {
+            "metadata": {
+              "owner": "Ada",
+              "tags": [
+                "a",
+                "b"
+              ]
+            }
+          },
+          "children": [
+            {
+              "type": "field",
+              "attrs": {
+                "name": "owner"
+              },
+              "children": [
+                {
+                  "type": "text",
+                  "attrs": {},
+                  "children": [],
+                  "text": "Ada"
+                }
+              ]
+            },
+            {
+              "type": "field",
+              "attrs": {
+                "name": "tags.0"
+              },
+              "children": [
+                {
+                  "type": "text",
+                  "attrs": {},
+                  "children": [],
+                  "text": "a"
+                }
+              ]
+            },
+            {
+              "type": "field",
+              "attrs": {
+                "name": "tags.1"
+              },
+              "children": [
+                {
+                  "type": "text",
+                  "attrs": {},
+                  "children": [],
+                  "text": "b"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "chapter-inclusion",
+          "attrs": {
+            "id": "intro"
+          },
+          "children": []
+        },
+        {
+          "type": "markdown",
+          "attrs": {},
+          "children": []
+        },
+        {
+          "type": "section",
+          "attrs": {
+            "level": 1
+          },
+          "children": [
+            {
+              "type": "text",
+              "attrs": {},
+              "children": [],
+              "text": "Intro"
+            }
+          ],
+          "id": "section-36539243"
+        },
+        {
+          "type": "paragraph",
+          "attrs": {},
+          "children": [
+            {
+              "type": "text",
+              "attrs": {},
+              "children": [],
+              "text": "See "
+            },
+            {
+              "type": "wikilinks",
+              "attrs": {
+                "target": "guide/usage",
+                "chapter": "guide-usage",
+                "heading": "Details",
+                "label": "the details"
+              },
+              "children": []
+            },
+            {
+              "type": "text",
+              "attrs": {},
+              "children": [],
+              "text": ", "
+            },
+            {
+              "type": "text",
+              "attrs": {
+                "link": "the-site"
+              },
+              "children": [],
+              "text": "the site"
+            },
+            {
+              "type": "text",
+              "attrs": {},
+              "children": [],
+              "text": " and "
+            },
+            {
+              "type": "attachments",
+              "attrs": {
+                "asset": "a-logo",
+                "label": "a logo"
+              },
+              "children": []
+            },
+            {
+              "type": "text",
+              "attrs": {},
+              "children": [],
+              "text": ". "
+            },
+            {
+              "type": "wikilinks",
+              "attrs": {
+                "target": "missing",
+                "chapter": null,
+                "heading": "",
+                "label": "gone"
+              },
+              "children": []
+            },
+            {
+              "type": "text",
+              "attrs": {},
+              "children": [],
+              "text": " "
+            },
+            {
+              "type": "code",
+              "attrs": {},
+              "children": [],
+              "text": "x < y"
+            },
+            {
+              "type": "text",
+              "attrs": {},
+              "children": [],
+              "text": " "
+            },
+            {
+              "type": "marks",
+              "attrs": {
+                "category": "risk",
+                "id": "limit"
+              },
+              "children": []
+            }
+          ],
+          "id": "paragraph-957766ff"
+        },
+        {
+          "type": "embeds",
+          "attrs": {
+            "target": "guide/usage",
+            "chapter": "guide-usage"
+          },
+          "children": [],
+          "id": "embeds-d2658b78"
+        },
+        {
+          "type": "list",
+          "attrs": {
+            "ordered": true,
+            "tight": true
+          },
+          "children": [
+            {
+              "type": "list-item",
+              "attrs": {},
+              "children": [
+                {
+                  "type": "paragraph",
+                  "attrs": {},
+                  "children": [
+                    {
+                      "type": "text",
+                      "attrs": {},
+                      "children": [],
+                      "text": "one"
+                    }
+                  ],
+                  "id": "paragraph-7692c3ad"
+                }
+              ],
+              "id": "list-item-7692c3ad"
+            },
+            {
+              "type": "list-item",
+              "attrs": {},
+              "children": [
+                {
+                  "type": "paragraph",
+                  "attrs": {},
+                  "children": [
+                    {
+                      "type": "text",
+                      "attrs": {},
+                      "children": [],
+                      "text": "two"
+                    }
+                  ],
+                  "id": "paragraph-3fc4ccfe"
+                }
+              ],
+              "id": "list-item-3fc4ccfe"
+            }
+          ],
+          "id": "list-0d298ada"
+        },
+        {
+          "type": "bases",
+          "attrs": {
+            "source": "filters:\n  and: ['kind == \"item\"', 'rank != null']\nproperties:\n  item.name: {displayName: Name}\nviews:\n  - type: table\n    name: Items\n    order: [file.name, item.name, rank]\n    sort: [{property: rank, direction: DESC}]\n",
+            "spec": {
+              "filters": {
+                "and": [
+                  "kind == \"item\"",
+                  "rank != null"
+                ]
+              },
+              "properties": {
+                "item.name": {
+                  "displayName": "Name"
+                }
+              },
+              "views": [
+                {
+                  "type": "table",
+                  "name": "Items",
+                  "order": [
+                    "file.name",
+                    "item.name",
+                    "rank"
+                  ],
+                  "sort": [
+                    {
+                      "property": "rank",
+                      "direction": "DESC"
+                    }
+                  ]
+                }
+              ]
+            }
+          },
+          "children": [],
+          "id": "bases-cc30b281"
+        },
+        {
+          "type": "command-fences",
+          "attrs": {
+            "source": "echo derived\n",
+            "output": "derived\n"
+          },
+          "children": [],
+          "id": "command-fences-576af4dd"
+        },
+        {
+          "type": "command-fences",
+          "attrs": {
+            "source": "echo produced > produced.txt\n",
+            "silent": true
+          },
+          "children": [],
+          "id": "command-fences-a7028135"
+        }
+      ],
+      "children": [
+        {
+          "id": "guide-usage",
+          "title": "Usage",
+          "content": [
+            {
+              "type": "chapter-inclusion",
+              "attrs": {
+                "id": "guide-usage"
+              },
+              "children": []
+            },
+            {
+              "type": "markdown",
+              "attrs": {},
+              "children": []
+            },
+            {
+              "type": "section",
+              "attrs": {
+                "level": 2
+              },
+              "children": [
+                {
+                  "type": "text",
+                  "attrs": {},
+                  "children": [],
+                  "text": "Usage"
+                }
+              ],
+              "id": "section-a3e7bb6a"
+            },
+            {
+              "type": "section",
+              "attrs": {
+                "level": 3
+              },
+              "children": [
+                {
+                  "type": "text",
+                  "attrs": {},
+                  "children": [],
+                  "text": "Details"
+                }
+              ],
+              "id": "section-0769abd6"
+            },
+            {
+              "type": "paragraph",
+              "attrs": {},
+              "children": [
+                {
+                  "type": "text",
+                  "attrs": {},
+                  "children": [],
+                  "text": "Body."
+                }
+              ],
+              "id": "paragraph-521b25cc"
+            }
+          ],
+          "children": [],
+          "metadata": {}
+        }
+      ],
+      "metadata": {
+        "owner": "Ada",
+        "tags": [
+          "a",
+          "b"
+        ]
+      }
+    },
+    {
+      "id": "appendix",
+      "title": "Appendix",
+      "content": [
+        {
+          "type": "chapter-inclusion",
+          "attrs": {
+            "id": "appendix"
+          },
+          "children": []
+        },
+        {
+          "type": "markdown",
+          "attrs": {},
+          "children": []
+        },
+        {
+          "type": "paragraph",
+          "attrs": {},
+          "children": [
+            {
+              "type": "text",
+              "attrs": {},
+              "children": [],
+              "text": "No heading here. See "
+            },
+            {
+              "type": "wikilinks",
+              "attrs": {
+                "target": "datum",
+                "chapter": "datum",
+                "heading": "",
+                "label": "datum"
+              },
+              "children": []
+            },
+            {
+              "type": "text",
+              "attrs": {},
+              "children": [],
+              "text": " and "
+            },
+            {
+              "type": "wikilinks",
+              "attrs": {
+                "target": "other",
+                "chapter": "other",
+                "heading": "",
+                "label": "other"
+              },
+              "children": []
+            },
+            {
+              "type": "text",
+              "attrs": {},
+              "children": [],
+              "text": "."
+            }
+          ],
+          "id": "paragraph-9d91235b"
+        },
+        {
+          "type": "figures",
+          "attrs": {
+            "kind": "plot"
+          },
+          "children": [
+            {
+              "type": "plot",
+              "attrs": {
+                "descriptor": {
+                  "schemaVersion": 1,
+                  "id": "response",
+                  "data": {
+                    "traces": [
+                      {
+                        "label": "measured",
+                        "x": [
+                          0,
+                          1,
+                          2
+                        ],
+                        "y": [
+                          1,
+                          4,
+                          9
+                        ]
+                      },
+                      {
+                        "label": "model",
+                        "x": [
+                          0,
+                          1,
+                          2
+                        ],
+                        "y": [
+                          1,
+                          3,
+                          8
+                        ],
+                        "mode": "lines+markers"
+                      }
+                    ]
+                  },
+                  "panels": [
+                    {
+                      "id": "main",
+                      "bounds": {
+                        "x": 0,
+                        "y": 0,
+                        "width": 720,
+                        "height": 320
+                      },
+                      "grid": {
+                        "row": 0,
+                        "column": 0,
+                        "rowSpan": 1,
+                        "columnSpan": 1
+                      },
+                      "axes": [
+                        {
+                          "id": "time",
+                          "scale": "linear",
+                          "limits": {
+                            "minimum": 0,
+                            "maximum": 2
+                          },
+                          "label": "Time"
+                        },
+                        {
+                          "id": "value",
+                          "scale": "log",
+                          "limits": {
+                            "minimum": 1,
+                            "maximum": 10
+                          },
+                          "label": "Value"
+                        }
+                      ]
+                    }
+                  ],
+                  "provenance": {
+                    "command": [
+                      "generate-response"
+                    ]
+                  }
+                }
+              },
+              "children": []
+            }
+          ],
+          "id": "figures-009c9499"
+        },
+        {
+          "type": "figures",
+          "attrs": {
+            "kind": "plot"
+          },
+          "children": [
+            {
+              "type": "plot",
+              "attrs": {
+                "descriptor": {
+                  "schemaVersion": 1,
+                  "id": "flow",
+                  "data": {
+                    "sankey": {
+                      "version": 1,
+                      "nodes": [
+                        {
+                          "id": "in",
+                          "label": "Input",
+                          "stage": 0
+                        },
+                        {
+                          "id": "out",
+                          "label": "Output",
+                          "stage": 1
+                        },
+                        {
+                          "id": "loss",
+                          "label": "Loss",
+                          "stage": 1
+                        }
+                      ],
+                      "links": [
+                        {
+                          "source": "in",
+                          "target": "out",
+                          "value": 8
+                        },
+                        {
+                          "source": "in",
+                          "target": "loss",
+                          "value": 2
+                        }
+                      ]
+                    }
+                  },
+                  "panels": [
+                    {
+                      "id": "flow",
+                      "bounds": {
+                        "x": 0,
+                        "y": 0,
+                        "width": 700,
+                        "height": 680
+                      },
+                      "grid": {
+                        "row": 0,
+                        "column": 0,
+                        "rowSpan": 1,
+                        "columnSpan": 1
+                      },
+                      "axes": [
+                        {
+                          "id": "stage",
+                          "scale": "linear",
+                          "limits": {
+                            "minimum": 0,
+                            "maximum": 1
+                          },
+                          "label": "Stage"
+                        }
+                      ]
+                    }
+                  ],
+                  "provenance": {
+                    "command": [
+                      "generate-flow"
+                    ]
+                  }
+                }
+              },
+              "children": []
+            }
+          ],
+          "id": "figures-009c9499-2"
+        },
+        {
+          "type": "callouts",
+          "attrs": {
+            "kind": "warning",
+            "title": [
+              {
+                "type": "text",
+                "attrs": {},
+                "children": [],
+                "text": "Check the limits"
+              }
+            ]
+          },
+          "children": [
+            {
+              "type": "paragraph",
+              "attrs": {},
+              "children": [
+                {
+                  "type": "text",
+                  "attrs": {},
+                  "children": [],
+                  "text": "The badge "
+                },
+                {
+                  "type": "attachments",
+                  "attrs": {
+                    "asset": "a-logo",
+                    "label": "Logo"
+                  },
+                  "children": []
+                },
+                {
+                  "type": "text",
+                  "attrs": {},
+                  "children": [],
+                  "text": " marks it."
+                }
+              ],
+              "id": "paragraph-ae63abb0"
+            }
+          ],
+          "id": "callouts-4289d30a"
+        },
+        {
+          "type": "columns",
+          "attrs": {
+            "weights": [
+              1,
+              2
+            ]
+          },
+          "children": [
+            {
+              "type": "document",
+              "attrs": {},
+              "children": [
+                {
+                  "type": "paragraph",
+                  "attrs": {},
+                  "children": [
+                    {
+                      "type": "text",
+                      "attrs": {},
+                      "children": [],
+                      "text": "The claim."
+                    }
+                  ],
+                  "id": "paragraph-91a47f91"
+                }
+              ],
+              "id": "document-bceab407"
+            },
+            {
+              "type": "document",
+              "attrs": {},
+              "children": [
+                {
+                  "type": "paragraph",
+                  "attrs": {},
+                  "children": [
+                    {
+                      "type": "text",
+                      "attrs": {},
+                      "children": [],
+                      "text": "Its evidence."
+                    }
+                  ],
+                  "id": "paragraph-08658013"
+                }
+              ],
+              "id": "document-bceab407-2"
+            }
+          ],
+          "id": "columns-bceab407"
+        },
+        {
+          "type": "cards-metrics",
+          "attrs": {
+            "source": "{\"version\": 1, \"cards\": [{\"title\": \"Items\", \"body\": \"Ranked: [[rankedItems]].\", \"metrics\": [{\"label\": \"Items\", \"where\": [{\"field\": \"kind\", \"equals\": \"item\"}]}, {\"label\": \"Ranks\", \"from\": \"ranked\", \"where\": [], \"distinct\": \"rank\"}]}]}\n",
+            "spec": {
+              "version": 1,
+              "cards": [
+                {
+                  "title": "Items",
+                  "body": "Ranked: [[rankedItems]].",
+                  "metrics": [
+                    {
+                      "label": "Items",
+                      "where": [
+                        {
+                          "field": "kind",
+                          "equals": "item"
+                        }
+                      ]
+                    },
+                    {
+                      "label": "Ranks",
+                      "from": "ranked",
+                      "where": [],
+                      "distinct": "rank"
+                    }
+                  ]
+                }
+              ]
+            }
+          },
+          "children": [
+            {
+              "type": "document",
+              "attrs": {
+                "title": [
+                  {
+                    "type": "text",
+                    "attrs": {},
+                    "children": [],
+                    "text": "Items"
+                  }
+                ],
+                "labels": [
+                  [
+                    {
+                      "type": "text",
+                      "attrs": {},
+                      "children": [],
+                      "text": "Items"
+                    }
+                  ],
+                  [
+                    {
+                      "type": "text",
+                      "attrs": {},
+                      "children": [],
+                      "text": "Ranks"
+                    }
+                  ]
+                ]
+              },
+              "children": [
+                {
+                  "type": "paragraph",
+                  "attrs": {},
+                  "children": [
+                    {
+                      "type": "text",
+                      "attrs": {},
+                      "children": [],
+                      "text": "Ranked: "
+                    },
+                    {
+                      "type": "wikilinks",
+                      "attrs": {
+                        "target": "rankedItems",
+                        "chapter": "ranked",
+                        "heading": "",
+                        "label": "rankedItems"
+                      },
+                      "children": []
+                    },
+                    {
+                      "type": "text",
+                      "attrs": {},
+                      "children": [],
+                      "text": "."
+                    }
+                  ],
+                  "id": "paragraph-043c8ce6"
+                }
+              ],
+              "id": "document-2e0059a2"
+            }
+          ],
+          "id": "cards-metrics-bceab407"
+        },
+        {
+          "type": "registers",
+          "attrs": {
+            "target": "items.base",
+            "heading": "",
+            "base": {
+              "filters": "kind == \"item\"",
+              "views": [
+                {
+                  "type": "table",
+                  "name": "Items",
+                  "order": [
+                    "file.name",
+                    "rank"
+                  ]
+                },
+                {
+                  "type": "table",
+                  "name": "Ranked",
+                  "filters": "rank != null",
+                  "order": [
+                    "file.name",
+                    "rank"
+                  ]
+                }
+              ]
+            },
+            "view": null,
+            "rows": [
+              [
+                "alpha",
+                "beta",
+                "gamma"
+              ],
+              [
+                "alpha",
+                "beta"
+              ]
+            ]
+          },
+          "children": [],
+          "id": "registers-904ef37f"
+        },
+        {
+          "type": "figures",
+          "attrs": {
+            "kind": "mermaid"
+          },
+          "children": [
+            {
+              "type": "mermaid",
+              "attrs": {
+                "source": "graph LR\n  Item --> Rank\n",
+                "svg": "<svg id=\"diagram-18c71adf9741\" width=\"255.4765625\" xmlns=\"http://www.w3.org/2000/svg\" class=\"flowchart\" height=\"63\" viewBox=\"0 0 255.4765625 63\" role=\"graphics-document document\" aria-roledescription=\"flowchart-v2\"><style>#diagram-18c71adf9741{font-family:\"trebuchet ms\",verdana,arial,sans-serif;font-size:16px;fill:#333;}@keyframes edge-animation-frame{from{stroke-dashoffset:0;}}@keyframes dash{to{stroke-dashoffset:0;}}#diagram-18c71adf9741 .edge-animation-slow{stroke-dasharray:9,5!important;stroke-dashoffset:900;animation:dash 50s linear infinite;stroke-linecap:round;}#diagram-18c71adf9741 .edge-animation-fast{stroke-dasharray:9,5!important;stroke-dashoffset:900;animation:dash 20s linear infinite;stroke-linecap:round;}#diagram-18c71adf9741 .error-icon{fill:#552222;}#diagram-18c71adf9741 .error-text{fill:#552222;stroke:#552222;}#diagram-18c71adf9741 .edge-thickness-normal{stroke-width:1px;}#diagram-18c71adf9741 .edge-thickness-thick{stroke-width:3.5px;}#diagram-18c71adf9741 .edge-pattern-solid{stroke-dasharray:0;}#diagram-18c71adf9741 .edge-thickness-invisible{stroke-width:0;fill:none;}#diagram-18c71adf9741 .edge-pattern-dashed{stroke-dasharray:3;}#diagram-18c71adf9741 .edge-pattern-dotted{stroke-dasharray:2;}#diagram-18c71adf9741 .marker{fill:#333333;stroke:#333333;}#diagram-18c71adf9741 .marker.cross{stroke:#333333;}#diagram-18c71adf9741 svg{font-family:\"trebuchet ms\",verdana,arial,sans-serif;font-size:16px;}#diagram-18c71adf9741 p{margin:0;}#diagram-18c71adf9741 .label{font-family:\"trebuchet ms\",verdana,arial,sans-serif;color:#333;}#diagram-18c71adf9741 .cluster-label text{fill:#333;}#diagram-18c71adf9741 .cluster-label span{color:#333;}#diagram-18c71adf9741 .cluster-label span p{background-color:transparent;}#diagram-18c71adf9741 .label text,#diagram-18c71adf9741 span{fill:#333;color:#333;}#diagram-18c71adf9741 .node rect,#diagram-18c71adf9741 .node circle,#diagram-18c71adf9741 .node ellipse,#diagram-18c71adf9741 .node polygon,#diagram-18c71adf9741 .node path{fill:#ECECFF;stroke:#9370DB;stroke-width:1px;}#diagram-18c71adf9741 .rough-node .label text,#diagram-18c71adf9741 .node .label text,#diagram-18c71adf9741 .image-shape .label,#diagram-18c71adf9741 .icon-shape .label{text-anchor:middle;}#diagram-18c71adf9741 .node .katex path{fill:#000;stroke:#000;stroke-width:1px;}#diagram-18c71adf9741 .rough-node .label,#diagram-18c71adf9741 .node .label,#diagram-18c71adf9741 .image-shape .label,#diagram-18c71adf9741 .icon-shape .label{text-align:center;}#diagram-18c71adf9741 .node.clickable{cursor:pointer;}#diagram-18c71adf9741 .root .anchor path{fill:#333333!important;stroke-width:0;stroke:#333333;}#diagram-18c71adf9741 .arrowheadPath{fill:#333333;}#diagram-18c71adf9741 .edgePaths .path{stroke:#333333;stroke-width:1px;}#diagram-18c71adf9741 .flowchart-link{stroke:#333333;fill:none;}#diagram-18c71adf9741 .edgeLabel{background-color:rgba(232,232,232, 0.8);text-align:center;}#diagram-18c71adf9741 .edgeLabel p{background-color:rgba(232,232,232, 0.8);}#diagram-18c71adf9741 .edgeLabel rect{opacity:0.5;background-color:rgba(232,232,232, 0.8);fill:rgba(232,232,232, 0.8);}#diagram-18c71adf9741 .labelBkg{background-color:rgba(232, 232, 232, 0.5);}#diagram-18c71adf9741 .cluster rect{fill:#ffffde;stroke:#aaaa33;stroke-width:1px;}#diagram-18c71adf9741 .cluster text{fill:#333;}#diagram-18c71adf9741 .cluster span{color:#333;}#diagram-18c71adf9741 .node .collapsed-indicator{fill:#aaaa33;stroke:none;opacity:0.6;}#diagram-18c71adf9741 .node .collapsed-separator{stroke:#aaaa33;stroke-width:0.75px;}#diagram-18c71adf9741 div.mermaidTooltip{position:absolute;text-align:center;max-width:200px;padding:2px;font-family:\"trebuchet ms\",verdana,arial,sans-serif;font-size:12px;background:hsl(80, 100%, 96.2745098039%);border:1px solid #aaaa33;border-radius:2px;pointer-events:none;z-index:100;}#diagram-18c71adf9741 .flowchartTitleText{text-anchor:middle;font-size:18px;fill:#333;}#diagram-18c71adf9741 rect.text{fill:none;stroke-width:0;}#diagram-18c71adf9741 .icon-shape,#diagram-18c71adf9741 .image-shape{background-color:rgba(232,232,232, 0.8);text-align:center;}#diagram-18c71adf9741 .icon-shape p,#diagram-18c71adf9741 .image-shape p{background-color:rgba(232,232,232, 0.8);padding:2px;}#diagram-18c71adf9741 .icon-shape .label rect,#diagram-18c71adf9741 .image-shape .label rect{opacity:0.5;background-color:rgba(232,232,232, 0.8);fill:rgba(232,232,232, 0.8);}#diagram-18c71adf9741 .label-icon{display:inline-block;height:1em;overflow:visible;vertical-align:-0.125em;}#diagram-18c71adf9741 .node .label-icon path{fill:currentColor;stroke:revert;stroke-width:revert;}#diagram-18c71adf9741 .node .neo-node{stroke:#9370DB;}#diagram-18c71adf9741 [data-look=\"neo\"].node rect,#diagram-18c71adf9741 [data-look=\"neo\"].cluster rect,#diagram-18c71adf9741 [data-look=\"neo\"].node polygon{stroke:#9370DB;filter:drop-shadow(1px 2px 2px rgba(185, 185, 185, 1));}#diagram-18c71adf9741 [data-look=\"neo\"].swimlane.cluster rect{filter:none;}#diagram-18c71adf9741 [data-look=\"neo\"].node path{stroke:#9370DB;stroke-width:1px;}#diagram-18c71adf9741 [data-look=\"neo\"].node .outer-path{filter:drop-shadow(1px 2px 2px rgba(185, 185, 185, 1));}#diagram-18c71adf9741 [data-look=\"neo\"].node .neo-line path{stroke:#9370DB;filter:none;}#diagram-18c71adf9741 [data-look=\"neo\"].node circle{stroke:#9370DB;filter:drop-shadow(1px 2px 2px rgba(185, 185, 185, 1));}#diagram-18c71adf9741 [data-look=\"neo\"].node circle .state-start{fill:#000000;}#diagram-18c71adf9741 [data-look=\"neo\"].icon-shape .icon{fill:#9370DB;filter:drop-shadow(1px 2px 2px rgba(185, 185, 185, 1));}#diagram-18c71adf9741 [data-look=\"neo\"].icon-shape .icon-neo path{stroke:#9370DB;filter:drop-shadow(1px 2px 2px rgba(185, 185, 185, 1));}#diagram-18c71adf9741 :root{--mermaid-font-family:\"trebuchet ms\",verdana,arial,sans-serif;}</style><g><marker id=\"diagram-18c71adf9741_flowchart-v2-pointEnd\" class=\"marker flowchart-v2\" viewBox=\"0 0 10 10\" refX=\"5\" refY=\"5\" markerUnits=\"userSpaceOnUse\" markerWidth=\"8\" markerHeight=\"8\" orient=\"auto\"><path d=\"M 0 0 L 10 5 L 0 10 z\" class=\"arrowMarkerPath\" style=\"stroke-width: 1; stroke-dasharray: 1, 0;\"></path></marker><marker id=\"diagram-18c71adf9741_flowchart-v2-pointStart\" class=\"marker flowchart-v2\" viewBox=\"0 0 10 10\" refX=\"4.5\" refY=\"5\" markerUnits=\"userSpaceOnUse\" markerWidth=\"8\" markerHeight=\"8\" orient=\"auto\"><path d=\"M 0 5 L 10 10 L 10 0 z\" class=\"arrowMarkerPath\" style=\"stroke-width: 1; stroke-dasharray: 1, 0;\"></path></marker><marker id=\"diagram-18c71adf9741_flowchart-v2-pointEnd-margin\" class=\"marker flowchart-v2\" viewBox=\"0 0 11.5 14\" refX=\"11.5\" refY=\"7\" markerUnits=\"userSpaceOnUse\" markerWidth=\"10.5\" markerHeight=\"14\" orient=\"auto\"><path d=\"M 0 0 L 11.5 7 L 0 14 z\" class=\"arrowMarkerPath\" style=\"stroke-width: 0; stroke-dasharray: 1, 0;\"></path></marker><marker id=\"diagram-18c71adf9741_flowchart-v2-pointStart-margin\" class=\"marker flowchart-v2\" viewBox=\"0 0 11.5 14\" refX=\"1\" refY=\"7\" markerUnits=\"userSpaceOnUse\" markerWidth=\"11.5\" markerHeight=\"14\" orient=\"auto\"><polygon points=\"0,7 11.5,14 11.5,0\" class=\"arrowMarkerPath\" style=\"stroke-width: 0; stroke-dasharray: 1, 0;\"></polygon></marker><marker id=\"diagram-18c71adf9741_flowchart-v2-circleEnd\" class=\"marker flowchart-v2\" viewBox=\"0 0 10 10\" refX=\"11\" refY=\"5\" markerUnits=\"userSpaceOnUse\" markerWidth=\"11\" markerHeight=\"11\" orient=\"auto\"><circle cx=\"5\" cy=\"5\" r=\"5\" class=\"arrowMarkerPath\" style=\"stroke-width: 1; stroke-dasharray: 1, 0;\"></circle></marker><marker id=\"diagram-18c71adf9741_flowchart-v2-circleStart\" class=\"marker flowchart-v2\" viewBox=\"0 0 10 10\" refX=\"-1\" refY=\"5\" markerUnits=\"userSpaceOnUse\" markerWidth=\"11\" markerHeight=\"11\" orient=\"auto\"><circle cx=\"5\" cy=\"5\" r=\"5\" class=\"arrowMarkerPath\" style=\"stroke-width: 1; stroke-dasharray: 1, 0;\"></circle></marker><marker id=\"diagram-18c71adf9741_flowchart-v2-circleEnd-margin\" class=\"marker flowchart-v2\" viewBox=\"0 0 10 10\" refY=\"5\" refX=\"12.25\" markerUnits=\"userSpaceOnUse\" markerWidth=\"14\" markerHeight=\"14\" orient=\"auto\"><circle cx=\"5\" cy=\"5\" r=\"5\" class=\"arrowMarkerPath\" style=\"stroke-width: 0; stroke-dasharray: 1, 0;\"></circle></marker><marker id=\"diagram-18c71adf9741_flowchart-v2-circleStart-margin\" class=\"marker flowchart-v2\" viewBox=\"0 0 10 10\" refX=\"-2\" refY=\"5\" markerUnits=\"userSpaceOnUse\" markerWidth=\"14\" markerHeight=\"14\" orient=\"auto\"><circle cx=\"5\" cy=\"5\" r=\"5\" class=\"arrowMarkerPath\" style=\"stroke-width: 0; stroke-dasharray: 1, 0;\"></circle></marker><marker id=\"diagram-18c71adf9741_flowchart-v2-crossEnd\" class=\"marker cross flowchart-v2\" viewBox=\"0 0 11 11\" refX=\"12\" refY=\"5.2\" markerUnits=\"userSpaceOnUse\" markerWidth=\"11\" markerHeight=\"11\" orient=\"auto\"><path d=\"M 1,1 l 9,9 M 10,1 l -9,9\" class=\"arrowMarkerPath\" style=\"stroke-width: 2; stroke-dasharray: 1, 0;\"></path></marker><marker id=\"diagram-18c71adf9741_flowchart-v2-crossStart\" class=\"marker cross flowchart-v2\" viewBox=\"0 0 11 11\" refX=\"-1\" refY=\"5.2\" markerUnits=\"userSpaceOnUse\" markerWidth=\"11\" markerHeight=\"11\" orient=\"auto\"><path d=\"M 1,1 l 9,9 M 10,1 l -9,9\" class=\"arrowMarkerPath\" style=\"stroke-width: 2; stroke-dasharray: 1, 0;\"></path></marker><marker id=\"diagram-18c71adf9741_flowchart-v2-crossEnd-margin\" class=\"marker cross flowchart-v2\" viewBox=\"0 0 15 15\" refX=\"17.7\" refY=\"7.5\" markerUnits=\"userSpaceOnUse\" markerWidth=\"12\" markerHeight=\"12\" orient=\"auto\"><path d=\"M 1,1 L 14,14 M 1,14 L 14,1\" class=\"arrowMarkerPath\" style=\"stroke-width: 2.5;\"></path></marker><marker id=\"diagram-18c71adf9741_flowchart-v2-crossStart-margin\" class=\"marker cross flowchart-v2\" viewBox=\"0 0 15 15\" refX=\"-3.5\" refY=\"7.5\" markerUnits=\"userSpaceOnUse\" markerWidth=\"12\" markerHeight=\"12\" orient=\"auto\"><path d=\"M 1,1 L 14,14 M 1,14 L 14,1\" class=\"arrowMarkerPath\" style=\"stroke-width: 2.5; stroke-dasharray: 1, 0;\"></path></marker><g class=\"root\"><g class=\"clusters\"></g><g class=\"edgePaths\"><path d=\"M99.125,31.5L103.292,31.5C107.458,31.5,115.792,31.5,123.458,31.5C131.125,31.5,138.125,31.5,141.625,31.5L145.125,31.5\" id=\"diagram-18c71adf9741-L_Item_Rank_0\" class=\"edge-thickness-normal edge-pattern-solid edge-thickness-normal edge-pattern-solid flowchart-link\" style=\";\" data-edge=\"true\" data-et=\"edge\" data-id=\"L_Item_Rank_0\" data-points=\"W3sieCI6OTkuMTI1LCJ5IjozMS41fSx7IngiOjEyNC4xMjUsInkiOjMxLjV9LHsieCI6MTQ5LjEyNSwieSI6MzEuNX1d\" data-look=\"classic\" marker-end=\"url(#diagram-18c71adf9741_flowchart-v2-pointEnd)\"></path></g><g class=\"edgeLabels\"><g class=\"edgeLabel\"><g class=\"label\" data-id=\"L_Item_Rank_0\" transform=\"translate(0, 0)\"><text y=\"-10.1\" text-anchor=\"middle\"><tspan class=\"text-outer-tspan row\" x=\"0\" y=\"-0.1em\" dy=\"1.1em\" text-anchor=\"middle\"></tspan></text></g></g><g><rect class=\"background\" style=\"stroke: none\"></rect></g></g><g class=\"nodes\"><g class=\"node default\" id=\"diagram-18c71adf9741-flowchart-Item-0\" data-look=\"classic\" transform=\"translate(53.5625, 31.5)\"><rect class=\"basic label-container\" style=\"\" x=\"-45.5625\" y=\"-23.5\" width=\"91.125\" height=\"47\"></rect><g class=\"label\" style=\"\" transform=\"translate(0, -8.5)\"><rect></rect><g><rect class=\"background\" style=\"stroke: none\"></rect><text y=\"-10.1\" style=\"\"><tspan class=\"text-outer-tspan row\" x=\"0\" y=\"-0.1em\" dy=\"1.1em\"><tspan font-style=\"normal\" class=\"text-inner-tspan\" font-weight=\"normal\">Item</tspan></tspan></text></g></g></g><g class=\"node default\" id=\"diagram-18c71adf9741-flowchart-Rank-1\" data-look=\"classic\" transform=\"translate(198.30078125, 31.5)\"><rect class=\"basic label-container\" style=\"\" x=\"-49.17578125\" y=\"-23.5\" width=\"98.3515625\" height=\"47\"></rect><g class=\"label\" style=\"\" transform=\"translate(0, -8.5)\"><rect></rect><g><rect class=\"background\" style=\"stroke: none\"></rect><text y=\"-10.1\" style=\"\"><tspan class=\"text-outer-tspan row\" x=\"0\" y=\"-0.1em\" dy=\"1.1em\"><tspan font-style=\"normal\" class=\"text-inner-tspan\" font-weight=\"normal\">Rank</tspan></tspan></text></g></g></g></g></g></g><defs><filter id=\"diagram-18c71adf9741-drop-shadow\" height=\"130%\" width=\"130%\"><feDropShadow dx=\"4\" dy=\"4\" stdDeviation=\"0\" flood-opacity=\"0.06\" flood-color=\"#000000\"></feDropShadow></filter></defs><defs><filter id=\"diagram-18c71adf9741-drop-shadow-small\" height=\"150%\" width=\"150%\"><feDropShadow dx=\"2\" dy=\"2\" stdDeviation=\"0\" flood-opacity=\"0.06\" flood-color=\"#000000\"></feDropShadow></filter></defs></svg>"
+              },
+              "children": []
+            }
+          ],
+          "id": "figures-b10d9bf6"
+        },
+        {
+          "type": "figures",
+          "attrs": {
+            "kind": "plantuml"
+          },
+          "children": [
+            {
+              "type": "plantuml",
+              "attrs": {
+                "source": "@startuml\nItem -> Rank\n@enduml\n",
+                "svg": "<svg xmlns=\"http://www.w3.org/2000/svg\" version=\"1.1\" viewBox=\"0 0 108 104\" width=\"108\" height=\"104\"><defs/><g><g class=\"message\" data-entity-1=\"part1\" data-entity-2=\"part2\" id=\"msg1\" data-source-line=\"1\"/><g class=\"participant-lifeline\" data-qualified-name=\"Item\" data-entity-uid=\"part1\" id=\"part1-lifeline\" data-source-line=\"1\"><g><title>Item</title><rect x=\"22.11\" y=\"36\" width=\"8\" height=\"32\" fill=\"#00000000\" stroke=\"#00000000\" stroke-width=\"0\"/><line x1=\"25.61\" y1=\"36\" x2=\"25.61\" y2=\"68\" stroke=\"#181818\" stroke-width=\"0.5\" stroke-dasharray=\"5,5\"/></g></g><g class=\"participant-lifeline\" data-qualified-name=\"Rank\" data-entity-uid=\"part2\" id=\"part2-lifeline\" data-source-line=\"1\"><g><title>Rank</title><rect x=\"76.07\" y=\"36\" width=\"8\" height=\"32\" fill=\"#00000000\" stroke=\"#00000000\" stroke-width=\"0\"/><line x1=\"79.57\" y1=\"36\" x2=\"79.57\" y2=\"68\" stroke=\"#181818\" stroke-width=\"0.5\" stroke-dasharray=\"5,5\"/></g></g><g class=\"participant participant-head\" data-qualified-name=\"Item\" data-entity-uid=\"part1\" id=\"part1-head\" data-source-line=\"1\"><rect x=\"5\" y=\"5\" width=\"41.23\" height=\"30\" rx=\"2.5\" ry=\"2.5\" fill=\"#E2E2F0\" stroke=\"#181818\" stroke-width=\"0.5\"/><text x=\"12\" y=\"25\" font-size=\"14\" fill=\"#000000\" xml:space=\"preserve\" style=\"white-space: pre\" font-family=\"sans-serif\">Item</text></g><g class=\"participant participant-head\" data-qualified-name=\"Rank\" data-entity-uid=\"part2\" id=\"part2-head\" data-source-line=\"1\"><rect x=\"56.23\" y=\"5\" width=\"46.68\" height=\"30\" rx=\"2.5\" ry=\"2.5\" fill=\"#E2E2F0\" stroke=\"#181818\" stroke-width=\"0.5\"/><text x=\"63.23\" y=\"25\" font-size=\"14\" fill=\"#000000\" xml:space=\"preserve\" style=\"white-space: pre\" font-family=\"sans-serif\">Rank</text></g><g class=\"participant participant-tail\" data-qualified-name=\"Item\" data-entity-uid=\"part1\" id=\"part1-tail\" data-source-line=\"1\"><rect x=\"5\" y=\"68\" width=\"41.23\" height=\"30\" rx=\"2.5\" ry=\"2.5\" fill=\"#E2E2F0\" stroke=\"#181818\" stroke-width=\"0.5\"/><text x=\"12\" y=\"88\" font-size=\"14\" fill=\"#000000\" xml:space=\"preserve\" style=\"white-space: pre\" font-family=\"sans-serif\">Item</text></g><g class=\"participant participant-tail\" data-qualified-name=\"Rank\" data-entity-uid=\"part2\" id=\"part2-tail\" data-source-line=\"1\"><rect x=\"56.23\" y=\"68\" width=\"46.68\" height=\"30\" rx=\"2.5\" ry=\"2.5\" fill=\"#E2E2F0\" stroke=\"#181818\" stroke-width=\"0.5\"/><text x=\"63.23\" y=\"88\" font-size=\"14\" fill=\"#000000\" xml:space=\"preserve\" style=\"white-space: pre\" font-family=\"sans-serif\">Rank</text></g><g class=\"message\" data-entity-1=\"part1\" data-entity-2=\"part2\" id=\"msg1\" data-source-line=\"1\"><polygon points=\"67.57,46 77.57,50 67.57,54 71.57,50\" fill=\"#181818\" stroke=\"#181818\" stroke-width=\"1\"/><line x1=\"25.61\" y1=\"50\" x2=\"73.57\" y2=\"50\" stroke=\"#181818\" stroke-width=\"1\"/></g><?plantuml-src yon9pLNGjLC8IipB1W00?></g></svg>"
+              },
+              "children": []
+            }
+          ],
+          "id": "figures-a24b8217"
+        },
+        {
+          "type": "figures",
+          "attrs": {
+            "kind": "equations"
+          },
+          "children": [
+            {
+              "type": "equations",
+              "attrs": {
+                "equations": [
+                  {
+                    "source": "y = a*x**2",
+                    "lhs": {
+                      "symbol": "y"
+                    },
+                    "rhs": {
+                      "op": "mul",
+                      "args": [
+                        {
+                          "symbol": "a"
+                        },
+                        {
+                          "op": "pow",
+                          "args": [
+                            {
+                              "symbol": "x"
+                            },
+                            {
+                              "number": 2
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  }
+                ],
+                "variables": {
+                  "x": {
+                    "quantity": {
+                      "unit": "",
+                      "dimension": {},
+                      "value": 0,
+                      "siValue": 0.0,
+                      "range": [
+                        -2,
+                        2
+                      ],
+                      "siRange": [
+                        -2.0,
+                        2.0
+                      ]
+                    }
+                  },
+                  "a": {
+                    "quantity": {
+                      "unit": "",
+                      "dimension": {},
+                      "value": 1,
+                      "siValue": 1.0,
+                      "range": [
+                        0.5,
+                        2
+                      ],
+                      "siRange": [
+                        0.5,
+                        2.0
+                      ]
+                    }
+                  },
+                  "y": {
+                    "quantity": {
+                      "unit": "",
+                      "dimension": {}
+                    }
+                  }
+                },
+                "unknowns": [
+                  "y"
+                ],
+                "solution": {
+                  "method": "exact",
+                  "branches": [
+                    {
+                      "y": {
+                        "op": "mul",
+                        "args": [
+                          {
+                            "symbol": "a"
+                          },
+                          {
+                            "op": "pow",
+                            "args": [
+                              {
+                                "symbol": "x"
+                              },
+                              {
+                                "number": 2
+                              }
+                            ]
+                          }
+                        ]
+                      }
+                    }
+                  ]
+                },
+                "plot": {
+                  "sweep": "x",
+                  "x": {
+                    "source": "x",
+                    "tree": {
+                      "symbol": "x"
+                    },
+                    "dimension": {}
+                  },
+                  "y": [
+                    {
+                      "source": "y",
+                      "tree": {
+                        "symbol": "y"
+                      },
+                      "dimension": {},
+                      "axis": "primary"
+                    }
+                  ],
+                  "parallelCoordinates": {
+                    "shown": false,
+                    "axes": [
+                      {
+                        "label": "a",
+                        "variable": "a",
+                        "dimension": {},
+                        "values": [
+                          0.5,
+                          0.875,
+                          1.25,
+                          1.625,
+                          2.0
+                        ],
+                        "siValues": [
+                          0.5,
+                          0.875,
+                          1.25,
+                          1.625,
+                          2
+                        ]
+                      }
+                    ]
+                  }
+                }
+              },
+              "children": []
+            }
+          ],
+          "id": "figures-fbd17816"
+        },
+        {
+          "type": "figures",
+          "attrs": {
+            "kind": "pugh"
+          },
+          "children": [
+            {
+              "type": "pugh",
+              "attrs": {
+                "matrix": {
+                  "criteria": [
+                    {
+                      "key": "cost",
+                      "weight": 1,
+                      "better": "lower"
+                    }
+                  ],
+                  "candidates": [
+                    {
+                      "key": "now",
+                      "values": {
+                        "cost": 2
+                      }
+                    },
+                    {
+                      "key": "new",
+                      "values": {
+                        "cost": 1
+                      }
+                    }
+                  ]
+                },
+                "shortNames": [
+                  "now",
+                  "new"
+                ]
+              },
+              "children": []
+            }
+          ],
+          "id": "figures-2499fa72"
+        },
+        {
+          "type": "figures",
+          "attrs": {
+            "kind": "timeline"
+          },
+          "children": [
+            {
+              "type": "timeline",
+              "attrs": {
+                "records": {
+                  "where": [
+                    {
+                      "field": "kind",
+                      "equals": "event"
+                    }
+                  ]
+                },
+                "date": "when",
+                "lane": "team",
+                "today": "2026-01-10",
+                "lanes": [
+                  "Build",
+                  "Review"
+                ],
+                "label": "short"
+              },
+              "children": []
+            }
+          ],
+          "id": "figures-36cc62d7"
+        }
+      ],
+      "children": [],
+      "metadata": {}
+    },
+    {
+      "id": "alpha",
+      "title": "Alpha",
+      "toc": false,
+      "content": [
+        {
+          "type": "markdown-frontmatter",
+          "attrs": {
+            "metadata": {
+              "kind": "item",
+              "rank": 1,
+              "item": {
+                "name": "Alpha"
+              }
+            }
+          },
+          "children": [
+            {
+              "type": "field",
+              "attrs": {
+                "name": "kind"
+              },
+              "children": [
+                {
+                  "type": "text",
+                  "attrs": {},
+                  "children": [],
+                  "text": "item"
+                }
+              ]
+            },
+            {
+              "type": "field",
+              "attrs": {
+                "name": "item.name"
+              },
+              "children": [
+                {
+                  "type": "text",
+                  "attrs": {},
+                  "children": [],
+                  "text": "Alpha"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "chapter-inclusion",
+          "attrs": {
+            "id": "alpha"
+          },
+          "children": []
+        }
+      ],
+      "children": [],
+      "metadata": {
+        "kind": "item",
+        "rank": 1,
+        "item": {
+          "name": "Alpha"
+        }
+      }
+    },
+    {
+      "id": "beta",
+      "title": "Beta",
+      "toc": false,
+      "content": [
+        {
+          "type": "markdown-frontmatter",
+          "attrs": {
+            "metadata": {
+              "kind": "item",
+              "rank": 2,
+              "item": {
+                "name": "Beta"
+              }
+            }
+          },
+          "children": [
+            {
+              "type": "field",
+              "attrs": {
+                "name": "kind"
+              },
+              "children": [
+                {
+                  "type": "text",
+                  "attrs": {},
+                  "children": [],
+                  "text": "item"
+                }
+              ]
+            },
+            {
+              "type": "field",
+              "attrs": {
+                "name": "item.name"
+              },
+              "children": [
+                {
+                  "type": "text",
+                  "attrs": {},
+                  "children": [],
+                  "text": "Beta"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "chapter-inclusion",
+          "attrs": {
+            "id": "beta"
+          },
+          "children": []
+        }
+      ],
+      "children": [],
+      "metadata": {
+        "kind": "item",
+        "rank": 2,
+        "item": {
+          "name": "Beta"
+        }
+      }
+    },
+    {
+      "id": "datum",
+      "title": "Datum",
+      "toc": false,
+      "content": [
+        {
+          "type": "markdown-frontmatter",
+          "attrs": {
+            "metadata": {
+              "kind": "glossary",
+              "term": "Datum",
+              "definition": "A **reference** point, see [[intro]].",
+              "status": "approved"
+            }
+          },
+          "children": [
+            {
+              "type": "field",
+              "attrs": {
+                "name": "kind"
+              },
+              "children": [
+                {
+                  "type": "text",
+                  "attrs": {},
+                  "children": [],
+                  "text": "glossary"
+                }
+              ]
+            },
+            {
+              "type": "field",
+              "attrs": {
+                "name": "term"
+              },
+              "children": [
+                {
+                  "type": "text",
+                  "attrs": {},
+                  "children": [],
+                  "text": "Datum"
+                }
+              ]
+            },
+            {
+              "type": "field",
+              "attrs": {
+                "name": "definition"
+              },
+              "children": [
+                {
+                  "type": "text",
+                  "attrs": {},
+                  "children": [],
+                  "text": "A "
+                },
+                {
+                  "type": "strong",
+                  "attrs": {},
+                  "children": [
+                    {
+                      "type": "text",
+                      "attrs": {},
+                      "children": [],
+                      "text": "reference"
+                    }
+                  ]
+                },
+                {
+                  "type": "text",
+                  "attrs": {},
+                  "children": [],
+                  "text": " point, see "
+                },
+                {
+                  "type": "wikilinks",
+                  "attrs": {
+                    "target": "intro",
+                    "chapter": "intro",
+                    "heading": "",
+                    "label": "intro"
+                  },
+                  "children": []
+                },
+                {
+                  "type": "text",
+                  "attrs": {},
+                  "children": [],
+                  "text": "."
+                }
+              ]
+            },
+            {
+              "type": "field",
+              "attrs": {
+                "name": "status"
+              },
+              "children": [
+                {
+                  "type": "text",
+                  "attrs": {},
+                  "children": [],
+                  "text": "approved"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "references",
+          "attrs": {
+            "metadata": {
+              "kind": "glossary",
+              "term": "Datum",
+              "definition": "A **reference** point, see [[intro]].",
+              "status": "approved"
+            }
+          },
+          "children": []
+        },
+        {
+          "type": "chapter-inclusion",
+          "attrs": {
+            "id": "datum"
+          },
+          "children": []
+        },
+        {
+          "type": "markdown",
+          "attrs": {},
+          "children": []
+        },
+        {
+          "type": "property-editors",
+          "attrs": {
+            "source": "version: 1\nfield: status\nlabel: Status\n",
+            "spec": {
+              "version": 1,
+              "field": "status",
+              "label": "Status"
+            },
+            "writes": [
+              "status"
+            ]
+          },
+          "children": [],
+          "id": "property-editors-72bb738d"
+        },
+        {
+          "type": "section",
+          "attrs": {
+            "level": 1
+          },
+          "children": [
+            {
+              "type": "text",
+              "attrs": {},
+              "children": [],
+              "text": "Datum"
+            }
+          ],
+          "id": "section-479d477d"
+        }
+      ],
+      "children": [],
+      "metadata": {
+        "kind": "glossary",
+        "term": "Datum",
+        "definition": "A **reference** point, see [[intro]].",
+        "status": "approved"
+      }
+    },
+    {
+      "id": "event-a",
+      "title": "Event A",
+      "toc": false,
+      "content": [
+        {
+          "type": "markdown-frontmatter",
+          "attrs": {
+            "metadata": {
+              "kind": "event",
+              "when": "2025-12-30",
+              "team": "Build",
+              "short": "Event A",
+              "obs": {
+                "document": false
+              }
+            }
+          },
+          "children": [
+            {
+              "type": "field",
+              "attrs": {
+                "name": "kind"
+              },
+              "children": [
+                {
+                  "type": "text",
+                  "attrs": {},
+                  "children": [],
+                  "text": "event"
+                }
+              ]
+            },
+            {
+              "type": "field",
+              "attrs": {
+                "name": "team"
+              },
+              "children": [
+                {
+                  "type": "text",
+                  "attrs": {},
+                  "children": [],
+                  "text": "Build"
+                }
+              ]
+            },
+            {
+              "type": "field",
+              "attrs": {
+                "name": "short"
+              },
+              "children": [
+                {
+                  "type": "text",
+                  "attrs": {},
+                  "children": [],
+                  "text": "Event A"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "profiles",
+          "attrs": {
+            "profile": {
+              "document": false
+            }
+          },
+          "children": []
+        },
+        {
+          "type": "chapter-inclusion",
+          "attrs": {
+            "id": "event-a"
+          },
+          "children": []
+        }
+      ],
+      "children": [],
+      "metadata": {
+        "kind": "event",
+        "when": "2025-12-30",
+        "team": "Build",
+        "short": "Event A",
+        "obs": {
+          "document": false
+        }
+      }
+    },
+    {
+      "id": "event-b",
+      "title": "Event B",
+      "toc": false,
+      "content": [
+        {
+          "type": "markdown-frontmatter",
+          "attrs": {
+            "metadata": {
+              "kind": "event",
+              "when": "2026-01-05",
+              "team": "Review",
+              "short": "Event B",
+              "obs": {
+                "document": false
+              }
+            }
+          },
+          "children": [
+            {
+              "type": "field",
+              "attrs": {
+                "name": "kind"
+              },
+              "children": [
+                {
+                  "type": "text",
+                  "attrs": {},
+                  "children": [],
+                  "text": "event"
+                }
+              ]
+            },
+            {
+              "type": "field",
+              "attrs": {
+                "name": "team"
+              },
+              "children": [
+                {
+                  "type": "text",
+                  "attrs": {},
+                  "children": [],
+                  "text": "Review"
+                }
+              ]
+            },
+            {
+              "type": "field",
+              "attrs": {
+                "name": "short"
+              },
+              "children": [
+                {
+                  "type": "text",
+                  "attrs": {},
+                  "children": [],
+                  "text": "Event B"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "profiles",
+          "attrs": {
+            "profile": {
+              "document": false
+            }
+          },
+          "children": []
+        },
+        {
+          "type": "chapter-inclusion",
+          "attrs": {
+            "id": "event-b"
+          },
+          "children": []
+        }
+      ],
+      "children": [],
+      "metadata": {
+        "kind": "event",
+        "when": "2026-01-05",
+        "team": "Review",
+        "short": "Event B",
+        "obs": {
+          "document": false
+        }
+      }
+    },
+    {
+      "id": "event-c",
+      "title": "Event C",
+      "toc": false,
+      "content": [
+        {
+          "type": "markdown-frontmatter",
+          "attrs": {
+            "metadata": {
+              "kind": "event",
+              "when": "2026-01-20",
+              "team": "Build",
+              "short": "Event C",
+              "obs": {
+                "document": false
+              }
+            }
+          },
+          "children": [
+            {
+              "type": "field",
+              "attrs": {
+                "name": "kind"
+              },
+              "children": [
+                {
+                  "type": "text",
+                  "attrs": {},
+                  "children": [],
+                  "text": "event"
+                }
+              ]
+            },
+            {
+              "type": "field",
+              "attrs": {
+                "name": "team"
+              },
+              "children": [
+                {
+                  "type": "text",
+                  "attrs": {},
+                  "children": [],
+                  "text": "Build"
+                }
+              ]
+            },
+            {
+              "type": "field",
+              "attrs": {
+                "name": "short"
+              },
+              "children": [
+                {
+                  "type": "text",
+                  "attrs": {},
+                  "children": [],
+                  "text": "Event C"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "profiles",
+          "attrs": {
+            "profile": {
+              "document": false
+            }
+          },
+          "children": []
+        },
+        {
+          "type": "chapter-inclusion",
+          "attrs": {
+            "id": "event-c"
+          },
+          "children": []
+        }
+      ],
+      "children": [],
+      "metadata": {
+        "kind": "event",
+        "when": "2026-01-20",
+        "team": "Build",
+        "short": "Event C",
+        "obs": {
+          "document": false
+        }
+      }
+    },
+    {
+      "id": "gamma",
+      "title": "Gamma",
+      "toc": false,
+      "content": [
+        {
+          "type": "markdown-frontmatter",
+          "attrs": {
+            "metadata": {
+              "kind": "item",
+              "item": {
+                "name": "Unranked"
+              }
+            }
+          },
+          "children": [
+            {
+              "type": "field",
+              "attrs": {
+                "name": "kind"
+              },
+              "children": [
+                {
+                  "type": "text",
+                  "attrs": {},
+                  "children": [],
+                  "text": "item"
+                }
+              ]
+            },
+            {
+              "type": "field",
+              "attrs": {
+                "name": "item.name"
+              },
+              "children": [
+                {
+                  "type": "text",
+                  "attrs": {},
+                  "children": [],
+                  "text": "Unranked"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "chapter-inclusion",
+          "attrs": {
+            "id": "gamma"
+          },
+          "children": []
+        }
+      ],
+      "children": [],
+      "metadata": {
+        "kind": "item",
+        "item": {
+          "name": "Unranked"
+        }
+      }
+    },
+    {
+      "id": "other",
+      "title": "Other",
+      "toc": false,
+      "content": [
+        {
+          "type": "markdown-frontmatter",
+          "attrs": {
+            "metadata": {
+              "kind": "other",
+              "rank": 3
+            }
+          },
+          "children": [
+            {
+              "type": "field",
+              "attrs": {
+                "name": "kind"
+              },
+              "children": [
+                {
+                  "type": "text",
+                  "attrs": {},
+                  "children": [],
+                  "text": "other"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "chapter-inclusion",
+          "attrs": {
+            "id": "other"
+          },
+          "children": []
+        }
+      ],
+      "children": [],
+      "metadata": {
+        "kind": "other",
+        "rank": 3
+      }
+    },
+    {
+      "id": "ranked",
+      "title": "Ranked items",
+      "toc": false,
+      "content": [
+        {
+          "type": "markdown-frontmatter",
+          "attrs": {
+            "metadata": {
+              "kind": "quantity",
+              "aliases": [
+                "rankedItems"
+              ],
+              "source": "[[intro]]",
+              "query": {
+                "where": [
+                  {
+                    "field": "kind",
+                    "equals": "item"
+                  }
+                ],
+                "distinct": "rank"
+              }
+            }
+          },
+          "children": [
+            {
+              "type": "field",
+              "attrs": {
+                "name": "kind"
+              },
+              "children": [
+                {
+                  "type": "text",
+                  "attrs": {},
+                  "children": [],
+                  "text": "quantity"
+                }
+              ]
+            },
+            {
+              "type": "field",
+              "attrs": {
+                "name": "aliases.0"
+              },
+              "children": [
+                {
+                  "type": "text",
+                  "attrs": {},
+                  "children": [],
+                  "text": "rankedItems"
+                }
+              ]
+            },
+            {
+              "type": "field",
+              "attrs": {
+                "name": "source"
+              },
+              "children": [
+                {
+                  "type": "wikilinks",
+                  "attrs": {
+                    "target": "intro",
+                    "chapter": "intro",
+                    "heading": "",
+                    "label": "intro"
+                  },
+                  "children": []
+                }
+              ]
+            },
+            {
+              "type": "field",
+              "attrs": {
+                "name": "query.where.0.field"
+              },
+              "children": [
+                {
+                  "type": "text",
+                  "attrs": {},
+                  "children": [],
+                  "text": "kind"
+                }
+              ]
+            },
+            {
+              "type": "field",
+              "attrs": {
+                "name": "query.where.0.equals"
+              },
+              "children": [
+                {
+                  "type": "text",
+                  "attrs": {},
+                  "children": [],
+                  "text": "item"
+                }
+              ]
+            },
+            {
+              "type": "field",
+              "attrs": {
+                "name": "query.distinct"
+              },
+              "children": [
+                {
+                  "type": "text",
+                  "attrs": {},
+                  "children": [],
+                  "text": "rank"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "quantities",
+          "attrs": {
+            "metadata": {
+              "kind": "quantity",
+              "aliases": [
+                "rankedItems"
+              ],
+              "source": "[[intro]]",
+              "query": {
+                "where": [
+                  {
+                    "field": "kind",
+                    "equals": "item"
+                  }
+                ],
+                "distinct": "rank"
+              }
+            },
+            "quantity": {
+              "unit": "",
+              "dimension": {}
+            }
+          },
+          "children": []
+        },
+        {
+          "type": "queries",
+          "attrs": {
+            "query": {
+              "where": [
+                {
+                  "field": "kind",
+                  "equals": "item"
+                }
+              ],
+              "distinct": "rank"
+            }
+          },
+          "children": []
+        },
+        {
+          "type": "count-query",
+          "attrs": {
+            "query": {
+              "where": [
+                {
+                  "field": "kind",
+                  "equals": "item"
+                }
+              ],
+              "distinct": "rank"
+            }
+          },
+          "children": []
+        },
+        {
+          "type": "chapter-inclusion",
+          "attrs": {
+            "id": "ranked"
+          },
+          "children": []
+        },
+        {
+          "type": "markdown",
+          "attrs": {},
+          "children": []
+        },
+        {
+          "type": "section",
+          "attrs": {
+            "level": 1
+          },
+          "children": [
+            {
+              "type": "text",
+              "attrs": {},
+              "children": [],
+              "text": "Ranked items"
+            }
+          ],
+          "id": "section-4fc1a6df"
+        }
+      ],
+      "children": [],
+      "metadata": {
+        "kind": "quantity",
+        "aliases": [
+          "rankedItems"
+        ],
+        "source": "[[intro]]",
+        "query": {
+          "where": [
+            {
+              "field": "kind",
+              "equals": "item"
+            }
+          ],
+          "distinct": "rank"
+        }
+      }
+    }
+  ],
+  "links": [
+    {
+      "id": "the-details",
+      "href": "guide/usage",
+      "label": "the details"
+    },
+    {
+      "id": "the-site",
+      "href": "https://example.org/?a=1&b=2",
+      "label": "the site"
+    },
+    {
+      "id": "gone",
+      "href": "missing",
+      "label": "gone"
+    },
+    {
+      "id": "datum",
+      "href": "datum",
+      "label": "datum"
+    },
+    {
+      "id": "other",
+      "href": "other",
+      "label": "other"
+    },
+    {
+      "id": "rankeditems",
+      "href": "rankedItems",
+      "label": "rankedItems"
+    },
+    {
+      "id": "intro",
+      "href": "intro",
+      "label": "intro"
+    }
+  ],
+  "assets": [
+    {
+      "id": "a-logo",
+      "href": "images/logo.png",
+      "mediaType": "image/png",
+      "path": "images/logo.png",
+      "data": "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII="
+    }
+  ],
+  "records": [
+    {
+      "id": "alpha",
+      "type": "note",
+      "path": "alpha.md",
+      "fields": {
+        "kind": "item",
+        "rank": 1,
+        "item": {
+          "name": "Alpha"
+        }
+      },
+      "fieldNodes": [
+        {
+          "type": "field",
+          "attrs": {
+            "name": "kind"
+          },
+          "children": [
+            {
+              "type": "text",
+              "attrs": {},
+              "children": [],
+              "text": "item"
+            }
+          ]
+        },
+        {
+          "type": "field",
+          "attrs": {
+            "name": "item.name"
+          },
+          "children": [
+            {
+              "type": "text",
+              "attrs": {},
+              "children": [],
+              "text": "Alpha"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "appendix",
+      "type": "note",
+      "path": "appendix.md",
+      "fields": {},
+      "fieldNodes": []
+    },
+    {
+      "id": "beta",
+      "type": "note",
+      "path": "beta.md",
+      "fields": {
+        "kind": "item",
+        "rank": 2,
+        "item": {
+          "name": "Beta"
+        }
+      },
+      "fieldNodes": [
+        {
+          "type": "field",
+          "attrs": {
+            "name": "kind"
+          },
+          "children": [
+            {
+              "type": "text",
+              "attrs": {},
+              "children": [],
+              "text": "item"
+            }
+          ]
+        },
+        {
+          "type": "field",
+          "attrs": {
+            "name": "item.name"
+          },
+          "children": [
+            {
+              "type": "text",
+              "attrs": {},
+              "children": [],
+              "text": "Beta"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "datum",
+      "type": "note",
+      "path": "datum.md",
+      "fields": {
+        "kind": "glossary",
+        "term": "Datum",
+        "definition": "A **reference** point, see [[intro]].",
+        "status": "approved"
+      },
+      "fieldNodes": [
+        {
+          "type": "field",
+          "attrs": {
+            "name": "kind"
+          },
+          "children": [
+            {
+              "type": "text",
+              "attrs": {},
+              "children": [],
+              "text": "glossary"
+            }
+          ]
+        },
+        {
+          "type": "field",
+          "attrs": {
+            "name": "term"
+          },
+          "children": [
+            {
+              "type": "text",
+              "attrs": {},
+              "children": [],
+              "text": "Datum"
+            }
+          ]
+        },
+        {
+          "type": "field",
+          "attrs": {
+            "name": "definition"
+          },
+          "children": [
+            {
+              "type": "text",
+              "attrs": {},
+              "children": [],
+              "text": "A "
+            },
+            {
+              "type": "strong",
+              "attrs": {},
+              "children": [
+                {
+                  "type": "text",
+                  "attrs": {},
+                  "children": [],
+                  "text": "reference"
+                }
+              ]
+            },
+            {
+              "type": "text",
+              "attrs": {},
+              "children": [],
+              "text": " point, see "
+            },
+            {
+              "type": "wikilinks",
+              "attrs": {
+                "target": "intro",
+                "chapter": "intro",
+                "heading": "",
+                "label": "intro"
+              },
+              "children": []
+            },
+            {
+              "type": "text",
+              "attrs": {},
+              "children": [],
+              "text": "."
+            }
+          ]
+        },
+        {
+          "type": "field",
+          "attrs": {
+            "name": "status"
+          },
+          "children": [
+            {
+              "type": "text",
+              "attrs": {},
+              "children": [],
+              "text": "approved"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "event-a",
+      "type": "note",
+      "path": "event-a.md",
+      "fields": {
+        "kind": "event",
+        "when": "2025-12-30",
+        "team": "Build",
+        "short": "Event A",
+        "obs": {
+          "document": false
+        }
+      },
+      "fieldNodes": [
+        {
+          "type": "field",
+          "attrs": {
+            "name": "kind"
+          },
+          "children": [
+            {
+              "type": "text",
+              "attrs": {},
+              "children": [],
+              "text": "event"
+            }
+          ]
+        },
+        {
+          "type": "field",
+          "attrs": {
+            "name": "team"
+          },
+          "children": [
+            {
+              "type": "text",
+              "attrs": {},
+              "children": [],
+              "text": "Build"
+            }
+          ]
+        },
+        {
+          "type": "field",
+          "attrs": {
+            "name": "short"
+          },
+          "children": [
+            {
+              "type": "text",
+              "attrs": {},
+              "children": [],
+              "text": "Event A"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "event-b",
+      "type": "note",
+      "path": "event-b.md",
+      "fields": {
+        "kind": "event",
+        "when": "2026-01-05",
+        "team": "Review",
+        "short": "Event B",
+        "obs": {
+          "document": false
+        }
+      },
+      "fieldNodes": [
+        {
+          "type": "field",
+          "attrs": {
+            "name": "kind"
+          },
+          "children": [
+            {
+              "type": "text",
+              "attrs": {},
+              "children": [],
+              "text": "event"
+            }
+          ]
+        },
+        {
+          "type": "field",
+          "attrs": {
+            "name": "team"
+          },
+          "children": [
+            {
+              "type": "text",
+              "attrs": {},
+              "children": [],
+              "text": "Review"
+            }
+          ]
+        },
+        {
+          "type": "field",
+          "attrs": {
+            "name": "short"
+          },
+          "children": [
+            {
+              "type": "text",
+              "attrs": {},
+              "children": [],
+              "text": "Event B"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "event-c",
+      "type": "note",
+      "path": "event-c.md",
+      "fields": {
+        "kind": "event",
+        "when": "2026-01-20",
+        "team": "Build",
+        "short": "Event C",
+        "obs": {
+          "document": false
+        }
+      },
+      "fieldNodes": [
+        {
+          "type": "field",
+          "attrs": {
+            "name": "kind"
+          },
+          "children": [
+            {
+              "type": "text",
+              "attrs": {},
+              "children": [],
+              "text": "event"
+            }
+          ]
+        },
+        {
+          "type": "field",
+          "attrs": {
+            "name": "team"
+          },
+          "children": [
+            {
+              "type": "text",
+              "attrs": {},
+              "children": [],
+              "text": "Build"
+            }
+          ]
+        },
+        {
+          "type": "field",
+          "attrs": {
+            "name": "short"
+          },
+          "children": [
+            {
+              "type": "text",
+              "attrs": {},
+              "children": [],
+              "text": "Event C"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "gamma",
+      "type": "note",
+      "path": "gamma.md",
+      "fields": {
+        "kind": "item",
+        "item": {
+          "name": "Unranked"
+        }
+      },
+      "fieldNodes": [
+        {
+          "type": "field",
+          "attrs": {
+            "name": "kind"
+          },
+          "children": [
+            {
+              "type": "text",
+              "attrs": {},
+              "children": [],
+              "text": "item"
+            }
+          ]
+        },
+        {
+          "type": "field",
+          "attrs": {
+            "name": "item.name"
+          },
+          "children": [
+            {
+              "type": "text",
+              "attrs": {},
+              "children": [],
+              "text": "Unranked"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "guide-usage",
+      "type": "note",
+      "path": "guide/usage.md",
+      "fields": {},
+      "fieldNodes": []
+    },
+    {
+      "id": "intro",
+      "type": "note",
+      "path": "intro.md",
+      "fields": {
+        "owner": "Ada",
+        "tags": [
+          "a",
+          "b"
+        ]
+      },
+      "fieldNodes": [
+        {
+          "type": "field",
+          "attrs": {
+            "name": "owner"
+          },
+          "children": [
+            {
+              "type": "text",
+              "attrs": {},
+              "children": [],
+              "text": "Ada"
+            }
+          ]
+        },
+        {
+          "type": "field",
+          "attrs": {
+            "name": "tags.0"
+          },
+          "children": [
+            {
+              "type": "text",
+              "attrs": {},
+              "children": [],
+              "text": "a"
+            }
+          ]
+        },
+        {
+          "type": "field",
+          "attrs": {
+            "name": "tags.1"
+          },
+          "children": [
+            {
+              "type": "text",
+              "attrs": {},
+              "children": [],
+              "text": "b"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "manifest",
+      "type": "note",
+      "path": "manifest.md",
+      "fields": {
+        "title": "Fixture document",
+        "document type": "Specification",
+        "organization": "Example org",
+        "product": {
+          "name": "Widget",
+          "version": "2"
+        },
+        "authors": [
+          "Ada",
+          "Lin"
+        ],
+        "obsHtml": {
+          "layout": "paged",
+          "print": {
+            "paper": "Letter",
+            "margin": "15mm"
+          },
+          "pages": [
+            {
+              "page": "cover"
+            },
+            {
+              "page": "contents",
+              "title": "Contents"
+            },
+            {
+              "page": "abstract",
+              "title": "Abstract"
+            }
+          ]
+        },
+        "obs": {
+          "document": true
+        }
+      },
+      "fieldNodes": [
+        {
+          "type": "field",
+          "attrs": {
+            "name": "title"
+          },
+          "children": [
+            {
+              "type": "text",
+              "attrs": {},
+              "children": [],
+              "text": "Fixture document"
+            }
+          ]
+        },
+        {
+          "type": "field",
+          "attrs": {
+            "name": "document type"
+          },
+          "children": [
+            {
+              "type": "text",
+              "attrs": {},
+              "children": [],
+              "text": "Specification"
+            }
+          ]
+        },
+        {
+          "type": "field",
+          "attrs": {
+            "name": "organization"
+          },
+          "children": [
+            {
+              "type": "text",
+              "attrs": {},
+              "children": [],
+              "text": "Example org"
+            }
+          ]
+        },
+        {
+          "type": "field",
+          "attrs": {
+            "name": "product.name"
+          },
+          "children": [
+            {
+              "type": "text",
+              "attrs": {},
+              "children": [],
+              "text": "Widget"
+            }
+          ]
+        },
+        {
+          "type": "field",
+          "attrs": {
+            "name": "product.version"
+          },
+          "children": [
+            {
+              "type": "text",
+              "attrs": {},
+              "children": [],
+              "text": "2"
+            }
+          ]
+        },
+        {
+          "type": "field",
+          "attrs": {
+            "name": "authors.0"
+          },
+          "children": [
+            {
+              "type": "text",
+              "attrs": {},
+              "children": [],
+              "text": "Ada"
+            }
+          ]
+        },
+        {
+          "type": "field",
+          "attrs": {
+            "name": "authors.1"
+          },
+          "children": [
+            {
+              "type": "text",
+              "attrs": {},
+              "children": [],
+              "text": "Lin"
+            }
+          ]
+        },
+        {
+          "type": "field",
+          "attrs": {
+            "name": "obsHtml.layout"
+          },
+          "children": [
+            {
+              "type": "text",
+              "attrs": {},
+              "children": [],
+              "text": "paged"
+            }
+          ]
+        },
+        {
+          "type": "field",
+          "attrs": {
+            "name": "obsHtml.print.paper"
+          },
+          "children": [
+            {
+              "type": "text",
+              "attrs": {},
+              "children": [],
+              "text": "Letter"
+            }
+          ]
+        },
+        {
+          "type": "field",
+          "attrs": {
+            "name": "obsHtml.print.margin"
+          },
+          "children": [
+            {
+              "type": "text",
+              "attrs": {},
+              "children": [],
+              "text": "15mm"
+            }
+          ]
+        },
+        {
+          "type": "field",
+          "attrs": {
+            "name": "obsHtml.pages.0.page"
+          },
+          "children": [
+            {
+              "type": "text",
+              "attrs": {},
+              "children": [],
+              "text": "cover"
+            }
+          ]
+        },
+        {
+          "type": "field",
+          "attrs": {
+            "name": "obsHtml.pages.1.page"
+          },
+          "children": [
+            {
+              "type": "text",
+              "attrs": {},
+              "children": [],
+              "text": "contents"
+            }
+          ]
+        },
+        {
+          "type": "field",
+          "attrs": {
+            "name": "obsHtml.pages.1.title"
+          },
+          "children": [
+            {
+              "type": "text",
+              "attrs": {},
+              "children": [],
+              "text": "Contents"
+            }
+          ]
+        },
+        {
+          "type": "field",
+          "attrs": {
+            "name": "obsHtml.pages.2.page"
+          },
+          "children": [
+            {
+              "type": "text",
+              "attrs": {},
+              "children": [],
+              "text": "abstract"
+            }
+          ]
+        },
+        {
+          "type": "field",
+          "attrs": {
+            "name": "obsHtml.pages.2.title"
+          },
+          "children": [
+            {
+              "type": "text",
+              "attrs": {},
+              "children": [],
+              "text": "Abstract"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "other",
+      "type": "note",
+      "path": "other.md",
+      "fields": {
+        "kind": "other",
+        "rank": 3
+      },
+      "fieldNodes": [
+        {
+          "type": "field",
+          "attrs": {
+            "name": "kind"
+          },
+          "children": [
+            {
+              "type": "text",
+              "attrs": {},
+              "children": [],
+              "text": "other"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "ranked",
+      "type": "note",
+      "path": "ranked.md",
+      "fields": {
+        "kind": "quantity",
+        "aliases": [
+          "rankedItems"
+        ],
+        "source": "[[intro]]",
+        "query": {
+          "where": [
+            {
+              "field": "kind",
+              "equals": "item"
+            }
+          ],
+          "distinct": "rank"
+        }
+      },
+      "fieldNodes": [
+        {
+          "type": "field",
+          "attrs": {
+            "name": "kind"
+          },
+          "children": [
+            {
+              "type": "text",
+              "attrs": {},
+              "children": [],
+              "text": "quantity"
+            }
+          ]
+        },
+        {
+          "type": "field",
+          "attrs": {
+            "name": "aliases.0"
+          },
+          "children": [
+            {
+              "type": "text",
+              "attrs": {},
+              "children": [],
+              "text": "rankedItems"
+            }
+          ]
+        },
+        {
+          "type": "field",
+          "attrs": {
+            "name": "source"
+          },
+          "children": [
+            {
+              "type": "wikilinks",
+              "attrs": {
+                "target": "intro",
+                "chapter": "intro",
+                "heading": "",
+                "label": "intro"
+              },
+              "children": []
+            }
+          ]
+        },
+        {
+          "type": "field",
+          "attrs": {
+            "name": "query.where.0.field"
+          },
+          "children": [
+            {
+              "type": "text",
+              "attrs": {},
+              "children": [],
+              "text": "kind"
+            }
+          ]
+        },
+        {
+          "type": "field",
+          "attrs": {
+            "name": "query.where.0.equals"
+          },
+          "children": [
+            {
+              "type": "text",
+              "attrs": {},
+              "children": [],
+              "text": "item"
+            }
+          ]
+        },
+        {
+          "type": "field",
+          "attrs": {
+            "name": "query.distinct"
+          },
+          "children": [
+            {
+              "type": "text",
+              "attrs": {},
+              "children": [],
+              "text": "rank"
+            }
+          ]
+        }
+      ],
+      "quantity": {
+        "unit": "",
+        "dimension": {}
+      }
+    },
+    {
+      "id": "chapter-intro",
+      "type": "chapter",
+      "note": "intro",
+      "fields": {
+        "chapter": "Intro",
+        "title": "Intro",
+        "depth": "0",
+        "slug": "intro",
+        "sourcePath": "intro.md"
+      }
+    },
+    {
+      "id": "chapter-guide-usage",
+      "type": "chapter",
+      "note": "guide-usage",
+      "fields": {
+        "chapter": "Usage",
+        "title": "Usage",
+        "depth": "1",
+        "slug": "guide-usage",
+        "sourcePath": "guide/usage.md"
+      }
+    },
+    {
+      "id": "chapter-appendix",
+      "type": "chapter",
+      "note": "appendix",
+      "fields": {
+        "chapter": "Appendix",
+        "title": "Appendix",
+        "depth": "0",
+        "slug": "appendix",
+        "sourcePath": "appendix.md"
+      }
+    },
+    {
+      "id": "glossary-datum",
+      "type": "glossary",
+      "note": "datum",
+      "fields": {
+        "sourcePath": "datum.md",
+        "term": "Datum",
+        "definition": "A **reference** point, see [[intro]].",
+        "aliases": []
+      }
+    },
+    {
+      "id": "tag-intro-risk-limit",
+      "type": "tag",
+      "note": "intro",
+      "fields": {
+        "sourcePath": "intro.md",
+        "type": "risk",
+        "label": "limit",
+        "text": "See [[guide/usage#Details|the details]], [the site](https://example.org/?a=1&b=2) and ![a logo](images/logo.png). [[missing|gone]] `x < y`",
+        "source": "Intro"
+      }
+    },
+    {
+      "id": "document-metadata-title",
+      "type": "documentMetadata",
+      "fields": {
+        "key": "title",
+        "value": "Fixture document"
+      }
+    },
+    {
+      "id": "document-metadata-document-type",
+      "type": "documentMetadata",
+      "fields": {
+        "key": "document type",
+        "value": "Specification"
+      }
+    },
+    {
+      "id": "document-metadata-organization",
+      "type": "documentMetadata",
+      "fields": {
+        "key": "organization",
+        "value": "Example org"
+      }
+    },
+    {
+      "id": "document-metadata-product",
+      "type": "documentMetadata",
+      "fields": {
+        "key": "product",
+        "value": {
+          "name": "Widget",
+          "version": "2"
+        }
+      }
+    },
+    {
+      "id": "document-metadata-authors",
+      "type": "documentMetadata",
+      "fields": {
+        "key": "authors",
+        "value": [
+          "Ada",
+          "Lin"
+        ]
+      }
+    }
+  ],
+  "semanticResources": [],
+  "diagnostics": [
+    {
+      "level": "warning",
+      "message": "Link target does not exist in intro.md: [[missing]]; create missing.md in the vault or correct the link."
+    },
+    {
+      "level": "warning",
+      "message": "appendix.md:3: figure without caption. Add a caption to the figure fence; see input-model#Figure captions and references."
+    },
+    {
+      "level": "warning",
+      "message": "appendix.md:3: figure without block id. Add a line ^name after the fence so references can link it; see input-model#Figure captions and references."
+    },
+    {
+      "level": "warning",
+      "message": "appendix.md:9: figure without caption. Add a caption to the figure fence; see input-model#Figure captions and references."
+    },
+    {
+      "level": "warning",
+      "message": "appendix.md:9: figure without block id. Add a line ^name after the fence so references can link it; see input-model#Figure captions and references."
+    },
+    {
+      "level": "warning",
+      "message": "appendix.md:41: figure without caption. Add a caption to the figure fence; see input-model#Figure captions and references."
+    },
+    {
+      "level": "warning",
+      "message": "appendix.md:41: figure without block id. Add a line ^name after the fence so references can link it; see input-model#Figure captions and references."
+    },
+    {
+      "level": "warning",
+      "message": "appendix.md:58: figure without caption. Add a caption to the figure fence; see input-model#Figure captions and references."
+    },
+    {
+      "level": "warning",
+      "message": "appendix.md:58: figure without block id. Add a line ^name after the fence so references can link it; see input-model#Figure captions and references."
+    }
+  ],
+  "capabilities": [
+    "attachments",
+    "bases",
+    "callouts",
+    "cards-metrics",
+    "chapter-inclusion",
+    "columns",
+    "command-fences",
+    "count-query",
+    "embeds",
+    "equation-figures",
+    "figure-descriptor",
+    "figures",
+    "manifest",
+    "markdown",
+    "markdown-frontmatter",
+    "marks",
+    "mermaid",
+    "plantuml",
+    "profiles",
+    "property-editors",
+    "pugh-decisions",
+    "quantities",
+    "queries",
+    "references",
+    "registers",
+    "timeline-figures",
+    "wikilinks"
+  ],
+  "cssSnippets": []
+}

@@ -1,0 +1,61 @@
+{
+  "name": "html",
+  "command": [
+    "uv",
+    "run",
+    "obs-html"
+  ],
+  "contractVersion": 1,
+  "serve": [
+    "uv",
+    "run",
+    "obs-html",
+    "serve"
+  ],
+  "capabilities": [
+    "artifact-presentation",
+    "attachments",
+    "bases",
+    "callouts",
+    "cards-metrics",
+    "chapter-inclusion",
+    "columns",
+    "command-fences",
+    "count-query",
+    "embeds",
+    "equation-figures",
+    "extensions",
+    "figure-descriptor",
+    "figures",
+    "manifest",
+    "markdown",
+    "markdown-frontmatter",
+    "marks",
+    "mermaid",
+    "named-icons",
+    "plantuml",
+    "profiles",
+    "property-editors",
+    "pugh-decisions",
+    "quantities",
+    "queries",
+    "references",
+    "registers",
+    "timeline-figures",
+    "wikilinks"
+  ],
+  "options": {
+    "embed-attachments": {
+      "type": "boolean",
+      "summary": "The evidence edition: embed each marked attachment as a download of its bytes (obs-html --embed-attachments)."
+    },
+    "trusted-runtime-bundle": {
+      "type": "vault-file",
+      "summary": "ID=PATH: explicitly trust the vault's JavaScript file PATH and embed it as application runtime ID (obs-html --trusted-runtime-bundle)."
+    },
+    "finding-digests": {
+      "type": "boolean",
+      "summary": "Name the digest of each provenance finding no exception covers in its warning, to copy into an exception (obs-html --finding-digests)."
+    }
+  }
+}

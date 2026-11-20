@@ -1,0 +1,971 @@
+(() => {
+    // The tables feature's reader code (features.py, tables): a note's Base tables, their saved
+    // presentation and their rows in search. artifact.js calls attach once with what the tables
+    // read of the reader, and reaches the tables only through what attach returns (architecture.md,
+    // Rendering and runtime). activeFilter and visibleIndices change as the reader filters, so core
+    // hands them as getters.
+    globalThis.obsTables = {attach: core => {
+    const {
+        artifactData,
+        records,
+        notes,
+        recordsBySlug,
+        chapters,
+        tocSlugs,
+        chapterBody,
+        queryProfile,
+        queryPopulation,
+        isDocument,
+        artifactTableRows,
+        baseFilterExpression,
+        tableRecord,
+        formatMetadataValue,
+        meaningfulMetadata,
+        appendTableCell,
+        appendIconCell,
+        appendTrustedHtml,
+        permittedMetadata,
+        hasSubjectContent,
+        sourceHref,
+        propertyEditor,
+    } = core;
+    const richTextElements = new Set((
+        "p div span br strong b em i u s del sub sup blockquote pre code ul ol li " +
+        "table thead tbody tfoot tr th td caption hr h1 h2 h3 h4 h5 h6 figure figcaption"
+    ).split(" "));
+    const appendRichHtml = (container, value) => {
+        if (typeof value !== "string") throw new Error("Rich HTML metadata must be a string.");
+        const inertFragment = source => {
+            const template = document.createElement("template");
+            template.innerHTML = source;
+            return template.content;
+        };
+        let content = inertFragment(value);
+        for (let layer = 0; layer < 2 && !content.children.length; layer++) {
+            const decoded = content.textContent;
+            const tag = /^\s*(?:<|&lt;)([a-z][a-z0-9]*)\b/i.exec(decoded)?.[1].toLowerCase();
+            if (!richTextElements.has(tag) && !["html", "head", "body", "a", "img"].includes(tag)) break;
+            content = inertFragment(decoded);
+        }
+        const append = (parent, source) => {
+            if (source.nodeType === 3) {
+                parent.append(document.createTextNode(source.textContent));
+                return;
+            }
+            if (source.nodeType !== 1) return;
+            const tag = source.localName.toLowerCase();
+            if (["script", "style", "iframe", "object", "embed", "template", "base", "meta", "link"].includes(tag)) return;
+            if (tag === "img") {
+                const image = document.createElement("span");
+                image.className = "rich-metadata-image";
+                image.textContent = source.getAttribute("alt")?.trim()
+                    ? `[Image: ${source.getAttribute("alt").trim()}]` : "[Source image not included]";
+                image.dataset.hoverHelp = "The source image is not embedded in this HTML.";
+                parent.append(image);
+                return;
+            }
+            const href = source.getAttribute("href");
+            const url = tag === "a" && href && URL.canParse(href) ? new URL(href) : null;
+            if (!richTextElements.has(tag) && !(url && ["http:", "https:", "mailto:"].includes(url.protocol))) {
+                [...source.childNodes].forEach(child => append(parent, child));
+                return;
+            }
+            const element = document.createElement(tag);
+            if (url) element.href = url.href;
+            if (source.hasAttribute("title")) element.title = source.getAttribute("title");
+            if (tag === "td" || tag === "th") {
+                if (source.hasAttribute("colspan")) element.colSpan = source.colSpan;
+                if (source.hasAttribute("rowspan")) element.rowSpan = source.rowSpan;
+            }
+            if (tag === "ol" && source.hasAttribute("start")) element.start = source.start;
+            if (tag === "li" && source.hasAttribute("value")) element.value = source.value;
+            [...source.childNodes].forEach(child => append(element, child));
+            parent.append(element);
+        };
+        [...content.childNodes].forEach(node => append(container, node));
+    };
+    const richMetadata = (value, format, field) => {
+        const container = document.createElement("div");
+        container.className = "rich-metadata";
+        if (format === "html") appendRichHtml(container, value);
+        else {
+            const scalar = cell => cell === null || typeof cell === "string" ||
+                typeof cell === "boolean" || (typeof cell === "number" && Number.isFinite(cell));
+            if (!value || !Array.isArray(value.headers) || !value.headers.every(header => typeof header === "string") ||
+                    !Array.isArray(value.rows) || !value.rows.every(row => Array.isArray(row) && row.every(scalar))) {
+                throw new Error(`Metadata table ${field} requires string headers and scalar cell rows.`);
+            }
+            if (!value.rows.length) return null;
+            const table = document.createElement("table");
+            if (value.headers.length) {
+                const head = table.createTHead().insertRow();
+                value.headers.forEach(header => {
+                    const cell = document.createElement("th");
+                    cell.scope = "col";
+                    cell.textContent = header;
+                    head.append(cell);
+                });
+            }
+            const body = table.createTBody();
+            value.rows.forEach(row => {
+                const element = body.insertRow();
+                row.forEach(value => {
+                    const cell = element.insertCell();
+                    if (typeof value === "string") appendRichHtml(cell, value);
+                    else cell.textContent = value === null ? "" : String(value);
+                });
+            });
+            container.append(table);
+        }
+        return container.textContent.trim() ? container : null;
+    };
+
+    // part live-source {
+    // A row's note (generic-tables.md, Current data, Projection): the pseudo-note of the table key's
+    // projection, or of the projection the row was built for, else the canonical note handed in.
+    const ownerOf = (row, tableKey, canonical) =>
+        liveProjection(tableKey ?? row.liveTable)?.notes.get(row.noteId) ?? canonical;
+    // } part live-source
+    // Each register's definition as rendered: a different one is the reader's edited query.
+    const authoredDefinitions = new Map(records.flatMap(record => (record.tables || [])
+        .filter(table => table.rows).map(table => [table.key, JSON.stringify(table.definition)])));
+    const tableDefinition = (table, staticView = false) => {
+        const definition = globalThis.obsBases.project(table.definition, records);
+        const viewIndex = Math.min(table.view || 0, definition.views.length - 1);
+        const view = definition.views[viewIndex];
+        const fieldName = key => key.startsWith('note["') && key.endsWith('"]')
+            ? key.slice(6, -2) : key.replace(/^note\./, "");
+        const properties = Object.fromEntries(Object.entries(definition.properties || {})
+            .map(([key, value]) => [fieldName(key), value]));
+        view.order = view.order.map(fieldName);
+        // Obsidian's columnSize pixels are relative weights over the available width (generic-tables).
+        const columnSizes = Object.fromEntries(Object.entries(view.columnSize || {})
+            .map(([key, size]) => [fieldName(key), size]));
+        for (const key of ["groupBy", "sort"]) {
+            if (!view[key]) continue;
+            const normalize = item => ({...item, property: fieldName(item.property)});
+            view[key] = Array.isArray(view[key]) ? view[key].map(normalize) : normalize(view[key]);
+        }
+        const allRows = artifactTableRows();
+        // part live-source {
+        // The projection this definition shows, none for its saved rows, and those rows' definition,
+        // whose columns the table knows (generic-tables.md, Projection).
+        const liveKey = table.savedRows ? undefined : table.key;
+        const projection = liveKey === undefined ? undefined : liveProjection(liveKey);
+        const savedDefinition = projection && tableDefinition({...table, savedRows: true}, staticView);
+        // } part live-source
+        const parts = [definition.filters, view.filters]
+            .filter((item) => item !== undefined && item !== null);
+        const filters = parts.length ? {and: parts} : undefined;
+        const query = baseFilterExpression(filters);
+        // Without obs.records a view selects canonical notes, as in Obsidian (generic-tables).
+        const recordType = view.obs?.records ?? definition.obs?.records;
+        const nativeNotes = !recordType;
+        // part passing-rows {
+        // The passing filter resolves fields as the view's filters do: through this one resolver.
+        let fieldValue;
+        // } part passing-rows
+        // Projected rows resolve their own fields first, then the owner note (generic-tables).
+        const compiled = globalThis.obsBases.compileFilter(filters, /* part passing-rows { */fieldValue = /* } part passing-rows */(row, field) => {
+            const owner = /* part live-source { */ownerOf(row, liveKey, /* } part live-source */recordsBySlug.get(row.noteId)/* part live-source { */)/* } part live-source */;
+            if (nativeNotes && owner) return globalThis.obsBases.recordValue(owner, field);
+            if (Object.hasOwn(row.ownFields, field)) return row.ownFields[field];
+            return owner ? globalThis.obsBases.recordValue(owner, field) : undefined;
+        });
+        // A register's rows are the core's selection (obs capabilities/registers): this view's, or,
+        // under a reader-edited query, all of the register's, which that query narrows. A fence's
+        // rows are selected here. Generation provenance is the adapter's own documentMetadata.
+        const edited = table.rows && JSON.stringify(table.definition) !== authoredDefinitions.get(table.key);
+        const coreKeys = !table.rows ? undefined : edited/* part live-source { */ || projection/* } part live-source */ ? [...new Set(table.rows.flat())] : table.rows[viewIndex];
+        const rowsByKey = coreKeys && new Map(allRows.map(row => [row.key, row]));
+        let rows = coreKeys ? coreKeys.map(key => {
+            if (!rowsByKey.has(key)) throw new Error(`Register ${table.key}: row ${key} is not in the HTML's embedded data; the HTML was built from inputs that disagree. Rebuild it with obs-document and obs-html.`);
+            return rowsByKey.get(key);
+        }).filter(row => row.values.recordType === (recordType || "note")) : allRows.filter(row => row.values.recordType === (recordType || "note"));
+        if (coreKeys && recordType === "documentMetadata") {
+            rows.push(...allRows.filter(row => row.key.startsWith("generation:") && compiled.match(row)));
+        }
+        // part live-source {
+        // A projected row replaces the build's row of its note, and new rows join; one selection runs over all.
+        if (projection) rows = [...rows.map(row => projection.rows.get(row.key) ?? row), ...projection.added];
+        // } part live-source
+        const selection = coreKeys && !edited/* part live-source { */ && !projection/* } part live-source */ ? {empty: true, match: () => true} : compiled;
+        if (nativeNotes) rows = rows.map(row => {
+            const owner = /* part live-source { */ownerOf(row, liveKey, /* } part live-source */recordsBySlug.get(row.noteId)/* part live-source { */)/* } part live-source */;
+            const values = Object.fromEntries(Object.keys(row.values).flatMap(field => {
+                const value = globalThis.obsBases.recordValue(owner, field);
+                return value === undefined ? [] : [[field, formatMetadataValue(value)]];
+            }));
+            return tableRecord(row.key, values, {
+                ...row, cells: Object.fromEntries(Object.entries(row.cells).filter(([field]) =>
+                    globalThis.obsBases.recordValue(owner, field) !== undefined)),
+            });
+        });
+        // A view's members label the core's rows (generic-tables); the core selected them and sent
+        // them in member order, so a member names a row here or nothing, and the order stays.
+        const members = view.obs?.members;
+        if (coreKeys && members) {
+            const notePath = (row) => /* part live-source { */ownerOf(row, liveKey, /* } part live-source */recordsBySlug.get(row.noteId)/* part live-source { */)/* } part live-source */?.sourcePath ?? row.values.sourcePath;
+            const byPath = new Map(members.map(member => [member.path, member]));
+            rows = rows.map(row => {
+                const member = byPath.get(notePath(row));
+                if (!member) return row;
+                const label = member.label ?? "";
+                const cells = {...row.cells};
+                if (member.label !== undefined && row.noteId) {
+                    cells["obsHtml.label"] = {type: "detail", href: `#${row.noteId}`, label};
+                }
+                return {
+                    ...row,
+                    values: {...row.values, "obsHtml.label": label},
+                    ownFields: {...row.ownFields, "obsHtml.label": label},
+                    fields: {...row.fields, "obshtml.label": [label]},
+                    cells,
+                };
+            });
+        }
+        const matched = rows.filter((row) => selection.match(row));
+        const fields = [...new Set([
+            ...view.order,
+            ...matched.flatMap((row) => Object.keys(row.values)),/* part live-source { */
+            ...(table.live ? globalThis.obsLiveData.targetNames(table.live) : []),/* } part live-source */
+        ])];
+        const column = (key) => {
+            const presentation = properties[key]?.obsHtml || {};
+            const icons = presentation.icons || (presentation.icon ? [presentation.icon] : []);
+            const metadata = presentation.reference?.metadata;
+            const leadingLines = (presentation.leadingLines || []).map(fieldName);
+            return {
+                key,
+                label: properties[key]?.displayName || key,
+                hideLabel: properties[key]?.displayName === "" || icons.length === 1,
+                detail: presentation.detail === true,
+                hasDetail: (row) => {
+                    if (!presentation.detail) return false;
+                    const owner = /* part live-source { */ownerOf(row, liveKey, /* } part live-source */recordsBySlug.get(row.noteId)/* part live-source { */)/* } part live-source */;
+                    return Boolean(owner && globalThis.obsBases.referenceRecords(
+                        owner, key, recordsBySlug,
+                    ).some(({record}) => hasSubjectContent(record, metadata)));
+                },
+                fixed: icons.length > 0,
+                weight: icons.length ? undefined : columnSizes[key],
+                width: icons.length ? artifactData.tableIconWidthPixels * icons.length : undefined,
+                render: (row, cell) => {
+                    if (presentation.singleLine) cell.classList.add("data-table-cell--single-line");
+                    if (icons.length) {
+                        icons.forEach(icon => appendIconCell(cell, icon, row));
+                        return;
+                    }
+                    const owner = /* part live-source { */ownerOf(row, liveKey, /* } part live-source */recordsBySlug.get(row.noteId)/* part live-source { */)/* } part live-source */;
+                    leadingLines.forEach(field => {
+                        let value = row.values[field];
+                        if (value === undefined && owner) {
+                            const raw = globalThis.obsBases.recordValue(owner, field);
+                            if (meaningfulMetadata(raw)) value = formatMetadataValue(raw);
+                        }
+                        if (!meaningfulMetadata(value) || !String(value).trim()) return;
+                        const line = document.createElement("div");
+                        line.className = "data-table-leading-line";
+                        line.dataset.tableLeadingLine = field;
+                        appendTableCell(line, row.cells[field], value);
+                        cell.append(line);
+                    });
+                    if (presentation.editable && !staticView) {
+                        const editor = propertyEditor(owner, key, presentation);
+                        if (editor) {
+                            cell.append(editor);
+                            return;
+                        }
+                    }
+                    if (presentation.reference) {
+                        const owner = /* part live-source { */ownerOf(row, liveKey, /* } part live-source */recordsBySlug.get(row.noteId)/* part live-source { */)/* } part live-source */;
+                        const targets = owner ? globalThis.obsBases.referenceRecords(owner, key, recordsBySlug) : [];
+                        targets.forEach(({record, href}, index) => {
+                            if (index) cell.append(document.createElement("br"));
+                            const values = presentation.reference.label.map(field =>
+                                globalThis.obsBases.recordValue(record, field))
+                                .filter(value => value !== undefined && value !== null && value !== "");
+                            const sourceLink = sourceHref(record, presentation.reference.linkProperty);
+                            const link = appendTableCell(cell, {
+                                type: "link", href: sourceLink || href,
+                                label: values.map(formatMetadataValue).join(" \u2014 ") || record.title,
+                            });
+                            if (presentation.singleLine) link.title = link.textContent;
+                            if (!sourceLink && !staticView && view.obsHtml?.details === "columns" &&
+                                    presentation.detail && hasSubjectContent(record, metadata)) {
+                                link.dataset.tableReferenceColumn = key;
+                            }
+                        });
+                        if (!targets.length) cell.append("\u2014");
+                        return;
+                    }
+                    if (presentation.linkProperty && owner) {
+                        const href = sourceHref(owner, presentation.linkProperty);
+                        if (href) {
+                            appendTableCell(cell, {type: "link", href, label: row.values[key] ?? ""});
+                            return;
+                        }
+                    }
+                    const descriptor = row.cells[key];
+                    appendTableCell(cell, staticView && descriptor?.type === "detail"/* part live-source { */ && !row.liveAdded/* } part live-source */
+                        ? {...descriptor, type: "link"} : descriptor, row.values[key]);
+                },
+            };
+        };
+        const directives = (value) => (Array.isArray(value) ? value : value ? [value] : []);
+        return {
+            properties,
+            rows,
+            query,
+            baseQuery: selection,
+            maxRows: definition.obsHtml?.maxRows,
+            wide: view.obsHtml?.wide === true,
+            compact: view.obsHtml?.compact === true,
+            minimumColumnWidth: view.obsHtml?.compact
+                ? artifactData.tableCompactColumnMinimumPixels : artifactData.tableColumnMinimumPixels,
+            columnDetails: view.obsHtml?.details === "columns",
+            showEmptyDetailTabs: view.obsHtml?.showEmptyDetailTabs === true,
+            // part empty-groups {
+            showEmptyGroups: view.obsHtml?.showEmptyGroups === true,
+            // } part empty-groups
+            // part passing-rows {
+            passing: view.obsHtml?.passing ? {
+                match: globalThis.obsBases.compileFilter(view.obsHtml.passing.filters, fieldValue).match,
+                label: view.obsHtml.passing.label,
+            } : undefined,
+            // } part passing-rows
+            // part detail-fields {
+            detailFields: view.obsHtml?.detailFields,
+            // } part detail-fields
+            screenPageBreaks: view.obsHtml?.screenPageBreaks !== false,
+            pagination: view.obsHtml?.pagination !== false,
+            pageSize: view.obsHtml?.pageSize ?? artifactData.tablePageSize,
+            columnSizing: view.obsHtml?.columnSizing,
+            detailFontSize: view.obsHtml?.detailFontSize ?? artifactData.tableDetailFontSizePoints,
+            fieldCatalog: /* part live-source { */savedDefinition ? savedDefinition.fieldCatalog?.map(item => ({...column(item.key), label: item.label})) : /* } part live-source */queryProfile.scope === "records" && queryProfile.fields && matched.length &&
+                matched.every(row => queryPopulation.match(/* part live-source { */ownerOf(row, liveKey, /* } part live-source */recordsBySlug.get(row.noteId)/* part live-source { */)/* } part live-source */ || row))
+                ? queryProfile.fields.map(({field, label}) => ({
+                    ...column(field), label: label || properties[field]?.displayName || field,
+                }))
+                : undefined,
+            columns: view.order.map(column),
+            availableColumns: /* part live-source { */savedDefinition ? savedDefinition.availableColumns.map(item => column(item.key)) : /* } part live-source */fields.map(column),
+            initialGroup: directives(view.groupBy).map(group => view.obsHtml?.groupOrder
+                ? {...group, order: view.obsHtml.groupOrder} : group),
+            initialSort: directives(view.sort),
+            name: view.name || "",
+            views: definition.views.map(item => item.name || ""),
+            view: viewIndex,
+        };
+    };
+
+    const filterTableRows = (rows, respectFilter = true) => !respectFilter || queryProfile.scope !== "records"
+        ? rows : rows.filter((row) => {
+            const note = /* part live-source { */ownerOf(row, row.liveTable, /* } part live-source */recordsBySlug.get(row.noteId)/* part live-source { */)/* } part live-source */;
+            return !note || !queryPopulation.match(note) || core.activeFilter.match(note);
+        });
+    // Search and table filters read every row's reader-visible text from the model,
+    // independent of which page, group or detail panel is currently rendered.
+    let rowTextCache = new Map();
+    ["obs-canonical-property-change", "obs-table-definition-change"/* part live-source { */, "obs-table-rows-change"/* } part live-source */].forEach(type =>
+        document.addEventListener(type, () => {
+            rowTextCache = new Map();
+        }));
+    const plainText = value => String(value ?? "").replace(/\s+/g, " ").trim();
+    const renderedText = node => plainText([node.textContent,
+        ...[...node.querySelectorAll("input, textarea")].map(field => field.value)].join(" "));
+    const rowSearchText = (definition, tableKey, row) => {
+        const columns = definition.columns.filter(column => !column.fixed);
+        const cacheKey = JSON.stringify([tableKey, columns.map(column => column.key), row.key/* part detail-fields { */,
+            definition.detailFields, definition.initialGroup.map(group => group.property)/* } part detail-fields */]);
+        if (rowTextCache.has(cacheKey)) return rowTextCache.get(cacheKey);
+        const cells = columns.map(column => {
+            const cell = document.createElement("td");
+            column.render(row, cell);
+            return {column: column.key, text: renderedText(cell)};
+        });
+        const details = [];
+        const owner = /* part live-source { */ownerOf(row, tableKey, /* } part live-source */recordsBySlug.get(row.noteId)/* part live-source { */)/* } part live-source */;
+        // part detail-fields {
+        // A row that opens its note in place in a view that chooses its detail fields reads, as its own
+        // text, its values without the fields it hides (input-model.md, obsHtml.detailFields).
+        let own;
+        // } part detail-fields
+        if (owner) {
+            definition.columns.filter(column => column.detail).forEach(column => {
+                const profile = definition.properties?.[column.key]?.obsHtml?.reference?.metadata;
+                const text = plainText(globalThis.obsBases.referenceRecords(owner, column.key, recordsBySlug)
+                    .filter(({record}) => hasSubjectContent(record, profile))
+                    .flatMap(({record}) => [
+                        ...permittedMetadata(record, profile).map(([, value]) => value), record.text,
+                    ]).join(" "));
+                if (text) details.push({column: column.key, text});
+            });
+            const ownerDetails = definition.columnDetails ? Boolean(owner.html.trim())
+                : !tocSlugs.has(owner.slug) && isDocument(owner);
+            if (ownerDetails) {
+                // part detail-fields {
+                if (definition.detailFields && !definition.columnDetails) {
+                    own = globalThis.obsDataTable.shownRowText(row.values, globalThis.obsDataTable.hiddenDetailFields(
+                        owner.metadataEntries.map(([field]) => field), definition.detailFields,
+                        [...definition.columns.map(column => column.key),
+                            ...definition.initialGroup.map(group => group.property)]));
+                }
+                // } part detail-fields
+                const text = plainText([
+                    ...(definition.columnDetails ? [] : /* part detail-fields { */globalThis.obsDataTable.chosenDetailEntries(
+                        /* } part detail-fields */permittedMetadata(owner)/* part detail-fields { */,
+                        definition.detailFields)/* } part detail-fields */.map(([, value]) => value)),
+                    owner.text,
+                ].join(" "));
+                if (text) details.push({column: undefined, text});
+            }
+        }
+        const label = cells.map(cell => cell.text).find(text => /[\p{L}\p{N}]/u.test(text)) || row.key;
+        const all = [...cells, ...details].map(item => item.text).join(" ");
+        const result = {cells, details, label, all/* part detail-fields { */, own/* } part detail-fields */};
+        rowTextCache.set(cacheKey, result);
+        return result;
+    };
+    const searchableRows = (definition, tableKey, rows) => rows.map(row => {
+        if (!definition.baseQuery.match(row)) return row;
+        const {all/* part detail-fields { */, own/* } part detail-fields */} = rowSearchText(definition, tableKey, row);
+        return {...row, haystack: `${/* part detail-fields { */own ?? /* } part detail-fields */row.haystack} ${all}`, detail: `${/* part detail-fields { */own ?? /* } part detail-fields */row.detail} ${all}`};
+    });
+    const tableSearchHits = (record, table) => {
+        const state = tableStates.get(table.key);
+        const definition = tableDefinition({...table, definition: state?.definition || table.definition, view: state?.view});
+        const groups = definition.initialGroup;
+        return definition.rows.filter(row => definition.baseQuery.match(row))
+            .map((row, index) => ({row, index}))
+            .sort((left, right) => {
+                for (const group of groups) {
+                    const order = globalThis.obsDataTable.compareGroupLabels(group)(
+                        String(left.row.values[group.property] ?? "Unspecified"),
+                        String(right.row.values[group.property] ?? "Unspecified"));
+                    if (order) return order;
+                }
+                return left.index - right.index;
+            })
+            .map(({row}) => {
+                const text = rowSearchText(definition, table.key, row);
+                const fields = {...row.fields, text: text.all, content: text.all, body: text.all};
+                return {
+                    kind: "row", slug: record.slug, chapter: record, table: table.key,
+                    tableName: definition.name, row, text,
+                    target: {haystack: `${/* part detail-fields { */text.own ?? /* } part detail-fields */row.haystack} ${text.all}`, detail: text.all, fields},
+                };
+            });
+    };
+    const tableDefinitions = notes.flatMap(note => note.tables || []);
+    const tableKeys = new Set(tableDefinitions.map(table => table.key));
+    const savedPresentations = artifactData.readerState?.tables;
+    const invalidSavedPresentations = savedPresentations !== undefined &&
+        (!savedPresentations || typeof savedPresentations !== "object" ||
+        Array.isArray(savedPresentations) || Object.keys(savedPresentations).some(key => !tableKeys.has(key)));
+    // The selected view is saved by name beside the visible-column presentation (generic-tables).
+    const savedTableState = table => {
+        if (invalidSavedPresentations) return {view: 0, presentation: null};
+        const saved = savedPresentations?.[table.key];
+        // The table runtime validates the presentation itself; only a saved view name is read here.
+        if (!saved || typeof saved !== "object" || Array.isArray(saved) || saved.view === undefined) {
+            return {view: 0, presentation: saved};
+        }
+        const {view: name, ...presentation} = saved;
+        const view = table.definition.views.findIndex(item => item.name === name);
+        if (view < 0) return {view: 0, presentation: null};
+        return {view, presentation: Object.keys(presentation).length ? presentation : undefined};
+    };
+    const tableStates = new Map(tableDefinitions.map(table => [table.key, {
+        definition: table.definition,
+        ...savedTableState(table),
+    }]));
+    // part live-source {
+    // A live table's declaration checked against the build's rows when the page starts, whether or
+    // not its chapter is shown (generic-tables.md, Current data, The check): a register's rows are
+    // the core's, of the views its entry carries; a fence's are the note rows its Base-level filters
+    // select. Each failure logs one console error, and the table's routes are off for this page;
+    // its saved rows stay as they are.
+    const livePopulation = table => {
+        const noteRows = artifactTableRows().filter(row => row.values.recordType === "note" && recordsBySlug.has(row.noteId));
+        const keys = table.rows && new Set(table.rows.flat());
+        const compiled = keys ? null : globalThis.obsBases.compileFilter(table.definition.filters,
+            (row, field) => globalThis.obsBases.recordValue(recordsBySlug.get(row.noteId), field));
+        return noteRows.filter(row => keys ? keys.has(row.key) : compiled.match(row)).map(row => {
+            const owner = recordsBySlug.get(row.noteId);
+            return {sourcePath: owner.sourcePath, frontmatter: owner.frontmatter || {}};
+        });
+    };
+    const liveTables = new Map(tableDefinitions.filter(table => table.live).map(table => {
+        const failures = globalThis.obsLiveData.check(table.live, livePopulation(table));
+        failures.forEach(({notePath, check, field}) => console.error(
+            `Live source ${table.live.name} of table ${table.key}: ${notePath ? `note ${notePath}` : "no note"} ` +
+            `fails the ${check} check of field ${field}, so the table shows its saved rows and reads nothing ` +
+            "in this page. Remedy: correct the note or the Base's obsHtml.liveSource, rebuild, and run " +
+            "obs-html --check-rendered (generic-tables.md, Current data)."));
+        // A headless print reads nothing (generic-tables.md, The web route: Headless printing).
+        return [table.key, {declaration: table.live, routes: failures.length ? "off"
+            : globalThis.obsLiveOff === true ? "print" : "on", failures}];
+    }));
+    // What a live table shows (generic-tables.md, Current data: Reading, Projection, Status line):
+    // each table's reader view and projection, none while the Comments bar is open, and its line.
+    let commentsOpen = false;
+    const liveShown = new Map();
+    const liveProjection = key => commentsOpen ? undefined : liveShown.get(key)?.projection;
+    const NO_READ = {shown: "saved", parts: [], button: false, refresh: "hidden"};
+    const liveStatus = key => {
+        const live = liveTables.get(key);
+        const shown = liveShown.get(key);
+        const view = live?.routes === "off" || live?.unreachable ? {...NO_READ, parts: [{key: "unavailable"}]}
+            : !shown?.view ? NO_READ : commentsOpen ? {...shown.view, shown: "comments"} : shown.view;
+        return globalThis.obsLiveData.statusLine(view, live?.declaration.name ?? "");
+    };
+    // The saved rows a read is laid over: every canonical note, by its path.
+    const savedLiveRows = () => new Map(artifactTableRows().filter(row => row.values.recordType === "note" &&
+        recordsBySlug.has(row.noteId)).map(row => {
+        const owner = recordsBySlug.get(row.noteId);
+        return [owner.sourcePath, {slug: owner.slug, sourcePath: owner.sourcePath, frontmatter: owner.frontmatter || {}}];
+    }));
+    const notesBySlug = new Map(notes.map(note => [note.slug, note]));
+    const kept = (entries, drop) => Object.fromEntries(Object.entries(entries || {}).filter(([field]) =>
+        !drop.some(name => field === name || field.startsWith(`${name}.`))));
+    // One table's projection from its reader's latest items: pseudo-notes built as the page builds its
+    // notes, and their rows by the row builder of noteTableRows; none carries an editor or a table.
+    const projectLive = (key, route, shown) => {
+        const live = liveTables.get(key);
+        const result = globalThis.obsLiveData.project(live.declaration, route, shown.view.results, savedLiveRows(), key,
+            shown.assigned);
+        shown.assigned = result.assigned;
+        const projected = {notes: new Map(), rows: new Map(), added: []};
+        const build = (note, added) => {
+            const record = core.makeRecord(note);
+            projected.notes.set(record.slug, record);
+            return {...core.liveNoteRow(record), liveTable: key, ...(added ? {liveAdded: true} : {})};
+        };
+        result.matched.forEach(({slug, frontmatter, drop}) => {
+            const {editableProperties: _editors, tables: _tables, safeContent: _content, ...note} =
+                structuredClone(notesBySlug.get(slug));
+            const row = build({...note, frontmatter, frontmatterHtml: kept(note.frontmatterHtml, drop),
+                definitionHtml: kept(note.definitionHtml, drop)});
+            projected.rows.set(row.key, row);
+        });
+        result.added.forEach(({slug, sourcePath, title, frontmatter, body}) => projected.added.push(build({
+            depth: 0, title, slug, sourcePath, generated: "", cssClasses: [], frontmatter, frontmatterHtml: {},
+            definitionHtml: {}, marks: [], html: core.renderSafeCanonicalContent(body,
+                {note: {slug}, candidateNotes: [], assetKeys: new Set()}),
+        }, true)));
+        return projected;
+    };
+    // An arrival: the table's state moves, so print rebuilds it, its row texts are read again and
+    // every mounted instance takes its rows; it waits while a print or an export is prepared.
+    const preparing = () => document.documentElement.classList.contains("preparing-print");
+    const waiting = new Set();
+    const arrive = key => {
+        if (preparing()) {
+            waiting.add(key);
+            return;
+        }
+        const state = tableStates.get(key);
+        if (state) state.liveRevision = (state.liveRevision || 0) + 1;
+        rowTextCache = new Map();
+        document.dispatchEvent(new CustomEvent("obs-table-rows-change", {detail: {key}}));
+    };
+    const settle = () => {
+        if (preparing()) return;
+        [...waiting].forEach(key => {
+            waiting.delete(key);
+            (liveShown.get(key)?.recompute ?? arrive)(key);
+        });
+    };
+    new MutationObserver(settle).observe(document.documentElement, {attributes: true, attributeFilter: ["class"]});
+    // One reader per declaration and route, which every table of it shares, so a watch is never
+    // registered twice and a web route is read once; a table whose check failed reads nothing. In
+    // Claude's artifact viewer (claude.use) the first connector route reads, and a table with web
+    // routes only shows that newer updates cannot be shown there; on an http(s) or file: page the
+    // first web route reads (generic-tables.md, Reading).
+    const readers = new Map();
+    const inViewer = typeof globalThis.claude?.use === "function";
+    const webHost = ["http:", "https:", "file:"].includes(globalThis.location?.protocol);
+    liveTables.forEach((live, key) => {
+        if (live.routes !== "on") return;
+        const routeOf = provider => live.declaration.changes.find(entry => entry.provider === provider);
+        const route = inViewer ? routeOf("connector") : webHost ? routeOf("web") : undefined;
+        if (!route) {
+            if (inViewer && routeOf("web")) live.unreachable = true;
+            return;
+        }
+        const identity = JSON.stringify([live.declaration, route]);
+        if (!readers.has(identity)) readers.set(identity, {declaration: live.declaration, route, keys: []});
+        readers.get(identity).keys.push(key);
+        liveShown.set(key, {view: undefined, projection: undefined, assigned: new Map()});
+    });
+    // The origins this page's policy refused, from its securitypolicyviolation events; a refused
+    // request's event can follow its rejection, so the reader asks after one more task.
+    const refused = new Set();
+    document.addEventListener("securitypolicyviolation", event => {
+        try {
+            refused.add(new URL(event.blockedURI).origin);
+        } catch {
+            // A violation without a URL names no origin.
+        }
+    });
+    const blocked = origin => new Promise(resolve => setTimeout(() => resolve(refused.has(origin)), 0));
+    // The page's storage, which a page may not have: every access can throw, and webReader catches it.
+    const storage = {get: name => globalThis.localStorage.getItem(name),
+        set: (name, value) => globalThis.localStorage.setItem(name, value)};
+    const notice = title => globalThis.obsNotices?.post({id: "live-source", severity: "warning", title});
+    readers.forEach(entry => {
+        // A key's view and projection from the reader as it is now, then its arrival.
+        const recompute = key => {
+            const shown = liveShown.get(key);
+            shown.view = entry.reader.view();
+            shown.projection = shown.view.results.length ? projectLive(key, entry.route, shown) : undefined;
+            arrive(key);
+        };
+        const update = () => entry.keys.forEach(key => preparing() ? waiting.add(key) : recompute(key));
+        entry.keys.forEach(key => {
+            Object.assign(liveShown.get(key), {recompute, act: action => entry.reader?.[action]?.()});
+        });
+        const timestamp = artifactData.document.generation.timestamp;
+        const since = globalThis.obsLiveData.since(entry.declaration, timestamp);
+        const started = entry.route.provider === "web"
+            ? Promise.resolve().then(() => {
+                entry.reader = globalThis.obsLiveData.webReader({
+                    declaration: entry.declaration, route: entry.route, since, generated: Date.parse(timestamp),
+                    key: globalThis.obsLiveData.keptKey(artifactData.document?.title ?? document.title, entry.declaration),
+                    fetch: (...args) => globalThis.fetch(...args), storage, blocked, notice, onChange: update,
+                });
+                return entry.reader.start();
+            })
+            : Promise.all([globalThis.claude.use("mcp"), globalThis.claude.use("permissions")]).then(([mcp, permissions]) => {
+                entry.reader = globalThis.obsLiveData.reader({
+                    declaration: entry.declaration, route: entry.route, since, mcp, permissions, onChange: update, notice,
+                });
+                return entry.reader.start();
+            });
+        started.catch(error => console.error(`Live source ${entry.declaration.name}: ${error?.message ?? error}`));
+    });
+    document.addEventListener("visibilitychange", () => {
+        if (document.visibilityState === "visible") readers.forEach(entry => entry.reader?.resume?.());
+    });
+    // While the Comments bar is open, live tables show their saved rows (generic-tables.md, Never saved).
+    document.addEventListener("obs-bar-change", () => {
+        const open = Boolean(globalThis.obsArtifact?.isBarOpen("comments"));
+        if (open === commentsOpen) return;
+        commentsOpen = open;
+        liveShown.forEach((_, key) => arrive(key));
+    });
+    // } part live-source
+    const renderChapterTables = (
+        record, root = chapterBody, staticView = false, respectFilter = true, firstTableFilter = "",
+        firstTableProjection = "",
+    ) => {
+        (record.tables || []).forEach((table) => {
+            const placeholder = root.querySelector(`[data-base-table="${table.key}"]`);
+            if (!placeholder) return;
+            if (!tableStates.has(table.key)) {
+                tableStates.set(table.key, {definition: table.definition, view: 0});
+            }
+            const state = tableStates.get(table.key);
+            const mount = (previous) => {
+                const definition = tableDefinition({...table, definition: state.definition, view: state.view}, staticView);
+                const rendered = globalThis.obsDataTable.render({
+                key: table.key,
+                views: definition.views,
+                activeView: definition.view,
+                onViewChange: staticView ? undefined : index => {
+                    state.view = index;
+                    delete state.presentation;
+                    delete state.widths;
+                    mount(rendered.element);
+                },
+                columns: definition.columns,
+                availableColumns: definition.availableColumns,
+                fieldCatalog: definition.fieldCatalog,
+                initialGroup: definition.initialGroup,
+                initialSort: definition.initialSort,
+                initialPageSize: staticView ? Number.MAX_SAFE_INTEGER : definition.pageSize,
+                initialExpression: table.key === record.tables[0].key ? firstTableFilter : "",
+                initialProjection: table.key === record.tables[0].key ? firstTableProjection : "",
+                initialPresentation: state.presentation,
+                onPresentationChange: staticView ? undefined : (presentation, defaults) => {
+                    state.presentation = savedPresentations?.[table.key] === undefined &&
+                        JSON.stringify(presentation) === JSON.stringify(defaults) ? undefined : presentation;
+                },
+                // Resized widths are session-only view state: not reader state, not an artifact change.
+                initialColumnWidths: state.widths,
+                onColumnWidthsChange: staticView ? undefined : widths => {state.widths = widths;},
+                initialDetailState: definition.columnDetails ? state.details : undefined,
+                initialRowKeys: state.rowKeys,
+                onRowKeysChange: staticView ? undefined : keys => {state.rowKeys = keys;},
+                onDetailStateChange: !staticView && definition.columnDetails ? details => {
+                    state.details = details;
+                } : undefined,
+                rows: filterTableRows(staticView && respectFilter ? definition.rows.filter((row) =>
+                    row.values.recordType !== "chapter" ||
+                    core.visibleIndices.some((index) => chapters[index].slug === row.key),
+                ) : searchableRows(definition, table.key, definition.rows), respectFilter),
+                baseExpression: definition.query,
+                baseQuery: definition.baseQuery,
+                maxRows: definition.maxRows,
+                wide: definition.wide,
+                compact: definition.compact,
+                minimumColumnWidth: definition.minimumColumnWidth,
+                columnDetails: definition.columnDetails,
+                showEmptyDetailTabs: definition.showEmptyDetailTabs,
+                // part empty-groups {
+                showEmptyGroups: definition.showEmptyGroups,
+                // } part empty-groups
+                // part passing-rows {
+                // The fold's state is session-only reader state, which print keeps (generic-tables).
+                passing: definition.passing,
+                initialPassingOpen: state.passingOpen === true,
+                onPassingChange: staticView ? undefined : open => {
+                    if (open) state.passingOpen = true;
+                    else delete state.passingOpen;
+                },
+                // } part passing-rows
+                // part live-source {
+                live: table.live ? {
+                    status: liveStatus(table.key),
+                    onShow: () => liveShown.get(table.key)?.act?.("allow"),
+                    onRefresh: () => liveShown.get(table.key)?.act?.("refresh"),
+                } : undefined,
+                // } part live-source
+                // part table-rows-one-line {
+                // On screen only: the static view, from which print is drawn, never cuts.
+                rowsOneLine: !staticView,
+                // } part table-rows-one-line
+                // part detail-comments {
+                rowNote: (row) => row.noteId,
+                // } part detail-comments
+                screenPageBreaks: definition.screenPageBreaks,
+                pagination: definition.pagination,
+                columnSizing: definition.columnSizing,
+                detailFontSize: definition.detailFontSize,
+                hasDetails: (row) => {
+                    if (!row.noteId) return false;
+                    const owner = /* part live-source { */ownerOf(row, table.key, /* } part live-source */recordsBySlug.get(row.noteId)/* part live-source { */)/* } part live-source */;
+                    if (definition.columnDetails) {
+                        return Boolean(owner?.html.trim() || definition.columns.some(
+                            column => column.detail && column.hasDetail(row),
+                        ));
+                    }
+                    return !staticView && !tocSlugs.has(row.noteId) &&
+                        (typeof isDocument !== "function" || isDocument(owner));
+                },
+                renderDetails: (row, container, columnKey) => {
+                    const owner = /* part live-source { */ownerOf(row, table.key, /* } part live-source */recordsBySlug.get(row.noteId)/* part live-source { */)/* } part live-source */;
+                    if (!owner) throw new Error(`Missing canonical note: ${row.noteId}`);
+                    const profile = columnKey === undefined ? undefined
+                        : definition.properties?.[columnKey]?.obsHtml?.reference?.metadata;
+                    const targets = columnKey === undefined ? [{record: owner}]
+                        : globalThis.obsBases.referenceRecords(owner, columnKey, recordsBySlug)
+                            .filter(({record}) => hasSubjectContent(record, profile));
+                    if (!targets.length) {
+                        const empty = document.createElement("p");
+                        empty.className = "data-table-detail-empty";
+                        empty.textContent = "No linked item.";
+                        container.append(empty);
+                    }
+                    targets.forEach(({record: note}) => {
+                        const subject = document.createElement("section");
+                        subject.className = "data-table-detail-subject";
+                        subject.dataset.referenceNote = note.slug;
+                        const metadata = document.createElement("dl");
+                        metadata.className = "note-detail-metadata";
+                        const metadataEntries = /* part detail-fields { */globalThis.obsDataTable.chosenDetailEntries(
+                            /* } part detail-fields */permittedMetadata(note, profile)/* part detail-fields { */,
+                            columnKey === undefined ? definition.detailFields : undefined)/* } part detail-fields */;
+                        metadataEntries.forEach(([field, value]) => {
+                            const reference = definition.properties?.[columnKey]?.obsHtml?.reference;
+                            const formatting = reference?.metadataFormats?.[field];
+                            const raw = formatting
+                                ? globalThis.obsBases.recordValue(note, formatting.source || field) : undefined;
+                            const formatted = formatting && raw !== undefined && raw !== null &&
+                                (typeof raw !== "string" || raw.trim())
+                                ? richMetadata(raw, formatting.format, field) : undefined;
+                            if (formatted === null) return;
+                            const prefix = profile?.find(name => field === name || field.startsWith(`${name}.`));
+                            const term = document.createElement("dt");
+                            term.textContent = prefix && field.startsWith(`${prefix}.`)
+                                ? field.slice(prefix.length + 1) : prefix === field ? field.split(".").at(-1) : field;
+                            const description = document.createElement("dd");
+                            const href = reference?.label[0] === field
+                                ? sourceHref(note, reference.linkProperty) : undefined;
+                            if (formatted) description.append(formatted);
+                            else appendTableCell(description, href ? {type: "link", href, label: value}
+                                : note.frontmatterHtml?.[field]
+                                    ? {type: "html", html: note.frontmatterHtml[field]} : null, value);
+                            metadata.append(term, description);
+                        });
+                        subject.append(metadata);
+                        // part detail-fields {
+                        // A view that chooses its fields shows no field block where none is left.
+                        if (definition.detailFields && !metadata.childElementCount) metadata.remove();
+                        // } part detail-fields
+                        appendTrustedHtml(subject, note.html);
+                        container.append(subject);
+                        renderChapterTables(note, subject, staticView, respectFilter);
+                    });
+                },
+                renderOwnerDetails: definition.columnDetails ? (row, container) => {
+                    const owner = /* part live-source { */ownerOf(row, table.key, /* } part live-source */recordsBySlug.get(row.noteId)/* part live-source { */)/* } part live-source */;
+                    if (!owner?.html.trim()) return;
+                    const content = document.createElement("section");
+                    content.className = "data-table-owner-content";
+                    // part detail-comments {
+                    // The row body is the row's note's part of its details (input-model.md, Comments and the core model).
+                    content.dataset.referenceNote = owner.slug;
+                    // } part detail-comments
+                    appendTrustedHtml(content, owner.html);
+                    container.append(content);
+                    renderChapterTables(owner, content, staticView, respectFilter);
+                } : undefined,
+                definitionText: state.draft ?? globalThis.obsBases.dump(state.definition),
+                queryView: state.draft !== undefined,
+                onDefinitionDraft: (text) => { state.draft = text; },
+                onDefinitionChange: (text) => {
+                    const edited = globalThis.obsBases.parse(text);
+                    tableDefinition({definition: edited});
+                    const oldDefinition = state.definition;
+                    const oldDraft = state.draft;
+                    const oldPresentation = state.presentation;
+                    const oldWidths = state.widths;
+                    const oldView = state.view;
+                    state.definition = edited;
+                    delete state.draft;
+                    delete state.presentation;
+                    delete state.widths;
+                    state.view = 0;
+                    try {
+                        mount(rendered.element);
+                        if (JSON.stringify(oldDefinition) !== JSON.stringify(edited)) {
+                            document.dispatchEvent(new CustomEvent("obs-table-definition-change", {
+                                detail: {key: table.key},
+                            }));
+                        }
+                    } catch (error) {
+                        state.definition = oldDefinition;
+                        state.draft = oldDraft;
+                        state.presentation = oldPresentation;
+                        state.widths = oldWidths;
+                        state.view = oldView;
+                        throw error;
+                    }
+                },
+                });
+                previous.replaceWith(rendered.element);
+                if (!staticView) {
+                    const refreshRows = (event) => {
+                        if (!rendered.element.isConnected) {
+                            document.removeEventListener("obs-canonical-property-change", refreshRows);
+                            document.removeEventListener("obs-artifact-filter", refreshRows);
+                            // part live-source {
+                            document.removeEventListener("obs-table-rows-change", refreshRows);
+                            // } part live-source
+                            return;
+                        }
+                        if (queryProfile.scope === "records" && event.type === "obs-canonical-property-change") return;
+                        // part live-source {
+                        if (event.type === "obs-table-rows-change" && event.detail?.key !== table.key) return;
+                        // } part live-source
+                        const refreshed = tableDefinition({...table, definition: state.definition, view: state.view});
+                        rendered.setRows(filterTableRows(
+                            searchableRows(refreshed, table.key, refreshed.rows), respectFilter)/* part live-source { */, {baseQuery: refreshed.baseQuery}/* } part live-source */);
+                        // part live-source {
+                        if (table.live) rendered.setLive(liveStatus(table.key));
+                        // } part live-source
+                    };
+                    document.addEventListener("obs-canonical-property-change", refreshRows);
+                    // part live-source {
+                    if (table.live) document.addEventListener("obs-table-rows-change", refreshRows);
+                    // } part live-source
+                    if (queryProfile.scope === "records") {
+                        document.addEventListener("obs-artifact-filter", refreshRows);
+                    }
+                }
+                // The table's core node id keys its rows' review items (bars/comments.js).
+                if (table.node) rendered.element.dataset.nodeId = table.node;
+                if (staticView) {
+                    const plainTable = rendered.element.querySelector("table");
+                    if (table.node) plainTable.dataset.nodeId = table.node;
+                    plainTable.querySelectorAll(".data-table-detail-panel[hidden]").forEach(panel => panel.remove());
+                    if (definition.wide) plainTable.dataset.tableWide = "true";
+                    if (!definition.screenPageBreaks) plainTable.dataset.screenPageBreaks = "false";
+                    plainTable.style.setProperty("--table-icon-width", `${artifactData.tableIconWidthPixels}px`);
+                    plainTable.style.tableLayout = "fixed";
+                    const columns = [...plainTable.querySelector("colgroup").children];
+                    const weights = rendered.fittedWidths();
+                    const sum = weights.reduce((sum, width) => sum + width, 0);
+                    columns.forEach((column, index) => {
+                        column.style.width = `${100 * weights[index] / sum}%`;
+                    });
+                    // Pages refit content-sized columns once the table sits in its paper container.
+                    if (definition.columnSizing !== "equal") {
+                        plainTable.dataset.columnPlan = JSON.stringify(rendered.columnPlan());
+                    }
+                    plainTable.style.minWidth = "0";
+                    plainTable.style.width = "100%";
+                    plainTable.dataset.reviewTable = table.key;
+                    plainTable.querySelectorAll(
+                        ".data-table-controls, .data-table-column-resize, .data-table-tree-toggle, .data-table-group-toggle",
+                    ).forEach((element) => element.remove());
+                    plainTable.querySelectorAll("button").forEach((button) => {
+                        if (button.getAttribute("role") === "tab" || button.hasAttribute("data-unavailable")
+                            || button.classList.contains("data-table-icon-action")) {
+                            const label = document.createElement(
+                                button.getAttribute("aria-selected") === "true" ? "strong" : "span",
+                            );
+                            if (button.classList.contains("data-table-icon-action")) {
+                                label.append(...button.childNodes);
+                            } else label.textContent = button.textContent;
+                            ["id", "title", "aria-label"].forEach(attribute => {
+                                if (button.hasAttribute(attribute)) {
+                                    label.setAttribute(attribute, button.getAttribute(attribute));
+                                }
+                            });
+                            button.replaceWith(label);
+                        } else button.replaceWith(document.createTextNode(button.textContent));
+                    });
+                    rendered.element.replaceWith(plainTable);
+                    // part live-source {
+                    // The line prints as text, without its button.
+                    const liveLine = table.live && liveStatus(table.key);
+                    if (liveLine?.text) {
+                        const line = document.createElement("p");
+                        line.className = "data-table-live-status";
+                        line.dataset.tableLiveStatus = "";
+                        if (liveLine.warning) line.dataset.warning = "true";
+                        line.textContent = liveLine.text;
+                        plainTable.after(line);
+                    }
+                    // } part live-source
+                    // part passing-rows {
+                    // A folded table prints its line or its sentence, and an opened one its rows.
+                    const passingLine = rendered.element.querySelector(":scope > .data-table-passing");
+                    if (passingLine && !passingLine.hidden) {
+                        const line = document.createElement("p");
+                        line.className = passingLine.className;
+                        line.textContent = passingLine.textContent;
+                        plainTable.after(line);
+                    }
+                    // } part passing-rows
+                }
+            };
+            mount(placeholder);
+        });
+    };
+
+    return {
+        definition: tableDefinition,
+        states: tableStates,
+        render: renderChapterTables,
+        searchHits: tableSearchHits,
+        shown: row => filterTableRows([row]).length > 0,
+        // part live-source {
+        live: liveTables,
+        // } part live-source
+    };
+    }};
+})();
