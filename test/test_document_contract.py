@@ -10,7 +10,9 @@ from referencing import Registry, Resource
 
 from obs.adapter import AdapterError, load_adapter
 from obs.discriminator import discriminating_validator
-from obs.document import STRUCTURAL_NODE_TYPES, DocumentError, call_adapter, main, write_document
+from obs.document import (
+    STRUCTURAL_NODE_TYPES, DocumentError, build_document as build_document_model, call_adapter, main, write_document,
+)
 from obs.vault import build_document
 
 from schemas import capability_reference, validate
@@ -45,6 +47,33 @@ def document_fixture(capabilities: list[str] | None = None) -> dict[str, object]
         "capabilities": capabilities or ["manifest"],
         "cssSnippets": [],
     }
+
+
+def test_an_explicitly_empty_manifest_title_is_schema_valid_and_stays_empty_in_its_record(tmp_path) -> None:
+    vault = tmp_path / "empty-title"
+    vault.mkdir()
+    manifest = vault / "manifest.md"
+    manifest.write_text('---\ntitle: ""\n---\n', encoding="utf-8")
+
+    document = build_document_model(manifest, capability_reference())
+
+    assert document["manifest"]["title"] == ""
+    record = next(record for record in document["records"] if record.get("path") == "manifest.md")
+    assert record["fields"]["title"] == ""
+
+
+@pytest.mark.parametrize("title", ['"   "', "17"], ids=["whitespace", "non-string"])
+def test_a_manifest_title_must_be_empty_or_nonblank_text_with_its_owner(tmp_path, title) -> None:
+    vault = tmp_path / "invalid-title"
+    vault.mkdir()
+    manifest = vault / "manifest.md"
+    manifest.write_text(f"---\ntitle: {title}\n---\n", encoding="utf-8")
+
+    with pytest.raises(DocumentError) as failure:
+        build_document_model(manifest, capability_reference())
+
+    assert "manifest.md: title:" in str(failure.value)
+    assert "spec/design_input/input-model.md" in str(failure.value)
 
 
 def figure_descriptor() -> dict[str, object]:
