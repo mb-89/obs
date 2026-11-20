@@ -25,6 +25,7 @@ SPOT, single point of truth, everywhere: code, configuration, design, process an
 definitions alike. Keeping the same fact in two places is an anti-pattern (user, 4 Nov 2026).
 
 - State a fact or contract only in the file that owns and controls it.
+- Specs and documentation refer to the owning design or test, never to issue numbers.
 - When another document or agent needs that fact, refer to its owner with a link, embed,
   schema reference, generated output, or other derived view instead of paraphrasing it.
 - Do not narrate implementation behavior in prose that cannot enforce that behavior.

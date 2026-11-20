@@ -15,7 +15,7 @@ A ```` ```pugh ```` fence holds one matrix in YAML, or a figure fence of kind `p
 ([[capabilities/figures]]) holds it under `content` or in a `source` file. The core checks it
 and carries it as data; it decides nothing.
 
-An adapter decides the matrix with ctrl's Pugh engine, which it carries unchanged. The engine owns
+An adapter decides the matrix with the upstream Pugh engine, which it carries unchanged. The engine owns
 the matrix's shape and every rule of the decision. [[input-model#Pugh decision figures]] owns what obs adds.
 
 ## Authoring example
@@ -56,11 +56,11 @@ a tab "The record", and its text no longer runs under the one-pager.
 
 ## The rules
 
-ctrl's engine decides by these rules, each owned by its row of "The rules, and why" in ctrl's
+The upstream engine decides by these rules, each owned by its row of "The rules, and why" in the upstream project's
 `design/output/pugh.md`, which says why; obs adds none and changes none. The adapter that carries
-the engine runs ctrl's tests of these rules, from ctrl's `test/pugh.test.mjs`, under their names.
+the engine runs the upstream project's tests of these rules, from the upstream project's `test/pugh.test.mjs`, under their names.
 
-| Rule | What the engine does | Source in ctrl |
+| Rule | What the engine does | Upstream source |
 |---|---|---|
 | The datum | the first option of `datum.prefer` that fits is the datum | pugh.md, The datum; Pugh's "set a good datum" (design input 48) |
 | Measured marks | a value's ratio to the datum's, with the `floor` added to both, is S within the `tolerance`, ±1 up to the `strong` ratio (×2) and ±2 beyond; a missing value is "?" and counts 0 | pugh.md, Measured marks |
@@ -81,10 +81,10 @@ by default), so the same fence gives the same verdict on every build and in ever
 
 ## Fence fields and the engine
 
-The fence is ctrl's matrix file with obs's fields beside it ([[input-model#Pugh decision figures]]).
+The fence is the upstream project's matrix file with obs's fields beside it ([[input-model#Pugh decision figures]]).
 The adapter hands the engine:
 
-- unchanged, every field of ctrl's matrix file the fence has: `title`, `kind`, `nouns`, `notes`,
+- unchanged, every field of the upstream project's matrix file the fence has: `title`, `kind`, `nouns`, `notes`,
   `criteria` (with `tolerance`, `floor` and `kind`), the options' `key`, `label`, `values`,
   `fits`, `whyNot`, `suggestable`, `keep`, `tieBreak` and `note`, `gates`, `datum`, `strong` and
   `sensitivity`;

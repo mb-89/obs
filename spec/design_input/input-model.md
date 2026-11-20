@@ -1228,7 +1228,7 @@ A decision figure is a figure of kind `pugh`. A plain ```` ```pugh ```` fence, a
 it, is one without caption, alt or block id, and its whole text is the matrix in YAML. A `figure`
 fence of `kind: pugh` holds the same matrix under `content`, or in a YAML or JSON `source` file.
 
-The matrix has the shape that ctrl's Pugh engine reads; the engine owns it. Every option has a
+The matrix has the shape that the upstream Pugh engine reads; the engine owns it. Every option has a
 letter, A, B, C and on, in the order `candidates` lists them, at most 26 options. obs adds:
 
 - `chosen`, optional: the key of the option the author chose, which the figure checks.
@@ -1250,7 +1250,7 @@ date or decision-maker fields:
 - A mark with its reason: on an option's `marks`, a criterion's mark is a mark (a number, or a
   rater list), as before, or `{mark: <mark>, because: <text>}`, the mark and the reason for it.
   An adapter shows the reason as an argument for or against the option; the mark alone is what
-  ctrl's engine decides, so an adapter hands the engine the mark without the reason.
+  the upstream engine decides, so an adapter hands the engine the mark without the reason.
 - `context` and `concern`, optional: one phrase each, the situation and the concern the decision
   answers, for the decision's one-sentence summary (a Y-statement).
 - `supersededBy`, optional: the decision that replaces this one, as the text that names it (a
@@ -1280,16 +1280,15 @@ within it (`content.criteria[1].better`, `source.chosen`) and the remedy, naming
 [[capabilities/pugh-decisions]].
 
 The figure's body carries the checked matrix as data (`matrix`). The core decides nothing: an
-adapter runs ctrl's engine on it, in the reader's page, so a reader's change is decided again
+adapter runs the upstream engine on it, in the reader's page, so a reader's change is decided again
 there.
 
 Decided by the worker, 14 Nov 2026 (work issue `feat/pugh-engine-computes-the-verdict-20261114`):
-ctrl's engine is obs's one Pugh engine. An adapter that decides figures carries it as one file,
-unchanged from ctrl, and every figure decides with it; the core keeps none of its own, so no second
+The upstream engine is obs's one Pugh engine. An adapter that decides figures carries it as one file,
+unchanged from upstream, and every figure decides with it; the core keeps none of its own, so no second
 engine can drift from it.
 
-[[capabilities/pugh-decisions#The rules]] names each rule the engine decides by and its source in
-ctrl, and [[capabilities/pugh-decisions#Fence fields and the engine]] how each of the fence's
+[[capabilities/pugh-decisions#The rules]] names each rule the engine decides by and its source upstream, and [[capabilities/pugh-decisions#Fence fields and the engine]] how each of the fence's
 fields reaches it.
 
 Beside it, the body carries `shortNames`: each option's short name, in the order `candidates`
@@ -1763,7 +1762,7 @@ writes it and the core that reads it:
   holds them (weights, marks, rulings with their tripwires), and the `winner` they give.
 
   Decided by the user, 14 Nov 2026 (work issue `feat/pugh-engine-computes-the-verdict-20261114`):
-  also the person's other changes ctrl's engine takes: `vetoes`, the letters of the options the
+  also the person's other changes the upstream engine takes: `vetoes`, the letters of the options the
   reader vetoed; `lifts`, by letter, the ids of the engine's own vetoes the reader lifted (`given`
   or `gate<n>`); and `datum`, the letter of the option the reader made the datum.
 
