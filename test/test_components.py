@@ -10,7 +10,7 @@ import pytest
 
 from obs import components
 from obs.adapter import AdapterError, adapter_location, load_adapter
-from obs.document import main as document_main
+from obs.document import build_parser, main as document_main
 
 OWNER = "spec/design_input/components.md"
 HOST = "https://example.test/"
@@ -369,10 +369,18 @@ def test_a_component_of_another_kind_is_no_adapter(host, checkout, machine) -> N
 
 
 def test_html_is_found_only_as_an_installed_component(machine) -> None:
-    """obs keeps no adapter in its tree: html, like any adapter, is found only once it is installed."""
+    """obs keeps no adapter in its tree: obs-html, like any adapter, is found only once it is installed."""
     with pytest.raises(AdapterError) as absent:
-        adapter_location("html")
-    assert "--adapter: html: " in str(absent.value) and "obs-components install html" in str(absent.value)
+        adapter_location("obs-html")
+    assert "--adapter: obs-html: " in str(absent.value) and "obs-components install obs-html" in str(absent.value)
+
+
+def test_the_help_names_the_adapter_by_its_component_and_no_adapter_in_obss_tree() -> None:
+    """Naming a component: obs-document's help names the adapter by its repository, obs-html, and
+    names no adapter that lives in obs's tree."""
+    text = build_parser().format_help()
+    assert "--adapter obs-html" in text
+    assert "obs's tree" not in " ".join(text.split())
 
 
 def test_obs_document_hands_components_to_the_component_command(host, checkout, machine, capsys) -> None:
