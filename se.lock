@@ -2,5 +2,5 @@
 # Written by sync and update; commit it, never edit it.
 
 [modules.se]
-version = "5.120.2"
-ref = "d619f061d99d6c51ace0b2cae73e1c542ca2cc8b"
+version = "5.132.0"
+ref = "9503ff86bcf2fc789b26850ba0e3ed25334cdb8e"
