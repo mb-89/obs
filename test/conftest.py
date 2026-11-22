@@ -136,9 +136,13 @@ def remote_images(monkeypatch):
 def suite_environment(monkeypatch):
     """No test inherits a variable of the suite's own (test/suite.py, VARIABLE_PREFIX), such as the
     shard its run was dealt: a test of the suite would take that path, and suite.main's end would
-    remove it from the worker's environment. A test that needs one sets it."""
+    remove it from the worker's environment. Nor does it inherit the run's reports' folder
+    (suite.REPORTS_VARIABLE): the cap tests' fake parts are named as the real ones, and a capped
+    part writes its report, so one would replace the run's own `core.xml` or `adapters-html.xml`.
+    A test that needs one sets it."""
     for name in [name for name in os.environ if name.startswith(suite.VARIABLE_PREFIX)]:
         monkeypatch.delenv(name)
+    monkeypatch.delenv(suite.REPORTS_VARIABLE, raising=False)
 
 
 SPEC_MANIFEST = Path(__file__).parents[1] / "spec" / "manifest.md"

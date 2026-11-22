@@ -156,7 +156,9 @@ jobs:
         with:
           name: ${{ matrix.shard }}
           command: uv run python test/suite.py --shard ${{ matrix.shard }}/2
-      # Each shard's JUnit reports, from which `test/suite.py --measure-weights` measures SHARD_WEIGHTS.
+      # Each shard's JUnit reports, from which `test/suite.py --measure-weights` measures SHARD_WEIGHTS;
+      # a part stopped at the suite's cap writes its report too, naming its failures (test/suite.py,
+      # run_part).
       - uses: actions/upload-artifact@v7
         if: always()
         with:
