@@ -528,7 +528,7 @@ def _build(options: argparse.Namespace, source: Path, destination: Path | None, 
             folder = stack.enter_context(tempfile.TemporaryDirectory(prefix="obs-document-"))
             document_path = Path(folder) / "document.json"
         _write(document, document_path)  # build_document validated it.
-        if adapter is not None:  # The vault root as given, for the adapter's messages only.
+        if adapter is not None:  # The vault root as given, for adapter-local context.
             link = vault_link(str(destination), str(source.parent))  # Where the vault lies from the page.
             standard = ["--vault-root", str(source.parent), *(["--vault-link", link] if link is not None else [])]
             _deliver(adapter, [*standard, *arguments],

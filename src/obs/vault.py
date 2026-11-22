@@ -247,8 +247,12 @@ def build_document(
     manifest = read_note(manifest_path)
     metadata, body = manifest.metadata, manifest.body
     title = metadata.get("title", manifest_path.stem.replace("-", " ").title())
-    if not isinstance(title, str) or not title.strip():
-        raise VaultError("Manifest title must be a non-empty string.")
+    if not isinstance(title, str) or title and not title.strip():
+        raise VaultError(str(input_error(
+            manifest_path.name, "title", "must be empty or contain non-whitespace text",
+            "Write an empty title to omit the visible heading or a non-whitespace title; "
+            "see spec/design_input/input-model.md",
+        )))
     try:
         validate_cover_metadata(metadata, manifest_path)
         style = declared_style(metadata, manifest_path)

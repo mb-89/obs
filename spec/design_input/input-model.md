@@ -220,9 +220,9 @@ records; they never execute artifact-owned algorithms in the converter.
 
   An explicitly empty string suppresses only that visible heading; it does not remove the
   cover, subtitle, metadata, Home, or abstract. Browser, navigation, and canonical Home
-  identity use the document identity from available document metadata before falling
-  back to the filename. A technical manifest filename is not the document's display
-  identity when a project/document name is supplied.
+  identity use the nonempty `product.name` metadata before falling back to the manifest
+  filename. A technical manifest filename is not the document's display identity when a
+  product name is supplied.
 
   Whitespace-only strings and non-string titles remain invalid.
   When such an authored cover is also present as an ordinary source note (for
