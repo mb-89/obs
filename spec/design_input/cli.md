@@ -68,10 +68,10 @@ goes to a temporary file the call removes, and `--document` names a file that ke
 validates the Document once, as it builds it, and a call that reads `--document` validates it
 once, as it reads it; nothing validates it again before it is written or handed to the adapter.
 
-`--adapter-config` defaults to `adapters.json` in the current folder, the registry at the
-repository root, so the call runs from there.
-RUNME names obs's registry, so a call through RUNME runs from any folder; a later
-`--adapter-config` overrides it.
+`--adapter NAME` names an installed plugin of kind adapter ([[plugins#Naming a plugin]]), which
+the build finds in the machine's plugin folder, or, for `html` while it lives in obs's tree, in the
+checkout the core runs from; nothing in the current folder names it, so the call runs from any
+folder, through RUNME or `uv run --project`.
 
 A build through the core authorizes command fences once, on the core: `--execute-commands` makes
 the core run the vault's command fences from the vault root and put

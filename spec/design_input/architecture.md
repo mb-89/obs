@@ -34,9 +34,12 @@ costs rather than treating all conversion as one opaque phase.
 ## Repository layout
 
 [[plugins]] replaces this section's integrated adapter and the 5 to 6 Nov decision below: every
-adapter, the one in `adapters/html` included, becomes a plugin in a repository of its own, found on the
-checkout's remotes, and `adapters.json` stops being the registry. Until its implementation lands,
-this section describes the repository as it is.
+adapter, the one in `adapters/html` included, becomes a plugin in a repository of its own, found
+through the checkout's remotes.
+
+`adapters.json` is gone: a build finds its adapter among the
+installed plugins, and the adapter in `adapters/html` as the plugin `html` while it lives here
+([[plugins#Naming a plugin]]). Until it moves, this section describes the repository as it is.
 
 The core and its adapters are one repository. The core is `src/obs`; an integrated adapter is
 a folder under `adapters/`, the first in `adapters/html`. Whether a later adapter
@@ -47,8 +50,7 @@ package, tests, browser tests, `spec/` and `adapter.json`, and depends on the co
 workspace path dependency, so a core change and its adapter change land in one commit and
 there is no pin between them.
 
-The root `adapters.json` registers each adapter by the path of
-its `adapter.json`. Each part tests only itself; `uv run python test/suite.py` runs every
+Each adapter folder holds its `adapter.json` at its root. Each part tests only itself; `uv run python test/suite.py` runs every
 part's suite in its own pytest process.
 
 The decision, 5 to 6 Nov 2026, as a matrix ([[capabilities/pugh-decisions]]): the datum is the
@@ -268,7 +270,7 @@ the Document alone and the core is what knows it:
 
 The record names no
 path of the build machine: `--source` is the manifest the Document names, and `--document`,
-`--config`, `--adapter-config` and `--capability-reference` name files outside the vault, so they
+`--config` and `--capability-reference` name files outside the vault, so they
 are left out.
 
 An obs that runs from no Git checkout cannot name its commit: `--embed-source` then
