@@ -1,4 +1,3 @@
-import json
 import re
 from pathlib import Path
 
@@ -51,10 +50,9 @@ MEASURE = "measure"
 def misplaced_measurement_scripts(root: Path) -> list[str]:
     """Each runnable script of a part's tests that no other test file names, outside its test/measure/.
 
-    A part is the core and each adapter adapters.json registers (architecture.md, Repository layout).
+    A part is the core and each adapter folder, which holds its adapter.json (architecture.md, Repository layout).
     """
-    registry = json.loads((root / "adapters.json").read_text(encoding="utf-8"))["adapters"]
-    parts = [root, *(root / Path(manifest).parent for manifest in registry.values())]
+    parts = [root, *(manifest.parent for manifest in sorted(root.glob("adapters/*/adapter.json")))]
     found = []
     for part in parts:
         tests = part / "test"
@@ -76,10 +74,10 @@ def test_measurement_scripts_live_in_their_parts_measure_folder() -> None:
 
 
 def test_the_layout_check_names_a_misplaced_measurement_script(tmp_path: Path) -> None:
-    (tmp_path / "adapters.json").write_text('{"adapters": {"a": "adapters/a/adapter.json"}}', encoding="utf-8")
     script = 'if __name__ == "__main__":\n    main()\n'
     for folder in ("test/measure", "adapters/a/test/browser", "adapters/a/test/measure"):
         (tmp_path / folder).mkdir(parents=True)
+    (tmp_path / "adapters" / "a" / "adapter.json").write_text('{"name": "a"}', encoding="utf-8")
     (tmp_path / "test" / "measure" / "cost.py").write_text(script, encoding="utf-8")
     (tmp_path / "adapters" / "a" / "test" / "measure" / "timing.py").write_text(script, encoding="utf-8")
     (tmp_path / "adapters" / "a" / "test" / "browser" / "speed.py").write_text(script, encoding="utf-8")

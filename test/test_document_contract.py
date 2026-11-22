@@ -8,6 +8,7 @@ from jsonschema import Draft202012Validator, ValidationError
 import pytest
 from referencing import Registry, Resource
 
+from installed_plugins import install_adapter
 from obs.adapter import AdapterError, load_adapter
 from obs.discriminator import discriminating_validator
 from obs.document import (
@@ -322,7 +323,7 @@ def test_document_validates_figure_descriptor_at_the_plot_figure_s_body(tmp_path
         write_document(document, tmp_path / "invalid-document.json", capability_reference())
 
 
-def test_adapter_is_discovered_by_name_from_configuration(tmp_path) -> None:
+def test_adapter_is_discovered_by_name_among_the_installed_plugins(tmp_path) -> None:
     manifest = tmp_path / "adapter.json"
     manifest.write_text(json.dumps({
         "name": "fixture",
@@ -330,10 +331,9 @@ def test_adapter_is_discovered_by_name_from_configuration(tmp_path) -> None:
         "contractVersion": 1,
         "capabilities": ["manifest"],
     }), encoding="utf-8")
-    configuration = tmp_path / "adapters.json"
-    configuration.write_text(json.dumps({"adapters": {"fixture": "adapter.json"}}), encoding="utf-8")
+    install_adapter(json.loads(manifest.read_text(encoding="utf-8")))
 
-    assert load_adapter("fixture", configuration) == {
+    assert load_adapter("fixture") == {
         "name": "fixture",
         "command": ["node", "adapter.js"],
         "contractVersion": 1,
@@ -352,14 +352,12 @@ def test_core_writes_document_and_calls_adapter(tmp_path) -> None:
         "contractVersion": 1,
         "capabilities": [item["id"] for item in capability_reference()["capabilities"]],
     }), encoding="utf-8")
-    configuration = tmp_path / "adapters.json"
-    configuration.write_text(json.dumps({"adapters": {"fixture": "adapter.json"}}), encoding="utf-8")
+    install_adapter(json.loads(manifest.read_text(encoding="utf-8")))
     destination = tmp_path / "output.txt"
 
     assert main([
         "--document", str(document),
         "--adapter", "fixture",
-        "--adapter-config", str(configuration),
         "--capability-reference", str(reference),
         "--destination", str(destination),
     ]) == 0
@@ -384,11 +382,10 @@ def test_core_rejects_mismatched_adapter_contracts(
         "contractVersion": contract_version,
         "capabilities": capabilities,
     }), encoding="utf-8")
-    configuration = tmp_path / "adapters.json"
-    configuration.write_text(json.dumps({"adapters": {"fixture": "adapter.json"}}), encoding="utf-8")
+    install_adapter(json.loads(manifest.read_text(encoding="utf-8")))
 
     with pytest.raises(AdapterError, match=message):
-        call_adapter("fixture", configuration, document, tmp_path / "output.txt", reference)
+        call_adapter("fixture", document, tmp_path / "output.txt", reference)
 
 
 def test_node_adapter_receives_the_document_and_writes_output(tmp_path) -> None:
@@ -403,11 +400,10 @@ def test_node_adapter_receives_the_document_and_writes_output(tmp_path) -> None:
         "contractVersion": 1,
         "capabilities": [item["id"] for item in capability_reference()["capabilities"]],
     }), encoding="utf-8")
-    configuration = tmp_path / "adapters.json"
-    configuration.write_text(json.dumps({"adapters": {"node-fixture": "adapter.json"}}), encoding="utf-8")
+    install_adapter(json.loads(manifest.read_text(encoding="utf-8")))
     destination = tmp_path / "output.json"
 
-    call_adapter("node-fixture", configuration, document, destination, reference)
+    call_adapter("node-fixture", document, destination, reference)
 
     assert json.loads(destination.read_text(encoding="utf-8")) == {
         "schemaVersion": 1,
@@ -459,11 +455,10 @@ def test_document_rejects_unknown_capability_and_requires_dependency_closure(tmp
         "name": "fixture", "command": [sys.executable, "-c", "pass"],
         "contractVersion": 1, "capabilities": [dependent["id"]],
     }), encoding="utf-8")
-    configuration = tmp_path / "adapters.json"
-    configuration.write_text(json.dumps({"adapters": {"fixture": "adapter.json"}}), encoding="utf-8")
+    install_adapter(json.loads(manifest.read_text(encoding="utf-8")))
 
     with pytest.raises(AdapterError, match="does not support Document capabilities"):
-        call_adapter("fixture", configuration, document, tmp_path / "output.txt", reference_path)
+        call_adapter("fixture", document, tmp_path / "output.txt", reference_path)
 
 
 SPEC_MANIFEST = ROOT / "spec" / "manifest.md"
@@ -475,15 +470,12 @@ RECORDING_ADAPTER = (
 )
 
 
-def recording_adapter(folder: Path, **declared: object) -> Path:
-    """An adapters.json in ``folder`` registering the recording adapter ``fixture``."""
-    (folder / "adapter.json").write_text(json.dumps({
+def recording_adapter(**declared: object) -> Path:
+    """The recording adapter ``fixture`` installed as a plugin in the test's machine folder; its folder."""
+    return install_adapter({
         "name": "fixture", "command": [sys.executable, "-c", RECORDING_ADAPTER], "contractVersion": 1,
         "capabilities": [item["id"] for item in capability_reference()["capabilities"]], **declared,
-    }), encoding="utf-8")
-    configuration = folder / "adapters.json"
-    configuration.write_text(json.dumps({"adapters": {"fixture": "adapter.json"}}), encoding="utf-8")
-    return configuration
+    })
 
 
 @pytest.fixture
@@ -496,8 +488,8 @@ def shared_spec_build(monkeypatch, spec_document):
 
 def test_one_call_builds_the_spec_without_a_capability_reference_or_a_document(
         tmp_path, monkeypatch, shared_spec_build) -> None:
-    """The packaged capability reference and a temporary Document; adapters.json in the current folder."""
-    recording_adapter(tmp_path)
+    """The packaged capability reference and a temporary Document; the adapter among the installed plugins."""
+    recording_adapter()
     monkeypatch.chdir(tmp_path)
     destination = tmp_path / "spec.out"
 
@@ -515,7 +507,7 @@ def test_a_given_document_is_kept_and_the_vault_root_is_passed_as_given(tmp_path
     vault.mkdir()
     (vault / "manifest.md").write_text("- [[chapter]]\n", encoding="utf-8")
     (vault / "chapter.md").write_text("Content.\n", encoding="utf-8")
-    recording_adapter(tmp_path)
+    recording_adapter()
     monkeypatch.chdir(tmp_path)
 
     assert main(["--source", "vault/manifest.md", "--document", "kept.json", "--adapter", "fixture",
@@ -539,7 +531,7 @@ def test_the_vault_link_follows_the_vault_root_where_the_rule_gives_one(tmp_path
     (vault / "manifest.md").write_text("- [[chapter]]\n", encoding="utf-8")
     (vault / "chapter.md").write_text("Content.\n", encoding="utf-8")
     (tmp_path / destination).parent.mkdir(parents=True, exist_ok=True)
-    recording_adapter(tmp_path)
+    recording_adapter()
     monkeypatch.chdir(tmp_path)
 
     assert main(["--source", "proj/notes", "--document", "kept.json", "--adapter", "fixture",
@@ -553,10 +545,9 @@ def test_the_vault_link_follows_the_vault_root_where_the_rule_gives_one(tmp_path
 def test_an_adapter_called_on_a_document_gets_no_vault_root(tmp_path) -> None:
     document = tmp_path / "document.json"
     write_document(document_fixture(), document, capability_reference())
-    configuration = recording_adapter(tmp_path)
+    recording_adapter()
 
-    assert main(["--document", str(document), "--adapter", "fixture", "--adapter-config", str(configuration),
-                 "--destination", str(tmp_path / "out.json")]) == 0
+    assert main(["--document", str(document), "--adapter", "fixture", "--destination", str(tmp_path / "out.json")]) == 0
 
     assert json.loads((tmp_path / "out.json").read_text(encoding="utf-8"))["arguments"] == [
         str(document.resolve()), str((tmp_path / "out.json").resolve())]
@@ -566,10 +557,9 @@ def test_an_adapter_called_on_a_document_gets_no_vault_root(tmp_path) -> None:
 def test_a_declared_adapter_option_is_passed_as_the_adapter_declares_it(tmp_path, value, passed) -> None:
     document = tmp_path / "document.json"
     write_document(document_fixture(), document, capability_reference())
-    configuration = recording_adapter(tmp_path, options={"flag": {"type": "boolean", "summary": "A flag."}})
+    recording_adapter(options={"flag": {"type": "boolean", "summary": "A flag."}})
 
-    assert main(["--document", str(document), "--adapter", "fixture", "--adapter-config", str(configuration),
-                 "--destination", str(tmp_path / "out.json"), "--adapter-option", f"flag={value}"]) == 0
+    assert main(["--document", str(document), "--adapter", "fixture", "--destination", str(tmp_path / "out.json"), "--adapter-option", f"flag={value}"]) == 0
 
     assert json.loads((tmp_path / "out.json").read_text(encoding="utf-8"))["arguments"][2:] == passed
 
@@ -579,14 +569,14 @@ def test_an_adapter_option_the_adapter_does_not_declare_names_the_adapter_and_it
         tmp_path, option) -> None:
     document = tmp_path / "document.json"
     write_document(document_fixture(), document, capability_reference())
-    configuration = recording_adapter(tmp_path, options={"flag": {"type": "boolean", "summary": "A flag."}})
+    folder = recording_adapter(options={"flag": {"type": "boolean", "summary": "A flag."}})
 
     with pytest.raises(SystemExit) as failure:
-        main(["--document", str(document), "--adapter", "fixture", "--adapter-config", str(configuration),
-              "--destination", str(tmp_path / "out.json"), "--adapter-option", option])
+        main(["--document", str(document), "--adapter", "fixture", "--destination", str(tmp_path / "out.json"),
+              "--adapter-option", option])
 
     message = str(failure.value.code)
-    assert "--adapter-option" in message and str(tmp_path / "adapter.json") in message and "flag" in message
+    assert "--adapter-option" in message and str(folder / "adapter.json") in message and "flag" in message
     assert not (tmp_path / "out.json").exists()
 
 
@@ -638,7 +628,7 @@ def test_each_build_validates_the_document_exactly_once(tmp_path, monkeypatch, p
     """One validation per build, before the Document is written or handed to the adapter."""
     from obs import document as core
 
-    configuration = recording_adapter(tmp_path)
+    recording_adapter()
     reference = write_reference(tmp_path / "capabilities.json")
     kept = tmp_path / "kept.json"
     if path == "document and adapter":
@@ -648,8 +638,7 @@ def test_each_build_validates_the_document_exactly_once(tmp_path, monkeypatch, p
     monkeypatch.setattr(core, "validate_document", lambda *given: (calls.append(1), validate(*given))[1])
     source = ["--source", str(small_vault(tmp_path))] if path != "document and adapter" else []
     document = ["--document", str(kept)] if path != "one call" else []
-    adapter = ["--adapter", "fixture", "--adapter-config", str(configuration),
-               "--destination", str(tmp_path / "out.json")] if "adapter" in path or path == "one call" else []
+    adapter = ["--adapter", "fixture", "--destination", str(tmp_path / "out.json")] if "adapter" in path or path == "one call" else []
 
     assert main([*source, *document, *adapter, "--capability-reference", str(reference)]) == 0
 
@@ -658,15 +647,14 @@ def test_each_build_validates_the_document_exactly_once(tmp_path, monkeypatch, p
 
 def test_an_invalid_document_is_refused_before_the_adapter_runs(tmp_path) -> None:
     """The one validation names the field path and the schema that owns it; the adapter never starts."""
-    configuration = recording_adapter(tmp_path)
+    recording_adapter()
     document = document_fixture()
     document["chapters"][0]["id"] = "Not An Id"
     path = tmp_path / "document.json"
     path.write_text(json.dumps(document), encoding="utf-8")
 
     with pytest.raises(SystemExit, match=r"chapters\[0\]\.id.*src/obs/document\.schema\.json"):
-        main(["--document", str(path), "--adapter", "fixture", "--adapter-config", str(configuration),
-              "--destination", str(tmp_path / "out.json")])
+        main(["--document", str(path), "--adapter", "fixture", "--destination", str(tmp_path / "out.json")])
 
     assert not (tmp_path / "out.json").exists()
 
@@ -681,13 +669,13 @@ WARNING_ADAPTER = (
 )
 
 
-def warning_adapter(folder: Path, exit: int = 0) -> Path:
-    """An adapters.json in ``folder`` registering ``fixture``, which writes one figure-style warning."""
-    configuration = recording_adapter(folder)
+def warning_adapter(exit: int = 0) -> Path:
+    """The installed adapter ``fixture``, which writes one figure-style warning; its folder."""
+    folder = recording_adapter()
     manifest = json.loads((folder / "adapter.json").read_text(encoding="utf-8"))
     manifest["command"] = [sys.executable, "-c", WARNING_ADAPTER.replace("{exit}", str(exit))]
     (folder / "adapter.json").write_text(json.dumps(manifest), encoding="utf-8")
-    return configuration
+    return folder
 
 
 def _figure_style_warnings(capsys) -> list[str]:
@@ -697,7 +685,7 @@ def _figure_style_warnings(capsys) -> list[str]:
 def test_a_one_call_build_shows_the_adapter_s_warnings_prefixed_with_its_name(tmp_path, monkeypatch, capsys) -> None:
     """cli.md, One-call build: a successful adapter's stderr reaches the person, line by line."""
     small_vault(tmp_path)
-    warning_adapter(tmp_path)
+    warning_adapter()
     monkeypatch.chdir(tmp_path)
 
     assert main(["--source", "vault/manifest.md", "--adapter", "fixture", "--destination", "out.html"]) == 0
@@ -711,7 +699,7 @@ def test_several_documents_name_the_source_of_each_adapter_warning(tmp_path, mon
     for name in ("a", "b"):
         (tmp_path / name).mkdir()
         small_vault(tmp_path / name)
-    warning_adapter(tmp_path)
+    warning_adapter()
     monkeypatch.chdir(tmp_path)
     a, b = str(Path("a", "vault", "manifest.md")), str(Path("b", "vault", "manifest.md"))
 
@@ -726,7 +714,7 @@ def test_several_documents_name_the_source_of_each_adapter_warning(tmp_path, mon
 def test_a_failing_adapter_s_stderr_is_only_in_the_failure(tmp_path, monkeypatch, capsys) -> None:
     """On failure the behaviour is unchanged: the stderr is the detail of the one failure message."""
     small_vault(tmp_path)
-    warning_adapter(tmp_path, exit=1)
+    warning_adapter(exit=1)
     monkeypatch.chdir(tmp_path)
 
     with pytest.raises(SystemExit, match=r"^obs-document: Adapter 'fixture' exited with code 1: "
@@ -742,7 +730,7 @@ SERVING = "import json, sys; print(json.dumps(sys.argv[1:])); raise SystemExit(3
 
 def test_serve_starts_the_adapters_serve_command_on_the_built_artifact_and_returns_its_exit(
         tmp_path, monkeypatch, capfd, shared_spec_build) -> None:
-    recording_adapter(tmp_path, serve=[sys.executable, "-c", SERVING])
+    recording_adapter(serve=[sys.executable, "-c", SERVING])
     monkeypatch.chdir(tmp_path)
     destination = tmp_path / "spec.out"
 
@@ -762,7 +750,7 @@ def test_serve_starts_the_adapters_serve_command_on_the_built_artifact_and_retur
 ], ids=["adapter-without-serve", "wait-without-serve", "timeout-without-wait", "several-sources"])
 def test_serve_is_refused_before_the_build_naming_its_option(tmp_path, monkeypatch, arguments, declared, field,
                                                             shared_spec_build) -> None:
-    recording_adapter(tmp_path, **declared)
+    recording_adapter(**declared)
     monkeypatch.chdir(tmp_path)
 
     with pytest.raises(SystemExit) as refused:
@@ -773,4 +761,4 @@ def test_serve_is_refused_before_the_build_naming_its_option(tmp_path, monkeypat
 
 
 def test_the_html_adapter_declares_its_serve_command() -> None:
-    assert load_adapter("html", ROOT / "adapters.json")["serve"] == ["uv", "run", "obs-html", "serve"]
+    assert load_adapter("html")["serve"] == ["uv", "run", "obs-html", "serve"]

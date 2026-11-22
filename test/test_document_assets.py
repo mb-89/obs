@@ -9,6 +9,7 @@ from pathlib import Path
 import pytest
 import yaml
 
+from installed_plugins import install_adapter
 from obs.document import DocumentError, build_document, call_adapter, validate_document, write_document
 from test_vault import capability_reference
 
@@ -37,15 +38,13 @@ def test_an_adapter_obtains_an_image_s_bytes_from_the_document_without_the_vault
     shutil.rmtree(vault)
     reference_path = tmp_path / "capabilities.json"
     reference_path.write_text(json.dumps(reference), encoding="utf-8")
-    (tmp_path / "adapter.json").write_text(json.dumps({
+    install_adapter({
         "name": "assets", "command": ["node", str(ROOT / "test" / "fixtures" / "document-asset-adapter.js")],
         "contractVersion": 1, "capabilities": [item["id"] for item in reference["capabilities"]],
-    }), encoding="utf-8")
-    configuration = tmp_path / "adapters.json"
-    configuration.write_text(json.dumps({"adapters": {"assets": "adapter.json"}}), encoding="utf-8")
+    })
     destination = tmp_path / "digests.json"
 
-    call_adapter("assets", configuration, document_path, destination, reference_path)
+    call_adapter("assets", document_path, destination, reference_path)
 
     assert json.loads(destination.read_text(encoding="utf-8")) == {"pixel": hashlib.sha256(PNG).hexdigest()}
 

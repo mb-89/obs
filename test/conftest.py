@@ -1,3 +1,4 @@
+import itertools
 import json
 import os
 import shutil
@@ -19,6 +20,16 @@ network_guard.install()
 # themes sets the variable for its own call.
 os.environ["OBS_HTML_LOCAL_FOLDER"] = str(
     Path(__file__).resolve().parents[1] / "adapters" / "html" / "test" / "fixtures" / "no-local-folder")
+
+
+_MACHINE_FOLDERS = itertools.count()
+
+
+@pytest.fixture(autouse=True)
+def machine_plugin_folder(monkeypatch, tmp_path_factory):
+    """Each test's own machine folder (OBS_LOCAL_FOLDER, spec/design_input/plugins.md), created only
+    where a test installs a plugin, so no test reads or changes the build machine's plugins."""
+    monkeypatch.setenv("OBS_LOCAL_FOLDER", str(tmp_path_factory.getbasetemp() / "obs-local" / str(next(_MACHINE_FOLDERS))))
 
 
 def pytest_sessionstart(session):

@@ -60,8 +60,8 @@ def test_the_vault_s_manifest_filename_names_the_note_of_a_vault_folder(tmp_path
     (vault / "manifest.md").rename(vault / "index.md")
     destination = tmp_path / "out.json"
 
-    assert main(["--adapter", "fixture", "--adapter-config", str(recording_adapter(tmp_path)),
-                 "--source", str(vault), "--destination", str(destination)]) == 0
+    recording_adapter()
+    assert main(["--adapter", "fixture", "--source", str(vault), "--destination", str(destination)]) == 0
 
     assert json.loads(destination.read_text(encoding="utf-8"))["manifest"] == "index.md"
 

@@ -23,9 +23,8 @@ DECLARED = {
 def _main(tmp_path: Path, *options: str) -> list[str]:
     vault = source_vault(tmp_path)
     (tmp_path / "adapter").mkdir(exist_ok=True)
-    configuration = recording_adapter(tmp_path / "adapter", options=DECLARED)
-    return ["--source", str(vault / "manifest.md"), "--adapter", "fixture", "--adapter-config",
-            str(configuration), "--destination", str(tmp_path / "out.json"),
+    recording_adapter(options=DECLARED)
+    return ["--source", str(vault / "manifest.md"), "--adapter", "fixture", "--destination", str(tmp_path / "out.json"),
             *(item for option in options for item in ("--adapter-option", option))]
 
 

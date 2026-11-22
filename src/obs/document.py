@@ -12,7 +12,7 @@ from typing import Sequence
 from jsonschema import Draft202012Validator
 from referencing import Registry, Resource
 
-from obs.adapter import (ADAPTER_OPTIONS_OWNER, AdapterError, VaultFile, adapter_manifest_path, load_adapter,
+from obs.adapter import (ADAPTER_OPTIONS_OWNER, AdapterError, VaultFile, adapter_location, load_adapter,
                          option_arguments)
 from obs.comments import SCHEMA_PATH as COMMENTS_SCHEMA_PATH, apply_comments, import_comments
 from obs.sync import SCHEMA_PATH as SYNC_SCHEMA_PATH, apply_result, apply_sync
@@ -22,6 +22,7 @@ from obs import bottom_lines
 from obs.embeds import assign_sections
 from obs.node_ids import assign_ids
 from obs.output import write_output
+from obs.plugins import main as plugins_main
 from obs.sources import SourceError, source_archive, validate_source_archive
 from obs.vault import VaultError, build_document as _build_document, manifest_note
 from obs.vault_link import vault_link
@@ -235,21 +236,20 @@ def _write(document: dict[str, object], path: Path) -> None:
     write_output(path, json.dumps(document, indent=2) + "\n")
 
 
-def call_adapter(adapter_name: str, configuration_path: Path, document_path: Path,
-                 destination: Path, capability_reference_path: Path, options: Sequence[str] = ()) -> None:
-    adapter, arguments = _adapter(adapter_name, configuration_path, options)
+def call_adapter(adapter_name: str, document_path: Path, destination: Path, capability_reference_path: Path,
+                 options: Sequence[str] = ()) -> None:
+    adapter, arguments = _adapter(adapter_name, options)
     reference = read_capability_reference(capability_reference_path)
-    _deliver(adapter, arguments, configuration_path, read_document(document_path, reference), document_path,
-             destination, reference)
+    _deliver(adapter, arguments, read_document(document_path, reference), document_path, destination, reference)
 
 
-def _adapter(name: str, configuration_path: Path, options: Sequence[str]) -> tuple[dict[str, object], list[str]]:
+def _adapter(name: str, options: Sequence[str]) -> tuple[dict[str, object], list[str]]:
     """The adapter's manifest and the arguments its declared ``options`` give."""
-    adapter = load_adapter(name, configuration_path)
-    return adapter, option_arguments(adapter, adapter_manifest_path(name, configuration_path), list(options))
+    adapter = load_adapter(name)
+    return adapter, option_arguments(adapter, adapter_location(name).manifest, list(options))
 
 
-def _deliver(adapter: dict[str, object], arguments: list[str], configuration_path: Path,
+def _deliver(adapter: dict[str, object], arguments: list[str],
              document: dict[str, object], document_path: Path, destination: Path,
              reference: dict[str, object], label: str = "") -> None:
     """Start the adapter on the validated ``document``, which ``document_path`` holds, with the
@@ -271,7 +271,7 @@ def _deliver(adapter: dict[str, object], arguments: list[str], configuration_pat
     try:
         completed = subprocess.run(
             [*adapter["command"], str(document_path.resolve()), str(destination.resolve()), *arguments],
-            cwd=configuration_path.parent,
+            cwd=adapter_location(adapter_name).folder,
             check=False,
             capture_output=True,
             text=True,
@@ -300,15 +300,13 @@ def _capability_closure(requested: set[str], reference: dict[str, object]) -> se
     return required
 
 
-ADAPTER_CONFIGURATION = "adapters.json"
-
-
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="obs-document",
         description="Validate a JSON Document and deliver it to a configured adapter.",
         epilog="One-call build: obs-document --source spec/manifest.md --adapter html "
-               "--destination out.html --execute-commands",
+               "--destination out.html --execute-commands. Plugins: obs-document plugins ARGS runs "
+               "obs-plugins ARGS.",
     )
     parser.add_argument("--document", type=Path,
                         help="JSON Document to read, or to write from --source; with --source and "
@@ -333,10 +331,8 @@ def build_parser() -> argparse.ArgumentParser:
                              "source files (sourceArchive), every file below the manifest's folder "
                              "except hidden, generated and compiled ones, for an adapter that embeds a "
                              "source archive. Nothing scans them for secrets: inspect the vault first.")
-    parser.add_argument("--adapter", help="Configured adapter name.")
-    parser.add_argument("--adapter-config", type=Path, default=Path(ADAPTER_CONFIGURATION),
-                        help=f"Adapter configuration JSON (default: {ADAPTER_CONFIGURATION} in the "
-                             "current folder).")
+    parser.add_argument("--adapter", help="Installed adapter plugin's name (obs-plugins lists them; html is the "
+                                          "adapter in obs's tree while it lives there).")
     parser.add_argument("--capability-reference", type=Path, default=PACKAGED_CAPABILITY_REFERENCE,
                         help="Capability reference JSON (default: the one this package ships, "
                              "generated from spec/capabilities when it was built).")
@@ -373,6 +369,9 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 def main(argv: Sequence[str] | None = None) -> int:
+    argv = sys.argv[1:] if argv is None else list(argv)
+    if argv[:1] == ["plugins"]:  # RUNME starts one command (plugins.md, The plugin command).
+        return plugins_main(argv[1:])
     options = build_parser().parse_args(argv)
     sources, destinations = options.source or [], options.destination or []
     try:
@@ -427,10 +426,10 @@ def main(argv: Sequence[str] | None = None) -> int:
                                 "with --adapter and --destination, or drop --serve.")
         adapter, arguments = None, []
         if options.adapter:  # Before the build: an undeclared option fails at once.
-            adapter, arguments = _adapter(options.adapter, options.adapter_config, options.adapter_option)
+            adapter, arguments = _adapter(options.adapter, options.adapter_option)
         if options.serve and "serve" not in adapter:
             raise DocumentError(f"--serve needs a serve command, and adapter {options.adapter!r} "
-                                f"({adapter_manifest_path(options.adapter, options.adapter_config)}) declares none. "
+                                f"({adapter_location(options.adapter).manifest}) declares none. "
                                 f"Drop --serve, or declare serve in that manifest; see {SERVE_OWNER}.")
         reference = read_capability_reference(options.capability_reference)
         if not options.source:
@@ -439,8 +438,8 @@ def main(argv: Sequence[str] | None = None) -> int:
                 raise DocumentError(f"--adapter-option {vault_file.option!r}: names a file of the vault, and "
                                     f"--document has none. Build from the manifest with --source; see "
                                     f"{ADAPTER_OPTIONS_OWNER}.")
-            _deliver(adapter, arguments, options.adapter_config, read_document(options.document, reference),
-                     options.document, options.destination, reference)
+            _deliver(adapter, arguments, read_document(options.document, reference), options.document,
+                     options.destination, reference)
             return _serve(adapter, options) if options.serve else 0
         if len(sources) == 1:
             _build(options, options.source, options.destination, reference, adapter, arguments)
@@ -464,7 +463,7 @@ def _serve(adapter: dict[str, object], options: argparse.Namespace) -> int:
                *(["--timeout", options.timeout] if options.timeout is not None else [])]
     sys.stdout.flush()
     try:
-        return subprocess.run(command, cwd=options.adapter_config.parent, check=False).returncode
+        return subprocess.run(command, cwd=adapter_location(adapter["name"]).folder, check=False).returncode
     except OSError as error:
         raise AdapterError(f"--serve: cannot start adapter {adapter['name']!r}'s serve command {command[0]!r}: "
                            f"{error}. Install the adapter, or drop --serve; see {SERVE_OWNER}.") from error
@@ -531,8 +530,7 @@ def _build(options: argparse.Namespace, source: Path, destination: Path | None, 
         if adapter is not None:  # The vault root as given, for adapter-local context.
             link = vault_link(str(destination), str(source.parent))  # Where the vault lies from the page.
             standard = ["--vault-root", str(source.parent), *(["--vault-link", link] if link is not None else [])]
-            _deliver(adapter, [*standard, *arguments],
-                     options.adapter_config, document, document_path, destination, reference, label)
+            _deliver(adapter, [*standard, *arguments], document, document_path, destination, reference, label)
 
 
 if __name__ == "__main__":
