@@ -268,9 +268,10 @@ the Document alone and the core is what knows it:
 - and the `arguments` of the call that rebuild it, in the order `--adapter NAME`,
   `--destination` with the destination's file name only, each `--adapter-option`,
   `--execute-commands`, `--embed-source`,
-- the `style` the manifest declares, where it declares one ([Declared style](#declared-style)),
-- and the `components` that built it, as the Document lists them
-  ([[components#Recording what built a page]]).
+- and the `style` the manifest declares, where it declares one ([Declared style](#declared-style)).
+
+It also names the `components` that built the artifact, as the Document lists them
+([[components#Recording what built a page]]).
 
 The record names no
 path of the build machine: `--source` is the manifest the Document names, and `--document`,
