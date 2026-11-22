@@ -338,8 +338,8 @@ def build_parser() -> argparse.ArgumentParser:
                              "source files (sourceArchive), every file below the manifest's folder "
                              "except hidden, generated and compiled ones, for an adapter that embeds a "
                              "source archive. Nothing scans them for secrets: inspect the vault first.")
-    parser.add_argument("--adapter", help="Installed adapter component's name (obs-components lists them; html is the "
-                                          "adapter in obs's tree while it lives there).")
+    parser.add_argument("--adapter", help="Installed adapter component's name, such as obs-html (obs-components lists "
+                                          "them; html is the adapter in obs's tree while it lives there).")
     parser.add_argument("--capability-reference", type=Path, default=PACKAGED_CAPABILITY_REFERENCE,
                         help="Capability reference JSON (default: the one this package ships, "
                              "generated from spec/capabilities when it was built).")

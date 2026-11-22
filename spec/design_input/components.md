@@ -177,9 +177,9 @@ as another kind, fails the build naming the field (or the option), the component
 run `obs-components install NAME`. An adapter's commands run from its installed folder, and a style's
 installed folder reaches the adapter in the Document ([[architecture#Declared style]]).
 
-The HTML adapter is the component `obs-html`, the name of its own repository: a fresh checkout installs
-it with `obs-components install obs-html` and builds with `--adapter obs-html`. Its release's
-`adapter.json` names `obs-html`, as every adapter's names its component ([Choosing](#choosing)).
+An adapter is named by its own repository's name, which its release's `adapter.json` repeats
+([Choosing](#choosing)). The adapter of `adapters/html` now has a repository of its own:
+`obs-components install obs-html` installs it, and `--adapter obs-html` builds with it.
 
 While the adapter in `adapters/html` still lives in obs's tree, a build finds it as the adapter
 component `html` where no component `html` is installed: its manifest is `adapters/html/adapter.json` of
