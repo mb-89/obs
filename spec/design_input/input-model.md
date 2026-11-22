@@ -1985,9 +1985,10 @@ with a value and where it comes from, `{value, node}` with the id of the node th
 A node without `effective` takes its note's front matter as its effective values, so a Document
 without field lines is as before. `document.schema.json` states both.
 
-A block's effective values form the mapping front matter forms for a note, so the shared query
-language matches a block's effective fields as `field: value` exactly as it matches front matter
-(`block_fields.values`, `selection.conditions_select`); adapters may show the fields.
+A block's effective values form the mapping front matter forms for a note, so a query condition
+matches a block's effective fields as `field: value` exactly as it matches front matter
+(`block_fields.values`, `selection.conditions_select`). Adapters may show the fields; no record
+type lists blocks yet, so no table selects a block by them.
 
 ## Reviewed copy
 
