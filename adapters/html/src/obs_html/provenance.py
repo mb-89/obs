@@ -165,22 +165,29 @@ def comment_island(html: str) -> tuple[str, str, object] | None:
     end = html.find("</script>", body)
     if end < 0 or len(html[start:end + len("</script>")].splitlines()) != 1:
         return None
-    try:
-        model = json.loads(html[body:end], object_pairs_hook=_unique)
-    except ValueError:
-        return None
-    if not _resolved().is_valid(model):
+    model = _unique_json(html[body:end])
+    if model is None or not _resolved().is_valid(model):
         return None
     # Numbered as artifact_texts numbers them, by str.splitlines.
     number = len((html[:start] + "<").splitlines())
     return f"HTML line {number}", (html[:body] + html[end:]).splitlines()[number - 1], model
 
 
-def _unique(pairs: list[tuple[str, object]]) -> dict[str, object]:
-    """A JSON object whose keys are unique: a key twice would hide its first value from the check."""
-    if len({key for key, _ in pairs}) != len(pairs):
-        raise ValueError("a key twice")
-    return dict(pairs)
+def _unique_json(text: str) -> object | None:
+    """The JSON value of ``text``, or None where it is not JSON or an object holds a key twice, which
+    would hide its first value from the check."""
+    twice = False
+
+    def unique(pairs: list[tuple[str, object]]) -> dict[str, object]:
+        nonlocal twice
+        twice = twice or len({key for key, _ in pairs}) != len(pairs)
+        return dict(pairs)
+
+    try:
+        value = json.loads(text, object_pairs_hook=unique)
+    except ValueError:
+        return None
+    return None if twice else value
 
 
 def _hits(text: str, local_terms: tuple[tuple[str, re.Pattern[str]], ...]) -> list[tuple[str, str]]:
