@@ -207,6 +207,29 @@ def test_a_derived_id_never_takes_an_explicit_ones_name(tmp_path: Path) -> None:
     assert _by_text(document, "Text.")["id"] == f"{derived}-2"
 
 
+def test_an_authored_id_is_marked_even_where_it_equals_the_generated_one(tmp_path: Path) -> None:
+    """A consumer tells an author's ``^name`` from a generated id by ``authoredId``, not by spelling."""
+    (tmp_path / "a").mkdir()
+    generated = _by_text(_build(tmp_path / "a", "Text.\n"), "Text.")
+    assert "authoredId" not in generated
+    (tmp_path / "b").mkdir()
+    authored = _by_text(_build(tmp_path / "b", f"Text. ^{generated['id']}\n"), "Text.")
+    assert authored["id"] == generated["id"]
+    assert authored["authoredId"] is True
+    assert {key: value for key, value in authored.items() if key != "authoredId"} == generated
+
+
+def test_only_the_blocks_an_author_named_carry_the_authored_mark(tmp_path: Path) -> None:
+    note = ("# Design ^design\n\nPinned. ^pinned\n\nPlain.\n\n- an item ^the-item\n- another\n\n"
+            "| K |\n|---|\n| v |\n\n^the-table\n\nSee [[#^pinned]].\n")
+    content = _build(tmp_path, note)["chapters"][0]["content"]
+    authored = {node["id"] for node in _blocks(content) if node.get("authoredId")}
+    assert authored == {"design", "pinned", "the-item", "the-table"}
+    assert all("authoredId" not in node for node in _blocks(content) if node.get("id") not in authored)
+    [link] = _links(content)
+    assert link["block"] == "pinned" and link["chapter"] == "design"
+
+
 def test_a_command_output_is_not_part_of_the_id(tmp_path: Path) -> None:
     note = "```cmd\necho hello\n```\n"
     (tmp_path / "a").mkdir()
