@@ -10,9 +10,10 @@ This note replaces the integrated adapter of the 5 Nov decision
 ([[cli#One-call build]]) and the style named by its repository address and commit
 ([[architecture#Declared style]]).
 
-The component command and the build's adapter lookup are implemented (`src/obs/components.py`); naming a style by `obs.style` and
-[Recording what built a page](#recording-what-built-a-page) are not yet, and until they land those
-sections describe the build as it is.
+The component command, the build's adapter lookup and
+[Recording what built a page](#recording-what-built-a-page) are implemented (`src/obs/components.py`);
+naming a style by `obs.style` is not yet, and until it lands that section describes the build as it
+is.
 
 ## A component
 
@@ -180,6 +181,26 @@ The core passes them in the Document, so the adapter writes them into its artifa
 the machine's list, and the source archive's build record carries the same list
 ([[architecture#Source archive]]).
 
+The Document's `components` lists them in the order the build found them; a build without an
+adapter, which writes only the Document, lists none.
+
+The adapter in `adapters/html`, found in obs's tree
+([Naming a component](#naming-a-component)), is recorded as the component `html` of kind `adapter`
+at obs's version, `version` of `[project]` in the checkout's `se.toml`, and at the commit the checkout
+is at (`git rev-parse HEAD`), or `unknown` where Git cannot name it.
+
 A rebuild uses the versions installed on its machine: where one differs from the recorded version,
 the build warns naming the component and both versions, and where a recorded component is not installed it
 fails as any build naming an absent component does.
+
+The rebuild names the record it rebuilds with `--recorded-components FILE`, a JSON file whose
+`components` lists them as the Document does: a source archive's `build-config.json`, whose recorded
+command passes it.
+
+The failure names the option, the list index, the component and the remedy, to run
+`obs-components install NAME`. A build without the option checks nothing, since it rebuilds no record.
+
+Warning on another installed version was chosen over refusing the rebuild: one version is installed at
+a time ([Installed components](#installed-components)), so a refusal could only be cured by installing
+the recorded version, often a downgrade, while the warning lets the rebuild show what changed (work
+issue 859, 22 Nov 2026).

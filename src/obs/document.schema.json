@@ -4,7 +4,7 @@
   "description": "A neutral Document. Node types are the structural types $defs/structuralType lists, or capability identifiers from the supplied capability reference.",
   "type": "object",
   "additionalProperties": false,
-  "required": ["schemaVersion", "manifest", "chapters", "links", "assets", "records", "semanticResources", "diagnostics", "capabilities", "cssSnippets"],
+  "required": ["schemaVersion", "manifest", "chapters", "links", "assets", "records", "semanticResources", "diagnostics", "capabilities", "cssSnippets", "components"],
   "properties": {
     "schemaVersion": {"const": 1},
     "manifest": {
@@ -34,6 +34,10 @@
     "style": {
       "description": "The identity of the style module the manifest's obs.style declares, as declared, never its files; an adapter that offers styles resolves and applies it (architecture.md, Declared style).",
       "$ref": "#/$defs/styleIdentity"
+    },
+    "components": {
+      "description": "The components that build this Document's artifact, in the order the build found them; none for a build without an adapter (components.md, Recording what built a page).",
+      "$ref": "#/$defs/components"
     },
     "cssSnippets": {
       "description": "The vault's CSS snippets, every .css file of its snippet folder in name order (architecture.md, CSS snippets).",
@@ -698,15 +702,29 @@
         "path": {"type": "string", "minLength": 1}
       }
     },
+    "components": {
+      "type": "array", "items": {"$ref": "#/$defs/component"}
+    },
+    "component": {
+      "description": "One component that builds the artifact: its name, kind, version and commit, as the machine's components.json lists them, or for the adapter of obs's tree obs's version and commit (components.md, Recording what built a page).",
+      "type": "object", "additionalProperties": false, "required": ["name", "kind", "version", "commit"],
+      "properties": {
+        "name": {"type": "string", "pattern": "^[a-z0-9][a-z0-9-]{0,31}$"},
+        "kind": {"type": "string", "pattern": "^[a-z]+$"},
+        "version": {"type": "string", "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$"},
+        "commit": {"type": "string", "pattern": "^([0-9a-f]{40}|unknown)$"}
+      }
+    },
     "sourceBuild": {
-      "description": "What rebuilds the artifact: obs's public repository, the commit of the checkout obs ran from, the package versions of every lockfile Git tracks there by repository-relative path, the obs-document arguments of the call without the build machine's paths and the declared style (architecture.md, Source archive).",
-      "type": "object", "additionalProperties": false, "required": ["repository", "commit", "lockfiles", "arguments"],
+      "description": "What rebuilds the artifact: obs's public repository, the commit of the checkout obs ran from, the package versions of every lockfile Git tracks there by repository-relative path, the obs-document arguments of the call without the build machine's paths, the declared style and the components that built it (architecture.md, Source archive).",
+      "type": "object", "additionalProperties": false, "required": ["repository", "commit", "lockfiles", "arguments", "components"],
       "properties": {
         "repository": {"type": "string", "minLength": 1},
         "commit": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
         "lockfiles": {"type": "object", "additionalProperties": {"type": "object", "additionalProperties": {"type": "string"}}},
         "arguments": {"type": "array", "items": {"type": "string"}, "contains": {"const": "--embed-source"}},
-        "style": {"$ref": "#/$defs/styleIdentity", "description": "The style the manifest declares, which a rebuild resolves again (architecture.md, Declared style)."}
+        "style": {"$ref": "#/$defs/styleIdentity", "description": "The style the manifest declares, which a rebuild resolves again (architecture.md, Declared style)."},
+        "components": {"$ref": "#/$defs/components", "description": "The Document's components, which a rebuild checks against the installed ones (components.md, Recording what built a page)."}
       }
     },
     "sourceFile": {

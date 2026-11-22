@@ -270,6 +270,9 @@ the Document alone and the core is what knows it:
   `--execute-commands`, `--embed-source`,
 - and the `style` the manifest declares, where it declares one ([Declared style](#declared-style)).
 
+It also names the `components` that built the artifact, as the Document lists them
+([[components#Recording what built a page]]).
+
 The record names no
 path of the build machine: `--source` is the manifest the Document names, and `--document`,
 `--config` and `--capability-reference` name files outside the vault, so they

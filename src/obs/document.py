@@ -12,8 +12,8 @@ from typing import Sequence
 from jsonschema import Draft202012Validator
 from referencing import Registry, Resource
 
-from obs.adapter import (ADAPTER_OPTIONS_OWNER, AdapterError, VaultFile, adapter_location, load_adapter,
-                         option_arguments)
+from obs.adapter import (ADAPTER_OPTIONS_OWNER, RECORDED, AdapterError, VaultFile, adapter_location,
+                         check_recorded, component_record, load_adapter, option_arguments)
 from obs.comments import SCHEMA_PATH as COMMENTS_SCHEMA_PATH, apply_comments, import_comments
 from obs.sync import SCHEMA_PATH as SYNC_SCHEMA_PATH, apply_result, apply_sync
 from obs.discriminator import discriminating_validator
@@ -51,6 +51,7 @@ def build_document(
     manifest_path: Path, reference: dict[str, object], configuration_path: Path | None = None,
     execute_commands: bool = False, embed_source: bool = False, delivery: Sequence[str] = (),
     option_files: Sequence[str] = (), answers: Path | None = None,
+    components: Sequence[dict[str, str]] = (),
 ) -> dict[str, object]:
     """Parse a vault into a schema-valid neutral Document.
 
@@ -59,10 +60,13 @@ def build_document(
     ``delivery`` are the call's adapter arguments the archive's build record names before the core's;
     ``option_files`` the vault-relative files its vault-file options name, which the archive holds.
     ``answers`` is a reader's answers file, whose verdicts the chapters that ask carry (input-model#Answers).
+    ``components`` are those that build the artifact, which the Document and the archive's build record
+    name (components.md, Recording what built a page).
     """
     try:
         known = {item["id"] for item in reference["capabilities"]}
         document = _build_document(manifest_path, known, configuration_path, execute_commands)
+        document["components"] = [dict(component) for component in components]
         assign_ids(document)
         assign_sections(document)
         bottom_lines.assign(document)
@@ -70,7 +74,7 @@ def build_document(
             arguments = [*delivery, *(["--execute-commands"] if execute_commands else []), "--embed-source"]
             document["sourceArchive"] = source_archive(manifest_path.resolve().parent, document["assets"],
                                                         document["cssSnippets"], arguments, document.get("style"),
-                                                        option_files)
+                                                        option_files, document["components"])
         apply_comments(document, manifest_path)
         apply_sync(document, manifest_path)
         if answers is not None:
@@ -349,6 +353,11 @@ def build_parser() -> argparse.ArgumentParser:
                         help="With --source: a reader's answers file (what --serve --wait prints and the served "
                              "artifact's server writes); the chapters that ask carry their verdicts, so the artifact "
                              "is the decision record.")
+    parser.add_argument(RECORDED, type=Path, metavar="FILE",
+                        help="With --source: the components a recorded build used, a source archive's "
+                             "build-config.json (its recorded command passes it); the build warns where an "
+                             "installed version differs and fails where one is not installed "
+                             "(spec/design_input/components.md, Recording what built a page).")
     parser.add_argument("--sync-result", type=Path,
                         help="With one --source: a sync result an adapter returned, which the core applies to its "
                              "namespace's record file next to the manifest before it builds the Document "
@@ -399,6 +408,9 @@ def main(argv: Sequence[str] | None = None) -> int:
         if options.answers and not options.source:
             raise DocumentError("--answers is only used with --source: the answers go into the Document built from "
                                 "the manifest. Build it with --source.")
+        if options.recorded_components and not options.source:
+            raise DocumentError(f"{RECORDED} is only used with --source: it checks the components a rebuild "
+                                "from a source archive uses. Rebuild from the archive's vault with --source.")
         if options.sync_result and not options.source:
             raise DocumentError("--sync-result is only used with --source: the core applies it to the record file "
                                 "next to the manifest. Build it with --source.")
@@ -431,6 +443,9 @@ def main(argv: Sequence[str] | None = None) -> int:
             raise DocumentError(f"--serve needs a serve command, and adapter {options.adapter!r} "
                                 f"({adapter_location(options.adapter).manifest}) declares none. "
                                 f"Drop --serve, or declare serve in that manifest; see {SERVE_OWNER}.")
+        if options.recorded_components is not None:  # Before the build: an absent component writes nothing.
+            check_recorded(options.recorded_components,
+                           lambda message: print(f"obs-document: warning: {message}", file=sys.stderr))
         reference = read_capability_reference(options.capability_reference)
         if not options.source:
             vault_file = next((item for item in arguments if isinstance(item, VaultFile)), None)
@@ -516,8 +531,9 @@ def _build(options: argparse.Namespace, source: Path, destination: Path | None, 
         apply_result(source, options.sync_result)
     if options.import_comments is not None:
         import_comments(source, list(zip(options.import_comments, options.principal)))
+    built_by = [component_record(options.adapter)] if adapter is not None else []
     document = build_document(source, reference, options.config, options.execute_commands, options.embed_source,
-                              delivery, files, options.answers)
+                              delivery, files, options.answers, built_by)
     for diagnostic in document["diagnostics"]:
         if diagnostic["level"] == "warning":
             print(f"obs-document: warning: {diagnostic['message']}", file=sys.stderr)
