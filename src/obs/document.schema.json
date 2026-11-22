@@ -106,8 +106,13 @@
         "attrs": {"type": "object"},
         "children": {"type": "array", "items": {"$ref": "#/$defs/node"}},
         "text": {"type": "string"},
-        "id": {"$ref": "#/$defs/nodeId"}
+        "id": {"$ref": "#/$defs/nodeId"},
+        "authoredId": {
+          "description": "Present, and true, only where the node's id is an Obsidian block reference the author wrote, also where it equals the id that would be derived; a derived id carries none (input-model#Explicit ids).",
+          "const": true
+        }
       },
+      "dependentRequired": {"authoredId": ["id"]},
       "allOf": [
         {
           "description": "Containers that carry no attributes: a quotation's blocks, a table's rows, a row's cells, and a mark's inline nodes.",

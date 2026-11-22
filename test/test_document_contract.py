@@ -123,6 +123,51 @@ def test_document_schema_requires_a_resolved_chapter_on_note_links(node) -> None
         validate(document, schema)
 
 
+def _paragraph(**marks: object) -> dict[str, object]:
+    return {"type": "paragraph", "attrs": {}, **marks,
+            "children": [{"type": "text", "attrs": {}, "children": [], "text": "Content."}]}
+
+
+@pytest.mark.parametrize("marks", [{}, {"id": "paragraph-1a2b3c4d"}, {"id": "pinned", "authoredId": True}])
+def test_document_schema_accepts_a_generated_and_an_authored_block_id(marks) -> None:
+    """input-model#Explicit ids: an author's ``^name`` is marked ``authoredId``; a generated id is not."""
+    schema = json.loads((ROOT / "src" / "obs" / "document.schema.json").read_text(encoding="utf-8"))
+    document = document_fixture()
+    document["chapters"][0]["content"] = [_paragraph(**marks)]
+
+    validate(document, schema)
+
+
+@pytest.mark.parametrize("marks, validator", [
+    ({"authoredId": True}, "dependentRequired"),
+    ({"id": "pinned", "authoredId": False}, "const"),
+])
+def test_document_schema_refuses_an_authored_mark_without_an_id_or_set_false(marks, validator) -> None:
+    schema = json.loads((ROOT / "src" / "obs" / "document.schema.json").read_text(encoding="utf-8"))
+    document = document_fixture()
+    document["chapters"][0]["content"] = [_paragraph(**marks)]
+
+    with pytest.raises(ValidationError) as failure:
+        validate(document, schema)
+    path = ["chapters", 0, "content", 0] + (["authoredId"] if validator == "const" else [])
+    assert (list(failure.value.absolute_path), failure.value.validator) == (path, validator)
+
+
+def test_document_cli_marks_an_authored_block_id_in_its_json(tmp_path) -> None:
+    vault = tmp_path / "vault"
+    vault.mkdir()
+    (vault / "manifest.md").write_text("- [[chapter]]\n", encoding="utf-8")
+    (vault / "chapter.md").write_text("Pinned. ^pinned\n\nPlain.\n", encoding="utf-8")
+    output = tmp_path / "document.json"
+
+    assert main(["--source", str(vault / "manifest.md"), "--document", str(output),
+                 "--capability-reference", str(write_reference(tmp_path / "capabilities.json"))]) == 0
+
+    paragraphs = [node for node in json.loads(output.read_text(encoding="utf-8"))["chapters"][0]["content"]
+                  if node["type"] == "paragraph"]
+    assert [(node["id"], node.get("authoredId")) for node in paragraphs][-2:] == [("pinned", True), (paragraphs[-1]["id"], None)]
+
+
 def test_document_cli_writes_a_vault_document(tmp_path) -> None:
     vault = tmp_path / "vault"
     vault.mkdir()
