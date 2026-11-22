@@ -1,24 +1,28 @@
 """Render a JSON Document as one portable, interactive HTML artifact.
 
-The Document is the only input: no vault, no core package. Each capability this adapter
-renders registers one node renderer in ``CAPABILITIES``; ``adapter.json`` declares the same
-identifiers. Chapters become the notes of the artifact-data island, which the embedded
-runtime (artifact.js and its companions) reads to build the reader, the bars and the pages.
+The Document is the only source of content: no vault or core package is read. The target root,
+when supplied, is used only for Git provenance. Each capability this adapter renders registers
+one node renderer in ``CAPABILITIES``; ``adapter.json`` declares the same identifiers. Chapters
+become the notes of the artifact-data island, which the embedded runtime (artifact.js and its
+companions) reads to build the reader, the bars and the pages.
 """
 from __future__ import annotations
 
 import base64
 import json
 import re
+import subprocess
+import tomllib
 from contextlib import contextmanager
 from dataclasses import dataclass, field
 from datetime import datetime
 from html import escape, unescape
-from importlib.metadata import version
+from importlib.metadata import PackageNotFoundError, distribution, version
 from importlib.resources import files
 from pathlib import Path, PurePosixPath
 from typing import Callable, Iterator
-from urllib.parse import unquote
+from urllib.parse import unquote, urlsplit
+from urllib.request import url2pathname
 
 from jsonschema import Draft202012Validator, validators
 from jsonschema.exceptions import ValidationError
@@ -111,9 +115,14 @@ class Context:
     """The chapter and block id of each block link's target (_block_targets)."""
     contents: dict[str, tuple[list[dict[str, object]], list[object]]] = field(default_factory=dict)
     """Each chapter's content and its path in the Document, by chapter id, the home page's as home."""
+    percolated: dict[str, list[dict[str, object]]] = field(default_factory=dict)
+    """Each page's direct children whose note holds a bottom line, by page id (percolated)."""
     inline: bool = False
     """Whether the node being rendered sits in a field value or a table cell, where an embed of a
     block or section renders its link alone (artifact-ui, Content sections)."""
+    leads: str = ""
+    """The list of the page's children's leads, which the page's bottom line being rendered holds
+    (artifact-ui.md, Bottom lines)."""
     showing: list[tuple[str, str]] = field(default_factory=list)
     """The chapter and block of each embed whose copy is being rendered, outermost first."""
     conjunctions: tuple[str, ...] = ()
@@ -505,8 +514,10 @@ CALLOUT_TONES = {
     "note": "accent", "abstract": "accent", "info": "accent", "todo": "accent", "tip": "accent",
     "success": "success", "question": "warning", "warning": "warning", "failure": "failure",
     "danger": "failure", "bug": "failure", "example": "accent", "quote": "neutral",
-    "important": "accent",
+    "important": "accent", "bluf": "accent",
 }
+BOTTOM_LINE = "Bottom line"
+"""A bottom line's accessible label, and the title of a box that holds its children's leads alone."""
 
 
 def _callout(node: dict[str, object], context: Context) -> str:
@@ -519,12 +530,15 @@ def _callout(node: dict[str, object], context: Context) -> str:
     name = kind.capitalize()
     if kind == "important":
         opening = f'<aside class="content-card content-emphasis" aria-label="{name}">\n'
+    elif kind == "bluf":  # A bottom line is the emphasis box (artifact-ui.md, Bottom lines).
+        opening = f'<aside class="content-card content-emphasis" data-callout="bluf" aria-label="{BOTTOM_LINE}">\n'
     else:
         opening = (f'<aside class="content-card content-callout content-callout--{CALLOUT_TONES[kind]}" '
                    f'data-callout="{kind}" aria-label="{name}">\n')
     header = f'<header class="content-card-title">{_attr_nodes(title, context, "attrs", "title")}</header>\n' \
         if title else ""
-    return f"{opening}{header}{_nodes(node['children'], context)}</aside>\n"
+    leads, context.leads = context.leads, ""  # Only the page's own bottom line lists its children's.
+    return f"{opening}{header}{_nodes(node['children'], context)}{leads}</aside>\n"
 
 
 COLUMN_WEIGHTS = range(1, 9)
@@ -1018,7 +1032,8 @@ def render(document: dict[str, object], config: Config,
            styles: DeclaredStyles | None = None,
            built: datetime | None = None,
            vault_link: str | None = None,
-           style_choice: StyleChoice | None = None) -> str:
+           style_choice: StyleChoice | None = None,
+           target_root: Path | None = None) -> str:
     """The artifact of ``document``, styled by ``style_folder``, else by the style the Document
     declares (fetched through ``styles``, by default git into the user's cache), else by the packaged
     generic module (spec/configuration.md, Declared style). ``built`` is the build's instant, by
@@ -1026,7 +1041,8 @@ def render(document: dict[str, object], config: Config,
     from the page's folder, which makes each source file row a link (spec/cli.md, Source file links).
     ``style_choice`` is the build machine's local themes (style_choice.py), laid over the style as
     themes beside Default; without one, or without a theme in it, the page carries none
-    (spec/artifact-ui.md, Styling)."""
+    (spec/artifact-ui.md, Styling). ``target_root`` is the vault whose Git version and commit the
+    artifact records, defaulting to the current working directory."""
     if style_choice is not None and not style_choice.extras:
         style_choice = None
     if document.get("schemaVersion") != 1:
@@ -1057,9 +1073,11 @@ def render(document: dict[str, object], config: Config,
     )
     _index(document["chapters"], context)
     _index_headings(HOME, document["manifest"].get("abstract", []), context)
-    context.chapters[HOME] = document["manifest"]["title"]  # The core links the manifest as home.
+    context.chapters[HOME] = _document_identity(document["manifest"])
     built = build_time.instant({}) if built is None else built
-    model = _resolve_icons(_model(document, config, context, built, vault_link, style_choice, style), assets)
+    target_root = Path.cwd() if target_root is None else target_root
+    model = _resolve_icons(_model(document, config, context, built, vault_link, style_choice, target_root, style),
+                           assets)
     archive = source_archive.package(document, embed_attachments)
     if archive is not None:
         model = source_archive.share(model, archive)
@@ -1134,7 +1152,7 @@ def _profile(manifest: dict[str, object], chapters: list[dict[str, object]]) -> 
 
 def _model(document: dict[str, object], config: Config, context: Context, built: datetime,
            vault_link: str | None = None, style_choice: StyleChoice | None = None,
-           style: Style | None = None) -> dict[str, object]:
+           target_root: Path | None = None, style: Style | None = None) -> dict[str, object]:
     """The artifact-data island: the runtime's only model of the artifact. With local themes
     (``style_choice``), its ``reading`` names them, Default first, and the start theme; ``style``,
     the style module, may give the cover (styles.py, cover.html)."""
@@ -1149,11 +1167,15 @@ def _model(document: dict[str, object], config: Config, context: Context, built:
     settings = config.artifact
     context.bordered_tags = tuple(settings["borderedTags"])
     title = manifest["title"]
+    identity = _document_identity(manifest)
     metadata = _filled({key: value for key, value in manifest["metadata"].items() if key not in {"obs", "obsHtml"}})
-    abstract = _note_body(manifest.get("abstract", []), "", ["manifest", "abstract"], context)  # It holds the metadata's field nodes.
+    _check_bottom_lines(document)
+    context.percolated = percolated(document)
+    abstract = _note_body(manifest.get("abstract", []), "", ["manifest", "abstract"], context,  # It holds the metadata's field nodes.
+                          manifest.get("bottomLine"), context.percolated[HOME], after_heading=False)
     metadata_html = _frontmatter_html(metadata, HOME, context)  # The display HTML of each value that shows.
     home_html = _cover(title, metadata, metadata_html, profile["heading"] == "compact", style) + abstract
-    notes = [_note(0, title, HOME, HOME, {}, home_html, context)]
+    notes = [_note(0, identity, HOME, HOME, {}, home_html, context)]
     notes.extend(_chapter_notes(document["chapters"], context, 0, ["chapters"]))
     _attach_records(document["records"], notes, context)
     if settings.get("sourceFileLinks", True):  # Each page's Source file row (source_files.py).
@@ -1167,15 +1189,11 @@ def _model(document: dict[str, object], config: Config, context: Context, built:
         "assets": context.assets.resources,
         "embeddedAssets": context.assets.embedded_assets,
         "document": {
-            "title": title,
+            "title": identity,
             "metadata": metadata,
             "metadataHtml": metadata_html,
             "pages": profile["pages"],
-            "generation": {
-                "timestamp": build_time.iso(built),
-                "generator": {"name": "obs-html", "version": version("obs-html"), "commit": "unknown"},
-                "target": {"name": title, "version": "unknown", "commit": "unknown"},
-            },
+            "generation": _generation(manifest, built, target_root or Path.cwd(), identity),
         },
         "paper": paper({**config.print_default, **profile["print"]}, config, lambda key: (
             (manifest["path"], f"obsHtml.print.{key}") if key in profile["print"]
@@ -1215,13 +1233,11 @@ def _chapter_notes(chapters: list[dict[str, object]], context: Context, depth: i
     for index, chapter in enumerate(chapters):
         context.frontmatter = dict(chapter.get("metadata") or {})
         context.answered_figures = ((chapter.get("bless") or {}).get("answer") or {}).get("figures", {})
-        body = _note_body(chapter["content"], chapter["id"], [*where, index, "content"], context)
+        record = record_html(chapter)  # The answer, read-only, under the chapter's heading (bless_record.py).
+        body = _note_body(chapter["content"], chapter["id"], [*where, index, "content"], context,
+                          chapter.get("bottomLine"), context.percolated.get(chapter["id"], []),
+                          record + "\n" if record else "")
         context.answered_figures = {}
-        record = record_html(chapter)
-        if record:  # The answer, read-only, under the chapter's heading (bless_record.py).
-            heading = re.match(r"\s*<h1\b.*?</h1>\n?", body, re.S)
-            cut = heading.end() if heading else 0
-            body = body[:cut] + record + "\n" + body[cut:]
         notes.append(_note(depth, chapter["title"], chapter["id"], "", context.frontmatter, body, context))
         if "bless" in chapter:  # Its bless request, answered or not (obs input-model, Bless requests; bless.js).
             notes[-1]["bless"] = chapter["bless"]
@@ -1229,18 +1245,102 @@ def _chapter_notes(chapters: list[dict[str, object]], context: Context, depth: i
     return notes
 
 
-def _note_body(nodes: list[dict[str, object]], chapter: str, where: list[object], context: Context) -> str:
-    """A note's nodes, which sit at ``where`` in the Document."""
+def _note_body(nodes: list[dict[str, object]], chapter: str, where: list[object], context: Context,
+               bottom_line: dict[str, str] | None = None, children: list[dict[str, object]] = (),
+               under: str = "", after_heading: bool = True) -> str:
+    """A note's nodes, which sit at ``where`` in the Document. Its bottom line, with the leads of
+    ``children`` (artifact-ui.md, Bottom lines), and then ``under`` go under its title: after the
+    leading first-level heading where ``after_heading`` and the note begins with one, else first."""
     context.chapter, context.tables, context.marks, context.editable = chapter, [], [], {}
     context.figure_position = 0
     context.where = where[:-1]
-    html = []
+    leads = _leads(children, context)
+    context.chapter, context.marks = chapter, []
+    html, box = [], ""
     for index, node in enumerate(nodes):
         with _at(context, where[-1], index):
-            html.append(_node(node, context))
+            if bottom_line is not None and node.get("id") == bottom_line["callout"]:
+                context.leads = leads  # It renders once, under the title, not where it is written.
+                box = _node(node, context)
+                html.append("")
+            else:
+                html.append(_node(node, context))
+    if bottom_line is None and leads:
+        box = (f'<aside class="content-card content-emphasis" data-callout="bluf" aria-label="{BOTTOM_LINE}">\n'
+               f'<header class="content-card-title">{BOTTOM_LINE}</header>\n{leads}</aside>\n')
     _decision_tabs(nodes, html, context)
     context.chapter, context.where = "", []
-    return "".join(html)
+    body = "".join(html)
+    heading = re.match(r"\s*<h1\b.*?</h1>\n?", body, re.S) if after_heading else None
+    cut = heading.end() if heading else 0
+    return body[:cut] + box + under + body[cut:]
+
+
+def percolated(document: dict[str, object]) -> dict[str, list[dict[str, object]]]:
+    """Each page's direct children whose note holds a bottom line, by page id, in manifest order:
+    a chapter's children, and for Home the chapters the contents list at the top level, never an
+    included note the manifest does not list (artifact-ui.md, Bottom lines). One level only."""
+    found = {HOME: [chapter for chapter in document["chapters"]
+                    if chapter.get("toc", True) and "bottomLine" in chapter]}
+
+    def walk(chapters: list[dict[str, object]]) -> None:
+        for chapter in chapters:
+            found[chapter["id"]] = [child for child in chapter["children"] if "bottomLine" in child]
+            walk(chapter["children"])
+    walk(document["chapters"])
+    return found
+
+
+PARAGRAPH_START = re.compile(r"^<p\b[^>]*>")
+"""A shown lead's opening tag, after which its link to its child goes: the link stands alone on the
+paragraph's first line, with no separator before the lead on the next."""
+
+
+def _leads(children: list[dict[str, object]], context: Context) -> str:
+    """The list of ``children``'s leads, each shown as an embedded block shows (_shown_copy) and
+    begun by a link to its child, which stands alone on the item's first line with no separator
+    before the lead on the next; empty without children (artifact-ui.md, Bottom lines)."""
+    items = []
+    for child in children:
+        chapter, lead = child["id"], child["bottomLine"]["lead"]
+        shown = _shown_copy({"attrs": {"chapter": chapter, "block": lead}}, context)
+        link = f'<a class="internal-link" href="#{escape(chapter, quote=True)}">{escape(child["title"])}</a><br>\n'
+        paragraph = PARAGRAPH_START.sub(lambda start: start[0] + link, shown, count=1)
+        items.append(f'<li data-embed-chapter="{escape(chapter, quote=True)}" '
+                     f'data-embed-block="{escape(lead, quote=True)}">{paragraph}</li>\n')
+    return f'<ul class="bottom-line-list">\n{"".join(items)}</ul>\n' if items else ""
+
+
+def bottom_line_problem(content: list[dict[str, object]], bottom_line: dict[str, str]) -> tuple[str, str] | None:
+    """The field and problem of a ``bottomLine`` that names no bottom line of ``content`` (a chapter's,
+    or the abstract): its ``callout`` no bluf callout there, or its ``lead`` not that callout's first
+    block; None where it names one (artifact-ui.md, Bottom lines)."""
+    callout = next((node for node in content if node.get("id") == bottom_line["callout"]), None)
+    if callout is None or callout["type"] != "callouts" or callout["attrs"].get("kind") != "bluf":
+        return "callout", f"names {bottom_line['callout']!r}, which is no bluf callout"
+    children = callout["children"]
+    if not children or children[0].get("id") != bottom_line["lead"]:
+        return "lead", f"names {bottom_line['lead']!r}, which is not the first block of its bluf callout"
+    return None
+
+
+def _check_bottom_lines(document: dict[str, object]) -> None:
+    """Refuse a Document whose ``bottomLine`` names no bottom line of its chapter or of the abstract,
+    as a stale one (artifact-ui.md, Bottom lines)."""
+    pages = [(document["manifest"], ["manifest"], "the abstract", "abstract")]
+
+    def walk(chapters: list[dict[str, object]], where: list[object]) -> None:
+        for index, chapter in enumerate(chapters):
+            pages.append((chapter, [*where, index], f"chapter {chapter['id']!r}", "content"))
+            walk(chapter["children"], [*where, index, "children"])
+    walk(document["chapters"], ["chapters"])
+    for page, where, name, key in pages:
+        if "bottomLine" not in page:
+            continue
+        found = bottom_line_problem(page.get(key, []), page["bottomLine"])
+        if found is not None:
+            raise InputError(_source(document), field_path([*where, "bottomLine", found[0]]),
+                             f"{found[1]} of {name}", _rebuild(document))
 
 
 DECISION_SECTIONS = ("Potential solutions", "Proposed winner", "Details")
@@ -1363,6 +1463,132 @@ def _empty(value: object) -> bool:
     return value is None or value in ("", [], {}) or isinstance(value, str) and not value.strip()
 
 
+def _document_identity(manifest: dict[str, object]) -> str:
+    """The document title, else its product name, else its manifest filename."""
+    title = manifest["title"]
+    if title:
+        return str(title)
+    metadata = manifest["metadata"]
+    product = metadata.get("product") if isinstance(metadata, dict) else None
+    name = product.get("name") if isinstance(product, dict) else None
+    if isinstance(name, str) and name.strip():
+        return name
+    return PurePosixPath(manifest["path"]).stem.replace("-", " ").title()
+
+
+def _git_output(directory: Path, *arguments: str) -> str | None:
+    """Run a bounded read-only Git query; unavailable Git or a non-checkout resolves to None."""
+    try:
+        result = subprocess.run(["git", "-C", str(directory), *arguments], capture_output=True, text=True,
+                                encoding="utf-8", check=False)
+    except FileNotFoundError:
+        return None
+    if result.returncode:
+        return None
+    return result.stdout.strip() or None
+
+
+def _project_name(path: Path) -> str | None:
+    try:
+        project = tomllib.loads(path.read_text(encoding="utf-8")).get("project")
+    except (OSError, UnicodeDecodeError, tomllib.TOMLDecodeError):
+        return None
+    return project.get("name") if isinstance(project, dict) else None
+
+
+def _editable_source_commit(source: Path) -> str | None:
+    try:
+        source = source.resolve(strict=True)
+    except (OSError, RuntimeError):
+        return None
+    if not source.is_dir():
+        return None
+    repository_text = _git_output(source, "rev-parse", "--show-toplevel")
+    if repository_text is None:
+        return None
+    try:
+        repository = Path(repository_text).resolve(strict=True)
+        relative = source.relative_to(repository).as_posix()
+    except (OSError, RuntimeError, ValueError):
+        return None
+    if (relative != "adapters/html" or _project_name(repository / "pyproject.toml") != "obs"
+            or _project_name(source / "pyproject.toml") != "obs-html"):
+        return None
+    return _git_output(repository, "rev-parse", "HEAD")
+
+
+def _generator_commit() -> str | None:
+    """Resolve only a commit tied to the installed obs-html distribution's source."""
+    try:
+        origin_text = distribution("obs-html").read_text("direct_url.json")
+    except (PackageNotFoundError, OSError):
+        return None
+    if not origin_text:
+        return None
+    try:
+        origin = json.loads(origin_text)
+    except json.JSONDecodeError:
+        return None
+    if not isinstance(origin, dict):
+        return None
+
+    vcs = origin.get("vcs_info")
+    directory = origin.get("dir_info")
+    if isinstance(directory, dict) and directory.get("editable") is True:
+        url = origin.get("url")
+        if isinstance(url, str):
+            try:
+                parsed = urlsplit(url)
+            except ValueError:
+                parsed = None
+            if parsed and parsed.scheme == "file" and parsed.netloc in ("", "localhost"):
+                try:
+                    source = Path(url2pathname(parsed.path))
+                except (OSError, ValueError):
+                    source = None
+            elif isinstance(vcs, dict) and vcs.get("vcs") == "git":
+                source = Path(__file__).resolve().parents[2]
+            else:
+                source = None
+            if source is not None:
+                commit = _editable_source_commit(source)
+                if commit is not None:
+                    return commit
+
+    if isinstance(vcs, dict) and vcs.get("vcs") == "git":
+        commit = vcs.get("commit_id")
+        if not isinstance(commit, str) or not re.fullmatch(
+            r"(?:[0-9a-f]{40}|[0-9a-f]{64})", commit, re.IGNORECASE
+        ):
+            return None
+        return commit.lower()
+    return None
+
+
+def _generation(manifest: dict[str, object], built: datetime, target_root: Path,
+                identity: str) -> dict[str, object]:
+    """Record the running generator and target repository provenance, warning only when none resolves."""
+    product = manifest["metadata"].get("product")
+    declared_version = product.get("version") if isinstance(product, dict) else None
+    if not isinstance(declared_version, str) or not declared_version.strip():
+        declared_version = None
+    generator_commit = _generator_commit()
+    target_version = declared_version or _git_output(target_root, "describe", "--tags", "--always")
+    target_commit = _git_output(target_root, "rev-parse", "HEAD")
+    if not any((generator_commit, target_version, target_commit)):
+        warn(InputError("obs-html (src/obs_html/render.py)", "generation provenance",
+                        "cannot resolve the generator commit, target version, or target commit",
+                        "Build from a Git checkout or provide nonempty product.version metadata; "
+                        "see spec/design_input/input-model.md"))
+    return {
+        "timestamp": build_time.iso(built),
+        "generator": {"name": "obs-html", "version": version("obs-html"), "commit": generator_commit or "unknown"},
+        "target": {
+            "name": identity, "version": target_version or "unknown", "commit": target_commit or "unknown",
+        },
+    }
+
+
 def _cover(title: str, metadata: dict[str, object], html: dict[str, str], compact: bool,
            style: Style | None = None) -> str:
     """The cover or compact heading: each metadata value as its display HTML (_frontmatter_html).
@@ -1377,7 +1603,8 @@ def _cover(title: str, metadata: dict[str, object], html: dict[str, str], compac
         parts = [("cover-organization", value("organization")),
                  ("cover-product", " ".join(products)), ("cover-type", value("document type"))]
         line = "".join(f'<span class="{name}">{text}</span>' for name, text in parts if text)
-        line += f'<h1 class="document-title">{escape(title)}</h1>'
+        if title:
+            line += f'<h1 class="document-title">{escape(title)}</h1>'
         if subtitle:
             line += f'<span class="document-subtitle">{subtitle}</span>'
         return ('<header class="document-heading document-heading--compact">'
@@ -1396,7 +1623,7 @@ def _cover(title: str, metadata: dict[str, object], html: dict[str, str], compac
         '<header class="document-heading">'
         + (f'<div class="cover-product">{product_html}</div>' if product_html else "")
         + f'<div class="cover-band">{band}</div><div class="cover-frame">'
-        + f'<h1 class="document-title">{escape(title)}</h1>'
+        + (f'<h1 class="document-title">{escape(title)}</h1>' if title else "")
         + (f'<p class="cover-type">{value("document type")}</p>' if metadata.get("document type") else "")
         + (f'<div class="document-subtitle">{subtitle}</div>' if subtitle else "")
         + legal + "</div>"

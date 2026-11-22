@@ -33,6 +33,11 @@ costs rather than treating all conversion as one opaque phase.
 
 ## Repository layout
 
+[[plugins]] replaces this section's integrated adapter and the 5 to 6 Nov decision below: every
+adapter, the one in `adapters/html` included, becomes a plugin in a repository of its own, found on the
+checkout's remotes, and `adapters.json` stops being the registry. Until its implementation lands,
+this section describes the repository as it is.
+
 The core and its adapters are one repository. The core is `src/obs`; an integrated adapter is
 a folder under `adapters/`, the first in `adapters/html`. Whether a later adapter
 lives here or in its own repository is decided when it comes.
@@ -134,9 +139,9 @@ the Document from a manifest, ROOT is the manifest's folder as the user gave it 
 `--source spec/manifest.md`), and the adapter names each vault-relative path in its messages below
 it, so they read `spec/manifest.md: …`.
 
-ROOT is for messages only: the Document stays
-machine-independent and never carries it, and neither does the artifact. Without the argument, on
-a direct adapter call on a Document, messages name paths relative to the vault.
+ROOT stays outside the Document and artifact. An adapter may use it for local build context
+without carrying the path into either. Without the argument, a direct adapter call uses its
+working directory for that context, and messages name paths relative to the vault.
 
 The second standard argument is `--vault-link LINK`, which every adapter accepts and may ignore:
 the way from the destination's folder to the vault folder, with `/` between its parts, such as
@@ -306,6 +311,11 @@ undeclared ones costs little. The source archive carries the snippet files despi
 folder: they are inputs of the documents that declare them.
 
 ### Declared style
+
+[[plugins]] replaces the style named by its address: a manifest names its style plugin by name
+alone, `obs.style: <name>`, and the build records the installed version
+([[plugins#Recording what built a page]]). Until its implementation lands, this section describes
+the build as it is.
 
 A vault declares its style as a dependency in its manifest, in the core's namespace:
 `obs.style` is a style module pinned to a commit, with the keys of an se module (se's README,

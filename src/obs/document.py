@@ -18,6 +18,7 @@ from obs.comments import SCHEMA_PATH as COMMENTS_SCHEMA_PATH, apply_comments, im
 from obs.sync import SCHEMA_PATH as SYNC_SCHEMA_PATH, apply_result, apply_sync
 from obs.discriminator import discriminating_validator
 from obs.input import InputError, input_error, schema_error
+from obs import bottom_lines
 from obs.embeds import assign_sections
 from obs.node_ids import assign_ids
 from obs.output import write_output
@@ -63,6 +64,7 @@ def build_document(
         document = _build_document(manifest_path, known, configuration_path, execute_commands)
         assign_ids(document)
         assign_sections(document)
+        bottom_lines.assign(document)
         if embed_source:
             arguments = [*delivery, *(["--execute-commands"] if execute_commands else []), "--embed-source"]
             document["sourceArchive"] = source_archive(manifest_path.resolve().parent, document["assets"],
@@ -526,7 +528,7 @@ def _build(options: argparse.Namespace, source: Path, destination: Path | None, 
             folder = stack.enter_context(tempfile.TemporaryDirectory(prefix="obs-document-"))
             document_path = Path(folder) / "document.json"
         _write(document, document_path)  # build_document validated it.
-        if adapter is not None:  # The vault root as given, for the adapter's messages only.
+        if adapter is not None:  # The vault root as given, for adapter-local context.
             link = vault_link(str(destination), str(source.parent))  # Where the vault lies from the page.
             standard = ["--vault-root", str(source.parent), *(["--vault-link", link] if link is not None else [])]
             _deliver(adapter, [*standard, *arguments],

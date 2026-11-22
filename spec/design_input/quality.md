@@ -205,8 +205,10 @@ definitions alike. Keeping the same fact in two places is an anti-pattern (user,
   A page that does not answer while it is released, a locked page among them, is not waited on:
   past a timeout the pool ends its browser, and the next lease gets a fresh one.
 
-  `test/suite.py` caps the whole run: at its cap it stops each part still running and names the
-  part and the tests it was running.
+  `test/suite.py` caps the whole run: at its cap it interrupts each part still running, so the
+  part ends its session and writes its JUnit report of the tests it finished, then stops what is
+  left of it. It adds the tests the part was running to that report, as errors, and names the
+  part, those tests and the tests that failed before them.
 
   CI runs the complete suite on runners whose speed differs: one commit's parts took 104.6 s on
   one run and 150.1 s on its re-run. So CI spreads the suite over shards, one job each
