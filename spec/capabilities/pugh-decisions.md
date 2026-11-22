@@ -63,7 +63,7 @@ the engine runs the upstream project's tests of these rules, from the upstream p
 | Rule | What the engine does | Upstream source |
 |---|---|---|
 | The datum | the first option of `datum.prefer` that fits is the datum | pugh.md, The datum; Pugh's "set a good datum" (design input 48) |
-| Measured marks | a value's ratio to the datum's, with the `floor` added to both, is S within the `tolerance`, ±1 up to the `strong` ratio (×2) and ±2 beyond; a missing value is "?" and counts 0 | pugh.md, Measured marks |
+| Measured marks | a value's ratio to the datum's, with the `floor` added to both, is 0 within the `tolerance` (the engine writes it "S"; obs shows it as "0", adapters/html artifact-ui.md, Decision figures), ±1 up to the `strong` ratio (×2) and ±2 beyond; a missing value is "?" and counts 0 | pugh.md, Measured marks |
 | Judged marks | a mark on the same scale against the datum; a list is several raters, its median the mark and its spread shown; a moved datum shifts them by its own mark | pugh.md, Judged marks |
 | Hard gates | `max` or `min` on a measured value, before the datum is chosen; a missing value passes | pugh.md, Hard gates |
 | Ratio gates | `maxRatio`: worse than that many times the datum's value does not fit; the datum is exempt; on a judged criterion a −− fails | pugh.md, Ratio gates (design input 55) |
