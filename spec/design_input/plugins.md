@@ -34,9 +34,10 @@ the remote, and neither is offered from it.
 
 What a release holds is its kind's: an adapter release holds its `adapter.json` at the root of its
 tree ([[architecture#Adapter call]]), and a style release holds a style module's files at its root
-(the configuration note of `adapters/html`, Declared style). A later kind names its own entry file. A
-kind obs does not know is listed and installed like any other; only a part that knows the kind uses
-it.
+(the configuration note of `adapters/html`, Declared style).
+
+A later kind names its own entry file. A kind obs does not know is listed and installed like any
+other; only a part that knows the kind uses it.
 
 Finding releases by tag was chosen over an index repository that lists the plugins: an index is a
 second file to keep in step with every release, while a tag is the release itself (the person's
