@@ -22,7 +22,7 @@ from obs import bottom_lines
 from obs.embeds import assign_sections
 from obs.node_ids import assign_ids
 from obs.output import write_output
-from obs.components import main as components_main
+from obs.components import installed as installed_components, main as components_main
 from obs.sources import SourceError, source_archive, validate_source_archive
 from obs.vault import VaultError, build_document as _build_document, manifest_note
 from obs.vault_link import vault_link
@@ -67,14 +67,16 @@ def build_document(
         known = {item["id"] for item in reference["capabilities"]}
         document = _build_document(manifest_path, known, configuration_path, execute_commands)
         document["components"] = [dict(component) for component in components]
+        if "style" in document:  # The style follows the adapter (components.md, Recording what built a page).
+            document["components"].append(dict(installed_components()[document["style"]["name"]]))
         assign_ids(document)
         assign_sections(document)
         bottom_lines.assign(document)
         if embed_source:
             arguments = [*delivery, *(["--execute-commands"] if execute_commands else []), "--embed-source"]
             document["sourceArchive"] = source_archive(manifest_path.resolve().parent, document["assets"],
-                                                        document["cssSnippets"], arguments, document.get("style"),
-                                                        option_files, document["components"])
+                                                        document["cssSnippets"], arguments, option_files,
+                                                        document["components"])
         apply_comments(document, manifest_path)
         apply_sync(document, manifest_path)
         if answers is not None:

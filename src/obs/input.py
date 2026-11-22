@@ -13,6 +13,7 @@ from jsonschema import Draft202012Validator
 from jsonschema.exceptions import ValidationError, best_match
 import yaml
 
+from obs import components
 from obs.quantity import UnitError, parse_unit
 
 
@@ -416,28 +417,35 @@ def validate_note_profile(metadata: dict[str, object], source_path: object, mani
 
 
 STYLE_OWNER = "spec/design_input/architecture.md (Declared style)"
-_PIN = re.compile(r"[0-9a-f]{40}")
-_PUBLIC_URL = re.compile(r"https://[^\s/@]+/\S+")
+_COMPONENT_NAME = re.compile(r"[a-z0-9][a-z0-9-]{0,31}")
 
 
 def declared_style(metadata: dict[str, object], source_path: object) -> dict[str, str] | None:
-    """The identity of the style module the manifest's ``obs.style`` pins, or None without one."""
+    """The installed style component the manifest's ``obs.style`` names, as its ``name`` and installed
+    ``folder``, or None without one; a style that is not installed fails naming the command that installs it."""
     style = metadata.get("obs", {}).get("style") if isinstance(metadata.get("obs"), dict) else None
     if style is None:
         return None
-    named = f"style {style.get('url')!r}" if isinstance(style, dict) else "the style"
-    remedy = ("Declare the style module as obs.style: {url: <public https clone URL>, ref: <its full 40-hex "
-              f"commit SHA>, path: <optional folder in it>}}; see {STYLE_OWNER}")
-    if not isinstance(style, dict):
-        raise input_error(source_path, "obs.style", f"is {_shown(style)}, not a mapping", remedy)
-    for key, pattern, problem in (("url", _PUBLIC_URL, "names no public https clone URL"),
-                                  ("ref", _PIN, "pins no commit (a full 40-hex SHA), so no two builds are "
-                                               "sure to resolve the same style")):
-        if not isinstance(style.get(key), str) or not pattern.fullmatch(style[key]):
-            raise input_error(source_path, f"obs.style.{key}", f"is {_shown(style.get(key))} for {named}, "
-                              f"which {problem}", remedy)
+    if isinstance(style, dict):
+        raise input_error(source_path, "obs.style", "is a mapping, the address form (url, ref, path) a style no "
+                          "longer takes", "Install the style as a component and name it as obs.style: <name> "
+                          f"(obs-components lists them); see {STYLE_OWNER}")
+    if not isinstance(style, str) or _COMPONENT_NAME.fullmatch(style) is None:
+        raise input_error(source_path, "obs.style", f"is {_shown(style)}, which is no component name (1 to 32 "
+                          "lowercase letters, digits and dashes, starting with a letter or digit)",
+                          f"Name an installed style component as obs.style: <name>; see {STYLE_OWNER}")
+    entry = components.installed().get(style)
+    if entry is None or entry["kind"] != "style":
+        problem = (f"names {style!r}, which is installed as a {entry['kind']}, not a style" if entry is not None
+                   else f"names {style!r}, which is no installed style component")
+        raise input_error(source_path, "obs.style", problem,
+                          f"Run obs-components install {style}; see {STYLE_OWNER}")
+    folder = (components.local_folder() / "components" / style).resolve()
+    if not (folder / "style.css").is_file():
+        raise input_error(source_path, "obs.style", f"names {style!r}, whose installed folder {folder} holds no "
+                          "style.css", f"Run obs-components install {style} again; see {STYLE_OWNER}")
     _validate_schema("note-profile.schema.json", metadata["obs"], source_path, STYLE_OWNER, field="obs")
-    return {key: style[key] for key in ("url", "ref", "path") if key in style}
+    return {"name": style, "folder": str(folder)}
 
 
 MOVED_KEYS = {

@@ -17,3 +17,16 @@ def install_adapter(manifest: dict[str, object]) -> Path:
     (folder.parent.parent / "components.json").write_text(
         json.dumps({"components": [entries[name] for name in sorted(entries)]}), encoding="utf-8")
     return folder
+
+
+def install_style(name: str, css: str = ":root { --installed-style: 1; }\n", kind: str = "style",
+                  version: str = "1.2.3") -> Path:
+    """A style module holding ``css`` as the installed component ``name`` (of ``kind``); its folder."""
+    folder = components.local_folder() / "components" / name
+    folder.mkdir(parents=True, exist_ok=True)
+    (folder / "style.css").write_text(css, encoding="utf-8")
+    entries = components.installed()
+    entries[name] = {"name": name, "kind": kind, "version": version, "commit": "1" * 40}
+    (folder.parent.parent / "components.json").write_text(
+        json.dumps({"components": [entries[key] for key in sorted(entries)]}), encoding="utf-8")
+    return folder

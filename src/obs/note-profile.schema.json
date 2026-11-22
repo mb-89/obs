@@ -8,13 +8,8 @@
     "document": {"type": "boolean", "$comment": "input-model#Chapter content: false keeps a record-only note."},
     "bless": {"const": "pending", "$comment": "input-model#Bless requests: the chapter asks its reader for a verdict."},
     "style": {
-      "$comment": "The manifest's style module pinned to a commit, with an se module's keys (architecture.md, Declared style); obs.input.declared_style checks url and ref first.",
-      "type": "object", "additionalProperties": false, "required": ["url", "ref"],
-      "properties": {
-        "url": {"type": "string", "pattern": "^https://[^\\s/@]+/\\S+$"},
-        "ref": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
-        "path": {"type": "string", "pattern": "^(?!/)(?!.*(^|/)\\.\\.?(/|$))[^\\\\]+$"}
-      }
+      "$comment": "The manifest's style: the name of an installed style component (architecture.md, Declared style); obs.input.declared_style checks it first.",
+      "type": "string", "pattern": "^[a-z0-9][a-z0-9-]{0,31}$"
     }
   }
 }
