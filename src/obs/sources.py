@@ -49,11 +49,13 @@ LOCKFILES = ("*uv.lock", "*package-lock.json")
 
 def source_archive(vault_root: Path, assets: list[dict[str, object]], snippets: list[dict[str, str]],
                    arguments: Sequence[str], style: dict[str, str] | None = None,
-                   option_files: Sequence[str] = ()) -> dict[str, object]:
+                   option_files: Sequence[str] = (),
+                   components: Sequence[dict[str, str]] = ()) -> dict[str, object]:
     """The Document's ``sourceArchive``: each source file below ``vault_root`` and each CSS snippet
     file, with its bytes or with the id of the asset that already holds them, and the ``build``
-    record of the running obs, the call's ``arguments`` that rebuild the artifact and the ``style``
-    the manifest declares (architecture, Declared style). The vault-relative ``option_files`` the
+    record of the running obs, the call's ``arguments`` that rebuild the artifact, the ``style``
+    the manifest declares (architecture, Declared style) and the ``components`` that build it
+    (components.md, Recording what built a page). The vault-relative ``option_files`` the
     call's vault-file options name are source files even where hidden (cli.md, Adapter options)."""
     held = {asset["path"]: asset["id"] for asset in assets if "path" in asset}
     files = []
@@ -66,7 +68,8 @@ def source_archive(vault_root: Path, assets: list[dict[str, object]], snippets: 
         else:
             files.append({"path": relative, "data": base64.b64encode(path.read_bytes()).decode("ascii")})
     return {"files": files, "build": {**generator(PACKAGE), "arguments": list(arguments),
-                                      **({"style": style} if style is not None else {})}}
+                                      **({"style": style} if style is not None else {}),
+                                      "components": [dict(component) for component in components]}}
 
 
 def generator(package: Path) -> dict[str, object]:

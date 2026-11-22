@@ -46,7 +46,7 @@ def document_fixture(capabilities: list[str] | None = None) -> dict[str, object]
         "semanticResources": [{"id": "resource", "type": "finding", "attrs": {}}],
         "diagnostics": [],
         "capabilities": capabilities or ["manifest"],
-        "cssSnippets": [],
+        "cssSnippets": [], "components": [],
     }
 
 
