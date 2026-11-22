@@ -2,6 +2,7 @@
 listing, component repositories as local bare repositories reached through Git's url.insteadOf, and a
 machine folder below the test's own temporary folder. No test reaches the network."""
 import json
+import re
 import subprocess
 from pathlib import Path
 
@@ -75,12 +76,14 @@ def host(tmp_path, monkeypatch) -> Host:
 
 @pytest.fixture
 def checkout(tmp_path, monkeypatch, host) -> Path:
-    """A checkout of obs whose remote origin is alice's repository obs, which carries no topic."""
+    """A checkout of obs whose remote origin is alice's repository obs, which carries no topic; the host
+    lists alice's marked repositories, none at first."""
     folder = tmp_path / "checkout"
     folder.mkdir()
     git(folder, "init", "-q")
     git(folder, "config", f"url.{host.root.as_uri()}/.insteadOf", HOST)
     host.repository("alice", "obs", {}, topic=False)
+    host.topics.setdefault("alice", [])
     git(folder, "remote", "add", "origin", f"{HOST}alice/obs.git")
     monkeypatch.setattr(components, "CHECKOUT", folder)
     return folder
@@ -102,9 +105,8 @@ def listed(capsys) -> tuple[dict[str, list[str]], str]:
 
 
 def test_a_remotes_owner_offers_its_topic_repositories_with_no_remote_added(host, checkout, machine, capsys) -> None:
-    first = host.repository("alice", "obs-a", {"obs-component/adapter/a/v1.0.0": adapter_files("a"),
-                                               "obs-component/adapter/a/v1.2.0": adapter_files("a")})
-    second = host.repository("alice", "obs-b", {"obs-component/style/b/v0.1.0": {"style.css": "body {}"}})
+    first = host.repository("alice", "a", {"v1.0.0": adapter_files("a"), "v1.2.0": adapter_files("a")})
+    second = host.repository("alice", "b", {"v0.1.0": {"style.css": "body {}"}})
 
     rows, warnings = listed(capsys)
 
@@ -116,7 +118,7 @@ def test_a_remotes_owner_offers_its_topic_repositories_with_no_remote_added(host
 
 def test_another_owners_component_is_found_once_one_of_its_repositories_is_a_remote(
         host, checkout, machine, capsys) -> None:
-    offered = host.repository("bob", "obs-c", {"obs-component/adapter/c/v2.0.0": adapter_files("c")})
+    offered = host.repository("bob", "c", {"v2.0.0": adapter_files("c")})
     host.repository("bob", "notes", {}, topic=False)
     assert "c" not in listed(capsys)[0]
 
@@ -127,7 +129,7 @@ def test_another_owners_component_is_found_once_one_of_its_repositories_is_a_rem
 
 def test_an_owner_the_host_cannot_list_is_one_warning_and_its_remotes_repository_is_still_read(
         host, checkout, machine, capsys) -> None:
-    own = host.repository("carol", "own", {"obs-component/adapter/own/v1.0.0": adapter_files("own")}, topic=False)
+    own = host.repository("carol", "own", {"v1.0.0": adapter_files("own")}, topic=False)
     git(checkout, "remote", "add", "carol", own)
 
     rows, warnings = listed(capsys)
@@ -139,19 +141,19 @@ def test_an_owner_the_host_cannot_list_is_one_warning_and_its_remotes_repository
 
 def test_a_host_without_a_listing_is_one_warning(host, checkout, machine, capsys, monkeypatch) -> None:
     monkeypatch.setattr(components, "LISTINGS", {})
-    host.repository("alice", "obs", {"obs-component/adapter/self/v1.0.0": adapter_files("self")}, topic=False)
+    host.repository("alice", "obs", {"v1.0.0": adapter_files("obs")}, topic=False)
 
     rows, warnings = listed(capsys)
 
-    assert rows["self"][-1] == f"{HOST}alice/obs.git"
+    assert rows["obs"][-1] == f"{HOST}alice/obs.git"
     assert len(warnings.splitlines()) == 1 and "remote origin: host example.test" in warnings
 
 
 def test_the_newest_release_wins_and_a_tie_goes_to_the_first_remote(host, checkout, machine, capsys) -> None:
-    host.repository("alice", "obs-d", {"obs-component/adapter/d/v1.0.0": adapter_files("d")})
-    newer = host.repository("bob", "obs-d", {"obs-component/adapter/d/v1.1.0": adapter_files("d")})
-    tie = host.repository("alice", "obs-e", {"obs-component/adapter/e/v1.0.0": adapter_files("e")})
-    host.repository("bob", "obs-e", {"obs-component/adapter/e/v1.0.0": adapter_files("e")})
+    host.repository("alice", "d", {"v1.0.0": adapter_files("d")})
+    newer = host.repository("bob", "d", {"v1.1.0": adapter_files("d")})
+    tie = host.repository("alice", "e", {"v1.0.0": adapter_files("e")})
+    host.repository("bob", "e", {"v1.0.0": adapter_files("e")})
     git(checkout, "remote", "add", "upstream", f"{HOST}bob/obs-d.git")  # git remote lists it after origin.
 
     rows, _ = listed(capsys)
@@ -160,21 +162,77 @@ def test_the_newest_release_wins_and_a_tie_goes_to_the_first_remote(host, checko
     assert rows["e"][-1] == tie
 
 
-def test_a_malformed_tag_and_a_repository_of_two_components_are_warnings(host, checkout, machine, capsys) -> None:
-    broken = host.repository("alice", "obs-f", {"obs-component/adapter/f/v1.0": adapter_files("f")})
-    mixed = host.repository("alice", "obs-g", {"obs-component/adapter/g/v1.0.0": adapter_files("g"),
-                                               "obs-component/adapter/h/v1.0.0": adapter_files("h")})
+def test_a_tag_that_is_no_v_release_is_none_of_obss(host, checkout, machine, capsys) -> None:
+    host.repository("alice", "f", {tag: adapter_files("f") for tag in ("v1", "v1.0", "v4.1.2-shared", "nightly")})
+
+    assert listed(capsys) == ({}, "")
+
+
+def test_a_tag_of_the_old_form_is_no_release(host, checkout, machine, capsys) -> None:
+    host.repository("alice", "g", {"obs-component/adapter/g/v1.0.0": adapter_files("g")})
 
     rows, warnings = listed(capsys)
 
-    assert rows == {}
-    assert f"repository {broken}: tag obs-component/adapter/f/v1.0 is no release" in warnings
-    assert f"repository {mixed}: carries releases of several components (adapter g, adapter h)" in warnings
+    assert rows == {} and warnings == ""
+    with pytest.raises(SystemExit) as refused:
+        components.main(["install", "g"])
+    assert str(refused.value).startswith("obs-components: install: g: no repository offers this component")
+
+
+def test_the_obs_html_repository_is_the_adapter_obs_html(host, checkout, machine, capsys) -> None:
+    offered = host.repository("alice", "obs-html", {"v0.1.0": adapter_files("obs-html")})
+
+    assert components.main([]) == 0
+    lines = capsys.readouterr().out.splitlines()
+    assert [re.split(r" {2,}", line)[:4] for line in lines[1:]] == [["obs-html", "adapter", "not installed", "0.1.0"]]
+    assert lines[1].split()[-1] == offered
+
+    assert components.main(["install", "obs-html"]) == 0
+    assert installed_versions(machine) == {"obs-html": "0.1.0"}
+    assert load_adapter("obs-html")["name"] == "obs-html"
+    assert adapter_location("obs-html").folder == machine / "components" / "obs-html"
+
+
+def test_a_repository_name_is_the_component_name_without_case(host, checkout, machine, capsys) -> None:
+    host.repository("alice", "Obs-Html", {"v0.1.0": adapter_files("obs-html")})
+
+    assert listed(capsys)[0]["obs-html"][:4] == ["adapter", "not", "installed", "0.1.0"]
+    assert components.main(["install", "OBS-HTML"]) == 0
+    assert installed_versions(machine) == {"obs-html": "0.1.0"}
+
+
+def test_a_style_modules_tree_is_a_style_and_a_tree_of_neither_is_no_component(
+        host, checkout, machine, capsys) -> None:
+    host.repository("alice", "house", {"v1.0.0": {"style.css": "body {}", "print.css": "body {}"}})
+    notes = host.repository("alice", "notes", {"v2.0.0": {"notes.md": "# Notes"}})
+
+    rows, warnings = listed(capsys)
+
+    assert rows["house"][:4] == ["style", "not", "installed", "1.0.0"]
+    assert rows["notes"][:5] == ["-", "not", "installed", "2.0.0", notes]
+    assert " ".join(rows["notes"][5:]) == ("(not a component of obs: its release v2.0.0 holds neither adapter.json "
+                                           "nor style.css at its root)")
+    assert warnings == ""
+    with pytest.raises(SystemExit) as refused:
+        components.main(["install", "notes"])
+    assert str(refused.value).startswith("obs-components: install: notes: is not a component of obs: ")
+    assert OWNER in str(refused.value)
+    assert not (machine / "components.json").exists()
+
+
+def test_a_remotes_own_repository_is_read_only_where_its_host_lists_it_as_marked(
+        host, checkout, machine, capsys) -> None:
+    host.repository("alice", "obs", {"v4.0.0": {"README.md": "obs"}}, topic=False)
+    assert listed(capsys) == ({}, "")
+
+    host.topics["alice"].append("obs")
+
+    assert listed(capsys)[0]["obs"][0] == "-"
 
 
 def test_install_update_and_remove_change_only_the_machine_folder_and_its_list(
         host, checkout, machine, capsys) -> None:
-    host.repository("alice", "obs-a", {"obs-component/adapter/a/v1.0.0": adapter_files("a")})
+    host.repository("alice", "a", {"v1.0.0": adapter_files("a")})
     state = (git(checkout, "status", "--porcelain", "--ignored"), git(checkout, "for-each-ref"),
              sorted(path.relative_to(checkout).as_posix() for path in checkout.rglob("*")))
 
@@ -187,7 +245,7 @@ def test_install_update_and_remove_change_only_the_machine_folder_and_its_list(
     assert not (machine / "components" / "a" / ".git").exists()
     assert listed(capsys)[0]["a"][:3] == ["adapter", "1.0.0", "1.0.0"]
 
-    host.repository("alice", "obs-a", {"obs-component/adapter/a/v1.1.0": adapter_files("a")}, topic=False)
+    host.repository("alice", "a", {"v1.1.0": adapter_files("a")}, topic=False)
     rows, _ = listed(capsys)
     assert rows["a"][-1] == "(update)"
     assert components.main(["update", "a"]) == 0
@@ -208,8 +266,8 @@ def installed_versions(machine: Path) -> dict[str, str]:
 
 
 def test_a_release_without_its_entry_file_leaves_the_installed_version(host, checkout, machine) -> None:
-    host.repository("alice", "obs-a", {"obs-component/adapter/a/v1.0.0": adapter_files("a")})
-    host.repository("alice", "obs-a", {"obs-component/adapter/a/v2.0.0": {"adapter.json": '{"name": "other"}'}},
+    host.repository("alice", "a", {"v1.0.0": adapter_files("a")})
+    host.repository("alice", "a", {"v2.0.0": {"adapter.json": '{"name": "other"}'}},
                     topic=False)
     assert components.main(["install", "a", "1.0.0"]) == 0
 
@@ -230,7 +288,7 @@ def test_a_release_without_its_entry_file_leaves_the_installed_version(host, che
     (["install", "Bad_Name"], "install: Bad_Name: "),
 ])
 def test_a_choice_nothing_offers_or_installed_fails_naming_it(host, checkout, machine, arguments, field) -> None:
-    host.repository("alice", "obs-a", {"obs-component/adapter/a/v1.0.0": adapter_files("a")})
+    host.repository("alice", "a", {"v1.0.0": adapter_files("a")})
 
     with pytest.raises(SystemExit) as refused:
         components.main(arguments)
@@ -277,7 +335,7 @@ def test_github_lists_an_owners_topic_repositories_through_its_search(monkeypatc
     monkeypatch.setattr(components, "_token", lambda: None)
 
     assert components.github_repositories("alice") == ["obs-a", "obs-b"]
-    assert asked == ["https://api.github.com/search/repositories?q=topic%3Aobs-component%20user%3Aalice%20fork%3Atrue"
+    assert asked == ["https://api.github.com/search/repositories?q=topic%3Acomponent%20user%3Aalice%20fork%3Atrue"
                      "&per_page=100&page=1"]
 
 
@@ -291,7 +349,7 @@ def test_the_machine_folder_is_obs_in_the_configuration_folder_unless_named(monk
 
 
 def test_a_build_finds_its_adapter_among_the_installed_components(host, checkout, machine) -> None:
-    host.repository("alice", "obs-a", {"obs-component/adapter/a/v1.0.0": adapter_files("a")})
+    host.repository("alice", "a", {"v1.0.0": adapter_files("a")})
     with pytest.raises(AdapterError) as absent:
         load_adapter("a")
     assert "--adapter: a: " in str(absent.value) and "obs-components install a" in str(absent.value)
@@ -303,7 +361,7 @@ def test_a_build_finds_its_adapter_among_the_installed_components(host, checkout
 
 
 def test_a_component_of_another_kind_is_no_adapter(host, checkout, machine) -> None:
-    host.repository("alice", "obs-b", {"obs-component/style/b/v0.1.0": {"style.css": "body {}"}})
+    host.repository("alice", "b", {"v0.1.0": {"style.css": "body {}"}})
     assert components.main(["install", "b"]) == 0
     with pytest.raises(AdapterError) as refused:
         load_adapter("b")
@@ -318,6 +376,6 @@ def test_the_html_adapter_in_obss_tree_is_the_component_html(machine) -> None:
 
 
 def test_obs_document_hands_components_to_the_component_command(host, checkout, machine, capsys) -> None:
-    host.repository("alice", "obs-a", {"obs-component/adapter/a/v1.0.0": adapter_files("a")})
+    host.repository("alice", "a", {"v1.0.0": adapter_files("a")})
     assert document_main(["components"]) == 0
     assert capsys.readouterr().out.splitlines()[1].split()[0] == "a"
