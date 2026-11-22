@@ -27,5 +27,5 @@ authored; `note-profile.schema.json` validates it. An adapter's own namespace, s
 presentation mapping in the manifest, is not in it: the adapter reads that from the
 frontmatter itself ([[input-model#Core and adapter namespaces]]).
 
-The manifest's `obs.style` declares the vault's style, a style module pinned to a commit; the
-Document's `style` carries its identity ([[architecture#Declared style]]).
+The manifest's `obs.style` declares the vault's style by the name of an installed style
+component; the Document's `style` names it and its installed folder ([[architecture#Declared style]]).

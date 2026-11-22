@@ -267,11 +267,11 @@ the Document alone and the core is what knows it:
   repository-relative path: `uv.lock` and each `package-lock.json`),
 - and the `arguments` of the call that rebuild it, in the order `--adapter NAME`,
   `--destination` with the destination's file name only, each `--adapter-option`,
-  `--execute-commands`, `--embed-source`,
-- and the `style` the manifest declares, where it declares one ([Declared style](#declared-style)).
+  `--execute-commands`, `--embed-source`.
 
 It also names the `components` that built the artifact, as the Document lists them
-([[components#Recording what built a page]]).
+([[components#Recording what built a page]]), the declared style among them
+([Declared style](#declared-style)).
 
 The record names no
 path of the build machine: `--source` is the manifest the Document names, and `--document`,
@@ -319,39 +319,49 @@ folder: they are inputs of the documents that declare them.
 
 ### Declared style
 
-[[components]] replaces the style named by its address: a manifest names its style component by name
-alone, `obs.style: <name>`, and the build records the installed version
-([[components#Recording what built a page]]). Until its implementation lands, this section describes
-the build as it is.
+A vault declares its style in its manifest, in the core's namespace: `obs.style: <name>` names an
+installed style component by its name alone ([[components#Naming a component]]). Nothing in it
+names a repository, a remote, a version or a path.
 
-A vault declares its style as a dependency in its manifest, in the core's namespace:
-`obs.style` is a style module pinned to a commit, with the keys of an se module (se's README,
-Modules): `url`, the public `https` clone URL of the module's repository, `ref`, the pin, a full
-40-hex commit SHA, and optionally `path`, the module's folder inside that repository.
+The core finds the named component among the installed ones while it builds the Document. One that
+is not installed, or is installed as another kind, or whose installed tree holds no `style.css`,
+fails the build naming the manifest, the field `obs.style`, the component and the remedy, to run
+`obs-components install NAME`.
 
-The Document's `style` carries that identity, `url`, `ref` and `path` as declared, and never the
-module's files: an adapter that offers styles resolves and applies it; one that offers none
-ignores it. A manifest without `obs.style` gives a Document without `style`, and the adapter's
-default style applies.
+The Document's `style` names the found component, its `name` and its installed `folder` on the
+build machine, and never the module's files: an adapter that offers styles applies the folder; one
+that offers none ignores it.
 
-Only the manifest declares a style: `obs.style` in any other note is an
-input error naming the note and the field. A declaration that names no pin (a `ref` that is no
-full commit SHA, such as a branch name) or no public `https` URL cannot be resolved the same way
-by every build, so it fails the build naming the field, the declared style and the remedy.
+The component's `name`, `kind`, `version` and `commit` join the Document's `components`
+([[components#Recording what built a page]]), so the page records the version that styled it. A
+manifest without `obs.style` gives a Document without `style`, and the adapter's default style
+applies.
+
+Only the manifest declares a style: `obs.style` in any other note is an input error naming the
+note and the field. A mapping, the earlier form that named a repository address and commit (`url`,
+`ref`, `path`), fails the build naming the field and the name form, `obs.style: <name>`.
 
 Since the manifest is a source file, the [source archive](#source-archive) carries the
-declaration, and a rebuild from the archive resolves the same pinned style without repeating an
-option.
+declaration, and a rebuild from the archive finds the style of that name installed on its machine;
+the recorded `components` warn where its version differs, as for every component.
 
-`sourceArchive.build.style` records the declared identity beside the generator, so the
-archived build configuration names every pinned input of the rebuild. A one-off style that a
-call passes to an adapter directly (an option the adapter's manifest does not declare to the
-core) never reaches the Document or the build record, so it does not apply to a rebuild.
+A one-off style that a call passes to an adapter directly (an option the adapter's manifest does
+not declare to the core) never reaches the Document or the build record, so it does not apply to a
+rebuild.
 
 Declaring the style in the manifest was chosen over core configuration (`--config`): the
 configuration is a file outside the vault, which the build record leaves out, so a rebuild from
 the archive could not see it; the manifest travels with the vault (worker decision, 6 Nov 2026,
 medium confidence).
+
+Naming the style by name was chosen over its repository address and commit: an address puts a
+place into a committed document, and a style only one checkout may use could not be named without
+showing where it lives (work issue 861, 22 Nov 2026). Keeping the address form beside the name
+form was not picked.
+
+Carrying the installed folder in the Document was chosen over the adapter reading the machine's
+component list: the adapter then reads no file of the core's, and a Document names the style that
+built it even where the adapter runs alone (worker decision, work issue 861, medium confidence).
 
 ### Project configuration
 
@@ -400,7 +410,7 @@ Command-fence execution is the core's ([Command output](#command-output)).
 
 Core configuration is restricted to source resolution and authorized command limits.
 Artifact, browser, and style settings remain adapter configuration; the core carries only a
-declared style's identity ([Declared style](#declared-style)).
+declared style's name and installed folder ([Declared style](#declared-style)).
 
 The core schema set includes base definitions, note profiles, project configuration,
 and the input/execution subset of cross-cutting configuration. Document construction
