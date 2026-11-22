@@ -32,6 +32,7 @@ obsHtml:
 - [[design_input/architecture|Architecture]]
   - [[design_input/quality|Quality]]
   - [[design_input/cli|CLI]]
+  - [[design_input/plugins|Plugins]]
 - [[appendix/appendix|Appendix]]
   - [[appendix/references|References]]
 
