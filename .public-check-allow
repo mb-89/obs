@@ -9,3 +9,5 @@ adapters/html/test/passing-rows.test.js:52  # Generic terminal row in a tree-fil
 adapters/html/test/passing-rows.test.js:56  # Expected terminal row in a tree-filter fixture.
 adapters/html/test/test_provenance.py:23  # A made-up home-folder path the provenance check's test plants and must find; no real profile.
 test/test_document_sources.py:361  # A made-up ssh remote (user git, reserved .invalid host) the origin-url test converts; no address.
+commit:a7407ba4e03d86448a018dfb8afacbd411ce9ee5 author  # A published squash merge made with the hosting service's merge button; its history is not rewritten.
+commit:a7407ba4e03d86448a018dfb8afacbd411ce9ee5 committer  # A published squash merge made with the hosting service's merge button; its history is not rewritten.
