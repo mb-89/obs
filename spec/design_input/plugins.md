@@ -2,7 +2,7 @@
 
 A plugin is a part obs builds with that does not live in obs's repository: an adapter, a style, or
 any later kind. Every plugin is found, installed and named the same way, by the one command below.
-The HTML adapter is one plugin like any other; obs has no built-in adapter beside the plugins it
+The adapter in `adapters/html` is one plugin like any other; obs has no built-in adapter beside the plugins it
 finds.
 
 This note replaces the integrated adapter of the 5 Nov decision
@@ -34,7 +34,7 @@ the remote, and neither is offered from it.
 
 What a release holds is its kind's: an adapter release holds its `adapter.json` at the root of its
 tree ([[architecture#Adapter call]]), and a style release holds a style module's files at its root
-(the HTML adapter's configuration note, Declared style). A later kind names its own entry file. A
+(the configuration note of `adapters/html`, Declared style). A later kind names its own entry file. A
 kind obs does not know is listed and installed like any other; only a part that knows the kind uses
 it.
 
@@ -42,7 +42,7 @@ Finding releases by tag was chosen over an index repository that lists the plugi
 second file to keep in step with every release, while a tag is the release itself (the person's
 choice, 22 Nov 2026).
 
-Folding the HTML adapter into the plugins was chosen over keeping it built in beside found plugins:
+Folding the adapter in `adapters/html` into the plugins was chosen over keeping it built in beside found plugins:
 two mechanisms would find adapters two ways, and a second adapter would still need the first.
 
 ## The plugin command
@@ -86,7 +86,7 @@ version as it was.
 
 ### Installed plugins
 
-Installs go to the machine, as local themes do (the HTML adapter's configuration note, Local
+Installs go to the machine, as local themes do (the configuration note of `adapters/html`, Local
 themes): the folder `obs` in the user's configuration folder (`$XDG_CONFIG_HOME` or `~/.config` on
 Linux, `~/Library/Application Support` on macOS, `%APPDATA%` on Windows), or the folder
 `OBS_LOCAL_FOLDER` names where it is set and not empty.

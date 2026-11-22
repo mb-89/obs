@@ -34,7 +34,7 @@ costs rather than treating all conversion as one opaque phase.
 ## Repository layout
 
 [[plugins]] replaces this section's integrated adapter and the 5 to 6 Nov decision below: every
-adapter, the HTML adapter included, becomes a plugin in a repository of its own, found on the
+adapter, the one in `adapters/html` included, becomes a plugin in a repository of its own, found on the
 checkout's remotes, and `adapters.json` stops being the registry. Until its implementation lands,
 this section describes the repository as it is.
 
