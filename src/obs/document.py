@@ -18,7 +18,7 @@ from obs.comments import SCHEMA_PATH as COMMENTS_SCHEMA_PATH, apply_comments, im
 from obs.sync import SCHEMA_PATH as SYNC_SCHEMA_PATH, apply_result, apply_sync
 from obs.discriminator import discriminating_validator
 from obs.input import InputError, input_error, schema_error
-from obs import bottom_lines
+from obs import block_fields, bottom_lines
 from obs.embeds import assign_sections
 from obs.node_ids import assign_ids
 from obs.output import write_output
@@ -71,6 +71,7 @@ def build_document(
             document["components"].append(dict(installed_components()[document["style"]["name"]]))
         assign_ids(document)
         assign_sections(document)
+        block_fields.resolve(document)
         bottom_lines.assign(document)
         if embed_source:
             arguments = [*delivery, *(["--execute-commands"] if execute_commands else []), "--embed-source"]

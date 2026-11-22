@@ -45,6 +45,7 @@ from obs.input import (
     validate_quantity,
 )
 from obs import bottom_lines, embeds
+from obs.block_fields import FieldLineError, adopt, attach, take_lines, unattached
 from obs.node_ids import block_names, named_blocks
 from obs.note import (
     DELIMITER, IGNORED, ColumnsError, Note, VaultError, column_blocks, column_weights, has_delimiters, lines,
@@ -794,9 +795,30 @@ class _Context:
 
 
 def _nodes(source: str, context: _Context) -> list[dict[str, object]]:
+    try:
+        return _note_nodes(source, context)
+    except FieldLineError as error:
+        line = None if error.line is None else _note_line(context, error.line)
+        place = context.card if line is None else f"line {line}"
+        raise VaultError(str(input_error(context.vault.relative(context.source_path),
+                                         f"{place}, {error.key}::" if place else f"{error.key}::",
+                                         error.problem, error.remedy))) from error
+
+
+def _parsed(source: str, columns: bool = False) -> list[Token]:
+    """The tokens of ``source`` with its field lines taken out (input-model#Block fields)."""
+    env: dict[str, object] = {}
+    tokens = parser(columns).parse(source, env)
+    take_lines(tokens, columns, env)
+    return tokens
+
+
+def _note_nodes(source: str, context: _Context) -> list[dict[str, object]]:
     if context.first_line is None:  # A card body: delimiters are read in a note's own text alone.
-        tokens = parser().parse(source)
-        return _blocks(tokens, 0, len(tokens), context)
+        tokens = _parsed(source)
+        blocks = _blocks(tokens, 0, len(tokens), context)
+        unattached(blocks)
+        return blocks
     columns = "columns" in context.capability_ids and has_delimiters(source)
     if columns:
         try:
@@ -806,7 +828,7 @@ def _nodes(source: str, context: _Context) -> list[dict[str, object]]:
             raise VaultError(str(input_error(
                 context.source_path, f"columns block {error.number}",
                 f"{error.problem}{'' if line is None else f' (line {line})'}", error.remedy))) from error
-    tokens = parser(columns).parse(source)
+    tokens = _parsed(source, columns)
     # The note's own text: the lints name its lines.
     note = context.vault.relative(context.source_path)
     for line, message in figure_warnings(tokens, partial(_note_line, context), context.vault.figure_labels):
@@ -820,6 +842,7 @@ def _nodes(source: str, context: _Context) -> list[dict[str, object]]:
     for line, message in paragraph_warnings(tokens, partial(_note_line, context), labels,
                                             *context.vault.long_paragraphs):
         context.vault.warnings.append(f"{note}{'' if line is None else f':{line}'}: {message}")
+    unattached(blocks)
     return blocks
 
 
@@ -851,7 +874,9 @@ def _blocks(
             })
             position = _closing(tokens, position) + 1
         elif token.type == "paragraph_open":
-            result.extend(_paragraphs(_inline_nodes(tokens[position + 1], context)))
+            built = _paragraphs(_inline_nodes(tokens[position + 1], context))
+            attach(token, built, result)
+            result.extend(built)
             position = _closing(tokens, position) + 1
         elif token.type in {"bullet_list_open", "ordered_list_open"}:
             closing = _closing(tokens, position)
@@ -859,10 +884,10 @@ def _blocks(
             item = position + 1
             while item < closing:
                 item_end = _closing(tokens, item)
-                items.append({
+                items.append(adopt({
                     "type": "list-item", "attrs": {},
                     "children": _blocks(tokens, item + 1, item_end, context),
-                })
+                }))
                 item = item_end + 1
             result.append({
                 "type": "list", "attrs": {
@@ -891,10 +916,10 @@ def _blocks(
                 position = _closing(tokens, position) + 1
         elif token.type == "blockquote_open":
             closing = _closing(tokens, position)
-            result.append(_callout(tokens, position, closing, context) or {
+            result.append(adopt(_callout(tokens, position, closing, context) or {
                 "type": "quote", "attrs": {},
                 "children": _blocks(tokens, position + 1, closing, context),
-            })
+            }))
             position = closing + 1
         elif token.type == "table_open":
             closing = _closing(tokens, position)
@@ -1028,6 +1053,9 @@ def _callout(
         "attrs": {"kind": callout["type"], "title": _inline_text(callout["title"], context)},
         "children": _blocks(body_tokens, 0, len(body_tokens), context),
     }
+    marker = tokens[position + 1].meta or {}
+    if first_break is None and "fields" in marker:  # The marker's paragraph holds the callout's own.
+        node["fields"] = dict(marker["fields"])
     if callout["type"] == bottom_lines.KIND:
         line = _note_line(context, tokens[position].map[0]) if tokens[position].map else None
         context.places[id(node)] = context.card if line is None else f"line {line}"
