@@ -1196,3 +1196,98 @@ def test_an_embed_inside_a_shown_block_that_closes_no_cycle_builds(tmp_path) -> 
     document = build_document(vault / "manifest.md", capability_reference())
     assert [node["attrs"].get("heading") for node in document["chapters"][0]["content"]
             if node["type"] == "embeds"] == ["^statement", "Shown"]
+
+
+BOTTOM_LINE_NOTES = {
+    "manifest.md": "---\ntitle: Probe\n---\n\n- [[product|Product]]\n  - [[vision|Vision]]\n  - [[plan|Plan]]\n"
+                   "    - [[step|Step]]\n- [[other|Other]]\n\nAbstract prose.\n\n> [!bluf]\n> The probe in one sentence.\n",
+    "product.md": "# Product\n\nIntro prose.\n\n> [!bluf]\n> The product in one sentence; see "
+                  "[[vision#^statement|the vision statement]].\n>\n> ![[vision#^statement]]\n\nMore product prose.\n",
+    "vision.md": "# Vision\n\n> [!BLUF]- Why it matters\n> Vision lead, for every [[other#Owner|owner]].\n>\n"
+                 "> Vision second paragraph.\n\nThe vision statement, written once. ^statement\n",
+    "plan.md": "# Plan\n\n## Steps\n\n> [!bluf]\n> Plan lead.\n\nPlan body.\n",
+    "step.md": "# Step\n\n> [!bluf]\n> Step lead.\n",
+    "other.md": "# Other\n\n## Owner\n\nThe person who decides; see [[aside]].\n",
+    "aside.md": "# Aside\n\n> [!bluf]\n> Aside lead.\n",
+}
+"""The bottom-line probe vault: Product holds Vision and Plan, Plan holds Step; Other has no bottom line,
+and Aside, which only Other links to, is no TOC chapter (input-model#Bottom lines)."""
+
+
+def _bottom_line_vault(tmp_path, **notes: str) -> Path:
+    vault = tmp_path / "vault"
+    vault.mkdir()
+    for name, text in {**BOTTOM_LINE_NOTES, **notes}.items():
+        (vault / name).write_text(text, encoding="utf-8")
+    return vault
+
+
+def _all_chapters(chapters: list[dict[str, object]]) -> dict[str, dict[str, object]]:
+    return {key: value for chapter in chapters
+            for key, value in [(chapter["id"], chapter), *_all_chapters(chapter["children"]).items()]}
+
+
+def test_a_bluf_callout_is_the_bottom_line_and_names_its_lead(tmp_path) -> None:
+    document = build_document(_bottom_line_vault(tmp_path) / "manifest.md", capability_reference())
+
+    chapters = _all_chapters(document["chapters"])
+    for name, title in (("product", "Bottom line"), ("vision", "Why it matters"), ("plan", "Bottom line"),
+                        ("step", "Bottom line"), ("aside", "Bottom line")):
+        [callout] = [node for node in chapters[name]["content"]
+                     if node["type"] == "callouts" and node["attrs"]["kind"] == "bluf"]
+        assert callout["attrs"]["title"] == [_text(title)]
+        assert chapters[name]["bottomLine"] == {"callout": callout["id"], "lead": callout["children"][0]["id"]}
+        assert callout["children"][0]["type"] == "paragraph"
+    [callout] = [node for node in document["manifest"]["abstract"] if node["type"] == "callouts"]
+    assert document["manifest"]["bottomLine"] == {"callout": callout["id"], "lead": callout["children"][0]["id"]}
+    assert "bottomLine" not in chapters["other"]
+    types = [node["type"] for node in chapters["plan"]["content"]]
+    assert types.index("callouts") > [index for index, kind in enumerate(types) if kind == "section"][1]
+    assert "[!bluf]" not in json.dumps(document)
+
+
+def test_a_chapter_without_a_bluf_callout_carries_no_bottom_line(tmp_path) -> None:
+    vault = tmp_path / "vault"
+    vault.mkdir()
+    (vault / "manifest.md").write_text("- [[chapter]]\n\n> [!important]\n> Key.\n", encoding="utf-8")
+    (vault / "chapter.md").write_text("# Chapter\n\n> [!note]\n> Body.\n", encoding="utf-8")
+
+    document = build_document(vault / "manifest.md", capability_reference())
+
+    assert "bottomLine" not in document["manifest"] and "bottomLine" not in document["chapters"][0]
+
+
+def _refusal(tmp_path, note: str, text: str) -> str:
+    with pytest.raises(DocumentError) as error:
+        build_document(_bottom_line_vault(tmp_path, **{note: text}) / "manifest.md", capability_reference())
+    return str(error.value)
+
+
+def test_two_bluf_callouts_in_one_note_name_both_lines(tmp_path) -> None:
+    message = _refusal(tmp_path, "vision.md", "# Vision\n\n> [!bluf] Why it matters\n> Vision lead.\n\n"
+                       "The vision statement. ^statement\n\n> [!bluf]\n> A second one.\n")
+
+    assert message.startswith("vision.md: [!bluf] callouts, lines 3 and 8: ")
+    assert message.endswith("see input-model#Bottom lines.")
+
+
+@pytest.mark.parametrize(("note", "text", "field", "inside"), [
+    ("other.md", "# Other\n\n## Owner\n\nThe person who decides.\n\n- An item\n\n  > [!bluf]\n  > Inside the item.\n",
+     "[!bluf] callout, line 9", "list item"),
+    ("other.md", "# Other\n\n> Quoted.\n>\n> > [!bluf]\n> > Inside the quote.\n", "[!bluf] callout, line 5", "quote"),
+    ("other.md", "# Other\n\n> [!note]\n> > [!bluf]\n> > Inside the callout.\n", "[!bluf] callout, line 4",
+     "callout"),
+    ("other.md", '# Other\n\n```cards\n{"version": 1, "cards": [{"title": "One", "body": "> [!bluf]\\n> In a card."}]}'
+     '\n```\n',
+     "[!bluf] callout, cards fence 1", "card"),
+    ("step.md", "# Step\n\n> [!bluf] Step lead.\n", "[!bluf] callout, line 3", None),
+    ("step.md", "# Step\n\n> [!bluf]\n> - A list first.\n", "[!bluf] callout, line 3", None),
+])
+def test_a_bluf_callout_inside_a_block_or_without_a_first_paragraph_is_refused(
+        tmp_path, note: str, text: str, field: str, inside: str | None) -> None:
+    message = _refusal(tmp_path, note, text)
+
+    assert message.startswith(f"{note}: {field}: ")
+    assert message.endswith("see input-model#Bottom lines.")
+    if inside is not None:
+        assert f"inside a {inside}," in message
