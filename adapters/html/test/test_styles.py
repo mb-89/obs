@@ -218,6 +218,18 @@ def test_a_style_cover_shows_the_title_and_the_present_metadata_as_the_packaged_
     assert home.split("</header>", 1)[1] == packaged.split("</header>", 1)[1]
 
 
+def test_a_style_cover_gives_nothing_for_an_explicitly_empty_title_and_keeps_its_other_markup(
+        document, tmp_path: Path) -> None:
+    style = _covered(tmp_path, '<h1 class="document-title">{{ title }}</h1><p>{{ metadata.organization }}</p>')
+    document["manifest"]["title"] = ""
+
+    model = decode_artifact_data(render(document, CONFIG, style_folder=style))
+
+    assert model["notes"][0]["html"].startswith(
+        '<header class="document-heading"><h1 class="document-title"></h1><p>Example org</p></header>')
+    assert model["notes"][0]["title"] != ""
+
+
 @pytest.mark.parametrize("template, placeholder", [
     ("{{ unknown }}", "{{ unknown }}"), ("{{ metadata['organization'] }}", "{{ metadata['organization'] }}"),
     ("{{ title.__class__ }}", "{{ title.__class__ }}"), ("{{ metadata.organization | safe }}",
