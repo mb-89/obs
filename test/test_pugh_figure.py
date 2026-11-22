@@ -139,7 +139,7 @@ def test_a_source_file_names_its_field_below_source(tmp_path) -> None:
 def test_a_mark_may_carry_its_reason_the_decision_its_context_concern_and_successor_and_an_option_its_success(tmp_path) -> None:
     """input-model, Pugh decision figures: a mark is a number, a rater list, or the mark with its
     reason; context, concern and supersededBy are optional text, and so is an option's success. The
-    body carries them as written; an adapter hands ctrl's engine the marks alone."""
+    body carries them as written; an adapter hands the upstream engine the marks alone."""
     matrix = _changed(lambda m: m.update(
         context="a team of three running its own servers", concern="the queue's upkeep", supersededBy="Decision 12"))
     matrix["candidates"][1]["success"] = "The on-call log shows no queue incident for a quarter."
