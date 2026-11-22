@@ -1871,6 +1871,10 @@ An Obsidian block reference is the block's id, unchanged, and is not shown:
   so its node id.
 - `name` is letters, digits and hyphens. Two blocks of one chapter with the same name are an input
   error naming the chapter's note.
+- A node whose id is a block reference also carries `authoredId: true`, so a consumer can tell
+  that the author named it, even where the name equals the id the block would derive. A derived id
+  carries no `authoredId`, and the schema refuses one without an `id`. Authorship is never read
+  from an id's spelling.
 
 ### Derived ids
 

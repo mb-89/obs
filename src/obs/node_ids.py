@@ -1,5 +1,5 @@
-"""Block node ids: explicit Obsidian block references, else derived from the block's own text
-(input-model#Block node ids).
+"""Block node ids: explicit Obsidian block references, marked ``authoredId``, else derived from
+the block's own text (input-model#Block node ids).
 
 The core assigns them after the note reader, so every adapter gets the same ids; comments and sync
 records target them. ``document.schema.json`` (``$defs/identifiedType``) owns which types carry one.
@@ -112,7 +112,7 @@ def _assign(nodes: list[dict[str, Any]], source: str) -> None:
         if node["type"] not in IDENTIFIED:
             continue
         if id(node) in explicit:
-            node["id"] = explicit[id(node)]
+            node["id"], node["authoredId"] = explicit[id(node)], True
         else:
             text = f"{_own(node)}\0heading={heading}" if node["type"] in ANCHORED else _normalized(node)
             node["id"] = _derived(f"{node['type']}-{hashlib.sha256(text.encode()).hexdigest()[:8]}", taken, seen)
