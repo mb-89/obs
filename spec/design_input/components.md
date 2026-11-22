@@ -10,10 +10,8 @@ This note replaces the integrated adapter of the 5 Nov decision
 ([[cli#One-call build]]) and the style named by its repository address and commit
 ([[architecture#Declared style]]).
 
-The component command, the build's adapter lookup and
-[Recording what built a page](#recording-what-built-a-page) are implemented (`src/obs/components.py`);
-naming a style by `obs.style` is not yet, and until it lands that section describes the build as it
-is.
+The component command, the build's adapter and style lookup and
+[Recording what built a page](#recording-what-built-a-page) are implemented (`src/obs/components.py`).
 
 ## A component
 
@@ -38,8 +36,8 @@ component only; tags of two names or two kinds in one repository are each listed
 the repository, and neither is offered from it.
 
 What a release holds is its kind's: an adapter release holds its `adapter.json` at the root of its
-tree ([[architecture#Adapter call]]), and a style release holds a style module's files at its root
-(the configuration note of `adapters/html`, Declared style).
+tree ([[architecture#Adapter call]]), and a style release holds a style module's files, its
+`style.css` among them, at its root (the configuration note of `adapters/html`, Declared style).
 
 A later kind names its own entry file. A kind obs does not know is listed and installed like any
 other; only a part that knows the kind uses it.
@@ -162,7 +160,8 @@ or a path.
 
 A build finds the named component among the installed ones. One that is not installed, or is installed
 as another kind, fails the build naming the field (or the option), the component and the remedy, to
-run `obs-components install NAME`. An adapter's commands run from its installed folder.
+run `obs-components install NAME`. An adapter's commands run from its installed folder, and a style's
+installed folder reaches the adapter in the Document ([[architecture#Declared style]]).
 
 While the adapter in `adapters/html` still lives in obs's tree, a build finds it as the adapter
 component `html` where no component `html` is installed: its manifest is `adapters/html/adapter.json` of
@@ -181,8 +180,9 @@ The core passes them in the Document, so the adapter writes them into its artifa
 the machine's list, and the source archive's build record carries the same list
 ([[architecture#Source archive]]).
 
-The Document's `components` lists them in the order the build found them; a build without an
-adapter, which writes only the Document, lists none.
+The Document's `components` lists them in the order the build found them, the adapter first and
+then the style; a build without an adapter, which writes only the Document, lists only the style
+the manifest declares, if any.
 
 The adapter in `adapters/html`, found in obs's tree
 ([Naming a component](#naming-a-component)), is recorded as the component `html` of kind `adapter`
