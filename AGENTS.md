@@ -10,8 +10,7 @@ that flow, obs work follows this order:
 
 1. Read `spec/design_input` and update the relevant design note before behavior changes.
 2. Keep cross-cutting values in the configuration that owns them, the core's
-   `src/obs/config.schema.json` or the HTML adapter's `adapters/html/src/obs_html/cfg.json`,
-   with matching schema constraints.
+   `src/obs/config.schema.json`, with matching schema constraints.
 3. Implement the smallest behavior consistent with the approved design.
 4. Add a regression test first, run the affected tests, and exercise the affected CLI path.
    After editing a design note, run
@@ -44,10 +43,8 @@ says, and checks its field report, a landing's in the work pull request it names
 - Generated content belongs in `data/data_output` or `spec/design_output` and is ignored; the
   exceptions, package data a package's build writes beside the package that ships it, are the
   core's capability reference, owned by [One-call build](spec/design_input/cli.md#one-call-build),
-  the core's diagram renderers, owned by
-  [Figure input direction](spec/design_input/input-model.md#figure-input-direction),
-  and the html adapter's browser assets built from lockfiles, owned by
-  [Packaged browser assets](adapters/html/spec/architecture.md#packaged-browser-assets).
+  and the core's diagram renderers, owned by
+  [Figure input direction](spec/design_input/input-model.md#figure-input-direction).
   The copies of se's workflows and actions that obs calls under `.github/` are generated and
   committed too: se writes them at its pin, as its README's [Workflows](../se/README.md#workflows)
   says.
@@ -61,26 +58,26 @@ says, and checks its field report, a landing's in the work pull request it names
 
 ## Repository
 
-One repository holds the core (`src/obs`) and its integrated adapters, each a folder under
-`adapters/`; the [Repository layout](spec/design_input/architecture.md#repository-layout) owns
-the structure. Work inside an adapter folder also follows that folder's `AGENTS.md`, for example
-[adapters/html](adapters/html/AGENTS.md).
+This repository holds the core (`src/obs`) and no adapter: every adapter, the HTML adapter
+included, is a component in a repository of its own, which follows this file and adds its own
+`AGENTS.md`; the [Repository layout](spec/design_input/architecture.md#repository-layout) owns
+the structure.
 
 ## Commands
 
-A focused test run of the core or of an adapter installs the suite's Node test packages itself
-where they are missing or stale; the complete suite needs its setup first:
+A focused test run installs the suite's Node test packages itself where they are missing or stale;
+the complete suite needs its setup first:
 
 ```powershell
 uv run python test/suite.py --setup
 uv run obs-document --help
-uv run obs-html --help
+uv run obs-components
 uv run pytest
 ```
 
-`uv run pytest` runs the core's suite; the complete suite of the core and every adapter is
-`uv run python test/suite.py` (its docstring is its reference); its time budget is `[tests]` in
-`se.toml`, which se's `work_tickets.py suite` measures.
+`uv run pytest` runs the core's suite; the complete suite is `uv run python test/suite.py` (its
+docstring is its reference); its time budget is `[tests]` in `se.toml`, which se's
+`work_tickets.py suite` measures.
 
-To check what a built artifact shows without a browser script, print a chapter with
-`--print-chapter`; see [Printing a chapter](adapters/html/spec/cli.md#printing-a-chapter).
+A build with `--adapter html` needs the component installed first: `uv run obs-components install
+html` ([Choosing](spec/design_input/components.md#choosing)).

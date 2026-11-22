@@ -52,13 +52,9 @@ def test_a_document_built_without_an_adapter_lists_no_component(tmp_path) -> Non
     assert document["sourceArchive"]["build"]["components"] == []
 
 
-def test_the_adapter_of_obs_s_tree_is_the_component_html_at_obs_s_version_and_commit() -> None:
-    version = tomllib.loads((CHECKOUT / "se.toml").read_text(encoding="utf-8"))["project"]["version"]
-    head = subprocess.run(["git", "-C", str(CHECKOUT), "rev-parse", "HEAD"], capture_output=True, text=True,
-                          check=True).stdout.strip()
-
-    assert adapter.component_record("html") == {"name": "html", "kind": "adapter", "version": version,
-                                                "commit": head}
+def test_an_html_that_is_not_installed_has_no_record() -> None:
+    """obs keeps no adapter in its tree, so nothing records an html no one installed."""
+    assert adapter.component_record("html") is None
 
 
 def test_an_installed_html_is_recorded_as_installed(tmp_path) -> None:

@@ -1,8 +1,8 @@
-"""Run the complete suite: the core's and every integrated adapter's, each in its own pytest.
+"""Run the complete suite: the core's, each part in its own pytest.
 
 Reader: whoever runs or changes the complete suite, and CI.
 
-It runs every test of the core and of every adapter except the external tier's, which needs
+It runs every test of the core except the external tier's, which needs
 hand-supplied inputs (test/tiers.py). Its time budget is `[tests]` in `se.toml`.
 
 Each part tests only itself, with its own `pyproject.toml` settings and `conftest.py`, so each
@@ -30,7 +30,7 @@ the tests it finished, then stopped with every process it started once it ends o
 INTERRUPT_GRACE_SECONDS pass; the suite adds the tests it was running to that report, names the
 part, those tests and the tests that failed before them, and fails. Arguments are passed on to every
 part's pytest, for example `--durations=20`. Each part writes its JUnit XML report as `<part>.xml`
-(`core.xml`, `adapters-html.xml`): where `SE_TEST_REPORTS` names a directory, there, from which se's
+(`core.xml`): where `SE_TEST_REPORTS` names a directory, there, from which se's
 `work_tickets.py suite` names the slowest tests, otherwise in the run's folder. Each part's
 `conftest.py` names its worker count there as the `workers` testsuite property (record_workers),
 by which se divides the part's test time. From each report the suite records each xdist group's
@@ -41,11 +41,10 @@ Beside them it records each passed test's tier and time per run (record_duration
 test/bounds.py derives each tier's timeout; a part whose test ran past its tier's cap fails. A run
 that did not complete (incomplete) records neither, and the suite names the part and the reason.
 
-The parts depend on Node packages: each part's `test/browser/package-lock.json`
-(today `adapters/html/test/browser` alone); the core's diagram renderers and the html
-adapter's maths library are built into their packages by each package's build (hatch_build.py,
-adapters/html/hatch_build.py). The adapters' browser tests run on Playwright's headless shell
-(HEADLESS_SHELL). `--setup`, its only argument then, installs the packages, and the shell with
+A part may depend on a Node package, its `test/browser/package-lock.json` (the core holds none
+today); the core's diagram renderers are built into its package by its build (hatch_build.py). An
+adapter's browser tests run on Playwright's headless shell (HEADLESS_SHELL), which an adapter's
+repository sets up with this command in the core's checkout it tests against. `--setup`, its only argument then, installs the packages, and the shell with
 Playwright (BROWSER_INSTALL) where Playwright's browsers folder (PLAYWRIGHT_BROWSERS_PATH, else
 Playwright's default) holds none, so a machine that has one downloads nothing; it runs no part; se.toml's `[tests] setup` runs it before the suite, timed apart from the budget.
 A package is installed with `npm ci` when its `node_modules` is missing or was installed from
@@ -84,8 +83,9 @@ from pathlib import Path
 from typing import NamedTuple
 
 ROOT = Path(__file__).resolve().parents[1]
-# The core, then each integrated adapter folder under adapters/.
-PARTS = [ROOT, *sorted(path.parent for path in (ROOT / "adapters").glob("*/pyproject.toml"))]
+# The suite's parts: the core alone, since every adapter is a component that tests itself in its own
+# repository (spec/design_input/architecture.md, Repository layout).
+PARTS = [ROOT]
 SETUP = "--setup"
 # `--measure-weights <run folder>...`: print SHARD_WEIGHTS and TIER_WEIGHTS measured from runs' reports.
 MEASURE = "--measure-weights"
@@ -302,7 +302,6 @@ SHARD_WEIGHTS = {
         "test/test_figure_references.py": 0.13,
         "test/structure/test_architecture.py": 0.13,
         "test/test_suite_node_packages.py": 0.1,
-        "test/test_adapter_spec_reference.py": 0.09,
         "test/test_inline_round_trip.py": 0.08,
         "test/test_link_labels.py": 0.07,
         "test/test_record_projections.py": 0.06,
@@ -310,7 +309,6 @@ SHARD_WEIGHTS = {
         "test/structure/test_repository.py": 0.04,
         "test/structure/test_input_model.py": 0.04,
         "test/test_producers.py": 0.04,
-        "test/test_first_chapter.py": 0.04,
         "test/structure/test_node_modules.py": 0.03,
         "test/test_validation_once.py": 0.03,
         "test/test_tiers.py": 0.03,
@@ -326,144 +324,6 @@ SHARD_WEIGHTS = {
         "test/structure/test_queries.py": 0.0,
         "test/structure/test_product.py": 0.0,
         "test/test_authored_artifact_browser.py": 0.0,
-    },
-    "adapters/html": {
-        "test/test_bless_browser.py": 40.47,
-        "test/test_equation_figures_browser.py": 26.9,
-        "test/test_sandboxed_preview_browser.py": 22.01,
-        "test/test_comments_browser.py": 19.57,
-        "test/test_serve.py": 19.49,
-        "test/test_installed_wheel.py": 19.04,
-        "test/test_pugh_phone_browser.py": 18.92,
-        "test/test_fixture_documents.py": 18.73,
-        "test/test_pugh_solutions_browser.py": 15.48,
-        "test/test_spec_archive_rebuild.py": 15.23,
-        "test/test_page_pool_browser.py": 14.78,
-        "test/test_reading_shell_browser.py": 10.55,
-        "test/test_features_browser.py": 9.63,
-        "test/test_moved_dom_contracts.py": 8.33,
-        "test/test_pugh_figures_browser.py": 8.08,
-        "test/test_cards_counts_quantities_browser.py": 7.08,
-        "test/test_chapter_sweep_browser.py": 6.83,
-        "test/test_file_offers_browser.py": 6.39,
-        "test/test_bars.py": 6.05,
-        "test/test_pdf.py": 5.86,
-        "test/test_artifact_harness.py": 5.76,
-        "test/test_figure_frame.py": 5.3,
-        "test/test_artifact_browser.py": 5.28,
-        "test/test_trusted_runtime_through_the_core.py": 5.02,
-        "parity-same-origin": 4.89,
-        "test/test_node_units.py": 4.86,
-        "coverage-same-origin-1600": 4.5,
-        "chapter-sweep-complete-desktop": 4.44,
-        "coverage-same-origin-360": 4.38,
-        "chapter-sweep-features-phone": 4.29,
-        "coverage-null-origin-360": 4.29,
-        "parity-null-origin": 4.28,
-        "test/test_appearance_browser.py": 4.26,
-        "test/test_parity_browser.py": 4.22,
-        "chapter-sweep-complete-phone": 4.1,
-        "test/test_startup_browser.py": 4.06,
-        "test/test_render.py": 4.0,
-        "coverage-null-origin-700": 4.0,
-        "coverage-null-origin-1600": 3.79,
-        "coverage-null-origin-1100": 3.72,
-        "coverage-same-origin-1100": 3.62,
-        "test/test_answers_browser.py": 3.59,
-        "test/test_base_records.py": 3.55,
-        "test/test_notice_center_browser.py": 3.54,
-        "coverage-same-origin-700": 3.49,
-        "test/test_attachment_editions.py": 3.36,
-        "test/test_comments.py": 3.34,
-        "test/test_pdf_inspect.py": 3.26,
-        "test/test_property_editors_browser.py": 3.26,
-        "test/test_content_model.py": 3.22,
-        "chapter-sweep-document-desktop": 3.21,
-        "test/test_dom.py": 3.14,
-        "chapter-sweep-document-phone": 3.08,
-        "test/structure/test_quality.py": 2.97,
-        "chapter-sweep-features-desktop": 2.95,
-        "test/test_feature_layout_browser.py": 2.78,
-        "test/test_errors.py": 2.74,
-        "chapter-sweep-equations-desktop": 2.58,
-        "test/test_cli.py": 2.48,
-        "test/test_selection_rule_set_browser.py": 2.41,
-        "chapter-sweep-cards-phone": 2.39,
-        "chapter-sweep-figure-references-desktop": 2.29,
-        "chapter-sweep-registers-phone": 2.29,
-        "test/test_library_doors_browser.py": 2.22,
-        "chapter-sweep-pugh-desktop": 2.14,
-        "test/test_registers.py": 2.13,
-        "chapter-sweep-cards-desktop": 2.13,
-        "chapter-sweep-decision-verdict-phone": 2.09,
-        "chapter-sweep-pugh-phone": 2.05,
-        "chapter-sweep-decision-verdict-desktop": 2.01,
-        "test/test_shipped_features_browser.py": 1.98,
-        "test/test_provenance.py": 1.96,
-        "chapter-sweep-registers-desktop": 1.92,
-        "test/test_limited_host_browser.py": 1.89,
-        "chapter-sweep-projections-desktop": 1.81,
-        "chapter-sweep-figures-desktop": 1.79,
-        "chapter-sweep-projections-phone": 1.77,
-        "test/test_features.py": 1.65,
-        "chapter-sweep-table-help-desktop": 1.63,
-        "chapter-sweep-self-link-phone": 1.62,
-        "test/parity/test_parity_table.py": 1.61,
-        "chapter-sweep-figures-phone": 1.58,
-        "chapter-sweep-artifact-change-phone": 1.58,
-        "chapter-sweep-property-editor-projection-phone": 1.57,
-        "test/test_long_paragraphs.py": 1.55,
-        "chapter-sweep-self-link-desktop": 1.55,
-        "chapter-sweep-figure-references-phone": 1.51,
-        "test/test_vault_settings.py": 1.51,
-        "chapter-sweep-artifact-change-desktop": 1.42,
-        "chapter-sweep-equations-phone": 1.41,
-        "chapter-sweep-table-help-phone": 1.39,
-        "chapter-sweep-callouts-desktop": 1.39,
-        "test/test_images_from_assets.py": 1.3,
-        "test/test_reader_text.py": 1.23,
-        "test/test_document_number_browser.py": 1.15,
-        "chapter-sweep-callouts-phone": 1.11,
-        "test/test_figure_links.py": 1.1,
-        "test/test_adapter_manifest.py": 1.06,
-        "test/test_references_browser.py": 1.05,
-        "chapter-sweep-source-archive-phone": 1.04,
-        "test/test_metadata_fields.py": 1.03,
-        "test/test_timings.py": 1.0,
-        "test/test_styles.py": 1.0,
-        "test/test_source_archive.py": 0.97,
-        "chapter-sweep-property-editor-projection-desktop": 0.94,
-        "chapter-sweep-structural-desktop": 0.94,
-        "test/test_figure_svg.py": 0.93,
-        "test/test_structural_nodes.py": 0.92,
-        "chapter-sweep-structural-phone": 0.89,
-        "test/test_attachment_replacement_browser.py": 0.88,
-        "chapter-sweep-source-archive-desktop": 0.86,
-        "test/test_callouts_embeds_attachments.py": 0.76,
-        "test/test_cards_counts_quantities.py": 0.51,
-        "test/test_figures.py": 0.48,
-        "test/test_references_extensions_editors.py": 0.42,
-        "test/test_figure_references.py": 0.34,
-        "test/test_commands.py": 0.31,
-        "test/structure/test_manifest.py": 0.25,
-        "test/structure/test_architecture.py": 0.25,
-        "test/test_network_guard.py": 0.25,
-        "test/test_core_property_editor_projection.py": 0.22,
-        "test/test_icons.py": 0.22,
-        "test/test_page_shell_options.py": 0.2,
-        "test/structure/test_artifact_ui.py": 0.19,
-        "test/test_vendored_libraries.py": 0.12,
-        "test/test_focused_run.py": 0.08,
-        "test/test_browser_engine.py": 0.07,
-        "test/test_bless_record.py": 0.07,
-        "test/test_bounds.py": 0.02,
-        "test/structure/test_input_model.py": 0.0,
-        "test/structure/test_configuration.py": 0.0,
-        "test/structure/test_mixed_notes.py": 0.0,
-        "test/structure/test_sharepoint_preview.py": 0.0,
-        "test/structure/test_artifact_presentation.py": 0.0,
-        "test/structure/test_one_short_name_rule.py": 0.0,
-        "test/test_worker_groups.py": 0.0,
     },
 }
 TIER_WEIGHTS = {"unit": 0.077, "dom": 0.233, "browser": 1.212, "build": 2.208, "external": 2.208}
@@ -854,8 +714,10 @@ def setup(arguments: list[str], clock) -> int:
     packages = ", ".join(package.relative_to(ROOT).as_posix() for package in installed or NODE_PACKAGES)
     if installed:
         print(f"test/suite.py: installed Node test packages {packages} in {clock() - started:.1f} s.")
-    else:
+    elif NODE_PACKAGES:
         print(f"test/suite.py: Node test packages {packages} are installed from their lockfiles.")
+    else:
+        print("test/suite.py: no part holds a Node test package.")
     state = "installed" if browser_installed else "is installed"
     print(f"test/suite.py: the browser tests' engine (HEADLESS_SHELL) {state} in {browsers}.")
     return 0

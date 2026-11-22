@@ -310,11 +310,11 @@ def test_a_component_of_another_kind_is_no_adapter(host, checkout, machine) -> N
     assert "--adapter: b: " in str(refused.value) and OWNER in str(refused.value)
 
 
-def test_the_html_adapter_in_obss_tree_is_the_component_html(machine) -> None:
-    location = adapter_location("html")
-    assert location.manifest == components.CHECKOUT / "adapters" / "html" / "adapter.json"
-    assert location.folder == components.CHECKOUT
-    assert not (components.CHECKOUT / "adapters.json").exists()
+def test_html_is_found_only_as_an_installed_component(machine) -> None:
+    """obs keeps no adapter in its tree: html, like any adapter, is found only once it is installed."""
+    with pytest.raises(AdapterError) as absent:
+        adapter_location("html")
+    assert "--adapter: html: " in str(absent.value) and "obs-components install html" in str(absent.value)
 
 
 def test_obs_document_hands_components_to_the_component_command(host, checkout, machine, capsys) -> None:

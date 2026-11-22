@@ -14,8 +14,8 @@ The system is a Python package managed and executed by `uv`.
 3. The core parses the selected manifest into a schema-valid JSON [[quality#Glossary|Document]] with document metadata, an ordered chapter tree, semantic Markdown nodes, links, and assets.
 4. The core resolves every manifest link within the containing vault and validates frontmatter and supported input syntax.
 5. Adapters project the Document into their output formats, each an [[quality#Glossary|artifact]]; a
-   build finds the adapter it names among the installed components ([[components#Naming a component]]), and
-   integrated adapters live under `adapters/` ([Repository layout](#repository-layout)).
+   build finds the adapter it names among the installed components ([[components#Naming a component]]);
+   each adapter lives in a repository of its own ([Repository layout](#repository-layout)).
 6. Resolve authorized derived-content providers, including command fences; in a core build the
    core runs them while it builds the Document ([Command output](#command-output)).
 7. Resolve content links and assets within the vault boundary.
@@ -35,71 +35,59 @@ costs rather than treating all conversion as one opaque phase.
 
 ## Repository layout
 
-[[components]] replaces this section's integrated adapter and the 5 to 6 Nov decision below: every
-adapter, the one in `adapters/html` included, becomes a component in a repository of its own, found
-through the checkout's remotes.
+This repository holds the core, `src/obs`, and no adapter. Every adapter is a component in a
+repository of its own ([[components]]); a build finds it among the installed components, and a fresh
+clone installs one with `obs-components install NAME` ([[components#Choosing]]).
 
-`adapters.json` is gone: a build finds its adapter among the
-installed components, and the adapter in `adapters/html` as the component `html` while it lives here
-([[components#Naming a component]]). Until it moves, this section describes the repository as it is.
+The adapter `html` is a component in its own repository beside this one under the same
+owner. That repository continues the history of the folder `adapters/html`, where the adapter lived
+in this repository from 5 to 22 Nov 2026, and the adapter's earlier history before that.
 
-The core and its adapters are one repository. The core is `src/obs`; an integrated adapter is
-a folder under `adapters/`, the first in `adapters/html`. Whether a later adapter
-lives here or in its own repository is decided when it comes.
+It depends on the core release its `pyproject.toml` pins, for the Document contract and its schemas,
+and its tests read the core's checkout at that release. Its releases are its tags
+`obs-component/adapter/html/v<version>`.
 
-An adapter folder is a member of the root uv workspace. It keeps its own `pyproject.toml`,
-package, tests, browser tests, `spec/` and `adapter.json`, and depends on the core through a
-workspace path dependency, so a core change and its adapter change land in one commit and
-there is no pin between them.
-
-Each adapter folder holds its `adapter.json` at its root. Each part tests only itself; `uv run python test/suite.py` runs every
-part's suite in its own pytest process.
-
-The decision, 5 to 6 Nov 2026, as a matrix ([[capabilities/pugh-decisions]]): the datum is the
-first adapter as it stood, a repository of its own that pinned the core by commit; the marks
-read this section and that repository's history, whose 113 commits of 5 Nov hold 4 pin moves.
+The decision, 22 Nov 2026, as a matrix ([[capabilities/pugh-decisions]]): the datum is the adapter
+as it stood, a folder of this repository and a member of its uv workspace (the decision of 5 to
+6 Nov, which this one replaces); the marks read [[components]] and work issue 862.
 
 ```figure
 version: 1
 kind: pugh
-caption: One repository against the adapter in a repository of its own.
+caption: The adapter html in a repository of its own against the adapter as a folder of this one.
 content:
-  title: Where an integrated adapter lives
-  chosen: folder
+  title: Where the adapter html lives
+  chosen: apart
   criteria:
-    - {key: pins, label: "Pin moves of the core (5 Nov)", weight: 2, better: lower, floor: 1}
-    - {key: commit, label: Core and adapter change in one commit, weight: 3, better: higher, kind: judged}
-    - {key: bookkeeping, label: "No pin file, sync step or second lock file", weight: 1, better: higher,
+    - {key: mechanism, label: "One mechanism finds every adapter", weight: 3, better: higher, kind: judged}
+    - {key: take, label: "Another system takes the adapter without obs", weight: 2, better: higher,
        kind: judged}
-    - {key: suite, label: One command runs every suite, weight: 1, better: higher, kind: judged}
-    - {key: own, label: "Each part keeps its package, tests and spec", weight: 2, better: higher,
-       kind: judged}
-    - {key: later, label: A later adapter may still live apart, weight: 1, better: higher, kind: judged}
+    - {key: commit, label: Core and adapter change in one commit, weight: 2, better: higher, kind: judged}
+    - {key: bookkeeping, label: "No pin of the core to move", weight: 1, better: higher, kind: judged}
   candidates:
-    - {key: apart, label: The adapter in its own repository,
-       what: "The first adapter as it stood, pinning the core by commit and syncing it as a module.",
-       values: {pins: 4}}
     - {key: folder, label: The adapter as a folder of this repository,
-       what: A uv workspace member under adapters/ that depends on the core by path.,
-       values: {pins: 0}, marks: {commit: 2, bookkeeping: 1, suite: 1, own: 0, later: 0}}
-  datum: {prefer: [apart]}
+       what: "A uv workspace member under adapters/, found in obs's tree beside the installed components."}
+    - {key: apart, label: The adapter in its own repository,
+       what: "The component html in a repository of its own, pinning a core release, found as any other.",
+       marks: {mechanism: 2, take: 2, commit: -2, bookkeeping: -1}}
+  datum: {prefer: [folder]}
 ```
 ^repository-layout-decision
 
 A measurement script, one that measures a cost or a timing and is run by hand, outside the suite
-and its budget, lives in its part's `test/measure/`: the core's in `test/measure/`, an adapter's
-in its folder's `test/measure/`. Its name is no `test_*.py`, so pytest collects nothing there.
+and its budget, lives in `test/measure/`. Its name is no `test_*.py`, so pytest collects nothing
+there.
 
-`test/structure/test_architecture.py` refuses a runnable script anywhere else under a part's
-`test/` that no other file of that part's tests names.
+`test/structure/test_architecture.py` refuses a runnable script anywhere else under `test/` that no
+other file of the tests names.
 
 The repository tracks no file over se's size bound (se's repository hygiene rule,
 `tests/test_repository.py`, whose `MAX_BYTES` owns the bound) unless the allow list in
 `test/structure/test_repository.py` names it with its reason.
 
-Only a vendored library may be on that list, and only one that its part's vendor manifest,
-`vendor.json` in the part's folder, pins by version and hash. The part's own tests check the file
-against that pin, so an entry covers neither another large file nor a changed library.
+Only a vendored library may be on that list, and only one that a vendor manifest, `vendor.json`
+at the repository's root, pins by version and hash. The tests check the file against that pin, so
+an entry covers neither another large file nor a changed library.
 
 ## Core attachment metadata
 

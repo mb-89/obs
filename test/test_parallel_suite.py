@@ -67,6 +67,7 @@ def test_each_part_writes_its_junit_report_into_the_directory_se_names(tmp_path)
         f"--junitxml={run / 'core.xml'}"], "without se's directory, the report goes into the run's folder"
 
 
+@pytest.mark.usefixtures("stand_in_part")
 def test_a_part_with_browser_tests_runs_more_workers_than_cpus_and_every_other_part_one_per_cpu(tmp_path) -> None:
     """A part with a Node test package (its browser tests) waits on its pages' frames much of its
     time, so it runs BROWSER_WORKERS_PER_CPU workers per CPU, rounded up; every other part runs one per CPU."""
@@ -86,6 +87,7 @@ def test_a_part_with_browser_tests_runs_more_workers_than_cpus_and_every_other_p
         assert workers(part) == expected
 
 
+@pytest.mark.usefixtures("stand_in_part")
 def test_a_part_with_browser_tests_counts_the_cpus_the_process_may_use(tmp_path, monkeypatch) -> None:
     """Pinned to two of a host's four CPUs (taskset, a shared runner), the browser part deals its
     workers for the two it may use, as a 2-CPU runner would, not for the host's four."""
@@ -522,6 +524,7 @@ def _write_report(path, cases) -> None:
 
 
 @pytest.mark.parametrize(("over", "on_actions"), [("target", False), ("target", True), ("limit", True)])
+@pytest.mark.usefixtures("stand_in_part")
 def test_a_suite_past_its_target_or_limit_names_its_slowest_tests(monkeypatch, capsys, tmp_path, over,
                                                                    on_actions) -> None:
     def run_part(part, arguments, run_folder):
@@ -559,6 +562,7 @@ def test_a_suite_past_its_target_or_limit_names_its_slowest_tests(monkeypatch, c
 
 
 @pytest.mark.parametrize("on_actions", [False, True])
+@pytest.mark.usefixtures("stand_in_part")
 def test_the_suite_names_a_test_far_slower_than_its_tiers_typical_time(monkeypatch, capsys, tmp_path,
                                                                        on_actions) -> None:
     """The tiers are taken over every part, and the run does not fail on it."""
@@ -731,13 +735,14 @@ def _report(path, cases) -> None:
         for name, tier, seconds in cases) + "</testsuite></testsuites>", encoding="utf-8")
 
 
+@pytest.mark.usefixtures("stand_in_part")
 def test_the_weights_are_measured_from_ci_runs_reports_and_print_as_their_constants(tmp_path, capsys) -> None:
     """Each group's time summed per run and averaged over the runs; each tier's mean time per test,
     an unmeasured tier at the costliest measured one; printed as the source pasted over them."""
     first, second = tmp_path / "run-1", tmp_path / "run-2"
     _report(first / "junit-shard-1" / "core.xml", [("a@test/a.py", "unit", 1.0), ("b@test/a.py", "unit", 2.0)])
     _report(first / "junit-shard-2" / "core.xml", [("c@own", "browser", 4.0)])
-    _report(first / "junit-shard-2" / "adapters-html.xml", [("d@test/d.py", "dom", 0.5)])
+    _report(first / "junit-shard-2" / "adapters-stand-in.xml", [("d@test/d.py", "dom", 0.5)])
     _report(second / "core.xml", [("a@test/a.py", "unit", 2.0), ("b@test/a.py", "unit", 1.0), ("c@own", "browser", 2.0)])
 
     assert suite.main([suite.MEASURE, str(first), str(second)]) == 0
@@ -745,7 +750,7 @@ def test_the_weights_are_measured_from_ci_runs_reports_and_print_as_their_consta
     exec(capsys.readouterr().out, constants)  # The output is the source pasted into test/suite.py.
 
     assert constants["SHARD_WEIGHTS"] == {"core": {"test/a.py": 3.0, "own": 3.0},
-                                          "adapters/html": {"test/d.py": 0.5}}
+                                          "adapters/stand-in": {"test/d.py": 0.5}}
     assert constants["TIER_WEIGHTS"] == {"unit": 1.5, "dom": 0.5, "browser": 3.0, "build": 3.0, "external": 3.0}
 
 

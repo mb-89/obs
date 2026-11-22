@@ -2,8 +2,6 @@
 build uses (spec/design_input/components.md, Recording what built a page)."""
 import json
 import re
-import subprocess
-import tomllib
 from collections.abc import Callable
 from dataclasses import dataclass
 from functools import cache
@@ -32,45 +30,22 @@ class AdapterLocation:
     folder: Path
 
 
-TREE_ADAPTERS = {"html": Path("adapters") / "html" / "adapter.json"}
-"""The adapters that still live in obs's tree, each found as the component of its name where none is
-installed (spec/design_input/components.md, Naming a component)."""
-
-
 def adapter_location(name: str) -> AdapterLocation:
-    """The installed adapter component ``name``, else the one of obs's tree; any other fails naming the
-    remedy, to install it."""
+    """The installed adapter component ``name``; any other fails naming the remedy, to install it."""
     entry = components.installed().get(name)
-    if entry is not None:
-        if entry["kind"] != "adapter":
-            raise AdapterError(f"--adapter: {name}: the installed component {name!r} is a {entry['kind']}, not an adapter. "
-                               f"Name an installed adapter; see {components.OWNER} (Naming a component).")
-        folder = components.local_folder() / "components" / name
-        return AdapterLocation(folder / "adapter.json", folder)
-    tree = TREE_ADAPTERS.get(name)
-    if tree is not None and (components.CHECKOUT / tree).is_file():
-        return AdapterLocation(components.CHECKOUT / tree, components.CHECKOUT)
-    raise AdapterError(f"--adapter: {name}: no adapter component {name!r} is installed. Run obs-components install {name}; "
-                       f"see {components.OWNER} (Naming a component).")
+    if entry is None:
+        raise AdapterError(f"--adapter: {name}: no adapter component {name!r} is installed. Run obs-components install {name}; "
+                           f"see {components.OWNER} (Naming a component).")
+    if entry["kind"] != "adapter":
+        raise AdapterError(f"--adapter: {name}: the installed component {name!r} is a {entry['kind']}, not an adapter. "
+                           f"Name an installed adapter; see {components.OWNER} (Naming a component).")
+    folder = components.local_folder() / "components" / name
+    return AdapterLocation(folder / "adapter.json", folder)
 
 
 def component_record(name: str) -> dict[str, str] | None:
-    """The component ``name`` a build uses, as its record names it: the installed one as components.json
-    lists it, else the adapter of obs's tree at obs's version and commit; None where neither is there."""
-    entry = components.installed().get(name)
-    if entry is not None:
-        return entry
-    if name not in TREE_ADAPTERS or not (components.CHECKOUT / TREE_ADAPTERS[name]).is_file():
-        return None
-    project = tomllib.loads((components.CHECKOUT / "se.toml").read_text(encoding="utf-8"))["project"]
-    try:
-        head = subprocess.run(["git", "-C", str(components.CHECKOUT), "rev-parse", "HEAD"], capture_output=True,
-                              text=True, encoding="utf-8", check=False)
-    except OSError:
-        head = None
-    commit = head.stdout.strip() if head is not None and not head.returncode else ""
-    return {"name": name, "kind": "adapter", "version": str(project["version"]),
-            "commit": commit if re.fullmatch(r"[0-9a-f]{40}", commit) else "unknown"}
+    """The installed component ``name`` a build uses, as components.json lists it; None where it is not installed."""
+    return components.installed().get(name)
 
 
 RECORDED = "--recorded-components"

@@ -2,8 +2,8 @@
 
 A component is a part obs builds with that does not live in obs's repository: an adapter, a style, or
 any later kind. Every component is found, installed and named the same way, by the one command below.
-The adapter in `adapters/html` is one component like any other; obs has no built-in adapter beside the components it
-finds.
+The adapter `html` is one component like any other, in its own repository; obs has
+no built-in adapter beside the components it finds, and keeps no adapter in its tree.
 
 This note replaces the integrated adapter of the 5 Nov decision
 ([[architecture#Repository layout]]), `adapters.json` as the only adapter registry
@@ -37,7 +37,7 @@ the repository, and neither is offered from it.
 
 What a release holds is its kind's: an adapter release holds its `adapter.json` at the root of its
 tree ([[architecture#Adapter call]]), and a style release holds a style module's files, its
-`style.css` among them, at its root (the configuration note of `adapters/html`, Declared style).
+`style.css` among them, at its root (the configuration note of the adapter `html`, Declared style).
 
 A later kind names its own entry file. A kind obs does not know is listed and installed like any
 other; only a part that knows the kind uses it.
@@ -46,7 +46,8 @@ Finding releases by tag was chosen over an index repository that lists the compo
 second file to keep in step with every release, while a tag is the release itself (the person's
 choice, 22 Nov 2026).
 
-Folding the adapter in `adapters/html` into the components was chosen over keeping it built in beside found components:
+Folding the adapter `html`, once the folder `adapters/html` of obs's tree, into the components was chosen
+over keeping it built in beside found components:
 two mechanisms would find adapters two ways, and a second adapter would still need the first.
 
 ## The component command
@@ -124,7 +125,7 @@ must name the component.
 
 ### Installed components
 
-Installs go to the machine, as local themes do (the configuration note of `adapters/html`, Local
+Installs go to the machine, as local themes do (the configuration note of the adapter `html`, Local
 themes): the folder `obs` in the user's configuration folder (`$XDG_CONFIG_HOME` or `~/.config` on
 Linux, `~/Library/Application Support` on macOS, `%APPDATA%` on Windows), or the folder
 `OBS_LOCAL_FOLDER` names where it is set and not empty.
@@ -163,11 +164,6 @@ as another kind, fails the build naming the field (or the option), the component
 run `obs-components install NAME`. An adapter's commands run from its installed folder, and a style's
 installed folder reaches the adapter in the Document ([[architecture#Declared style]]).
 
-While the adapter in `adapters/html` still lives in obs's tree, a build finds it as the adapter
-component `html` where no component `html` is installed: its manifest is `adapters/html/adapter.json` of
-the checkout the core runs from, and its commands run from that checkout's root, as before. An
-installed `html` is the person's choice and wins over it.
-
 A build installs and fetches nothing: components come only from the checkout's remotes, and only when
 the person chooses them with the component command.
 
@@ -183,11 +179,6 @@ the machine's list, and the source archive's build record carries the same list
 The Document's `components` lists them in the order the build found them, the adapter first and
 then the style; a build without an adapter, which writes only the Document, lists only the style
 the manifest declares, if any.
-
-The adapter in `adapters/html`, found in obs's tree
-([Naming a component](#naming-a-component)), is recorded as the component `html` of kind `adapter`
-at obs's version, `version` of `[project]` in the checkout's `se.toml`, and at the commit the checkout
-is at (`git rev-parse HEAD`), or `unknown` where Git cannot name it.
 
 A rebuild uses the versions installed on its machine: where one differs from the recorded version,
 the build warns naming the component and both versions, and where a recorded component is not installed it

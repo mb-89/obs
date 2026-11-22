@@ -69,9 +69,9 @@ validates the Document once, as it builds it, and a call that reads `--document`
 once, as it reads it; nothing validates it again before it is written or handed to the adapter.
 
 `--adapter NAME` names an installed component of kind adapter ([[components#Naming a component]]), which
-the build finds in the machine's component folder, or, for `html` while it lives in obs's tree, in the
-checkout the core runs from; nothing in the current folder names it, so the call runs from any
-folder, through RUNME or `uv run --project`.
+the build finds in the machine's component folder; nothing in the current folder names it, so the
+call runs from any folder, through RUNME or `uv run --project`. A fresh clone builds with `html`
+once `obs-components install html` installed it.
 
 A build through the core authorizes command fences once, on the core: `--execute-commands` makes
 the core run the vault's command fences from the vault root and put
@@ -101,6 +101,21 @@ with `--wait`, returns the reader's answers.
 An adapter that declares no `serve` command fails the call before the build, naming its manifest;
 so do `--wait` without `--serve`, `--timeout` without `--wait` and `--serve` with several
 `--source`. The adapter's own documentation owns what its server does.
+
+### Setup
+
+`RUNME.conf` at the repository root declares, once, what obs needs on a machine with only its
+package manager, Git, curl, uv and npm, each with the ways to install it, and obs's command line;
+the header of `RUNME.sh` owns its format.
+
+npm is there because the core's first build fetches its diagram renderers with it. No browser is
+declared: a diagram or a PDF uses an installed Chrome, Edge or Chromium, and a build without one
+names the command that installs Playwright's.
+
+`RUNME.sh` and `RUNME.ps1` are se's generic pair, byte for byte se's at obs's se pin. They install
+what `RUNME.conf` declares and the machine lacks, then hand every argument to `uv run
+obs-document` in the caller's folder. Neither has an option of its own: `--help` prints
+obs-document's help.
 
 ## Authoring skill
 

@@ -71,7 +71,9 @@ class FakeNpm:
 
 
 def test_the_suite_checks_every_part_lockfile_it_depends_on() -> None:
-    assert suite.NODE_PACKAGES == [suite.ROOT / "adapters" / "html" / "test" / "browser"]
+    """The core, the suite's one part, holds no Node test package."""
+    assert suite.NODE_PACKAGES == [part / "test" / "browser" for part in suite.PARTS
+                                   if (part / "test" / "browser" / "package-lock.json").is_file()] == []
 
 
 def test_a_missing_node_modules_is_installed_and_remembers_its_lockfile(tmp_path) -> None:
@@ -169,6 +171,7 @@ def test_setup_installs_the_browser_into_playwrights_folder(monkeypatch, browser
     assert str(browsers) in capsys.readouterr().out
 
 
+@pytest.mark.usefixtures("stand_in_part")
 def test_setup_installs_the_node_packages_and_runs_no_part(monkeypatch, capsys) -> None:
     ticks = iter([0.0, 7.0])
     monkeypatch.setattr(suite, "install_node_packages", lambda packages: list(packages))
@@ -177,7 +180,7 @@ def test_setup_installs_the_node_packages_and_runs_no_part(monkeypatch, capsys) 
 
     assert suite.main(["--setup"], clock=lambda: next(ticks)) == 0
 
-    assert ("installed Node test packages adapters/html/test/browser in 7.0 s") in capsys.readouterr().out
+    assert ("installed Node test packages adapters/stand-in/test/browser in 7.0 s") in capsys.readouterr().out
 
 
 def test_setup_takes_no_other_arguments(monkeypatch, capsys) -> None:
@@ -208,6 +211,7 @@ def test_the_suite_installs_nothing_and_runs_its_parts_when_set_up(monkeypatch) 
     assert order == ["part"] * len(suite.PARTS)
 
 
+@pytest.mark.usefixtures("stand_in_part")
 def test_the_suite_without_setup_runs_no_part_and_names_the_setup_command(monkeypatch, capsys) -> None:
     stale = suite.NODE_PACKAGES[-1]
     monkeypatch.setattr(suite, "is_installed", lambda package: package != stale)
@@ -263,3 +267,12 @@ def test_the_cores_session_start_sets_up_a_focused_run(monkeypatch) -> None:
     conftest.pytest_sessionstart(SimpleNamespace(config=config))
 
     assert seen == [("set up", config), ("workers", config)]
+
+
+def test_setup_says_so_where_no_part_holds_a_node_package(monkeypatch, capsys) -> None:
+    monkeypatch.setattr(suite, "NODE_PACKAGES", [])
+    monkeypatch.setattr(suite, "install_browser", lambda browsers: False)
+
+    assert suite.main(["--setup"]) == 0
+
+    assert "test/suite.py: no part holds a Node test package." in capsys.readouterr().out

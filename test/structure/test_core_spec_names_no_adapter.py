@@ -2,9 +2,8 @@
 
 Reader: whoever changes obs's specification or this list.
 
-obs treats an adapter's specification as an outside source: one reference note under
-`spec/appendix/references` stands for it, and everything about an adapter's output lives in that
-adapter's own specification (the HTML adapter's: `adapters/html/spec/manifest.md`). This test
+obs treats an adapter's specification as an outside source: everything about an adapter's output
+lives in that adapter's own specification, in the adapter's repository. This test
 owns the terms that name the HTML adapter or its user interface, and the one list of allowed
 exceptions.
 """
@@ -67,7 +66,7 @@ def adapter_statements() -> list[str]:
                     continue
                 found.append(
                     f"{relative}:{number}: names '{match.group(0)}'. Remedy: move the passage to the "
-                    "adapter's specification (adapters/html/spec) or state it for any adapter; "
+                    "adapter's specification, in its repository, or state it for any adapter; "
                     "test/structure/test_core_spec_names_no_adapter.py ALLOWED lists the exceptions."
                 )
     return found

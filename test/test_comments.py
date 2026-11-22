@@ -244,7 +244,7 @@ def test_the_cli_writes_the_resolved_comments_into_the_document(tmp_path) -> Non
 
 
 def test_the_shared_review_state_fixture_holds_for_the_core() -> None:
-    """The cases adapters/html/test/comment-model.test.js runs against the HTML adapter's browser mapping."""
+    """The cases the adapter html's test/comment-model.test.js runs against its browser mapping."""
     fixture = json.loads((Path(__file__).parent / "fixtures" / "review-state-conformance.json").read_text(
         encoding="utf-8"))
     for case in fixture["cases"]:
@@ -492,7 +492,7 @@ def test_an_import_the_core_refuses_names_the_field_and_the_owner(tmp_path, retu
 
 def test_a_comment_on_a_block_of_a_note_a_base_selects_resolves(tmp_path) -> None:
     """A selection in a Base row's note detail targets the note's block under the note's chapter
-    (adapters/html/spec/input-model.md, Comments and the core model): every note a Base selects is a
+    (the adapter html's spec/input-model.md, Comments and the core model): every note a Base selects is a
     chapter (bases.md, Note records), so the core resolves that target as it is."""
     manifest = tmp_path / "manifest.md"
     manifest.write_text("- [[glossary]]\n", encoding="utf-8")
