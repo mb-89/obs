@@ -25,8 +25,10 @@ SLOWEST_NAMED slowest tests of the parts' reports (slowest_tests), on GitHub Act
 warning annotation; it does not fail on that (quality.md, Testing boundaries). As it ends it also
 names, the same way and without failing, each test far slower than its tier's typical time
 (outlying, test/bounds.py's outliers). Each test has its timeout (test/bounds.py); the whole run has a cap,
-CAP_SECONDS, at which a part still running is stopped, with every process it started, and the
-suite names the part and the tests it was running and fails. Arguments are passed on to every
+CAP_SECONDS, at which a part still running is interrupted, so its pytest writes its JUnit report of
+the tests it finished, then stopped with every process it started once it ends or
+INTERRUPT_GRACE_SECONDS pass; the suite adds the tests it was running to that report, names the
+part, those tests and the tests that failed before them, and fails. Arguments are passed on to every
 part's pytest, for example `--durations=20`. Each part writes its JUnit XML report as `<part>.xml`
 (`core.xml`, `adapters-html.xml`): where `SE_TEST_REPORTS` names a directory, there, from which se's
 `work_tickets.py suite` names the slowest tests, otherwise in the run's folder. Each part's
@@ -108,6 +110,10 @@ BROWSER_WORKERS_PER_CPU = 1.5
 # se.toml, budget) and past every test's timeout (test/bounds.py), so a hanging test fails by its
 # own timeout first.
 CAP_SECONDS = 300
+# At the cap, how long a part's pytest has, once interrupted, to end its session (its JUnit report and
+# its failures) before the suite stops what is left of it: three times pytest-xdist's own wait for
+# its workers to exit (NodeManager.EXIT_TIMEOUT, 10 s).
+INTERRUPT_GRACE_SECONDS = 30
 # In node_modules: the SHA-256 of the lockfile it was installed from.
 INSTALLED_LOCKFILE = ".obs-installed-lockfile"
 
@@ -690,24 +696,30 @@ def set_up_focused_run(config, packages: list[Path] | None = None, run=None) -> 
 
 def run_part(part: Path, arguments: list[str], run_folder: Path) -> tuple[int, str]:
     """Run one part's pytest; its exit code and its output, headed by its command. A part still
-    running at the cap (CAP_SECONDS) is stopped, and its output ends naming the tests it ran then.
+    running at the cap (CAP_SECONDS) is interrupted, so its pytest ends its session and writes its
+    report, then stopped (interrupt_and_stop); its report gets the tests it was running
+    (capped_report), and its output ends naming them and its failures (cap_line).
     A part whose recorded test ran past its tier's cap (test/bounds.py, over_cap) fails, naming it."""
     import bounds  # Only here: an adapter's conftest.py loads this module without test/ on its path.
 
     command = part_command(part, arguments, os.environ, run_folder)
+    report = part_report(part, os.environ, run_folder)
+    started = time.time()
     process = subprocess.Popen(command, cwd=part, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
                                text=True, encoding="utf-8", errors="replace", start_new_session=os.name != "nt")
     head = f"== {part_name(part)}: {' '.join(command[1:])} in {part}\n"
     try:
         output, _ = process.communicate(timeout=CAP_SECONDS)
     except subprocess.TimeoutExpired:
-        running = ", ".join(bounds.running_tests(run_folder, part)) or "no test (collecting, or ending its session)"
-        stop(process)
-        output, _ = process.communicate()
-        return 1, (f"{head}{output}test/suite.py: {part_name(part)} reached the suite's cap of {CAP_SECONDS} s "
-                   f"(CAP_SECONDS) and was stopped while running {running}. Remedy: run that test alone in "
-                   f"{part} with `uv run pytest <test>` and find what it waits for.\n")
-    report = part_report(part, os.environ, run_folder)
+        running = bounds.running_tests(run_folder, part)
+        output = interrupt_and_stop(process)
+        # A report older than the part is an earlier run's: the reports' folder can outlive a run.
+        written = (report.read_text(encoding="utf-8")
+                   if report.is_file() and report.stat().st_mtime >= started else None)
+        capped = capped_report(written, running, CAP_SECONDS)
+        report.parent.mkdir(parents=True, exist_ok=True)
+        report.write_text(capped.xml, encoding="utf-8")
+        return 1, head + output + cap_line(part_name(part), part, running, report, capped, CAP_SECONDS)
     unrecorded = incomplete(process.returncode, report)
     if shard() is None and unrecorded is None:
         record_weights(report)
@@ -722,14 +734,107 @@ def run_part(part: Path, arguments: list[str], run_folder: Path) -> tuple[int, s
     return (1 if capped else code), head + output + "".join(f"{message}\n" for message in capped)
 
 
+def interrupt_and_stop(process: subprocess.Popen) -> str:
+    """At the cap: interrupt the part's pytest alone (its controller, not its process group), as
+    Ctrl-C does, so it ends its session, writing its JUnit report and its failures; wait for it up to
+    INTERRUPT_GRACE_SECONDS, reading its output meanwhile, so an end of session past the pipe's
+    buffer is not lost; then stop what is left (stop). On Windows, where no interrupt reaches one
+    process alone, it stops it at once. Its output."""
+    if os.name != "nt":
+        import signal
+
+        process.send_signal(signal.SIGINT)
+        with contextlib.suppress(subprocess.TimeoutExpired):  # communicate keeps what it read.
+            process.communicate(timeout=INTERRUPT_GRACE_SECONDS)
+    stop(process)
+    output, _ = process.communicate()
+    return output
+
+
 def stop(process: subprocess.Popen) -> None:
-    """Stop the process and every process it started: its xdist workers, their browsers and drivers."""
+    """Stop the process and every process it started: its xdist workers, their browsers and drivers;
+    a process group that has already ended is passed over."""
     if os.name == "nt":
         subprocess.run(["taskkill", "/F", "/T", "/PID", str(process.pid)], capture_output=True)
     else:
         import signal
 
-        os.killpg(process.pid, signal.SIGKILL)
+        with contextlib.suppress(ProcessLookupError):
+            os.killpg(process.pid, signal.SIGKILL)
+
+
+def case_address(nodeid: str) -> tuple[str, str]:
+    """The classname and name pytest's junitxml gives the test of this node id
+    (_pytest.junitxml.mangle_test_address): the classname is the node id's parts before its last
+    `::`, joined with `.`, the file's `/` as `.` and without `.py`; the name is its last part."""
+    path, bracket, parameters = nodeid.partition("[")
+    names = path.split("::")
+    names[0] = re.sub(r"\.py$", "", names[0].replace("/", "."))
+    names[-1] += bracket + parameters
+    return ".".join(names[:-1]), names[-1]
+
+
+class CappedReport(NamedTuple):
+    """A capped part's JUnit report (capped_report): its XML, how many tests it finished (None where
+    its pytest wrote no report in this run) and those of them that failed, as ``<classname>::<name>``."""
+    xml: str
+    finished: int | None
+    failed: list[str]
+
+
+def capped_message(cap: int) -> str:
+    return f"stopped at the suite's cap of {cap} s (CAP_SECONDS)"
+
+
+def capped_report(written: str | None, running: list[str], cap: int) -> CappedReport:
+    """Complete a capped part's JUnit report: the one its pytest wrote in this run (``written``),
+    without the case without a name it leaves for the test it was interrupted in, every other case as
+    it wrote it, or, where it wrote none, a report of one testsuite; and one case per running test (a
+    node id), holding an error that says the cap stopped it, its testsuite's ``tests`` and ``errors``
+    grown by their count."""
+    if written is None:
+        root = ElementTree.Element("testsuites")
+        ElementTree.SubElement(root, "testsuite", {"name": "pytest", "errors": "0", "failures": "0",
+                                                   "skipped": "0", "tests": "0"})
+    else:
+        root = ElementTree.fromstring(written)
+    suites = [root] if root.tag == "testsuite" else list(root.iter("testsuite"))
+    if not suites:
+        suites = [ElementTree.SubElement(root, "testsuite", {"name": "pytest", "errors": "0", "failures": "0",
+                                                             "skipped": "0", "tests": "0"})]
+    for testsuite in suites:
+        for case in [case for case in testsuite.findall("testcase") if not case.get("name")]:
+            testsuite.remove(case)
+    finished = [case for testsuite in suites for case in testsuite.findall("testcase")]
+    failed = [f"{case.get('classname', '')}::{case.get('name')}" for case in finished
+              if case.find("failure") is not None or case.find("error") is not None]
+    last = suites[-1]
+    for nodeid in running:
+        classname, name = case_address(nodeid)
+        case = ElementTree.SubElement(last, "testcase", {"classname": classname, "name": name})
+        ElementTree.SubElement(case, "error", {"message": capped_message(cap)})
+    for count in ("tests", "errors"):
+        last.set(count, str(int(last.get(count) or 0) + len(running)))
+    xml = '<?xml version="1.0" encoding="utf-8"?>' + ElementTree.tostring(root, encoding="unicode")
+    return CappedReport(xml, None if written is None else len(finished), failed)
+
+
+def cap_line(name: str, part: Path, running: list[str], report: Path, capped: CappedReport, cap: int) -> str:
+    """The lines that end a capped part's output: the part, the tests it was running, what its report
+    (capped_report) holds and which of the finished failed, and the remedy."""
+    tests = ", ".join(running) or "no test (collecting, or ending its session)"
+    line = (f"test/suite.py: {name} reached the suite's cap of {cap} s (CAP_SECONDS) and was stopped while "
+            f"running {tests}.")
+    if capped.finished is None:
+        line += (f" It wrote no report of the tests it finished; its report {report} holds the "
+                 f"{len(running)} it was running.\n")
+    else:
+        line += (f" Its report {report} holds the {capped.finished} tests it finished and the {len(running)} it "
+                 "was running; ")
+        line += (f"{len(capped.failed)} of the finished failed:\n" + "".join(f"  {test}\n" for test in capped.failed)
+                 if capped.failed else "none of the finished failed.\n")
+    return line + (f"Remedy: run that test alone in {part} with `uv run pytest <test>` and find what it "
+                   "waits for.\n")
 
 
 def setup(arguments: list[str], clock) -> int:
