@@ -44,6 +44,9 @@ arrive as structural nodes, which every adapter renders; `document.schema.json` 
   line, which Obsidian shows as display math), and `break` (a hard line break: two or more
   trailing spaces or a trailing backslash).
 
+A whole `key:: value` line is a block field, never text: the node it attaches to carries it as
+`fields` ([[input-model#Block fields]]).
+
 A soft line break, a line ending that is not a hard break, is a space in `text`. The dialect
 keeps CommonMark's line breaks, as Obsidian's "Strict line breaks" setting does when on: a
 soft break never renders as a break.

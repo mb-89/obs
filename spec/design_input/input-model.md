@@ -1450,6 +1450,8 @@ The body is the checked content as it is.
   container, as the adapter places it. Styles come only from the CSS snippets the adapter's
   presentation options list; no adapter gives the classes a meaning of its own.
 
+- A block or section sets fields of its own with `key:: value` lines; [[#Block fields]] owns
+  them and their inheritance, whose outermost level is the front matter.
 - Every frontmatter field is available to the shared query language. Nested mapping fields
   use dotted names, quoted field names address spaces,
   and bare queries search both field names and values. Within quoted query values, `\"`
@@ -1559,7 +1561,8 @@ the per-kind register is the `marks` [register](#registers).
 
   A Base normally evaluates canonical note rows once, as native Bases does.
   `obs.records` explicitly selects an artifact-only row projection: `note`, `chapter`,
-  `tag`, `glossary`, `documentHistory` or `documentMetadata`. A `note` projection adds
+  `tag`, `glossary`, `documentHistory`, `documentMetadata` or `block`
+  ([[#Block records]]). A `note` projection adds
   the artifact's own note fields to the canonical note rows.
 
   A filter comparison on a bare `recordType` is rejected with a migration message naming
@@ -1754,6 +1757,9 @@ row per frontmatter key other than `history`, `obs` and an adapter's namespace
 ([[#Core and adapter namespaces]]), with its value as authored; the
 adapter adds the rows of its own generation provenance.
 
+A block row's own fields are its block's effective values; [[#Block records]] owns what else it
+resolves.
+
 The core emits every projection as records of its type in the Document's `records`, a
 tag row for each mark of a marked paragraph; `src/obs/document.schema.json` (`$defs/record`)
 defines each record type and its fields.
@@ -1923,6 +1929,91 @@ id is `<table id>:<record id>`, the table's node id and the Document record's id
 A register's rows are the records the core selected; a Base fence's rows are selected by the
 adapter, so any record of the Document is a row of it. A Markdown table has no key column; its
 rows are table-row nodes with derived ids.
+
+## Block fields
+
+Decided by the owner, 22 Nov 2026 (work issue `block-fields-inline`): any block or section carries
+fields of its own, written the way Obsidian's community writes inline fields (Dataview, Datacore,
+Logseq, Roam), so a table, a list, a callout or one section can hold an owner or a status that
+differs from its note's. `src/obs/block_fields.py` owns the resolution.
+
+### Field lines
+
+A field line is a whole line `key:: value` of a paragraph: the key, `::`, and the value after a
+space, or nothing.
+
+- The key is dotted as a query names a front matter field: names of letters, digits, `_` and
+  `-`, the first starting with a letter or `_`, joined by `.` (`review.owner`).
+- The value is a YAML scalar: `3` is a number, `true` a boolean, `2026-11-22` a date, as in front
+  matter; text that YAML does not read as one scalar (`[[Ana]]`, `a: b`) is that text.
+- An empty value, `key::`, unsets the key: the node and the nodes it contains have no value for it
+  from farther out.
+- One node setting one key twice is an input error naming the note's line.
+
+A field line is not prose: the core removes it from its paragraph, and a paragraph made only of
+field lines produces no paragraph node. The paragraph lint measures what is left.
+
+### Attachment
+
+A field line attaches as `^name` does ([[#Explicit ids]]):
+
+- A field line in a paragraph with other text belongs to that paragraph.
+- A paragraph made only of field lines right after a table, a list, a quote or a callout belongs
+  to that block; one right after a heading belongs to the heading's section. A `^name` line before
+  or after it in the same position keeps naming that block.
+- A paragraph made only of field lines first in a list item, a quote or a callout's body (on the
+  lines after a callout's `[!type]` line) belongs to that list item, quote or callout. The issue
+  left the container's first position open; this is where a `^name` would name the container.
+- A field line that attaches to nothing, such as a note's first lines before any block or a field
+  paragraph after a paragraph or a code block, fails the build with the core's one error form,
+  naming the note, the line and the key (`<note>: line 3, owner::: attaches to no block ...`).
+
+### Inheritance
+
+A node's effective value of a key is the nearest one: the node's own fields, then those of its
+containers inner-first (a list item's list, a callout around it, a column's columns block), then
+the sections around it inner-first (the heading it sits under, then that heading's parent
+headings by level), then the note's front matter, whose nested mappings are dotted keys.
+
+A nearer value replaces a farther one; an unset key ends the search with no value.
+
+### Document fields
+
+A block or section node that sets a key carries `fields`: the dotted keys it sets, each with its
+value, `null` for an unset key.
+
+A block node that sets a key, or sits in a node that sets one, carries `effective`: each key
+with a value and where it comes from, `{value, node}` with the id of the node that sets it, or
+`{value, frontmatter: true}` from the note's front matter.
+
+A node without `effective` takes its note's front matter as its effective values, so a Document
+without field lines is as before. `document.schema.json` states both.
+
+A block's effective values form the mapping front matter forms for a note, so a query condition
+matches a block's effective fields as `field: value` exactly as it matches front matter
+(`block_fields.values`, `selection.conditions_select`). Adapters may show the fields.
+
+### Block records
+
+Decided by SE, 22 Nov 2026 (work issue `block-fields-inline`): every block or section node that
+sets a key is a `block` record of its own in the Document's `records`, so a Base view with
+`obs.records: block` lists blocks by their fields, not only the notes that hold them. Not picked:
+a query that matches a note when one of its nodes matches, which returns notes and cannot list
+the blocks.
+
+- A block record's `fields` are its block's effective values, key by dotted key, as a note
+  record's are its front matter, so a filter `owner == "mb"` selects the blocks whose nearest
+  `owner` is `mb` ([[#Inheritance]]).
+- Its `note` is the note the block is written in; its `block` names the node: `node`, its id;
+  `chapter`, its chapter's id (`home` for the abstract); `kind`, its node type; `path`, the
+  chapter's title, the titles of the sections around it outer-first and its kind, joined by
+  ` › ` (a section's last part is its own title); and `fields`, the keys it sets itself.
+- A filter resolves a property on the block's effective values first, then `block.node`,
+  `block.chapter`, `block.kind` and `block.path` on its `block`. A block of an ignored note is
+  never selected.
+- Only blocks of notes the Document includes exist, so only they are records. The core adds
+  them once the node ids are assigned, after it has read which notes the Document includes, and
+  then selects the rows of each view that lists blocks.
 
 ## Reviewed copy
 

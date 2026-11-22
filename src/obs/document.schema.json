@@ -114,9 +114,25 @@
         "authoredId": {
           "description": "Present, and true, only where the node's id is an Obsidian block reference the author wrote, also where it equals the id that would be derived; a derived id carries none (input-model#Explicit ids).",
           "const": true
+        },
+        "fields": {
+          "description": "The block fields the node sets itself (input-model#Block fields). Only a block node with an id carries them.",
+          "$ref": "#/$defs/blockFields"
+        },
+        "effective": {
+          "description": "Present on a block node that sets a block field or sits in one that does: each dotted key in reach with its value, nearest first, and where it comes from, the node that sets it or the note's front matter (input-model#Block fields). A node without it takes its note's front matter.",
+          "type": "object",
+          "additionalProperties": {
+            "type": "object",
+            "required": ["value"],
+            "oneOf": [
+              {"required": ["node"], "properties": {"value": {"type": ["string", "number", "boolean"]}, "node": {"$ref": "#/$defs/nodeId"}}, "additionalProperties": false},
+              {"required": ["frontmatter"], "properties": {"value": true, "frontmatter": {"const": true}}, "additionalProperties": false}
+            ]
+          }
         }
       },
-      "dependentRequired": {"authoredId": ["id"]},
+      "dependentRequired": {"authoredId": ["id"], "fields": ["id", "effective"], "effective": ["id"]},
       "allOf": [
         {
           "description": "Containers that carry no attributes: a quotation's blocks, a table's rows, a row's cells, and a mark's inline nodes.",
@@ -754,7 +770,7 @@
       "type": "object", "additionalProperties": false, "required": ["id", "type", "fields"],
       "properties": {
         "id": {"$ref": "#/$defs/id"},
-        "type": {"enum": ["note", "chapter", "tag", "glossary", "documentMetadata", "documentHistory"]},
+        "type": {"enum": ["note", "chapter", "tag", "glossary", "documentMetadata", "documentHistory", "block"]},
         "path": {"type": "string", "pattern": "^(?!/)(?!.*(^|/)\\.\\.?(/|$)).+\\.md$"},
         "note": {"description": "The id of the note record the row comes from; a chapter or glossary row's other properties resolve on its frontmatter and path.", "$ref": "#/$defs/id"},
         "fields": {"type": "object"},
@@ -763,7 +779,15 @@
           "type": "array", "items": {"allOf": [{"$ref": "#/$defs/node"}, {"properties": {"type": {"const": "field"}}}]}
         },
         "ignored": {"const": true, "description": "Present on an ignored note: queries and Bases never select it or a row it owns (markdown-frontmatter, Ignored notes)."},
-        "quantity": {"description": "Present on the record of every quantity note the Document includes: its quantity, as on its quantities node.", "$ref": "#/$defs/quantity"}
+        "quantity": {"description": "Present on the record of every quantity note the Document includes: its quantity, as on its quantities node.", "$ref": "#/$defs/quantity"},
+        "block": {
+          "description": "The block node a block record is (input-model#Block records): its id, its chapter's id (home for the abstract), its node type, its path of chapter title, section titles outer-first and kind joined by ' › ', and the block fields it sets itself.",
+          "type": "object", "additionalProperties": false, "required": ["node", "chapter", "kind", "path", "fields"],
+          "properties": {
+            "node": {"$ref": "#/$defs/nodeId"}, "chapter": {"$ref": "#/$defs/id"}, "kind": {"type": "string"},
+            "path": {"type": "string", "minLength": 1}, "fields": {"$ref": "#/$defs/blockFields"}
+          }
+        }
       },
       "allOf": [
         {
@@ -810,11 +834,26 @@
           }}}
         },
         {
+          "description": "A block: one block or section node that sets a block field (input-model#Block records); fields are its effective values by dotted key, note the note it is written in.",
+          "if": {"properties": {"type": {"const": "block"}}},
+          "then": {"required": ["note", "block"], "properties": {"fields": {
+            "propertyNames": {"pattern": "^[A-Za-z_][A-Za-z0-9_-]*(\\.[A-Za-z0-9_-]+)*$"}
+          }}},
+          "else": {"not": {"required": ["block"]}}
+        },
+        {
           "description": "A document history entry: one item of the manifest's history, its keys as authored and date empty when it has none.",
           "if": {"properties": {"type": {"const": "documentHistory"}}},
           "then": {"not": {"required": ["note"]}, "properties": {"fields": {"required": ["date"]}}}
         }
       ]
+    },
+    "blockFields": {
+      "description": "Block fields by dotted key, from key:: value lines; null unsets an inherited value (input-model#Block fields).",
+      "type": "object",
+      "minProperties": 1,
+      "propertyNames": {"pattern": "^[A-Za-z_][A-Za-z0-9_-]*(\\.[A-Za-z0-9_-]+)*$"},
+      "additionalProperties": {"type": ["string", "number", "boolean", "null"]}
     },
     "quantity": {
       "description": "A quantity in the unit system (capabilities/quantities#Document node): its display unit as authored (empty for a plain number), its dimension as the nonzero exponent of each base dimension, and, for a quantity with a value, that value and its value in SI base units; a range adds both bounds in the display unit and in SI base units. An adapter converts between units from these alone.",

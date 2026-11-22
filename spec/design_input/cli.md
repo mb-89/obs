@@ -16,7 +16,7 @@ adapter's own command line is part of that adapter's specification.
 One `obs-document` call builds an artifact from a vault:
 
 ```sh
-uv run obs-document --source spec/manifest.md --adapter html --destination <scratch>/spec.html --execute-commands
+uv run obs-document --source spec/manifest.md --adapter obs-html --destination <scratch>/spec.html --execute-commands
 ```
 
 `--source` names the manifest note or the vault folder that holds it. A folder resolves to its
@@ -70,8 +70,8 @@ once, as it reads it; nothing validates it again before it is written or handed 
 
 `--adapter NAME` names an installed component of kind adapter ([[components#Naming a component]]), which
 the build finds in the machine's component folder; nothing in the current folder names it, so the
-call runs from any folder, through RUNME or `uv run --project`. A fresh clone builds with `html`
-once `obs-components install html` installed it.
+call runs from any folder, through RUNME or `uv run --project`. A fresh clone builds with
+`obs-html` once `obs-components install obs-html` installed it.
 
 A build through the core authorizes command fences once, on the core: `--execute-commands` makes
 the core run the vault's command fences from the vault root and put
@@ -161,8 +161,8 @@ artifact's reader sent (`--serve --wait` prints it, and the adapter's server wri
 artifact). [[input-model#Answers]] owns its fields and what each answer does to its chapter:
 
 ```sh
-uv run obs-document --source deck/manifest.md --adapter html --destination deck.html --serve --wait
-uv run obs-document --source deck/manifest.md --adapter html --destination record.html --answers answers.json
+uv run obs-document --source deck/manifest.md --adapter obs-html --destination deck.html --serve --wait
+uv run obs-document --source deck/manifest.md --adapter obs-html --destination record.html --answers answers.json
 ```
 
 The second artifact is the decision record. `--answers` is used only with `--source`, and an
@@ -175,7 +175,7 @@ One `obs-document` call builds several artifacts: each `--source` pairs, in argu
 the `--destination` that follows it, and `--adapter` builds each of them:
 
 ```sh
-uv run obs-document --adapter html --source a/manifest.md --destination a.html --source b/manifest.md --destination b.html
+uv run obs-document --adapter obs-html --source a/manifest.md --destination a.html --source b/manifest.md --destination b.html
 ```
 
 The call builds the documents one after the other, in argument order. Every other option

@@ -39,13 +39,14 @@ This repository holds the core, `src/obs`, and no adapter. Every adapter is a co
 repository of its own ([[components]]); a build finds it among the installed components, and a fresh
 clone installs one with `obs-components install NAME` ([[components#Choosing]]).
 
-The adapter `html` is a component in its own repository beside this one under the same
-owner. That repository continues the history of the folder `adapters/html`, where the adapter lived
+The adapter once in `adapters/html` is a component in its own repository beside this one under the
+same owner, which names it ([[components#Naming a component]]). That repository continues the
+history of the folder `adapters/html`, where the adapter lived
 in this repository from 5 to 22 Nov 2026, and the adapter's earlier history before that.
 
 It depends on the core release its `pyproject.toml` pins, for the Document contract and its schemas,
 and its tests read the core's checkout at that release. Its releases are its tags
-`obs-component/adapter/html/v<version>`.
+`v<version>`, and its repository carries the topic `component` ([[components#A component]]).
 
 The decision, 22 Nov 2026, as a matrix ([[capabilities/pugh-decisions]]): the datum is the adapter
 as it stood, a folder of this repository and a member of its uv workspace (the decision of 5 to

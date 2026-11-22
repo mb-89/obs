@@ -18,13 +18,13 @@ from obs.comments import SCHEMA_PATH as COMMENTS_SCHEMA_PATH, apply_comments, im
 from obs.sync import SCHEMA_PATH as SYNC_SCHEMA_PATH, apply_result, apply_sync
 from obs.discriminator import discriminating_validator
 from obs.input import InputError, input_error, schema_error
-from obs import bottom_lines
+from obs import block_fields, bottom_lines
 from obs.embeds import assign_sections
 from obs.node_ids import assign_ids
 from obs.output import write_output
 from obs.components import installed as installed_components, main as components_main
 from obs.sources import SourceError, source_archive, validate_source_archive
-from obs.vault import VaultError, build_document as _build_document, manifest_note
+from obs.vault import VaultError, add_block_records, build_document as _build_document, manifest_note
 from obs.vault_link import vault_link
 
 
@@ -71,6 +71,8 @@ def build_document(
             document["components"].append(dict(installed_components()[document["style"]["name"]]))
         assign_ids(document)
         assign_sections(document)
+        block_fields.resolve(document)
+        add_block_records(document)
         bottom_lines.assign(document)
         if embed_source:
             arguments = [*delivery, *(["--execute-commands"] if execute_commands else []), "--embed-source"]
@@ -310,7 +312,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="obs-document",
         description="Validate a JSON Document and deliver it to a configured adapter.",
-        epilog="One-call build: obs-document --source spec/manifest.md --adapter html "
+        epilog="One-call build: obs-document --source spec/manifest.md --adapter obs-html "
                "--destination out.html --execute-commands. Components: obs-document components ARGS runs "
                "obs-components ARGS.",
     )
@@ -337,8 +339,8 @@ def build_parser() -> argparse.ArgumentParser:
                              "source files (sourceArchive), every file below the manifest's folder "
                              "except hidden, generated and compiled ones, for an adapter that embeds a "
                              "source archive. Nothing scans them for secrets: inspect the vault first.")
-    parser.add_argument("--adapter", help="Installed adapter component's name (obs-components lists them; html is the "
-                                          "adapter in obs's tree while it lives there).")
+    parser.add_argument("--adapter", help="Installed adapter component's name, such as obs-html (obs-components lists "
+                                          "them; html is the adapter in obs's tree while it lives there).")
     parser.add_argument("--capability-reference", type=Path, default=PACKAGED_CAPABILITY_REFERENCE,
                         help="Capability reference JSON (default: the one this package ships, "
                              "generated from spec/capabilities when it was built).")

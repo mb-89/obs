@@ -30,6 +30,24 @@ ALLOWED = {
     # The spec's own presentation choice for whichever adapter renders it: authored input in the
     # adapter's namespace, which the core neither reads nor describes.
     ("spec/manifest.md", "obsHtml:"),
+    # The component name a fresh checkout installs its first adapter by (components.md, Naming a
+    # component): a component's name, which the core reads, not a statement about the adapter's output.
+    ("spec/design_input/components.md",
+     "`obs-components install obs-html` installs it, and `--adapter obs-html` builds with it."),
+    # The same component name in the CLI note's example calls, which a fresh clone runs once it
+    # installed that component (cli.md, One-call build): the name the core reads, as above.
+    ("spec/design_input/cli.md",
+     "uv run obs-document --source spec/manifest.md --adapter obs-html --destination <scratch>/spec.html "
+     "--execute-commands"),
+    ("spec/design_input/cli.md", "`obs-html` once `obs-components install obs-html` installed it."),
+    ("spec/design_input/cli.md",
+     "uv run obs-document --source deck/manifest.md --adapter obs-html --destination deck.html --serve --wait"),
+    ("spec/design_input/cli.md",
+     "uv run obs-document --source deck/manifest.md --adapter obs-html --destination record.html "
+     "--answers answers.json"),
+    ("spec/design_input/cli.md",
+     "uv run obs-document --adapter obs-html --source a/manifest.md --destination a.html --source "
+     "b/manifest.md --destination b.html"),
     # The core suite's browser variable, a name in the core's tests (test/tiers.py).
     ("spec/design_input/quality.md", "- The browser tier needs `OBS_HTML_TEST_NATIVE_BROWSER`"),
     # HTML as input: what authors and imported sources may write, which the core reads or refuses.

@@ -79,5 +79,5 @@ uv run pytest
 docstring is its reference); its time budget is `[tests]` in `se.toml`, which se's
 `work_tickets.py suite` measures.
 
-A build with `--adapter html` needs the component installed first: `uv run obs-components install
-html` ([Choosing](spec/design_input/components.md#choosing)).
+A build with `--adapter obs-html` needs the component installed first: `uv run obs-components
+install obs-html` ([Choosing](spec/design_input/components.md#choosing)).
