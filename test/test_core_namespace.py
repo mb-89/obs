@@ -13,7 +13,7 @@ from obs.capabilities import build_capability_reference
 from obs.document import DocumentError, build_document
 
 ROOT = Path(__file__).parents[1]
-RECORD_TYPES = ("note", "chapter", "tag", "glossary", "documentMetadata", "documentHistory")
+RECORD_TYPES = ("note", "chapter", "tag", "glossary", "documentMetadata", "documentHistory", "block")
 
 
 def _vault(tmp_path: Path, base: str) -> Path:

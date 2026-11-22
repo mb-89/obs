@@ -177,6 +177,35 @@ def values(effective: dict[str, Node]) -> dict[str, object]:
     return {key: entry["value"] for key, entry in effective.items()}
 
 
+PATH_SEPARATOR = " › "
+"""What joins the parts of a block record's path (input-model#Block records)."""
+
+
+def setting(nodes: list[Node], trail: list[str]) -> Iterator[tuple[Node, str]]:
+    """Each block or section node of ``nodes`` that sets a key, in document order, with its path:
+    ``trail`` (the chapter's title, then the sections around ``nodes``), the titles of the
+    sections around it outer-first, and its kind, or a section's own title; sections reach as far
+    as ``_resolve`` lets them (input-model#Block records)."""
+    sections: list[tuple[int, str]] = []
+    for node in nodes:
+        if node["type"] == "section":
+            level = node["attrs"].get("level", 1)
+            while sections and sections[-1][0] >= level:
+                sections.pop()
+            sections.append((level, _plain(node).strip()))
+        around = [*trail, *(name for _, name in sections)]
+        if node.get("fields"):
+            yield node, PATH_SEPARATOR.join(around if node["type"] == "section" else [*around, node["type"]])
+        if node["type"] in CONTAINERS:
+            yield from setting(node["children"], around)
+
+
+def _plain(node: Node) -> str:
+    return node.get("text", "") + "".join(
+        _plain(child) if child["type"] != "wikilinks" else child["attrs"].get("label", "")
+        for child in node["children"])
+
+
 def _chapters(chapters: list[Node]) -> Iterator[Node]:
     for chapter in chapters:
         yield chapter

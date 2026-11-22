@@ -53,7 +53,7 @@
   "$defs": {
     "records": {
       "$comment": "The record type of a view's rows (capabilities/registers); document.schema.json $defs/record defines each.",
-      "enum": ["note", "chapter", "tag", "glossary", "documentMetadata", "documentHistory"]
+      "enum": ["note", "chapter", "tag", "glossary", "documentMetadata", "documentHistory", "block"]
     },
     "comparison": {
       "$comment": "Bases comparison syntax for the core evaluator; groups: name, bracketed name, operator, literal. A test keeps it equal to the interim adapter's pattern.",

@@ -179,20 +179,30 @@ def record_value(record: Record, note: Record | None, field: str) -> object:
     key = _key(own, field.removeprefix("note."))
     if key is not None:
         return own[key]
+    if record["type"] == "block" and field.startswith("block."):  # input-model#Block records
+        block = record["block"]
+        name = _key(block, field.removeprefix("block."))
+        return None if name is None or name == "fields" else block[name]
     if record["type"] in _RESOLVES_ON_NOTE and note is not None:
         return note_value(note["fields"], str(note["path"]), field)
     return None
+
+
+def view_record_types(definition: dict[str, object]) -> list[str]:
+    """The record type of each view's rows: the view's obs.records, else the base's, else note."""
+    profile = definition.get("obs") if isinstance(definition.get("obs"), dict) else {}
+    return [(view.get("obs") if isinstance(view.get("obs"), dict) else {}).get(
+        "records", profile.get("records", "note")) for view in definition.get("views", [])]
 
 
 def view_selectors(definition: dict[str, object]) -> list[RecordSelector]:
     """One selector per view of a Base definition, over the record type its obs.records names
     and, where the view declares obs.members, over those notes alone."""
     base = compile_base_filter(definition.get("filters"))
-    profile = definition.get("obs") if isinstance(definition.get("obs"), dict) else {}
+    kinds = view_record_types(definition)
 
     def selector(index: int, view: dict[str, object]) -> RecordSelector:
-        own_profile = view.get("obs") if isinstance(view.get("obs"), dict) else {}
-        kind = own_profile.get("records", profile.get("records", "note"))
+        kind = kinds[index]
         own = compile_base_filter(view.get("filters"), f"views[{index}].filters")
         paths = member_order(view)
 

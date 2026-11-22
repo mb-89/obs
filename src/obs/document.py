@@ -24,7 +24,7 @@ from obs.node_ids import assign_ids
 from obs.output import write_output
 from obs.components import installed as installed_components, main as components_main
 from obs.sources import SourceError, source_archive, validate_source_archive
-from obs.vault import VaultError, build_document as _build_document, manifest_note
+from obs.vault import VaultError, add_block_records, build_document as _build_document, manifest_note
 from obs.vault_link import vault_link
 
 
@@ -72,6 +72,7 @@ def build_document(
         assign_ids(document)
         assign_sections(document)
         block_fields.resolve(document)
+        add_block_records(document)
         bottom_lines.assign(document)
         if embed_source:
             arguments = [*delivery, *(["--execute-commands"] if execute_commands else []), "--embed-source"]

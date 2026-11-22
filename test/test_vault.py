@@ -998,7 +998,7 @@ def projection_vault(tmp_path) -> Path:
     )
     (vault / "registers.md").write_text("# Registers\n\n![[x.base]]\n", encoding="utf-8")
     (vault / "part.md").write_text(
-        "---\nowner: Ann\n---\n# Part\n\nCheck it. #mark/risk/check_it\n", encoding="utf-8",
+        "---\nowner: Ann\n---\n# Part\n\nCheck it. #mark/risk/check_it\n\n## Plan\n\nstatus:: open\n", encoding="utf-8",
     )
     (vault / "term.md").write_text(
         "---\nkind: glossary\nterm: Datum\ndefinition: A reference.\nowner: Ann\n---\n", encoding="utf-8",
@@ -1010,7 +1010,7 @@ def projection_vault(tmp_path) -> Path:
     filters = {
         "note": 'file.name == "term"', "chapter": 'owner == "Ann"', "tag": 'type == "risk"',
         "glossary": 'owner == "Ann"', "documentMetadata": 'key == "status"',
-        "documentHistory": 'author == "Ann"',
+        "documentHistory": 'author == "Ann"', "block": 'status == "open"',
     }
     (vault / "x.base").write_text("views:\n" + "".join(
         f"  - type: table\n    name: {kind}\n    filters: '{filters[kind].replace(chr(39), chr(39) * 2)}'\n"
@@ -1045,6 +1045,7 @@ def test_every_record_type_yields_records_and_rows_of_its_type(tmp_path) -> None
     assert [records[identifier]["fields"] for identifier in rows["documentHistory"]] == [
         {"version": "1", "author": "Ann", "change": "First", "date": ""},
     ]
+    assert [records[identifier]["fields"] for identifier in rows["block"]] == [{"owner": "Ann", "status": "open"}]
 
 
 def test_a_glossary_row_a_view_selects_includes_its_note_and_ids_are_stable(tmp_path) -> None:

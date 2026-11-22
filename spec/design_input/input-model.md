@@ -1561,7 +1561,8 @@ the per-kind register is the `marks` [register](#registers).
 
   A Base normally evaluates canonical note rows once, as native Bases does.
   `obs.records` explicitly selects an artifact-only row projection: `note`, `chapter`,
-  `tag`, `glossary`, `documentHistory` or `documentMetadata`. A `note` projection adds
+  `tag`, `glossary`, `documentHistory`, `documentMetadata` or `block`
+  ([[#Block records]]). A `note` projection adds
   the artifact's own note fields to the canonical note rows.
 
   A filter comparison on a bare `recordType` is rejected with a migration message naming
@@ -1755,6 +1756,9 @@ fields are own fields.
 row per frontmatter key other than `history`, `obs` and an adapter's namespace
 ([[#Core and adapter namespaces]]), with its value as authored; the
 adapter adds the rows of its own generation provenance.
+
+A block row's own fields are its block's effective values; [[#Block records]] owns what else it
+resolves.
 
 The core emits every projection as records of its type in the Document's `records`, a
 tag row for each mark of a marked paragraph; `src/obs/document.schema.json` (`$defs/record`)
@@ -1987,8 +1991,29 @@ without field lines is as before. `document.schema.json` states both.
 
 A block's effective values form the mapping front matter forms for a note, so a query condition
 matches a block's effective fields as `field: value` exactly as it matches front matter
-(`block_fields.values`, `selection.conditions_select`). Adapters may show the fields; no record
-type lists blocks yet, so no table selects a block by them.
+(`block_fields.values`, `selection.conditions_select`). Adapters may show the fields.
+
+### Block records
+
+Decided by SE, 22 Nov 2026 (work issue `block-fields-inline`): every block or section node that
+sets a key is a `block` record of its own in the Document's `records`, so a Base view with
+`obs.records: block` lists blocks by their fields, not only the notes that hold them. Not picked:
+a query that matches a note when one of its nodes matches, which returns notes and cannot list
+the blocks.
+
+- A block record's `fields` are its block's effective values, key by dotted key, as a note
+  record's are its front matter, so a filter `owner == "mb"` selects the blocks whose nearest
+  `owner` is `mb` ([[#Inheritance]]).
+- Its `note` is the note the block is written in; its `block` names the node: `node`, its id;
+  `chapter`, its chapter's id (`home` for the abstract); `kind`, its node type; `path`, the
+  chapter's title, the titles of the sections around it outer-first and its kind, joined by
+  ` › ` (a section's last part is its own title); and `fields`, the keys it sets itself.
+- A filter resolves a property on the block's effective values first, then `block.node`,
+  `block.chapter`, `block.kind` and `block.path` on its `block`. A block of an ignored note is
+  never selected.
+- Only blocks of notes the Document includes exist, so only they are records. The core adds
+  them once the node ids are assigned, after it has read which notes the Document includes, and
+  then selects the rows of each view that lists blocks.
 
 ## Reviewed copy
 
