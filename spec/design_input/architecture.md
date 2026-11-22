@@ -33,6 +33,11 @@ costs rather than treating all conversion as one opaque phase.
 
 ## Repository layout
 
+[[plugins]] replaces this section's integrated adapter and the 5 to 6 Nov decision below: every
+adapter, the HTML adapter included, becomes a plugin in a repository of its own, found on the
+checkout's remotes, and `adapters.json` stops being the registry. Until its implementation lands,
+this section describes the repository as it is.
+
 The core and its adapters are one repository. The core is `src/obs`; an integrated adapter is
 a folder under `adapters/`, the first in `adapters/html`. Whether a later adapter
 lives here or in its own repository is decided when it comes.
@@ -306,6 +311,11 @@ undeclared ones costs little. The source archive carries the snippet files despi
 folder: they are inputs of the documents that declare them.
 
 ### Declared style
+
+[[plugins]] replaces the style named by its address: a manifest names its style plugin by name
+alone, `obs.style: <name>`, and the build records the installed version
+([[plugins#Recording what built a page]]). Until its implementation lands, this section describes
+the build as it is.
 
 A vault declares its style as a dependency in its manifest, in the core's namespace:
 `obs.style` is a style module pinned to a commit, with the keys of an se module (se's README,
