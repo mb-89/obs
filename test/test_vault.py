@@ -1210,7 +1210,7 @@ BOTTOM_LINE_NOTES = {
     "other.md": "# Other\n\n## Owner\n\nThe person who decides; see [[aside]].\n",
     "aside.md": "# Aside\n\n> [!bluf]\n> Aside lead.\n",
 }
-"""The issue's probe vault: Product holds Vision and Plan, Plan holds Step; Other has no bottom line,
+"""The bottom-line probe vault: Product holds Vision and Plan, Plan holds Step; Other has no bottom line,
 and Aside, which only Other links to, is no TOC chapter (input-model#Bottom lines)."""
 
 
