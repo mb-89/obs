@@ -1,4 +1,5 @@
 """The complete suite runs in parallel workers without losing its tier summary or module sharing."""
+import os
 from collections import Counter
 from types import SimpleNamespace
 
@@ -277,6 +278,123 @@ def test_a_part_past_the_suite_cap_is_stopped_naming_the_test_it_was_running(mon
         assert (f"test/suite.py: {suite.part_name(part)} reached the suite's cap of 1 s (CAP_SECONDS) "
                 "and was stopped while running test/test_hangs.py::test_waits") in output.out
     assert f"failed parts: {', '.join(map(suite.part_name, suite.PARTS))}." in output.err
+
+
+# A part's pytest, interrupted, as its junitxml plugin writes its report: what it finished, and a
+# case without a name for the test it was interrupted in.
+INTERRUPTED_REPORT = ('<?xml version="1.0" encoding="utf-8"?><testsuites name="pytest tests">'
+                      '<testsuite name="pytest" errors="0" failures="1" skipped="0" tests="2" time="1.0">'
+                      '<testcase classname="test.test_x" name="test_passes" time="0.001" />'
+                      '<testcase classname="test.test_x" name="test_fails" time="0.002">'
+                      '<failure message="AssertionError: no">test/test_x.py:3: AssertionError</failure></testcase>'
+                      '<testcase time="0.000" /></testsuite></testsuites>')
+
+
+@pytest.mark.parametrize("answers", [
+    pytest.param(True, marks=pytest.mark.skipif(os.name == "nt", reason="no interrupt reaches one process on Windows")),
+    False])
+def test_a_part_stopped_at_the_cap_reports_the_tests_it_finished_and_those_it_was_running(
+        monkeypatch, capsys, tmp_path, answers) -> None:
+    import sys
+    import time
+    import xml.etree.ElementTree as ElementTree
+
+    # Each part's command names a test in the run's folder, as test/bounds.py does, and waits; on the
+    # interrupt it writes its report as pytest does, or it ignores it.
+    hang = ("import os, pathlib, signal, sys, threading; record = pathlib.Path(os.environ['OBS_SPEC_BUILD'], "
+            "'running', str(os.getpid()) + '.txt'); "
+            "report = pathlib.Path(sys.argv[1].split('=', 1)[1]); "
+            "answer = lambda *_: (report.parent.mkdir(parents=True, exist_ok=True), "
+            f"report.write_text({INTERRUPTED_REPORT!r}, encoding='utf-8'), os._exit(2)); "
+            f"signal.signal(signal.SIGINT, answer if {answers} else signal.SIG_IGN); "
+            "record.parent.mkdir(exist_ok=True); "
+            "record.write_text(os.getcwd() + '\\ntest/test_hangs.py::test_waits'); print('started', flush=True); "
+            "threading.Event().wait()")
+    monkeypatch.setattr(suite, "part_command", lambda part, arguments, environment, run_folder: [
+        sys.executable, "-c", hang, f"--junitxml={suite.part_report(part, environment, run_folder)}"])
+    monkeypatch.setattr(suite, "is_installed", lambda package: True)
+    monkeypatch.setattr(suite, "CAP_SECONDS", 1)
+    monkeypatch.setenv(suite.REPORTS_VARIABLE, str(tmp_path))
+    if not answers:
+        monkeypatch.setattr(suite, "INTERRUPT_GRACE_SECONDS", 1)
+        earlier = time.time() - 3600
+        for part in suite.PARTS:
+            path = suite.part_report(part, os.environ, tmp_path)
+            path.write_text(INTERRUPTED_REPORT, encoding="utf-8")
+            os.utime(path, (earlier, earlier))
+
+    assert suite.main([]) == 1
+    output = capsys.readouterr().out
+    for part in suite.PARTS:
+        cases = list(ElementTree.parse(suite.part_report(part, os.environ, tmp_path)).iter("testcase"))
+        named = {case.get("name"): case for case in cases}
+        assert all(case.get("name") for case in cases), "the case without a name is dropped"
+        waits = named["test_waits"]
+        assert waits.get("classname") == "test.test_hangs"
+        assert waits.find("error").get("message") == "stopped at the suite's cap of 1 s (CAP_SECONDS)"
+        if answers:
+            assert set(named) == {"test_passes", "test_fails", "test_waits"}
+            assert named["test_fails"].find("failure").get("message") == "AssertionError: no"
+        else:
+            assert set(named) == {"test_waits"}
+    if answers:
+        assert ("holds the 2 tests it finished and the 1 it was running; 1 of the finished failed:\n"
+                "  test.test_x::test_fails\n") in output
+    else:
+        assert "It wrote no report of the tests it finished;" in output
+
+
+@pytest.mark.parametrize(("nodeid", "address"), [
+    ("test/test_pdf.py::test_x@test/test_pdf.py", ("test.test_pdf", "test_x@test/test_pdf.py")),
+    ("test_capped.py::TestCapped::test_sleeps", ("test_capped.TestCapped", "test_sleeps")),
+    ("test/test_a.py::test_b[x/y.py::z]@test/test_a.py", ("test.test_a", "test_b[x/y.py::z]@test/test_a.py")),
+])
+def test_a_running_test_is_named_in_the_report_as_pytests_junitxml_names_it(nodeid, address) -> None:
+    assert suite.case_address(nodeid) == address
+
+
+def test_a_capped_report_keeps_what_pytest_finished_and_adds_the_running_tests_as_errors() -> None:
+    import xml.etree.ElementTree as ElementTree
+
+    capped = suite.capped_report(INTERRUPTED_REPORT, ["test/test_hangs.py::test_waits"], 300)
+    assert (capped.finished, capped.failed) == (2, ["test.test_x::test_fails"])
+    testsuite = ElementTree.fromstring(capped.xml).find("testsuite")
+    assert (testsuite.get("tests"), testsuite.get("errors"), testsuite.get("failures")) == ("3", "1", "1")
+    cases = testsuite.findall("testcase")
+    assert [(case.get("classname"), case.get("name")) for case in cases] == [
+        ("test.test_x", "test_passes"), ("test.test_x", "test_fails"), ("test.test_hangs", "test_waits")]
+    assert cases[1].find("failure").text == "test/test_x.py:3: AssertionError"
+    assert cases[2].find("error").get("message") == "stopped at the suite's cap of 300 s (CAP_SECONDS)"
+
+
+def test_a_capped_part_without_a_report_gets_one_of_the_tests_it_was_running() -> None:
+    import xml.etree.ElementTree as ElementTree
+
+    capped = suite.capped_report(None, ["a.py::test_a", "b.py::C::test_b"], 300)
+    assert (capped.finished, capped.failed) == (None, [])
+    [testsuite] = ElementTree.fromstring(capped.xml).iter("testsuite")
+    assert (testsuite.get("tests"), testsuite.get("errors")) == ("2", "2")
+    assert [(case.get("classname"), case.get("name")) for case in testsuite.iter("testcase")] == [
+        ("a", "test_a"), ("b.C", "test_b")]
+
+
+@pytest.mark.parametrize(("finished", "failed", "says"), [
+    (2, ["test.test_x::test_fails", "test.test_y::test_errs"],
+     "Its report r.xml holds the 2 tests it finished and the 1 it was running; 2 of the finished failed:\n"
+     "  test.test_x::test_fails\n  test.test_y::test_errs\n"),
+    (4, [],
+     "Its report r.xml holds the 4 tests it finished and the 1 it was running; none of the finished failed.\n"),
+    (None, [],
+     "It wrote no report of the tests it finished; its report r.xml holds the 1 it was running.\n"),
+])
+def test_the_cap_line_names_the_running_tests_and_the_finished_that_failed(finished, failed, says) -> None:
+    from pathlib import Path
+
+    capped = suite.CappedReport("", finished, failed)
+    line = suite.cap_line("core", Path("part"), ["t.py::test_t"], Path("r.xml"), capped, 300)
+    assert line == ("test/suite.py: core reached the suite's cap of 300 s (CAP_SECONDS) and was stopped while "
+                    f"running t.py::test_t. {says}Remedy: run that test alone in part with `uv run pytest <test>` "
+                    "and find what it waits for.\n")
 
 
 class _Report:

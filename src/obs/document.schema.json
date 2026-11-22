@@ -15,7 +15,8 @@
         "title": {"type": "string", "pattern": "^(?:$|[\\s\\S]*\\S[\\s\\S]*)$"},
         "path": {"description": "The manifest note's vault-relative POSIX path, which an adapter's messages about the manifest name.", "type": "string", "pattern": "^(?!/)(?!.*(^|/)\\.\\.?(/|$)).+\\.md$"},
         "metadata": {"type": "object"},
-        "abstract": {"type": "array", "items": {"$ref": "#/$defs/node"}}
+        "abstract": {"type": "array", "items": {"$ref": "#/$defs/node"}},
+        "bottomLine": {"$ref": "#/$defs/bottomLine"}
       }
     },
     "chapters": {"type": "array", "items": {"$ref": "#/$defs/chapter"}},
@@ -199,7 +200,7 @@
           }}}
         },
         {
-          "description": "A callout: its canonical type and its title as inline nodes (the authored one parsed as inline Markdown, or the default input-model.md#Callouts names; none for an untitled important); its children are the parsed body, the same block and inline nodes as chapter content, including nested callouts.",
+          "description": "A callout: its canonical type (bluf, a note's bottom line, among them) and its title as inline nodes (the authored one parsed as inline Markdown, or the default input-model.md#Callouts names; none for an untitled important); its children are the parsed body, the same block and inline nodes as chapter content, including nested callouts.",
           "if": {"properties": {"type": {"const": "callouts"}}},
           "then": {"properties": {"attrs": {
             "type": "object", "additionalProperties": false, "required": ["kind", "title"],
@@ -661,8 +662,14 @@
           },
           "maxProperties": 2
         },
-        "toc": {"const": false, "description": "An included note the manifest does not list; it follows the TOC chapters at the top level."}
+        "toc": {"const": false, "description": "An included note the manifest does not list; it follows the TOC chapters at the top level."},
+        "bottomLine": {"$ref": "#/$defs/bottomLine"}
       }
+    },
+    "bottomLine": {
+      "description": "The note's bottom line, its one bluf callout (input-model.md#Bottom lines): the callout's id and the id of its first paragraph, its lead, which goes up one level.",
+      "type": "object", "additionalProperties": false, "required": ["callout", "lead"],
+      "properties": {"callout": {"$ref": "#/$defs/nodeId"}, "lead": {"$ref": "#/$defs/nodeId"}}
     },
     "link": {
       "type": "object", "additionalProperties": false, "required": ["id", "href", "label"],
