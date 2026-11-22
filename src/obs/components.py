@@ -19,17 +19,20 @@ from pathlib import Path
 OWNER = "spec/design_input/components.md"
 CHECKOUT = Path(__file__).resolve().parents[2]
 """The folder the core runs from; the component command needs it to be a Git checkout of obs."""
-TOPIC = "obs-component"
+TOPIC = "component"
 """The repository topic that marks an owner's repository as a component repository."""
 VARIABLE = "OBS_LOCAL_FOLDER"
 """Names the machine folder instead of ``obs`` in the user's configuration folder."""
-ENTRY_FILES = {"adapter": "adapter.json"}
-"""Each kind obs knows and the file at the root of a release's tree that makes it one."""
+KINDS = {"adapter": "adapter.json", "style": "style.css"}
+"""Each kind obs knows and the file at the root of a release's tree that makes it one, the first that
+a tree holds deciding."""
 _NAME = re.compile(r"[a-z0-9][a-z0-9-]{0,31}")
+"""A component's name, the repository's name in lowercase."""
 _VERSION = re.compile(r"(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)")
-_TAG = re.compile(r"obs-component/(?P<kind>[a-z]+)/(?P<name>[a-z0-9][a-z0-9-]{0,31})/v(?P<version>"
-                  + _VERSION.pattern + ")")
-_PREFIX = "obs-component/"
+_TAG = re.compile(r"v(?P<version>" + _VERSION.pattern + ")")
+"""A release tag; a repository's other tags, such as a moving ``v1``, are none of obs's."""
+NO_KIND = ""
+"""The kind of a release whose tree holds no kind's entry file: not a component of obs."""
 
 
 class ComponentError(ValueError):
@@ -126,6 +129,7 @@ LISTINGS: dict[str, Callable[[str], list[str]]] = {"github.com": github_reposito
 @dataclass(frozen=True)
 class Release:
     kind: str
+    """The kind its repository's newest release's tree holds, or NO_KIND."""
     name: str
     version: tuple[int, int, int]
     tag: str
@@ -135,6 +139,23 @@ class Release:
     @property
     def number(self) -> str:
         return ".".join(map(str, self.version))
+
+    @property
+    def refusal(self) -> str:
+        """Why the release is not a component of obs."""
+        return f"its release {self.tag} holds neither {' nor '.join(KINDS.values())} at its root"
+
+
+def kind_of(names: set[str]) -> str:
+    """The kind a release's tree is, from the names at its root, or NO_KIND."""
+    return next((kind for kind, entry in KINDS.items() if entry in names), NO_KIND)
+
+
+def repository_name(address: str) -> str:
+    """The component name of the repository at ``address``: its repository's name in lowercase."""
+    parsed = parse_address(address)
+    name = parsed.repository if parsed else re.split(r"[/\\]", address.rstrip("/\\"))[-1].removesuffix(".git")
+    return name.lower()
 
 
 def _git(checkout: Path, *arguments: str) -> subprocess.CompletedProcess:
@@ -156,74 +177,115 @@ def checkout() -> Path:
 
 
 def repositories(folder: Path, warn: Callable[[str], None]) -> list[str]:
-    """The addresses to read, in order: for each remote, its own repository, then the repositories
-    its host lists for its owner with the topic, by name; each address once, at its first place."""
+    """The addresses to read, in order: for each remote, its own repository where its host lists it with
+    the topic, then the owner's other repositories with the topic, by name; a remote's own repository
+    also where its host cannot list its owner. Each address once, at its first place."""
     names = _git(folder, "remote").stdout.split()
     found: list[str] = []
     for remote in names:
         address = _git(folder, "config", "--get", f"remote.{remote}.url").stdout.strip()
         if not address:
             continue
-        found.append(address)
         parsed = parse_address(address)
         if parsed is None:
+            found.append(address)
             warn(f"remote {remote}: its address {address} names no host and owner to list; reading its own "
                  f"repository only")
             continue
         listing = LISTINGS.get(parsed.host)
         if listing is None:
+            found.append(address)
             warn(f"remote {remote}: host {parsed.host} has no repository listing obs knows, so owner "
                  f"{parsed.owner} is not searched; reading its own repository only")
             continue
         try:
             listed = listing(parsed.owner)
         except ListingError as error:
+            found.append(address)
             warn(f"remote {remote}: host {parsed.host} cannot list owner {parsed.owner}: {error}; reading its own "
                  f"repository only (a private owner needs a login: GH_TOKEN, GITHUB_TOKEN or gh auth login)")
             continue
-        found += [parsed.sibling(name) for name in sorted(set(listed)) if name != parsed.repository]
+        marked = {name.lower(): name for name in listed}
+        if parsed.repository.lower() in marked:
+            found.append(address)
+        found += [parsed.sibling(marked[name]) for name in sorted(marked) if name != parsed.repository.lower()]
     return list(dict.fromkeys(found))
+
+
+def _url(folder: Path, address: str) -> str:
+    """``address`` as the checkout's Git configuration rewrites it (url.<base>.insteadOf)."""
+    return _git(folder, "ls-remote", "--get-url", address).stdout.strip() or address
+
+
+def _bare_git(*arguments: str) -> subprocess.CompletedProcess:
+    return subprocess.run(["git", *arguments], capture_output=True, text=True, encoding="utf-8",
+                          env={**os.environ, "GIT_TERMINAL_PROMPT": "0"}, check=False)
+
+
+def _failure(completed: subprocess.CompletedProcess, default: str) -> str:
+    return (completed.stderr.strip().splitlines() or [default])[-1]
+
+
+def _root_names(folder: Path, address: str, tag: str) -> set[str] | str:
+    """The names at the root of the tree ``tag`` of ``address`` points to, fetched shallow and, where the
+    host allows it, without the files' contents; or Git's message where it cannot be fetched."""
+    with tempfile.TemporaryDirectory(prefix="obs-components-") as temporary:
+        git = str(Path(temporary) / "git")
+        for step in (["init", "-q", "--bare", git],
+                     ["--git-dir", git, "fetch", "-q", "--depth", "1", "--filter=blob:none", _url(folder, address),
+                      f"refs/tags/{tag}"]):
+            completed = _bare_git(*step)
+            if completed.returncode:
+                return _failure(completed, "git fetch failed")
+        completed = _bare_git("--git-dir", git, "ls-tree", "--name-only", "FETCH_HEAD")
+        if completed.returncode:
+            return _failure(completed, "git ls-tree failed")
+        return set(completed.stdout.splitlines())
 
 
 def _releases_of(folder: Path, address: str, warn: Callable[[str], None]) -> list[Release]:
     completed = _git(folder, "ls-remote", "--tags", address)
     if completed.returncode:
-        detail = (completed.stderr.strip().splitlines() or ["git ls-remote failed"])[-1]
-        warn(f"repository {address}: cannot be read: {detail}")
+        warn(f"repository {address}: cannot be read: {_failure(completed, 'git ls-remote failed')}")
         return []
     commits: dict[str, str] = {}
     for line in completed.stdout.splitlines():
         commit, _, reference = line.partition("\t")
         tag = reference.removeprefix("refs/tags/")
-        if not tag.startswith(_PREFIX):
+        if _TAG.fullmatch(tag.removesuffix("^{}")) is None:
             continue
         if tag.endswith("^{}"):  # An annotated tag's commit.
             commits[tag[:-3]] = commit
         else:
             commits.setdefault(tag, commit)
-    releases = []
-    for tag, commit in commits.items():
-        match = _TAG.fullmatch(tag)
-        if match is None:
-            warn(f"repository {address}: tag {tag} is no release (obs-component/<kind>/<name>/v<major>.<minor>.<patch>); "
-                 f"skipped")
-            continue
-        version = tuple(int(part) for part in match["version"].split("."))
-        releases.append(Release(match["kind"], match["name"], version, tag, commit, address))
-    components = sorted({(release.kind, release.name) for release in releases})
-    if len(components) > 1:
-        named = ", ".join(f"{kind} {name}" for kind, name in components)
-        warn(f"repository {address}: carries releases of several components ({named}); none is offered from it")
+    name = repository_name(address)
+    found = [(_version(tag[1:]), tag, commit) for tag, commit in commits.items()]
+    if not found:
         return []
-    return releases
+    if _NAME.fullmatch(name) is None:
+        warn(f"repository {address}: its name {name} is no component name (1 to 32 letters, digits and dashes, "
+             f"starting with a letter or digit); skipped")
+        return []
+    newest = max(found)
+    names = _root_names(folder, address, newest[1])
+    if isinstance(names, str):
+        warn(f"repository {address}: release {newest[1]} cannot be read: {names}")
+        return []
+    kind = kind_of(names)
+    return [Release(kind, name, version, tag, commit, address) for version, tag, commit in found]
 
 
 def offered(folder: Path, warn: Callable[[str], None]) -> dict[str, dict[tuple[int, int, int], Release]]:
-    """Each offered component's releases by version, each version from its first repository in order."""
+    """Each offered component's releases by version, each version from its first repository in order; a
+    name only repositories that are not components of obs offer has releases of NO_KIND."""
     by_name: dict[str, dict[tuple[int, int, int], Release]] = {}
+    no_kind: dict[str, dict[tuple[int, int, int], Release]] = {}
     kinds: dict[str, dict[str, list[str]]] = {}
     for address in repositories(folder, warn):
         for release in _releases_of(folder, address, warn):
+            if release.kind == NO_KIND:
+                no_kind.setdefault(release.name, {}).setdefault(release.version, release)
+                continue
             kinds.setdefault(release.name, {}).setdefault(release.kind, [])
             if address not in kinds[release.name][release.kind]:
                 kinds[release.name][release.kind].append(address)
@@ -233,7 +295,8 @@ def offered(folder: Path, warn: Callable[[str], None]) -> dict[str, dict[tuple[i
             named = "; ".join(f"{kind} from {', '.join(addresses)}" for kind, addresses in sorted(offered_kinds.items()))
             warn(f"component {name} is offered as several kinds ({named}); none is offered until one of them stops")
             del by_name[name]
-    return by_name
+    # A repository that is not a component of obs is listed with its reason only where no other offers its name.
+    return {**{name: offers for name, offers in no_kind.items() if name not in kinds}, **by_name}
 
 
 def local_folder() -> Path:
@@ -283,32 +346,37 @@ def _version(text: str) -> tuple[int, int, int]:
 
 def _fetch(folder: Path, release: Release, into: Path) -> None:
     """The release's tree, fetched from its repository into the empty folder ``into``."""
-    url = _git(folder, "ls-remote", "--get-url", release.repository).stdout.strip() or release.repository
-    git = into.parent / "git"
-    steps = [["init", "-q", "--bare", str(git)],
-             ["--git-dir", str(git), "fetch", "-q", "--depth", "1", url, f"refs/tags/{release.tag}"],
-             ["--git-dir", str(git), "--work-tree", str(into), "checkout", "-q", "-f", "FETCH_HEAD", "--", "."]]
+    git = str(into.parent / "git")
+    steps = [["init", "-q", "--bare", git],
+             ["--git-dir", git, "fetch", "-q", "--depth", "1", _url(folder, release.repository),
+              f"refs/tags/{release.tag}"],
+             ["--git-dir", git, "--work-tree", str(into), "checkout", "-q", "-f", "FETCH_HEAD", "--", "."]]
     for step in steps:
-        completed = subprocess.run(["git", *step], capture_output=True, text=True, encoding="utf-8",
-                                   env={**os.environ, "GIT_TERMINAL_PROMPT": "0"}, check=False)
+        completed = _bare_git(*step)
         if completed.returncode:
-            detail = (completed.stderr.strip().splitlines() or ["git failed"])[-1]
-            raise ComponentError(f"{release.name} {release.number}: cannot be fetched from {release.repository}: {detail}. "
-                              f"Check that the repository can be read, then install again; see {OWNER} (Choosing)")
+            raise ComponentError(f"{release.name} {release.number}: cannot be fetched from {release.repository}: "
+                                 f"{_failure(completed, 'git failed')}. Check that the repository can be read, then "
+                                 f"install again; see {OWNER} (Choosing)")
 
 
-def _check_entry(release: Release, tree: Path) -> None:
-    entry = ENTRY_FILES.get(release.kind)
-    if entry is None:
-        return
+def _check_entry(release: Release, tree: Path) -> str:
+    """The kind the fetched ``tree`` is; an adapter's ``adapter.json`` must name the component."""
+    kind = kind_of({path.name for path in tree.iterdir()})
+    if kind == NO_KIND:
+        raise ComponentError(f"{release.name} {release.number}: is not a component of obs: {release.refusal}. Install "
+                             f"another version; see {OWNER} (A component)")
+    if kind != "adapter":
+        return kind
+    entry = KINDS[kind]
     try:
         declared = json.loads((tree / entry).read_text(encoding="utf-8")).get("name")
     except (OSError, ValueError, AttributeError):
         declared = None
     if declared != release.name:
         raise ComponentError(f"{release.name} {release.number}: {entry}: the release {release.tag} of "
-                          f"{release.repository} holds no {entry} naming {release.name!r} at its root. Install "
-                          f"another version; see {OWNER} (Choosing)")
+                             f"{release.repository} holds no {entry} naming {release.name!r} at its root. Install "
+                             f"another version; see {OWNER} (Choosing)")
+    return kind
 
 
 def install(folder: Path, release: Release) -> None:
@@ -321,13 +389,13 @@ def install(folder: Path, release: Release) -> None:
         tree = staging / "tree"
         tree.mkdir()
         _fetch(folder, release, tree)
-        _check_entry(release, tree)
+        kind = _check_entry(release, tree)
         target = components / release.name
         if target.exists():
             target.replace(staging / "previous")
         tree.replace(target)
         entries = installed()
-        entries[release.name] = {"name": release.name, "kind": release.kind, "version": release.number,
+        entries[release.name] = {"name": release.name, "kind": kind, "version": release.number,
                                  "commit": release.commit}
         _write_list(entries)
     finally:
@@ -351,8 +419,12 @@ def _choose(releases: dict[str, dict[tuple[int, int, int], Release]], command: s
         names = ", ".join(sorted(releases)) or "none"
         raise ComponentError(f"{command}: {name}: no repository offers this component; offered: {names}. Name an offered "
                           f"component, or add a remote that reaches it; see {OWNER} (Listing)")
+    newest = offers[max(offers)]
+    if newest.kind == NO_KIND:
+        raise ComponentError(f"{command}: {name}: is not a component of obs: {newest.refusal}. Name a component "
+                             f"obs-components lists with its kind; see {OWNER} (A component)")
     if version is None:
-        return offers[max(offers)]
+        return newest
     if _VERSION.fullmatch(version) is None or _version(version) not in offers:
         numbers = ", ".join(offers[key].number for key in sorted(offers))
         raise ComponentError(f"{command}: {name} {version}: no repository offers this version; offered: {numbers}. "
@@ -368,11 +440,12 @@ def _table(releases: dict[str, dict[tuple[int, int, int], Release]]) -> list[str
         newest = offers[max(offers)] if offers else None
         entry = present.get(name)
         current = entry["version"] if entry else "not installed"
-        kind = newest.kind if newest else entry["kind"]
+        kind = (newest.kind or "-") if newest else entry["kind"]
         update = bool(entry and newest and _VERSION.fullmatch(entry["version"])
                       and newest.version > _version(entry["version"]))
         rows.append((name, kind, current, newest.number if newest else "-",
-                     (newest.repository if newest else "-") + ("  (update)" if update else "")))
+                     (newest.repository if newest else "-") + ("  (update)" if update else "")
+                     + (f"  (not a component of obs: {newest.refusal})" if newest and not newest.kind else "")))
     widths = [max(len(row[column]) for row in rows) for column in range(4)]
     return ["  ".join(cell.ljust(width) for cell, width in zip(row, widths)) + "  " + row[4] for row in rows]
 
@@ -401,10 +474,11 @@ def main(argv: Sequence[str] | None = None) -> int:
 
     try:
         name = getattr(options, "name", None)
-        if name is not None and _NAME.fullmatch(name) is None:
-            raise ComponentError(f"{options.command}: {name}: is no component name (1 to 32 lowercase letters, digits and "
-                              f"dashes, starting with a letter or digit). Name a component as obs-components lists it; "
+        if name is not None and _NAME.fullmatch(name.lower()) is None:
+            raise ComponentError(f"{options.command}: {name}: is no component name (1 to 32 letters, digits and "
+                              f"dashes, starting with a letter or digit, compared without case). Name a component as obs-components lists it; "
                               f"see {OWNER} (A component)")
+        name = name.lower() if name is not None else None
         if options.command == "remove":
             remove(name)
             print(f"obs-components: removed {name}")

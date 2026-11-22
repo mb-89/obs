@@ -32,13 +32,16 @@ powershell -ExecutionPolicy Bypass -File RUNME.ps1 --help
 
 The bundled specification embeds live command output through a `cmd` fence. Building it requires
 `--execute-commands`; without that authorization the build stops before running any command.
-Through RUNME, one call builds the specification:
+Through RUNME, the HTML adapter is installed once as the component `obs-html`, and then one call
+builds the specification:
 
 ```sh
-./RUNME.sh --source spec/manifest.md --adapter html --destination out.html --execute-commands
+./RUNME.sh components install obs-html
+./RUNME.sh --source spec/manifest.md --adapter obs-html --destination out.html --execute-commands
 ```
 
-[One-call build](spec/design_input/cli.md#one-call-build) owns what this call reads and writes.
+[One-call build](spec/design_input/cli.md#one-call-build) owns what this call reads and writes, and
+[Components](spec/design_input/components.md) how a component is found, installed and named.
 
 ## Develop
 

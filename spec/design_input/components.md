@@ -15,32 +15,36 @@ The component command, the build's adapter and style lookup and
 
 ## A component
 
-Each component is its own Git repository. A release of it is a tag in that repository that names it a
-component, its kind, its name and its version:
+Each component is its own Git repository, and the repository carries nothing that names obs or a host
+(SE's design of components, `docs/components.md` in SE, and the person's decisions of 22 Nov 2026):
 
-```text
-obs-component/<kind>/<name>/v<major>.<minor>.<patch>
-```
+- **Its mark** is the repository topic `component`, one topic for every host: a component is supposed
+  to be integrated into a system, and nothing in it says which.
+- **Its name** is the repository's name, compared without case and written in lowercase: 1 to 32
+  letters, digits and dashes, starting with a letter or digit. A document and a call name a component
+  by its name alone. A marked repository whose name breaks this form is a warning naming it, and skipped.
+- **Its releases** are its tags `v<major>.<minor>.<patch>`, ordered by their three numbers; the newest
+  release is the highest. The release is the commit the tag points to.
+- **Its kind** is what its release's tree holds at its root: `adapter.json` makes an adapter
+  ([[architecture#Adapter call]]), a style module's files, its `style.css` among them, a style
+  (the configuration note of `adapters/html`, Declared style).
 
-- `kind` is `adapter`, `style` or a later kind, in lowercase letters.
-- `name` is the component's name, 1 to 32 lowercase letters, digits and dashes, starting with a letter
-  or digit. The name, not the repository, is the component: a document and a call name a component by it
-  alone.
-- The version orders the releases by its three numbers; the newest release is the highest.
-- The release is the commit the tag points to. A tag that starts with `obs-component/` but breaks this
-  form is no release: the command lists it as a warning naming the repository and the tag, and skips
-it.
+A repository's other tags and its branches are none of obs's: a moving `v1`, a `v1.0` or a
+`v4.1.2-shared` is no release, and neither is the earlier form `obs-component/<kind>/<name>/v<version>`.
 
-A repository's other tags and branches are none of obs's. A repository may carry releases of one
-component only; tags of two names or two kinds in one repository are each listed as a warning naming
-the repository, and neither is offered from it.
+Passing over a tag that breaks the release form was chosen over warning on it: component repositories
+carry moving major tags, such as obs's own `v1` to `v8`, and a warning on each would bury what matters.
 
-What a release holds is its kind's: an adapter release holds its `adapter.json` at the root of its
-tree ([[architecture#Adapter call]]), and a style release holds a style module's files, its
-`style.css` among them, at its root (the configuration note of `adapters/html`, Declared style).
+A tree that holds `adapter.json` is an adapter whatever else it holds. A tree that holds neither is not
+a component of obs: the list shows it with that reason, and it cannot be installed.
 
-A later kind names its own entry file. A kind obs does not know is listed and installed like any
-other; only a part that knows the kind uses it.
+Reading the name from the repository and the kind from the tree was chosen over a tag that names
+both: one repository is one component, a tag holds only the version, and the component names none of
+its hosts (the person's decision of 22 Nov 2026, work issue 878).
+
+The earlier tags and topic are not read beside them, since no released component carries them any more.
+
+A later kind obs learns names its own entry file at the root of the tree.
 
 Finding releases by tag was chosen over an index repository that lists the components: an index is a
 second file to keep in step with every release, while a tag is the release itself (the person's
@@ -66,21 +70,25 @@ ARGS`, since RUNME, se's, starts one command.
 2. It takes each remote's host and owner, the account or organization, from its address
    (`https://host/owner/repository`, `ssh://user@host/owner/repository` or
    `user@host:owner/repository`), and asks the host for that owner's repositories that carry the
-   repository topic `obs-component`.
+   repository topic `component`.
 
    Each found repository is reached the way the remote is: its address is the remote's with the
    repository's name in place of the remote's.
 3. It reads the tags of each repository (`git ls-remote --tags <address>`), without fetching its
-   objects, and keeps the `obs-component/` releases: for each remote, its own repository first, then
-   the owner's found repositories by name. A repository reached twice is read once, at its first
-   place.
-4. It lists each component once, with its kind, its installed version or `not installed`, its newest
+   objects, and keeps the `v` releases: for each remote, its own repository first where the host lists
+   it among the marked ones, then the owner's other marked repositories by name. A repository reached
+   twice is read once, at its first place.
+4. It reads the kind from the tree of each repository's newest release, the names at its root only:
+   one shallow fetch of that release that leaves out the files' contents where the host allows it
+   ([A component](#a-component)). The older releases of a repository are listed as that kind; an
+   install reads the kind again from the tree it installs.
+5. It lists each component once, with its kind, its installed version or `not installed`, its newest
    offered version and the repository that offers it ([Several remotes](#several-remotes)). A
    component whose newest version is above its installed one is marked as an update; an installed
    component no repository offers is listed with no newest version.
 
 The host lists an owner's repositories through its own interface: on `github.com`, its repository
-search for the topic and the owner, with the person's login where there is one (`GH_TOKEN`,
+search for the topic `component` and the owner, with the person's login where there is one (`GH_TOKEN`,
 `GITHUB_TOKEN`, or the token `gh auth token` prints), which a private owner needs.
 
 A host or owner
@@ -102,6 +110,10 @@ a remote (the person's requirement, work issue 860, 22 Nov 2026).
 
 The owner and host come only from the checkout's Git configuration; nothing committed names them.
 
+Reading a remote's own repository only where its host lists it as marked, or where the host cannot
+list its owner, was chosen over reading every remote's own repository: obs's own repository carries
+`v` releases too, so every listing would show obs as not a component of obs (work issue 878).
+
 ### Choosing
 
 The person chooses what to install, update or remove; the command never does it unasked:
@@ -114,9 +126,11 @@ The person chooses what to install, update or remove; the command never does it 
   that is not installed fails naming the remedy, `obs-components install NAME`.
 - `obs-components remove NAME` removes an installed component.
 
-A name or version no repository offers fails naming it and the versions offered. An install is
-complete or absent: the release's tree is fetched into a temporary folder in the machine folder and
-checked against its kind's entry file, and only then replaces the installed version, so a failed
+NAME is compared without case. A name or version no repository offers fails naming it and the versions
+offered, and a name whose repository is not a component of obs fails naming the reason.
+
+An install is complete or absent: the release's tree is fetched into a temporary folder in the machine folder and
+checked against its kind's entry file, its kind read from that tree, and only then replaces the installed version, so a failed
 install leaves the installed version as it was.
 
 An adapter's entry file is `adapter.json`, which
@@ -162,6 +176,10 @@ A build finds the named component among the installed ones. One that is not inst
 as another kind, fails the build naming the field (or the option), the component and the remedy, to
 run `obs-components install NAME`. An adapter's commands run from its installed folder, and a style's
 installed folder reaches the adapter in the Document ([[architecture#Declared style]]).
+
+An adapter is named by its own repository's name, which its release's `adapter.json` repeats
+([Choosing](#choosing)). The adapter of `adapters/html` now has a repository of its own:
+`obs-components install obs-html` installs it, and `--adapter obs-html` builds with it.
 
 While the adapter in `adapters/html` still lives in obs's tree, a build finds it as the adapter
 component `html` where no component `html` is installed: its manifest is `adapters/html/adapter.json` of
