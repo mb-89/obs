@@ -14,7 +14,7 @@ The system is a Python package managed and executed by `uv`.
 3. The core parses the selected manifest into a schema-valid JSON [[quality#Glossary|Document]] with document metadata, an ordered chapter tree, semantic Markdown nodes, links, and assets.
 4. The core resolves every manifest link within the containing vault and validates frontmatter and supported input syntax.
 5. Adapters project the Document into their output formats, each an [[quality#Glossary|artifact]]; a
-   build finds the adapter it names among the installed plugins ([[plugins#Naming a plugin]]), and
+   build finds the adapter it names among the installed components ([[components#Naming a component]]), and
    integrated adapters live under `adapters/` ([Repository layout](#repository-layout)).
 6. Resolve authorized derived-content providers, including command fences; in a core build the
    core runs them while it builds the Document ([Command output](#command-output)).
@@ -35,13 +35,13 @@ costs rather than treating all conversion as one opaque phase.
 
 ## Repository layout
 
-[[plugins]] replaces this section's integrated adapter and the 5 to 6 Nov decision below: every
-adapter, the one in `adapters/html` included, becomes a plugin in a repository of its own, found
+[[components]] replaces this section's integrated adapter and the 5 to 6 Nov decision below: every
+adapter, the one in `adapters/html` included, becomes a component in a repository of its own, found
 through the checkout's remotes.
 
 `adapters.json` is gone: a build finds its adapter among the
-installed plugins, and the adapter in `adapters/html` as the plugin `html` while it lives here
-([[plugins#Naming a plugin]]). Until it moves, this section describes the repository as it is.
+installed components, and the adapter in `adapters/html` as the component `html` while it lives here
+([[components#Naming a component]]). Until it moves, this section describes the repository as it is.
 
 The core and its adapters are one repository. The core is `src/obs`; an integrated adapter is
 a folder under `adapters/`, the first in `adapters/html`. Whether a later adapter
@@ -316,9 +316,9 @@ folder: they are inputs of the documents that declare them.
 
 ### Declared style
 
-[[plugins]] replaces the style named by its address: a manifest names its style plugin by name
+[[components]] replaces the style named by its address: a manifest names its style component by name
 alone, `obs.style: <name>`, and the build records the installed version
-([[plugins#Recording what built a page]]). Until its implementation lands, this section describes
+([[components#Recording what built a page]]). Until its implementation lands, this section describes
 the build as it is.
 
 A vault declares its style as a dependency in its manifest, in the core's namespace:

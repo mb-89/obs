@@ -22,7 +22,7 @@ from obs import bottom_lines
 from obs.embeds import assign_sections
 from obs.node_ids import assign_ids
 from obs.output import write_output
-from obs.plugins import main as plugins_main
+from obs.components import main as components_main
 from obs.sources import SourceError, source_archive, validate_source_archive
 from obs.vault import VaultError, build_document as _build_document, manifest_note
 from obs.vault_link import vault_link
@@ -305,8 +305,8 @@ def build_parser() -> argparse.ArgumentParser:
         prog="obs-document",
         description="Validate a JSON Document and deliver it to a configured adapter.",
         epilog="One-call build: obs-document --source spec/manifest.md --adapter html "
-               "--destination out.html --execute-commands. Plugins: obs-document plugins ARGS runs "
-               "obs-plugins ARGS.",
+               "--destination out.html --execute-commands. Components: obs-document components ARGS runs "
+               "obs-components ARGS.",
     )
     parser.add_argument("--document", type=Path,
                         help="JSON Document to read, or to write from --source; with --source and "
@@ -331,7 +331,7 @@ def build_parser() -> argparse.ArgumentParser:
                              "source files (sourceArchive), every file below the manifest's folder "
                              "except hidden, generated and compiled ones, for an adapter that embeds a "
                              "source archive. Nothing scans them for secrets: inspect the vault first.")
-    parser.add_argument("--adapter", help="Installed adapter plugin's name (obs-plugins lists them; html is the "
+    parser.add_argument("--adapter", help="Installed adapter component's name (obs-components lists them; html is the "
                                           "adapter in obs's tree while it lives there).")
     parser.add_argument("--capability-reference", type=Path, default=PACKAGED_CAPABILITY_REFERENCE,
                         help="Capability reference JSON (default: the one this package ships, "
@@ -370,8 +370,8 @@ def build_parser() -> argparse.ArgumentParser:
 
 def main(argv: Sequence[str] | None = None) -> int:
     argv = sys.argv[1:] if argv is None else list(argv)
-    if argv[:1] == ["plugins"]:  # RUNME starts one command (plugins.md, The plugin command).
-        return plugins_main(argv[1:])
+    if argv[:1] == ["components"]:  # RUNME starts one command (components.md, The component command).
+        return components_main(argv[1:])
     options = build_parser().parse_args(argv)
     sources, destinations = options.source or [], options.destination or []
     try:

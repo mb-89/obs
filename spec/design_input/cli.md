@@ -68,8 +68,8 @@ goes to a temporary file the call removes, and `--document` names a file that ke
 validates the Document once, as it builds it, and a call that reads `--document` validates it
 once, as it reads it; nothing validates it again before it is written or handed to the adapter.
 
-`--adapter NAME` names an installed plugin of kind adapter ([[plugins#Naming a plugin]]), which
-the build finds in the machine's plugin folder, or, for `html` while it lives in obs's tree, in the
+`--adapter NAME` names an installed component of kind adapter ([[components#Naming a component]]), which
+the build finds in the machine's component folder, or, for `html` while it lives in obs's tree, in the
 checkout the core runs from; nothing in the current folder names it, so the call runs from any
 folder, through RUNME or `uv run --project`.
 

@@ -8,7 +8,7 @@ from pathlib import Path
 from jsonschema import Draft202012Validator
 from jsonschema.exceptions import best_match
 
-from obs import plugins
+from obs import components
 from obs.input import input_error
 
 
@@ -23,31 +23,31 @@ class AdapterError(ValueError):
 
 @dataclass(frozen=True)
 class AdapterLocation:
-    """Where an adapter plugin lies: its manifest, and the folder its commands run from."""
+    """Where an adapter component lies: its manifest, and the folder its commands run from."""
     manifest: Path
     folder: Path
 
 
 TREE_ADAPTERS = {"html": Path("adapters") / "html" / "adapter.json"}
-"""The adapters that still live in obs's tree, each found as the plugin of its name where none is
-installed (spec/design_input/plugins.md, Naming a plugin)."""
+"""The adapters that still live in obs's tree, each found as the component of its name where none is
+installed (spec/design_input/components.md, Naming a component)."""
 
 
 def adapter_location(name: str) -> AdapterLocation:
-    """The installed adapter plugin ``name``, else the one of obs's tree; any other fails naming the
+    """The installed adapter component ``name``, else the one of obs's tree; any other fails naming the
     remedy, to install it."""
-    entry = plugins.installed().get(name)
+    entry = components.installed().get(name)
     if entry is not None:
         if entry["kind"] != "adapter":
-            raise AdapterError(f"--adapter: {name}: the installed plugin {name!r} is a {entry['kind']}, not an adapter. "
-                               f"Name an installed adapter; see {plugins.OWNER} (Naming a plugin).")
-        folder = plugins.local_folder() / "plugins" / name
+            raise AdapterError(f"--adapter: {name}: the installed component {name!r} is a {entry['kind']}, not an adapter. "
+                               f"Name an installed adapter; see {components.OWNER} (Naming a component).")
+        folder = components.local_folder() / "components" / name
         return AdapterLocation(folder / "adapter.json", folder)
     tree = TREE_ADAPTERS.get(name)
-    if tree is not None and (plugins.CHECKOUT / tree).is_file():
-        return AdapterLocation(plugins.CHECKOUT / tree, plugins.CHECKOUT)
-    raise AdapterError(f"--adapter: {name}: no adapter plugin {name!r} is installed. Run obs-plugins install {name}; "
-                       f"see {plugins.OWNER} (Naming a plugin).")
+    if tree is not None and (components.CHECKOUT / tree).is_file():
+        return AdapterLocation(components.CHECKOUT / tree, components.CHECKOUT)
+    raise AdapterError(f"--adapter: {name}: no adapter component {name!r} is installed. Run obs-components install {name}; "
+                       f"see {components.OWNER} (Naming a component).")
 
 
 def load_adapter(name: str) -> dict[str, object]:

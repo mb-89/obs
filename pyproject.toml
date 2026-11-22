@@ -17,7 +17,7 @@ dependencies = [
 
 [project.scripts]
 obs-document = "obs.document:main"
-obs-plugins = "obs.plugins:main"
+obs-components = "obs.components:main"
 
 [dependency-groups]
 dev = [

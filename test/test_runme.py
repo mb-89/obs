@@ -51,9 +51,9 @@ def test_a_relative_path_resolves_from_the_callers_folder(tmp_path: Path) -> Non
     assert (tmp_path / "out.html").is_file()
 
 
-def test_runme_runs_the_plugin_command(tmp_path: Path) -> None:
-    through = _run(["sh", str(RUNME), "plugins", "--help"], tmp_path)
-    direct = _run(["uv", "run", "--project", str(ROOT), "obs-plugins", "--help"], tmp_path)
+def test_runme_runs_the_component_command(tmp_path: Path) -> None:
+    through = _run(["sh", str(RUNME), "components", "--help"], tmp_path)
+    direct = _run(["uv", "run", "--project", str(ROOT), "obs-components", "--help"], tmp_path)
     assert (through.returncode, through.stderr) == (0, ""), through.stderr
     assert through.stdout == direct.stdout
 

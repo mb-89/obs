@@ -9,7 +9,7 @@ from pathlib import Path
 import pytest
 import yaml
 
-from installed_plugins import install_adapter
+from installed_components import install_adapter
 from obs.document import DocumentError, build_document, call_adapter, validate_document, write_document
 from test_vault import capability_reference
 

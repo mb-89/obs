@@ -1,5 +1,5 @@
-"""The plugin command, obs-plugins: list the plugins the checkout's remotes and their owners offer,
-and install, update and remove them in the machine folder (spec/design_input/plugins.md)."""
+"""The component command, obs-components: list the components the checkout's remotes and their owners offer,
+and install, update and remove them in the machine folder (spec/design_input/components.md)."""
 import argparse
 import json
 import os
@@ -16,24 +16,24 @@ from dataclasses import dataclass
 from pathlib import Path
 
 
-OWNER = "spec/design_input/plugins.md"
+OWNER = "spec/design_input/components.md"
 CHECKOUT = Path(__file__).resolve().parents[2]
-"""The folder the core runs from; the plugin command needs it to be a Git checkout of obs."""
-TOPIC = "obs-plugin"
-"""The repository topic that marks an owner's repository as a plugin repository."""
+"""The folder the core runs from; the component command needs it to be a Git checkout of obs."""
+TOPIC = "obs-component"
+"""The repository topic that marks an owner's repository as a component repository."""
 VARIABLE = "OBS_LOCAL_FOLDER"
 """Names the machine folder instead of ``obs`` in the user's configuration folder."""
 ENTRY_FILES = {"adapter": "adapter.json"}
 """Each kind obs knows and the file at the root of a release's tree that makes it one."""
 _NAME = re.compile(r"[a-z0-9][a-z0-9-]{0,31}")
 _VERSION = re.compile(r"(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)")
-_TAG = re.compile(r"obs-plugin/(?P<kind>[a-z]+)/(?P<name>[a-z0-9][a-z0-9-]{0,31})/v(?P<version>"
+_TAG = re.compile(r"obs-component/(?P<kind>[a-z]+)/(?P<name>[a-z0-9][a-z0-9-]{0,31})/v(?P<version>"
                   + _VERSION.pattern + ")")
-_PREFIX = "obs-plugin/"
+_PREFIX = "obs-component/"
 
 
-class PluginError(ValueError):
-    """A plugin command that cannot be carried out; its message names the remedy."""
+class ComponentError(ValueError):
+    """A component command that cannot be carried out; its message names the remedy."""
 
 
 class ListingError(Exception):
@@ -88,7 +88,7 @@ def _token() -> str | None:
 
 
 def _get_json(url: str, token: str | None) -> object:
-    headers = {"Accept": "application/vnd.github+json", "User-Agent": "obs-plugins"}
+    headers = {"Accept": "application/vnd.github+json", "User-Agent": "obs-components"}
     if token:
         headers["Authorization"] = f"Bearer {token}"
     request = urllib.request.Request(url, headers=headers)
@@ -120,7 +120,7 @@ def github_repositories(owner: str) -> list[str]:
 
 
 LISTINGS: dict[str, Callable[[str], list[str]]] = {"github.com": github_repositories}
-"""Each host obs can ask for an owner's plugin repositories, and how."""
+"""Each host obs can ask for an owner's component repositories, and how."""
 
 
 @dataclass(frozen=True)
@@ -148,10 +148,10 @@ def checkout() -> Path:
     try:
         completed = _git(CHECKOUT, "rev-parse", "--show-toplevel")
     except OSError as error:
-        raise PluginError(f"cannot run git: {error}. Install Git; see {OWNER} (The plugin command)") from error
+        raise ComponentError(f"cannot run git: {error}. Install Git; see {OWNER} (The component command)") from error
     if completed.returncode:
-        raise PluginError(f"obs runs from {CHECKOUT}, which is no Git checkout. Run obs-plugins from a clone of "
-                          f"obs's repository; see {OWNER} (The plugin command)")
+        raise ComponentError(f"obs runs from {CHECKOUT}, which is no Git checkout. Run obs-components from a clone of "
+                          f"obs's repository; see {OWNER} (The component command)")
     return Path(completed.stdout.strip())
 
 
@@ -205,21 +205,21 @@ def _releases_of(folder: Path, address: str, warn: Callable[[str], None]) -> lis
     for tag, commit in commits.items():
         match = _TAG.fullmatch(tag)
         if match is None:
-            warn(f"repository {address}: tag {tag} is no release (obs-plugin/<kind>/<name>/v<major>.<minor>.<patch>); "
+            warn(f"repository {address}: tag {tag} is no release (obs-component/<kind>/<name>/v<major>.<minor>.<patch>); "
                  f"skipped")
             continue
         version = tuple(int(part) for part in match["version"].split("."))
         releases.append(Release(match["kind"], match["name"], version, tag, commit, address))
-    plugins = sorted({(release.kind, release.name) for release in releases})
-    if len(plugins) > 1:
-        named = ", ".join(f"{kind} {name}" for kind, name in plugins)
-        warn(f"repository {address}: carries releases of several plugins ({named}); none is offered from it")
+    components = sorted({(release.kind, release.name) for release in releases})
+    if len(components) > 1:
+        named = ", ".join(f"{kind} {name}" for kind, name in components)
+        warn(f"repository {address}: carries releases of several components ({named}); none is offered from it")
         return []
     return releases
 
 
 def offered(folder: Path, warn: Callable[[str], None]) -> dict[str, dict[tuple[int, int, int], Release]]:
-    """Each offered plugin's releases by version, each version from its first repository in order."""
+    """Each offered component's releases by version, each version from its first repository in order."""
     by_name: dict[str, dict[tuple[int, int, int], Release]] = {}
     kinds: dict[str, dict[str, list[str]]] = {}
     for address in repositories(folder, warn):
@@ -231,7 +231,7 @@ def offered(folder: Path, warn: Callable[[str], None]) -> dict[str, dict[tuple[i
     for name, offered_kinds in kinds.items():
         if len(offered_kinds) > 1:
             named = "; ".join(f"{kind} from {', '.join(addresses)}" for kind, addresses in sorted(offered_kinds.items()))
-            warn(f"plugin {name} is offered as several kinds ({named}); none is offered until one of them stops")
+            warn(f"component {name} is offered as several kinds ({named}); none is offered until one of them stops")
             del by_name[name]
     return by_name
 
@@ -251,27 +251,27 @@ def local_folder() -> Path:
 
 
 def _list_path() -> Path:
-    return local_folder() / "plugins.json"
+    return local_folder() / "components.json"
 
 
 def installed() -> dict[str, dict[str, str]]:
-    """The machine's installed plugins by name, as plugins.json lists them."""
+    """The machine's installed components by name, as components.json lists them."""
     path = _list_path()
     if not path.exists():
         return {}
     try:
-        entries = json.loads(path.read_text(encoding="utf-8"))["plugins"]
+        entries = json.loads(path.read_text(encoding="utf-8"))["components"]
         return {entry["name"]: {key: str(entry[key]) for key in ("name", "kind", "version", "commit")}
                 for entry in entries}
     except (OSError, ValueError, KeyError, TypeError) as error:
-        raise PluginError(f"{path}: plugins: cannot be read ({error}). Remove the file and install the plugins "
-                          f"again; see {OWNER} (Installed plugins)") from error
+        raise ComponentError(f"{path}: components: cannot be read ({error}). Remove the file and install the components "
+                          f"again; see {OWNER} (Installed components)") from error
 
 
 def _write_list(entries: dict[str, dict[str, str]]) -> None:
     path = _list_path()
     path.parent.mkdir(parents=True, exist_ok=True)
-    text = json.dumps({"plugins": [entries[name] for name in sorted(entries)]}, indent=2) + "\n"
+    text = json.dumps({"components": [entries[name] for name in sorted(entries)]}, indent=2) + "\n"
     temporary = path.with_name(path.name + ".tmp")
     temporary.write_text(text, encoding="utf-8")
     temporary.replace(path)
@@ -293,7 +293,7 @@ def _fetch(folder: Path, release: Release, into: Path) -> None:
                                    env={**os.environ, "GIT_TERMINAL_PROMPT": "0"}, check=False)
         if completed.returncode:
             detail = (completed.stderr.strip().splitlines() or ["git failed"])[-1]
-            raise PluginError(f"{release.name} {release.number}: cannot be fetched from {release.repository}: {detail}. "
+            raise ComponentError(f"{release.name} {release.number}: cannot be fetched from {release.repository}: {detail}. "
                               f"Check that the repository can be read, then install again; see {OWNER} (Choosing)")
 
 
@@ -306,7 +306,7 @@ def _check_entry(release: Release, tree: Path) -> None:
     except (OSError, ValueError, AttributeError):
         declared = None
     if declared != release.name:
-        raise PluginError(f"{release.name} {release.number}: {entry}: the release {release.tag} of "
+        raise ComponentError(f"{release.name} {release.number}: {entry}: the release {release.tag} of "
                           f"{release.repository} holds no {entry} naming {release.name!r} at its root. Install "
                           f"another version; see {OWNER} (Choosing)")
 
@@ -314,15 +314,15 @@ def _check_entry(release: Release, tree: Path) -> None:
 def install(folder: Path, release: Release) -> None:
     """Install ``release`` in the machine folder, replacing the installed version only once the
     fetched tree holds its kind's entry file."""
-    plugins = local_folder() / "plugins"
-    plugins.mkdir(parents=True, exist_ok=True)
-    staging = Path(tempfile.mkdtemp(prefix=f".install-{release.name}-", dir=plugins))
+    components = local_folder() / "components"
+    components.mkdir(parents=True, exist_ok=True)
+    staging = Path(tempfile.mkdtemp(prefix=f".install-{release.name}-", dir=components))
     try:
         tree = staging / "tree"
         tree.mkdir()
         _fetch(folder, release, tree)
         _check_entry(release, tree)
-        target = plugins / release.name
+        target = components / release.name
         if target.exists():
             target.replace(staging / "previous")
         tree.replace(target)
@@ -337,9 +337,9 @@ def install(folder: Path, release: Release) -> None:
 def remove(name: str) -> None:
     entries = installed()
     if name not in entries:
-        raise PluginError(f"remove: {name}: is not installed. Name an installed plugin (obs-plugins lists them); "
+        raise ComponentError(f"remove: {name}: is not installed. Name an installed component (obs-components lists them); "
                           f"see {OWNER} (Choosing)")
-    shutil.rmtree(local_folder() / "plugins" / name, ignore_errors=True)
+    shutil.rmtree(local_folder() / "components" / name, ignore_errors=True)
     del entries[name]
     _write_list(entries)
 
@@ -349,20 +349,20 @@ def _choose(releases: dict[str, dict[tuple[int, int, int], Release]], command: s
     offers = releases.get(name)
     if not offers:
         names = ", ".join(sorted(releases)) or "none"
-        raise PluginError(f"{command}: {name}: no repository offers this plugin; offered: {names}. Name an offered "
-                          f"plugin, or add a remote that reaches it; see {OWNER} (Listing)")
+        raise ComponentError(f"{command}: {name}: no repository offers this component; offered: {names}. Name an offered "
+                          f"component, or add a remote that reaches it; see {OWNER} (Listing)")
     if version is None:
         return offers[max(offers)]
     if _VERSION.fullmatch(version) is None or _version(version) not in offers:
         numbers = ", ".join(offers[key].number for key in sorted(offers))
-        raise PluginError(f"{command}: {name} {version}: no repository offers this version; offered: {numbers}. "
+        raise ComponentError(f"{command}: {name} {version}: no repository offers this version; offered: {numbers}. "
                           f"Name an offered version as <major>.<minor>.<patch>; see {OWNER} (Choosing)")
     return offers[_version(version)]
 
 
 def _table(releases: dict[str, dict[tuple[int, int, int], Release]]) -> list[str]:
     present = installed()
-    rows = [("plugin", "kind", "installed", "newest", "repository")]
+    rows = [("component", "kind", "installed", "newest", "repository")]
     for name in sorted(set(releases) | set(present)):
         offers = releases.get(name, {})
         newest = offers[max(offers)] if offers else None
@@ -379,8 +379,8 @@ def _table(releases: dict[str, dict[tuple[int, int, int], Release]]) -> list[str
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
-        prog="obs-plugins",
-        description="List the plugins the checkout's remotes and their owners offer, with installed and newest "
+        prog="obs-components",
+        description="List the components the checkout's remotes and their owners offer, with installed and newest "
                     "versions, and install, update or remove one in the machine folder (OBS_LOCAL_FOLDER, else obs "
                     "in the user's configuration folder). Nothing installs unasked.")
     commands = parser.add_subparsers(dest="command")
@@ -397,21 +397,21 @@ def main(argv: Sequence[str] | None = None) -> int:
     options = build_parser().parse_args(argv)
 
     def warn(message: str) -> None:
-        print(f"obs-plugins: warning: {message}", file=sys.stderr)
+        print(f"obs-components: warning: {message}", file=sys.stderr)
 
     try:
         name = getattr(options, "name", None)
         if name is not None and _NAME.fullmatch(name) is None:
-            raise PluginError(f"{options.command}: {name}: is no plugin name (1 to 32 lowercase letters, digits and "
-                              f"dashes, starting with a letter or digit). Name a plugin as obs-plugins lists it; "
-                              f"see {OWNER} (A plugin)")
+            raise ComponentError(f"{options.command}: {name}: is no component name (1 to 32 lowercase letters, digits and "
+                              f"dashes, starting with a letter or digit). Name a component as obs-components lists it; "
+                              f"see {OWNER} (A component)")
         if options.command == "remove":
             remove(name)
-            print(f"obs-plugins: removed {name}")
+            print(f"obs-components: removed {name}")
             return 0
         folder = checkout()
         if options.command == "update" and name not in installed():
-            raise PluginError(f"update: {name}: is not installed. Install it with obs-plugins install {name}; "
+            raise ComponentError(f"update: {name}: is not installed. Install it with obs-components install {name}; "
                               f"see {OWNER} (Choosing)")
         releases = offered(folder, warn)
         if options.command is None:
@@ -420,12 +420,12 @@ def main(argv: Sequence[str] | None = None) -> int:
         release = _choose(releases, options.command, name, getattr(options, "version", None))
         current = installed().get(name)
         if options.command == "update" and current["version"] == release.number:
-            print(f"obs-plugins: {name} {release.number} is the newest offered release; nothing changed")
+            print(f"obs-components: {name} {release.number} is the newest offered release; nothing changed")
             return 0
         install(folder, release)
-        print(f"obs-plugins: installed {name} {release.number} ({release.kind}) from {release.repository}")
-    except PluginError as error:
-        raise SystemExit(f"obs-plugins: {error}") from error
+        print(f"obs-components: installed {name} {release.number} ({release.kind}) from {release.repository}")
+    except ComponentError as error:
+        raise SystemExit(f"obs-components: {error}") from error
     return 0
 
 

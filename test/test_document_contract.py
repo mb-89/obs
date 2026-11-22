@@ -8,7 +8,7 @@ from jsonschema import Draft202012Validator, ValidationError
 import pytest
 from referencing import Registry, Resource
 
-from installed_plugins import install_adapter
+from installed_components import install_adapter
 from obs.adapter import AdapterError, load_adapter
 from obs.discriminator import discriminating_validator
 from obs.document import (
@@ -368,7 +368,7 @@ def test_document_validates_figure_descriptor_at_the_plot_figure_s_body(tmp_path
         write_document(document, tmp_path / "invalid-document.json", capability_reference())
 
 
-def test_adapter_is_discovered_by_name_among_the_installed_plugins(tmp_path) -> None:
+def test_adapter_is_discovered_by_name_among_the_installed_components(tmp_path) -> None:
     manifest = tmp_path / "adapter.json"
     manifest.write_text(json.dumps({
         "name": "fixture",
@@ -516,7 +516,7 @@ RECORDING_ADAPTER = (
 
 
 def recording_adapter(**declared: object) -> Path:
-    """The recording adapter ``fixture`` installed as a plugin in the test's machine folder; its folder."""
+    """The recording adapter ``fixture`` installed as a component in the test's machine folder; its folder."""
     return install_adapter({
         "name": "fixture", "command": [sys.executable, "-c", RECORDING_ADAPTER], "contractVersion": 1,
         "capabilities": [item["id"] for item in capability_reference()["capabilities"]], **declared,
@@ -533,7 +533,7 @@ def shared_spec_build(monkeypatch, spec_document):
 
 def test_one_call_builds_the_spec_without_a_capability_reference_or_a_document(
         tmp_path, monkeypatch, shared_spec_build) -> None:
-    """The packaged capability reference and a temporary Document; the adapter among the installed plugins."""
+    """The packaged capability reference and a temporary Document; the adapter among the installed components."""
     recording_adapter()
     monkeypatch.chdir(tmp_path)
     destination = tmp_path / "spec.out"

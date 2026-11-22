@@ -55,8 +55,8 @@ def test_each_declared_option_is_a_flag_of_the_cli() -> None:
     assert "embed-attachments" in declared  # The evidence edition (spec/design_input/cli.md, Attachments per build).
 
 
-def test_the_core_finds_this_adapter_as_the_plugin_html_and_its_cli_as_the_executable() -> None:
-    """obs finds this folder's adapter.json as the plugin html (obs's test/test_plugins.py checks the lookup)."""
+def test_the_core_finds_this_adapter_as_the_component_html_and_its_cli_as_the_executable() -> None:
+    """obs finds this folder's adapter.json as the component html (obs's test/test_components.py checks the lookup)."""
     assert (CORE_ROOT / "adapters" / "html" / "adapter.json").samefile(ROOT / "adapter.json")
     assert not (CORE_ROOT / "adapters.json").exists()
     scripts = tomllib.loads((ROOT / "pyproject.toml").read_text(encoding="utf-8"))["project"]["scripts"]

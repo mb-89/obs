@@ -133,7 +133,7 @@ false in its `cfg.json`, since the site does not serve the linked notes.
 ## Running from another folder
 
 The one-call build finds the adapter `html` in the checkout the core runs from (obs's
-`spec/design_input/plugins.md`, Naming a plugin), not in the current folder, so a call through
+`spec/design_input/components.md`, Naming a component), not in the current folder, so a call through
 RUNME runs from any folder, and a relative path resolves from the folder it is run in:
 
 ```sh
