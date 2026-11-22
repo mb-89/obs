@@ -52,8 +52,8 @@ reads nothing from the vault. Its attributes are defined by `src/obs/document.sc
   saved, and no data owner for anything but that table's display.
 
 The view's `obs.records`, else the base's, names the record type its rows have: `note`,
-`chapter`, `tag`, `glossary`, `documentMetadata` or `documentHistory`, `note` when neither
-names one. `src/obs/document.schema.json` (`$defs/record`) defines each record type and its
+`chapter`, `tag`, `glossary`, `documentMetadata`, `documentHistory` or `block`
+([[input-model#Block records]]), `note` when neither names one. `src/obs/document.schema.json` (`$defs/record`) defines each record type and its
 fields; [[input-model#Bases filter grammar]] owns how a filter resolves them.
 
 A register embed whose `.base` file does not exist, is not valid Base YAML, or whose heading

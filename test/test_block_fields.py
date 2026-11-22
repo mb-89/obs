@@ -183,3 +183,88 @@ def test_the_schema_validates_fields_and_effective_on_block_and_section_nodes() 
     assert list(validator.iter_errors(without_id))
     without_effective = {key: value for key, value in node.items() if key != "effective"}
     assert list(validator.iter_errors(without_effective))
+
+
+BLOCK_NOTE = ("---\nowner: ana\nreview:\n  state: open\n---\n# Design\n\nstatus:: draft\n\nThe pump runs.\n"
+              "owner:: bo\n\n## Valves\n\n| Key | Value |\n|---|---|\n| a | 1 |\n\nowner:: mb\n\nNo fields here.\n")
+
+
+def _document(tmp_path: Path, note: str, base: str = "") -> dict:
+    (tmp_path / "manifest.md").write_text("---\ntitle: Plant\n---\n- [[design]]\n", encoding="utf-8")
+    (tmp_path / "design.md").write_text(note + ("\n![[blocks.base]]\n" if base else ""), encoding="utf-8")
+    if base:
+        (tmp_path / "blocks.base").write_text(base, encoding="utf-8")
+    return build_document(tmp_path / "manifest.md", capability_reference())
+
+
+def test_each_block_or_section_that_sets_a_key_is_a_block_record(tmp_path: Path) -> None:
+    document = _document(tmp_path, BLOCK_NOTE)
+    content = document["chapters"][0]["content"]
+    section, paragraph, table = (_of(content, "section", "Design"), _of(content, "paragraph", "The pump"),
+                                 _of(content, "table"))
+    blocks = [record for record in document["records"] if record["type"] == "block"]
+    assert [record["block"] for record in blocks] == [
+        {"node": section["id"], "chapter": "design", "kind": "section", "path": "Design › Design",
+         "fields": {"status": "draft"}},
+        {"node": paragraph["id"], "chapter": "design", "kind": "paragraph", "path": "Design › Design › paragraph",
+         "fields": {"owner": "bo"}},
+        {"node": table["id"], "chapter": "design", "kind": "table", "path": "Design › Design › Valves › table",
+         "fields": {"owner": "mb"}},
+    ]
+    assert [record["note"] for record in blocks] == ["design"] * 3
+    assert [record["fields"] for record in blocks] == [
+        {"owner": "ana", "review.state": "open", "status": "draft"},
+        {"owner": "bo", "review.state": "open", "status": "draft"},
+        {"owner": "mb", "review.state": "open", "status": "draft"},
+    ]
+    assert len({record["id"] for record in document["records"]}) == len(document["records"])
+    assert not any(record["block"]["kind"] == "paragraph" and "No fields" in record["block"]["path"]
+                   for record in blocks)
+
+
+def test_a_block_view_selects_blocks_by_their_effective_fields(tmp_path: Path) -> None:
+    base = ("views:\n"
+            "  - {type: table, name: Mine, filters: 'owner == \"MB\"', order: [owner], obs: {records: block}}\n"
+            "  - {type: table, name: Drafts, filters: 'status == \"draft\"', order: [owner], obs: {records: block}}\n"
+            "  - {type: table, name: Tables, filters: 'block.kind == \"table\"', order: [owner], obs: {records: block}}\n"
+            "  - {type: table, name: Notes, filters: 'owner == \"ana\"', order: [file.name]}\n")
+    document = _document(tmp_path, BLOCK_NOTE, base)
+    records = {record["id"]: record for record in document["records"]}
+    [register] = [node for node in document["chapters"][0]["content"] if node["type"] == "registers"]
+    mine, drafts, tables, notes = register["attrs"]["rows"]
+    assert [records[identifier]["block"]["kind"] for identifier in mine] == ["table"]
+    assert [records[identifier]["block"]["kind"] for identifier in drafts] == ["section", "paragraph", "table"]
+    assert tables == mine
+    assert [records[identifier]["type"] for identifier in notes] == ["note"]
+
+
+def test_a_block_of_an_ignored_note_is_never_selected(tmp_path: Path) -> None:
+    base = "views:\n  - {type: table, name: All, order: [owner], obs: {records: block}}\n"
+    document = _document(tmp_path, "---\nignored: true\n---\n" + BLOCK_NOTE.split("---\n", 2)[2], base)
+    [register] = [node for node in document["chapters"][0]["content"] if node["type"] == "registers"]
+    assert any(record["type"] == "block" for record in document["records"])
+    assert register["attrs"]["rows"] == [[]]
+
+
+def _record_validator() -> Draft202012Validator:
+    schema = json.loads(SCHEMA.read_text(encoding="utf-8"))
+    return Draft202012Validator({"$ref": "#/$defs/record", "$defs": schema["$defs"]})
+
+
+def test_the_schema_validates_a_block_record() -> None:
+    validator = _record_validator()
+    record = {"id": "block-design-table-1", "type": "block", "note": "design", "fields": {"owner": "mb"},
+              "block": {"node": "table-1", "chapter": "design", "kind": "table", "path": "Design › table",
+                        "fields": {"owner": "mb", "state": None}}}
+    assert list(validator.iter_errors(record)) == []
+    for broken in (
+        {key: value for key, value in record.items() if key != "block"},
+        {key: value for key, value in record.items() if key != "note"},
+        {**record, "block": {**record["block"], "fields": {}}},
+        {**record, "block": {**record["block"], "extra": 1}},
+    ):
+        assert list(validator.iter_errors(broken)), broken
+    assert list(validator.iter_errors({**record, "type": "note", "path": "design.md", "fieldNodes": []}))
+    assert list(validator.iter_errors({"id": "chapter-x", "type": "chapter", "note": "x", "block": record["block"],
+                                       "fields": {"chapter": "X", "title": "X", "depth": "0", "slug": "x",
+                                                  "sourcePath": "x.md"}}))
