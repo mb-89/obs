@@ -803,7 +803,3 @@ def test_serve_is_refused_before_the_build_naming_its_option(tmp_path, monkeypat
 
     assert str(refused.value).startswith(f"obs-document: {field} ")
     assert not (tmp_path / "spec.out").exists()
-
-
-def test_the_html_adapter_declares_its_serve_command() -> None:
-    assert load_adapter("html")["serve"] == ["uv", "run", "obs-html", "serve"]

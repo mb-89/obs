@@ -312,7 +312,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="obs-document",
         description="Validate a JSON Document and deliver it to a configured adapter.",
-        epilog="One-call build: obs-document --source spec/manifest.md --adapter html "
+        epilog="One-call build: obs-document --source spec/manifest.md --adapter obs-html "
                "--destination out.html --execute-commands. Components: obs-document components ARGS runs "
                "obs-components ARGS.",
     )
@@ -340,7 +340,7 @@ def build_parser() -> argparse.ArgumentParser:
                              "except hidden, generated and compiled ones, for an adapter that embeds a "
                              "source archive. Nothing scans them for secrets: inspect the vault first.")
     parser.add_argument("--adapter", help="Installed adapter component's name, such as obs-html (obs-components lists "
-                                          "them; html is the adapter in obs's tree while it lives there).")
+                                          "them).")
     parser.add_argument("--capability-reference", type=Path, default=PACKAGED_CAPABILITY_REFERENCE,
                         help="Capability reference JSON (default: the one this package ships, "
                              "generated from spec/capabilities when it was built).")

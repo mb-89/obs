@@ -22,7 +22,6 @@ obs-components = "obs.components:main"
 [dependency-groups]
 dev = [
     "filelock>=4.2.9",
-    "obs-html",
     "pytest>=8.0",
     "pytest-timeout>=2.4.0",
     "pytest-xdist>=3.8.0",
@@ -33,12 +32,6 @@ dev = [
 cache-keys = [{ file = "pyproject.toml" }, { file = "hatch_build.py" }, { file = "spec/capabilities/**" },
               { file = "src/obs/capabilities.py" }, { file = "src/obs/diagrams/package-lock.json" },
               { file = "src/obs/diagram.py" }]
-
-[tool.uv.workspace]
-members = ["adapters/html"]
-
-[tool.uv.sources]
-obs-html = { workspace = true }
 
 [build-system]
 # pyyaml: hatch_build.py writes the packaged capability reference from the capability notes.

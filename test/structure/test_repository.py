@@ -20,10 +20,7 @@ MAX_BYTES = 200_000
 VENDOR_MANIFEST = "vendor.json"
 
 # Tracked files over MAX_BYTES, each with the reason it is tracked.
-LARGE_ALLOWED: dict[str, str] = {
-    "adapters/html/src/obs_html/vendor/plotly-basic.min.js": "embedded library, pages work offline",
-    "adapters/html/src/obs_html/vendor/pdf-lib.min.js": "embedded library, pages work offline",
-}
+LARGE_ALLOWED: dict[str, str] = {}
 
 
 def tracked_sizes(repo: Path) -> dict[str, int]:

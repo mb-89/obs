@@ -4,8 +4,8 @@ Reader: whoever changes how the core reads a two-column block, its Document node
 
 Splitting a body into blocks, reading their weights and finding malformed blocks is one pure
 function, ``obs.note.column_blocks``; the rest is the build, through ``build_document`` and the
-``obs-document`` command. obs-html's side of the interim adapter's cases is
-adapters/html/test/test_columns.py and test_columns_browser.py.
+``obs-document`` command. The adapter html's side of the interim adapter's cases is its
+test/test_columns.py and test_columns_browser.py, in its own repository.
 """
 import json
 from pathlib import Path

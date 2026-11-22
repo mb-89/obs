@@ -2,8 +2,8 @@
 
 A component is a part obs builds with that does not live in obs's repository: an adapter, a style, or
 any later kind. Every component is found, installed and named the same way, by the one command below.
-The adapter in `adapters/html` is one component like any other; obs has no built-in adapter beside the components it
-finds.
+The adapter once in `adapters/html` is one component like any other, in its own repository; obs has
+no built-in adapter beside the components it finds, and keeps no adapter in its tree.
 
 This note replaces the integrated adapter of the 5 Nov decision
 ([[architecture#Repository layout]]), `adapters.json` as the only adapter registry
@@ -27,7 +27,7 @@ Each component is its own Git repository, and the repository carries nothing tha
   release is the highest. The release is the commit the tag points to.
 - **Its kind** is what its release's tree holds at its root: `adapter.json` makes an adapter
   ([[architecture#Adapter call]]), a style module's files, its `style.css` among them, a style
-  (the configuration note of `adapters/html`, Declared style).
+  (the configuration note of the adapter once in `adapters/html`, Declared style).
 
 A repository's other tags and its branches are none of obs's: a moving `v1`, a `v1.0` or a
 `v4.1.2-shared` is no release, and neither is the earlier form `obs-component/<kind>/<name>/v<version>`.
@@ -50,7 +50,8 @@ Finding releases by tag was chosen over an index repository that lists the compo
 second file to keep in step with every release, while a tag is the release itself (the person's
 choice, 22 Nov 2026).
 
-Folding the adapter in `adapters/html` into the components was chosen over keeping it built in beside found components:
+Folding the adapter once in `adapters/html` into the components was chosen over keeping it built in
+beside found components:
 two mechanisms would find adapters two ways, and a second adapter would still need the first.
 
 ## The component command
@@ -138,8 +139,8 @@ must name the component.
 
 ### Installed components
 
-Installs go to the machine, as local themes do (the configuration note of `adapters/html`, Local
-themes): the folder `obs` in the user's configuration folder (`$XDG_CONFIG_HOME` or `~/.config` on
+Installs go to the machine, as local themes do (the configuration note of the adapter once in
+`adapters/html`, Local themes): the folder `obs` in the user's configuration folder (`$XDG_CONFIG_HOME` or `~/.config` on
 Linux, `~/Library/Application Support` on macOS, `%APPDATA%` on Windows), or the folder
 `OBS_LOCAL_FOLDER` names where it is set and not empty.
 
@@ -178,13 +179,8 @@ run `obs-components install NAME`. An adapter's commands run from its installed 
 installed folder reaches the adapter in the Document ([[architecture#Declared style]]).
 
 An adapter is named by its own repository's name, which its release's `adapter.json` repeats
-([Choosing](#choosing)). The adapter of `adapters/html` now has a repository of its own:
+([Choosing](#choosing)). The adapter once in `adapters/html` has a repository of its own:
 `obs-components install obs-html` installs it, and `--adapter obs-html` builds with it.
-
-While the adapter in `adapters/html` still lives in obs's tree, a build finds it as the adapter
-component `html` where no component `html` is installed: its manifest is `adapters/html/adapter.json` of
-the checkout the core runs from, and its commands run from that checkout's root, as before. An
-installed `html` is the person's choice and wins over it.
 
 A build installs and fetches nothing: components come only from the checkout's remotes, and only when
 the person chooses them with the component command.
@@ -201,11 +197,6 @@ the machine's list, and the source archive's build record carries the same list
 The Document's `components` lists them in the order the build found them, the adapter first and
 then the style; a build without an adapter, which writes only the Document, lists only the style
 the manifest declares, if any.
-
-The adapter in `adapters/html`, found in obs's tree
-([Naming a component](#naming-a-component)), is recorded as the component `html` of kind `adapter`
-at obs's version, `version` of `[project]` in the checkout's `se.toml`, and at the commit the checkout
-is at (`git rev-parse HEAD`), or `unknown` where Git cannot name it.
 
 A rebuild uses the versions installed on its machine: where one differs from the recorded version,
 the build warns naming the component and both versions, and where a recorded component is not installed it

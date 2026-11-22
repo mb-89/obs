@@ -2,9 +2,9 @@
 
 Obsidian-compatible Markdown is the single point of truth, rendered to HTML and other formats.
 
-This one repository holds the core, which resolves a vault into a JSON Document, and its
-integrated output adapters under `adapters/`; the first is the HTML adapter in
-[adapters/html](adapters/html/README.md), run as `uv run obs-html`. The
+This repository holds the core, which resolves a vault into a JSON Document. Output adapters are
+components in repositories of their own, the first the HTML adapter `obs-html`, which a clone finds
+and installs with `obs-components` ([Components](spec/design_input/components.md)). The
 [Repository layout](spec/design_input/architecture.md#repository-layout) owns the structure.
 
 ## Getting it running
@@ -52,7 +52,7 @@ uv run pytest test/test_paragraph_lint.py
 uv run obs-document --help
 ```
 
-The complete suite, the core's and every adapter's, runs in parallel with one command, after its
+The complete suite runs in parallel with one command, after its
 setup has installed the Node test packages the browser tests use (its docstring is its reference):
 
 ```powershell
@@ -63,9 +63,8 @@ uv run python test/suite.py
 ## Design and reference
 
 - [CLI](spec/design_input/cli.md): live executable help.
-- [Configuration](adapters/html/spec/configuration.md): defaults and schemas.
 - [Input model](spec/design_input/input-model.md): authored source contracts.
-- [Artifact UI](adapters/html/spec/artifact-ui.md): reader, review, and PDF presentation.
+- [Components](spec/design_input/components.md): finding and installing adapters and styles.
 
 ## License
 

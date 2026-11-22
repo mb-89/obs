@@ -15,11 +15,6 @@ import tiers
 
 
 network_guard.install()
-# No test, and no build a test starts, reads the build machine's local themes (obs-html
-# spec/configuration.md, Local themes): the folder named here does not exist. A test that needs
-# themes sets the variable for its own call.
-os.environ["OBS_HTML_LOCAL_FOLDER"] = str(
-    Path(__file__).resolve().parents[1] / "adapters" / "html" / "test" / "fixtures" / "no-local-folder")
 
 
 _MACHINE_FOLDERS = itertools.count()
@@ -149,30 +144,33 @@ def suite_environment(monkeypatch):
     shard its run was dealt: a test of the suite would take that path, and suite.main's end would
     remove it from the worker's environment. Nor does it inherit the run's reports' folder
     (suite.REPORTS_VARIABLE): the cap tests' fake parts are named as the real ones, and a capped
-    part writes its report, so one would replace the run's own `core.xml` or `adapters-html.xml`.
+    part writes its report, so one would replace the run's own `core.xml`.
     A test that needs one sets it."""
     for name in [name for name in os.environ if name.startswith(suite.VARIABLE_PREFIX)]:
         monkeypatch.delenv(name)
     monkeypatch.delenv(suite.REPORTS_VARIABLE, raising=False)
 
 
+@pytest.fixture
+def stand_in_part(monkeypatch) -> Path:
+    """A second part of test/suite.py beside the core, with a Node test package: the suite's
+    mechanics for several parts, now that the core is its one part; its folder, which need not exist."""
+    part = suite.ROOT / "adapters" / "stand-in"
+    monkeypatch.setattr(suite, "PARTS", [suite.ROOT, part])
+    monkeypatch.setattr(suite, "NODE_PACKAGES", [part / "test" / "browser"])
+    return part
+
+
 SPEC_MANIFEST = Path(__file__).parents[1] / "spec" / "manifest.md"
-# What the spec's producers write (spec/appendix/references/obs-html-specification.md builds the
-# HTML adapter's specification into it); a test that reads the spec without running them gets a
-# stand-in there.
-SPEC_PRODUCED = ("design_output/obs-html-specification.html",)
 
 
 @pytest.fixture
 def spec_vault(tmp_path) -> Path:
-    """A copy of the spec vault, without its generated design_output, holding a stand-in for each
-    file its producers write; its manifest is `<copy>/manifest.md`. A test that reads the spec
-    without running commands reads this copy, so it never depends on an earlier build."""
+    """A copy of the spec vault, without its generated design_output; its manifest is
+    `<copy>/manifest.md`. A test that reads the spec reads this copy, so it never depends on an
+    earlier build."""
     vault = tmp_path / "spec"
     shutil.copytree(SPEC_MANIFEST.parent, vault, ignore=shutil.ignore_patterns("design_output"))
-    for produced in SPEC_PRODUCED:
-        (vault / produced).parent.mkdir(parents=True, exist_ok=True)
-        (vault / produced).write_text("<!doctype html>\n", encoding="utf-8")
     return vault
 
 

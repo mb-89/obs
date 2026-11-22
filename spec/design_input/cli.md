@@ -16,7 +16,7 @@ adapter's own command line is part of that adapter's specification.
 One `obs-document` call builds an artifact from a vault:
 
 ```sh
-uv run obs-document --source spec/manifest.md --adapter html --destination <scratch>/spec.html --execute-commands
+uv run obs-document --source spec/manifest.md --adapter obs-html --destination <scratch>/spec.html --execute-commands
 ```
 
 `--source` names the manifest note or the vault folder that holds it. A folder resolves to its
@@ -69,9 +69,9 @@ validates the Document once, as it builds it, and a call that reads `--document`
 once, as it reads it; nothing validates it again before it is written or handed to the adapter.
 
 `--adapter NAME` names an installed component of kind adapter ([[components#Naming a component]]), which
-the build finds in the machine's component folder, or, for `html` while it lives in obs's tree, in the
-checkout the core runs from; nothing in the current folder names it, so the call runs from any
-folder, through RUNME or `uv run --project`.
+the build finds in the machine's component folder; nothing in the current folder names it, so the
+call runs from any folder, through RUNME or `uv run --project`. A fresh clone builds with
+`obs-html` once `obs-components install obs-html` installed it.
 
 A build through the core authorizes command fences once, on the core: `--execute-commands` makes
 the core run the vault's command fences from the vault root and put
@@ -101,6 +101,21 @@ with `--wait`, returns the reader's answers.
 An adapter that declares no `serve` command fails the call before the build, naming its manifest;
 so do `--wait` without `--serve`, `--timeout` without `--wait` and `--serve` with several
 `--source`. The adapter's own documentation owns what its server does.
+
+### Setup
+
+`RUNME.conf` at the repository root declares, once, what obs needs on a machine with only its
+package manager, Git, curl, uv and npm, each with the ways to install it, and obs's command line;
+the header of `RUNME.sh` owns its format.
+
+npm is there because the core's first build fetches its diagram renderers with it. No browser is
+declared: a diagram or a PDF uses an installed Chrome, Edge or Chromium, and a build without one
+names the command that installs Playwright's.
+
+`RUNME.sh` and `RUNME.ps1` are se's generic pair, byte for byte se's at obs's se pin. They install
+what `RUNME.conf` declares and the machine lacks, then hand every argument to `uv run
+obs-document` in the caller's folder. Neither has an option of its own: `--help` prints
+obs-document's help.
 
 ## Authoring skill
 
@@ -146,8 +161,8 @@ artifact's reader sent (`--serve --wait` prints it, and the adapter's server wri
 artifact). [[input-model#Answers]] owns its fields and what each answer does to its chapter:
 
 ```sh
-uv run obs-document --source deck/manifest.md --adapter html --destination deck.html --serve --wait
-uv run obs-document --source deck/manifest.md --adapter html --destination record.html --answers answers.json
+uv run obs-document --source deck/manifest.md --adapter obs-html --destination deck.html --serve --wait
+uv run obs-document --source deck/manifest.md --adapter obs-html --destination record.html --answers answers.json
 ```
 
 The second artifact is the decision record. `--answers` is used only with `--source`, and an
@@ -160,7 +175,7 @@ One `obs-document` call builds several artifacts: each `--source` pairs, in argu
 the `--destination` that follows it, and `--adapter` builds each of them:
 
 ```sh
-uv run obs-document --adapter html --source a/manifest.md --destination a.html --source b/manifest.md --destination b.html
+uv run obs-document --adapter obs-html --source a/manifest.md --destination a.html --source b/manifest.md --destination b.html
 ```
 
 The call builds the documents one after the other, in argument order. Every other option

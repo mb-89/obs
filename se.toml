@@ -4,13 +4,11 @@ authored_content = [
   "spec/capabilities/**/*.md",
   "README.md",
   "AGENTS.md",
-  "adapters/html/README.md",
-  "adapters/html/AGENTS.md",
 ]
 identity = "mb <mb>"
 public_check = true
 release = "workflow"
-version = "9.0.0"
+version = "10.0.0"
 
 # How a landing reaches main: se's README "Landing on main" owns the setting.
 [integrate]

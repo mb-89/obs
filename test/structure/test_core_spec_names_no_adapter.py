@@ -2,9 +2,8 @@
 
 Reader: whoever changes obs's specification or this list.
 
-obs treats an adapter's specification as an outside source: one reference note under
-`spec/appendix/references` stands for it, and everything about an adapter's output lives in that
-adapter's own specification (the HTML adapter's: `adapters/html/spec/manifest.md`). This test
+obs treats an adapter's specification as an outside source: everything about an adapter's output
+lives in that adapter's own specification, in the adapter's repository. This test
 owns the terms that name the HTML adapter or its user interface, and the one list of allowed
 exceptions.
 """
@@ -35,6 +34,20 @@ ALLOWED = {
     # component): a component's name, which the core reads, not a statement about the adapter's output.
     ("spec/design_input/components.md",
      "`obs-components install obs-html` installs it, and `--adapter obs-html` builds with it."),
+    # The same component name in the CLI note's example calls, which a fresh clone runs once it
+    # installed that component (cli.md, One-call build): the name the core reads, as above.
+    ("spec/design_input/cli.md",
+     "uv run obs-document --source spec/manifest.md --adapter obs-html --destination <scratch>/spec.html "
+     "--execute-commands"),
+    ("spec/design_input/cli.md", "`obs-html` once `obs-components install obs-html` installed it."),
+    ("spec/design_input/cli.md",
+     "uv run obs-document --source deck/manifest.md --adapter obs-html --destination deck.html --serve --wait"),
+    ("spec/design_input/cli.md",
+     "uv run obs-document --source deck/manifest.md --adapter obs-html --destination record.html "
+     "--answers answers.json"),
+    ("spec/design_input/cli.md",
+     "uv run obs-document --adapter obs-html --source a/manifest.md --destination a.html --source "
+     "b/manifest.md --destination b.html"),
     # The core suite's browser variable, a name in the core's tests (test/tiers.py).
     ("spec/design_input/quality.md", "- The browser tier needs `OBS_HTML_TEST_NATIVE_BROWSER`"),
     # HTML as input: what authors and imported sources may write, which the core reads or refuses.
@@ -71,7 +84,7 @@ def adapter_statements() -> list[str]:
                     continue
                 found.append(
                     f"{relative}:{number}: names '{match.group(0)}'. Remedy: move the passage to the "
-                    "adapter's specification (adapters/html/spec) or state it for any adapter; "
+                    "adapter's specification, in its repository, or state it for any adapter; "
                     "test/structure/test_core_spec_names_no_adapter.py ALLOWED lists the exceptions."
                 )
     return found

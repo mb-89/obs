@@ -2,7 +2,7 @@
 and the remedy where it cannot (hatch_build.py; input-model, Figure input direction).
 
 Reader: whoever changes how the core is built or what it ships. The installed wheel's drawing is
-tested in adapters/html/test/test_installed_wheel.py.
+tested in the adapter html's test/test_installed_wheel.py, in its own repository.
 """
 import importlib.util
 import json

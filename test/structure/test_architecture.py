@@ -94,8 +94,9 @@ def test_the_layout_check_names_a_misplaced_measurement_script(tmp_path: Path) -
 
 CLOCK_READ = re.compile(r"\b(?:datetime\.(?:now|utcnow|today)|date\.today|"
                         r"time\.(?:time_ns|time|gmtime|localtime|ctime))\(")
-"""The wall clock reads the HTML adapter allows only in its build-time module (adapters/html
-spec/architecture.md, Build time); the core writes no build time, so it allows none."""
+"""The wall clock reads the adapter html allows only in its build-time module (its
+spec/architecture.md, Build time, in its own repository); the core writes no build time, so it
+allows none."""
 
 
 def clock_reads(package: Path) -> list[str]:
@@ -111,7 +112,7 @@ def clock_reads(package: Path) -> list[str]:
 
 def test_the_core_reads_no_clock_for_what_it_writes() -> None:
     found = clock_reads(ROOT / "src" / "obs")
-    assert found == [], "test/structure/test_architecture.py (adapters/html/spec/architecture.md, Build time):\n" \
+    assert found == [], "test/structure/test_architecture.py (the core writes no build time):\n" \
         + "\n".join(found)
 
 

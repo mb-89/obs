@@ -2,13 +2,16 @@
 line, and RUNME.sh hands every argument to obs-document in the caller's folder.
 
 The pair itself is se's (CI's gate compares it with se's at se.lock's commit); these tests hold
-obs's declaration and what a call through it does. adapters/html/spec/cli.md, "Setup", owns the
+obs's declaration and what a call through it does. spec/design_input/cli.md, "Setup", owns the
 behaviour; RUNME.sh's header owns RUNME.conf's format.
 """
 import os
 import shlex
 import subprocess
+import sys
 from pathlib import Path
+
+from installed_components import install_adapter
 
 ROOT = Path(__file__).parents[1]
 RUNME = ROOT / "RUNME.sh"
@@ -45,7 +48,11 @@ def test_a_relative_path_resolves_from_the_callers_folder(tmp_path: Path) -> Non
     vault.mkdir()
     (vault / "manifest.md").write_text("- [[note]]\n", encoding="utf-8")
     (vault / "note.md").write_text("# Note\n\nOne note.\n", encoding="utf-8")
-    result = _run(["sh", str(RUNME), "--source", "vault/manifest.md", "--adapter", "html",
+    install_adapter({"name": "fixture", "contractVersion": 1, "capabilities": ["chapter-inclusion", "manifest", "markdown",
+                                                                          "markdown-frontmatter", "queries", "wikilinks"],
+                     "command": [sys.executable, "-c",
+                                 "import sys, pathlib; pathlib.Path(sys.argv[2]).write_text('ok')"]})
+    result = _run(["sh", str(RUNME), "--source", "vault/manifest.md", "--adapter", "fixture",
                    "--destination", "out.html"], tmp_path)
     assert result.returncode == 0, result.stderr
     assert (tmp_path / "out.html").is_file()

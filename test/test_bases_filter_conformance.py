@@ -77,14 +77,6 @@ def test_core_evaluator_rejects_unsupported_filters(filters):
         core_filter(filters)
 
 
-def test_core_and_adapter_schemas_share_the_comparison_pattern():
-    def pattern(package: Path) -> str:
-        return json.loads((package / "base.schema.json").read_text(encoding="utf-8"))["$defs"]["comparison"]["pattern"]
-
-    root = Path(__file__).parents[1]
-    assert pattern(root / "src" / "obs") == pattern(root / "adapters" / "html" / "src" / "obs_html")
-
-
 def test_match_case_flag_belongs_to_an_equals_condition():
     from obs.input import InputError as Error, validate_count_query
 
