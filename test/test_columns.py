@@ -184,8 +184,7 @@ def test_an_adapter_that_does_not_declare_columns_refuses_a_document_that_uses_i
                "capabilities": sorted(set(document["capabilities"]) - {"columns"} | {"markdown"})}
 
     with pytest.raises(AdapterError, match="columns"):
-        _deliver(adapter, [], tmp_path / "config.json", document, tmp_path / "document.json",
-                 tmp_path / "out.html", reference)
+        _deliver(adapter, [], document, tmp_path / "document.json", tmp_path / "out.html", reference)
 
 
 def test_a_failing_source_check_names_the_block_and_writes_nothing(tmp_path: Path) -> None:

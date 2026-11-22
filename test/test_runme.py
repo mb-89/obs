@@ -51,19 +51,15 @@ def test_a_relative_path_resolves_from_the_callers_folder(tmp_path: Path) -> Non
     assert (tmp_path / "out.html").is_file()
 
 
-def test_a_later_adapter_config_overrides_runmes(tmp_path: Path) -> None:
-    (tmp_path / "manifest.md").write_text("- [[note]]\n", encoding="utf-8")
-    (tmp_path / "note.md").write_text("# Note\n", encoding="utf-8")
-    result = _run(["sh", str(RUNME), "--source", "manifest.md", "--adapter", "html",
-                   "--destination", "out.html", "--adapter-config", "elsewhere.json"], tmp_path)
-    assert result.returncode != 0
-    assert "elsewhere.json" in result.stderr
-    assert "adapters.json" not in result.stderr
+def test_runme_runs_the_component_command(tmp_path: Path) -> None:
+    through = _run(["sh", str(RUNME), "components", "--help"], tmp_path)
+    direct = _run(["uv", "run", "--project", str(ROOT), "obs-components", "--help"], tmp_path)
+    assert (through.returncode, through.stderr) == (0, ""), through.stderr
+    assert through.stdout == direct.stdout
 
 
 def test_runme_conf_declares_obs_needs_and_its_command_line() -> None:
     assert [entry[0] for entry in _entries("need")] == ["git", "curl", "uv", "npm"]
     [run] = [shlex.split(" ".join(entry)) for entry in _entries("run")]
     assert run[:4] == ["uv", "run", "--project", "$RUNME_ROOT"]
-    assert run[4] == "obs-document"
-    assert run[5:] == ["--adapter-config", "$RUNME_ROOT/adapters.json"]
+    assert run[4:] == ["obs-document"]

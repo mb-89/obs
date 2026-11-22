@@ -92,11 +92,10 @@ def test_a_symlink_in_the_vault_fails_the_source_archive_naming_its_path(tmp_pat
 def test_the_one_call_build_hands_the_adapter_the_source_archive_only_with_the_option(tmp_path) -> None:
     vault = source_vault(tmp_path)
     (tmp_path / "adapter").mkdir()
-    configuration = recording_adapter(tmp_path / "adapter")
+    recording_adapter()
     kept = tmp_path / "document.json"
 
-    assert main(["--source", str(vault / "manifest.md"), "--adapter", "fixture", "--adapter-config",
-                 str(configuration), "--destination", str(tmp_path / "out.json"), "--document", str(kept),
+    assert main(["--source", str(vault / "manifest.md"), "--adapter", "fixture", "--destination", str(tmp_path / "out.json"), "--document", str(kept),
                  "--embed-source"]) == 0
 
     assert "scripts/produce.py" in _files(json.loads(kept.read_text(encoding="utf-8")))
@@ -129,12 +128,12 @@ def test_the_archive_records_the_obs_commit_and_lockfiles_that_rebuild_it(tmp_pa
 def test_the_one_call_build_records_its_arguments_without_a_path_of_the_build_machine(tmp_path) -> None:
     vault = source_vault(tmp_path)
     (tmp_path / "adapter").mkdir()
-    configuration = recording_adapter(tmp_path / "adapter", options={"evidence": {"type": "boolean",
+    recording_adapter(options={"evidence": {"type": "boolean",
                                                                                   "summary": "Evidence."}})
     kept = tmp_path / "document.json"
 
     assert main(["--embed-source", "--source", str(vault / "manifest.md"), "--adapter", "fixture",
-                 "--adapter-config", str(configuration), "--destination", str(tmp_path / "out.json"),
+                 "--destination", str(tmp_path / "out.json"),
                  "--document", str(kept), "--adapter-option", "evidence=true", "--execute-commands"]) == 0
 
     build = json.loads(kept.read_text(encoding="utf-8"))["sourceArchive"]["build"]
@@ -235,10 +234,9 @@ def two_vaults(tmp_path: Path) -> list[Path]:
 
 def test_one_call_builds_each_source_into_the_destination_that_follows_it(tmp_path) -> None:
     first, second = two_vaults(tmp_path)
-    configuration = recording_adapter(tmp_path)
+    recording_adapter()
 
-    assert main(["--adapter", "fixture", "--adapter-config", str(configuration),
-                 "--source", str(first), "--destination", str(tmp_path / "first.json"),
+    assert main(["--adapter", "fixture", "--source", str(first), "--destination", str(tmp_path / "first.json"),
                  "--source", str(second), "--destination", str(tmp_path / "second.json")]) == 0
 
     for name, manifest in (("first", first), ("second", second)):
@@ -257,9 +255,8 @@ def test_one_call_builds_each_source_into_the_destination_that_follows_it(tmp_pa
 def test_several_sources_need_one_destination_each_an_adapter_and_no_document(
         tmp_path, adapter, extra, named) -> None:
     first, second = two_vaults(tmp_path)
-    configuration = recording_adapter(tmp_path)
-    given = ["--source", str(first), "--source", str(second), "--adapter-config", str(configuration),
-             *[str(tmp_path / item) if item.endswith(".json") else item for item in extra],
+    recording_adapter()
+    given = ["--source", str(first), "--source", str(second), *[str(tmp_path / item) if item.endswith(".json") else item for item in extra],
              *(["--adapter", "fixture"] if adapter else [])]
 
     with pytest.raises(SystemExit) as refused:
@@ -272,11 +269,10 @@ def test_several_sources_need_one_destination_each_an_adapter_and_no_document(
 def test_a_failing_source_stops_the_call_naming_it_and_keeps_the_artifacts_built_before(tmp_path) -> None:
     first, second = two_vaults(tmp_path)
     (second.parent / "chapter.md").unlink()
-    configuration = recording_adapter(tmp_path)
+    recording_adapter()
 
     with pytest.raises(SystemExit) as refused:
-        main(["--adapter", "fixture", "--adapter-config", str(configuration),
-              "--source", str(first), "--destination", str(tmp_path / "first.json"),
+        main(["--adapter", "fixture", "--source", str(first), "--destination", str(tmp_path / "first.json"),
               "--source", str(second), "--destination", str(tmp_path / "second.json")])
 
     assert str(second) in str(refused.value.code)
@@ -286,11 +282,10 @@ def test_a_failing_source_stops_the_call_naming_it_and_keeps_the_artifacts_built
 # A vault folder as --source; see spec/design_input/cli.md, One-call build.
 def test_a_vault_folder_builds_from_its_manifest_note(tmp_path) -> None:
     vault = two_vaults(tmp_path)[0].parent
-    configuration = recording_adapter(tmp_path)
+    recording_adapter()
     destination = tmp_path / "out.json"
 
-    assert main(["--adapter", "fixture", "--adapter-config", str(configuration),
-                 "--source", str(vault), "--destination", str(destination)]) == 0
+    assert main(["--adapter", "fixture", "--source", str(vault), "--destination", str(destination)]) == 0
 
     called = json.loads(destination.read_text(encoding="utf-8"))
     assert called["manifest"] == "manifest.md"
@@ -305,8 +300,8 @@ def test_core_configuration_names_the_manifest_note_of_a_vault_folder(tmp_path) 
                                 "execution": {"commandTimeoutSeconds": 15}}), encoding="utf-8")
     destination = tmp_path / "out.json"
 
-    assert main(["--adapter", "fixture", "--adapter-config", str(recording_adapter(tmp_path)),
-                 "--config", str(core), "--source", str(vault), "--destination", str(destination)]) == 0
+    recording_adapter()
+    assert main(["--adapter", "fixture", "--config", str(core), "--source", str(vault), "--destination", str(destination)]) == 0
 
     assert json.loads(destination.read_text(encoding="utf-8"))["manifest"] == "index.md"
 
@@ -315,9 +310,9 @@ def test_a_vault_folder_without_its_manifest_note_names_the_folder_and_the_setti
     vault = tmp_path / "empty"
     vault.mkdir()
 
+    recording_adapter()
     with pytest.raises(SystemExit) as refused:
-        main(["--adapter", "fixture", "--adapter-config", str(recording_adapter(tmp_path)),
-              "--source", str(vault), "--destination", str(tmp_path / "out.json")])
+        main(["--adapter", "fixture", "--source", str(vault), "--destination", str(tmp_path / "out.json")])
 
     message = str(refused.value.code)
     assert str(vault) in message and "manifest.md" in message
@@ -333,9 +328,9 @@ def test_a_destination_inside_the_vault_fails_before_the_build_naming_the_vault(
     (tmp_path / "linked").symlink_to(vault, target_is_directory=True)
     destination = vault / inside if inside != "linked/a.html" else tmp_path / inside
 
+    recording_adapter()
     with pytest.raises(SystemExit) as refused:
-        main(["--adapter", "fixture", "--adapter-config", str(recording_adapter(tmp_path)),
-              "--source", str(vault), "--destination", str(destination)])
+        main(["--adapter", "fixture", "--source", str(vault), "--destination", str(destination)])
 
     message = str(refused.value.code)
     assert "--destination" in message and str(vault.resolve()) in message
@@ -345,11 +340,10 @@ def test_a_destination_inside_the_vault_fails_before_the_build_naming_the_vault(
 
 def test_each_destination_is_checked_against_its_own_source_s_vault(tmp_path) -> None:
     first, second = two_vaults(tmp_path)
-    configuration = recording_adapter(tmp_path)
+    recording_adapter()
 
     with pytest.raises(SystemExit) as refused:
-        main(["--adapter", "fixture", "--adapter-config", str(configuration),
-              "--source", str(first), "--destination", str(second.parent / "first.json"),
+        main(["--adapter", "fixture", "--source", str(first), "--destination", str(second.parent / "first.json"),
               "--source", str(second), "--destination", str(second.parent / "second.json")])
 
     assert f"--source {second}: --destination" in str(refused.value.code)

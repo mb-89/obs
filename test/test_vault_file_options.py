@@ -20,20 +20,18 @@ DECLARED = {"bundle": {"type": "vault-file", "summary": "A file of the vault."}}
 def _call(tmp_path: Path, vault: Path, *option: str, document: Path | None = None) -> list[str]:
     """The arguments the recording adapter received from a one-call build of ``vault``."""
     (tmp_path / "adapter").mkdir(exist_ok=True)
-    configuration = recording_adapter(tmp_path / "adapter", options=DECLARED)
+    recording_adapter(options=DECLARED)
     out = tmp_path / "out.json"
-    assert main(["--source", str(vault / "manifest.md"), "--adapter", "fixture", "--adapter-config",
-                 str(configuration), "--destination", str(out), *option,
+    assert main(["--source", str(vault / "manifest.md"), "--adapter", "fixture", "--destination", str(out), *option,
                  *(["--document", str(document), "--embed-source"] if document else [])]) == 0
     return json.loads(out.read_text(encoding="utf-8"))["arguments"]
 
 
 def _refused(tmp_path: Path, vault: Path, option: str) -> str:
     (tmp_path / "adapter").mkdir(exist_ok=True)
-    configuration = recording_adapter(tmp_path / "adapter", options=DECLARED)
+    recording_adapter(options=DECLARED)
     with pytest.raises(SystemExit) as failure:
-        main(["--source", str(vault / "manifest.md"), "--adapter", "fixture", "--adapter-config",
-              str(configuration), "--destination", str(tmp_path / "out.json"), "--adapter-option", option])
+        main(["--source", str(vault / "manifest.md"), "--adapter", "fixture", "--destination", str(tmp_path / "out.json"), "--adapter-option", option])
     assert not (tmp_path / "out.json").exists()
     return str(failure.value.code)
 
@@ -87,11 +85,10 @@ def test_a_vault_file_option_needs_a_build_from_source(tmp_path) -> None:
 
     document = tmp_path / "document.json"
     write_document(document_fixture(), document, capability_reference())
-    configuration = recording_adapter(tmp_path, options=DECLARED)
+    recording_adapter(options=DECLARED)
 
     with pytest.raises(SystemExit) as failure:
-        main(["--document", str(document), "--adapter", "fixture", "--adapter-config", str(configuration),
-              "--destination", str(tmp_path / "out.json"), "--adapter-option", "bundle=app-v1=app.js"])
+        main(["--document", str(document), "--adapter", "fixture", "--destination", str(tmp_path / "out.json"), "--adapter-option", "bundle=app-v1=app.js"])
 
     message = str(failure.value.code)
     assert "--adapter-option" in message and "--source" in message and ADAPTER_OPTIONS_OWNER in message
@@ -100,11 +97,10 @@ def test_a_vault_file_option_needs_a_build_from_source(tmp_path) -> None:
 def test_each_source_resolves_the_vault_file_inside_its_own_vault(tmp_path) -> None:
     first, second = source_vault(tmp_path / "a"), source_vault(tmp_path / "b")
     (tmp_path / "adapter").mkdir()
-    configuration = recording_adapter(tmp_path / "adapter", options=DECLARED)
+    recording_adapter(options=DECLARED)
     assert main(["--source", str(first / "manifest.md"), "--destination", str(tmp_path / "1.json"),
                  "--source", str(second / "manifest.md"), "--destination", str(tmp_path / "2.json"),
-                 "--adapter", "fixture", "--adapter-config", str(configuration),
-                 "--adapter-option", "bundle=app-v1=data.csv"]) == 0
+                 "--adapter", "fixture", "--adapter-option", "bundle=app-v1=data.csv"]) == 0
 
     for vault, out in ((first, tmp_path / "1.json"), (second, tmp_path / "2.json")):
         arguments = json.loads(out.read_text(encoding="utf-8"))["arguments"]

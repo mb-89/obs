@@ -48,10 +48,9 @@ def large_findings(sizes: dict[str, int], allowed: dict[str, str], limit: int = 
 def unpinned_findings(root: Path, allowed: dict[str, str]) -> list[str]:
     """Entries of `allowed` that no vendor manifest of their part pins.
 
-    A part is the core and each adapter adapters.json registers (architecture.md, Repository layout).
+    A part is the core and each adapter folder, which holds its adapter.json (architecture.md, Repository layout).
     """
-    registry = json.loads((root / "adapters.json").read_text(encoding="utf-8"))["adapters"]
-    parts = [Path(manifest).parent.as_posix() for manifest in registry.values()]
+    parts = [manifest.parent.relative_to(root).as_posix() for manifest in sorted(root.glob("adapters/*/adapter.json"))]
     found = []
     for entry in sorted(allowed):
         part = next((p for p in parts if entry.startswith(f"{p}/")), "")

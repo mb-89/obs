@@ -51,7 +51,7 @@ COUNTER = "builds.txt"
 # The Document build's files, in its folder.
 DOCUMENT, CAPABILITIES = "spec.json", "capabilities.json"
 # What a build reads, relative to ROOT; GENERATED parts of a path are no input.
-INPUTS = ("spec", "src", "adapters/html/src", "adapters/html/spec", "adapters.json", "adapters/html/adapter.json",
+INPUTS = ("spec", "src", "adapters/html/src", "adapters/html/spec", "adapters/html/adapter.json",
           "uv.lock", "test/offline_obs_document.py", "test/spec_build.py")
 GENERATED = {"design_output", "__pycache__", "node_modules"}
 # The core's obs-document without the network.

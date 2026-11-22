@@ -13,7 +13,9 @@ The system is a Python package managed and executed by `uv`.
 2. Resolve a source folder to its conventional manifest note, or accept an explicit note.
 3. The core parses the selected manifest into a schema-valid JSON [[quality#Glossary|Document]] with document metadata, an ordered chapter tree, semantic Markdown nodes, links, and assets.
 4. The core resolves every manifest link within the containing vault and validates frontmatter and supported input syntax.
-5. Adapters project the Document into their output formats, each an [[quality#Glossary|artifact]]; integrated adapters live under `adapters/` ([Repository layout](#repository-layout)).
+5. Adapters project the Document into their output formats, each an [[quality#Glossary|artifact]]; a
+   build finds the adapter it names among the installed components ([[components#Naming a component]]), and
+   integrated adapters live under `adapters/` ([Repository layout](#repository-layout)).
 6. Resolve authorized derived-content providers, including command fences; in a core build the
    core runs them while it builds the Document ([Command output](#command-output)).
 7. Resolve content links and assets within the vault boundary.
@@ -33,10 +35,13 @@ costs rather than treating all conversion as one opaque phase.
 
 ## Repository layout
 
-[[plugins]] replaces this section's integrated adapter and the 5 to 6 Nov decision below: every
-adapter, the one in `adapters/html` included, becomes a plugin in a repository of its own, found on the
-checkout's remotes, and `adapters.json` stops being the registry. Until its implementation lands,
-this section describes the repository as it is.
+[[components]] replaces this section's integrated adapter and the 5 to 6 Nov decision below: every
+adapter, the one in `adapters/html` included, becomes a component in a repository of its own, found
+through the checkout's remotes.
+
+`adapters.json` is gone: a build finds its adapter among the
+installed components, and the adapter in `adapters/html` as the component `html` while it lives here
+([[components#Naming a component]]). Until it moves, this section describes the repository as it is.
 
 The core and its adapters are one repository. The core is `src/obs`; an integrated adapter is
 a folder under `adapters/`, the first in `adapters/html`. Whether a later adapter
@@ -47,8 +52,7 @@ package, tests, browser tests, `spec/` and `adapter.json`, and depends on the co
 workspace path dependency, so a core change and its adapter change land in one commit and
 there is no pin between them.
 
-The root `adapters.json` registers each adapter by the path of
-its `adapter.json`. Each part tests only itself; `uv run python test/suite.py` runs every
+Each adapter folder holds its `adapter.json` at its root. Each part tests only itself; `uv run python test/suite.py` runs every
 part's suite in its own pytest process.
 
 The decision, 5 to 6 Nov 2026, as a matrix ([[capabilities/pugh-decisions]]): the datum is the
@@ -268,7 +272,7 @@ the Document alone and the core is what knows it:
 
 The record names no
 path of the build machine: `--source` is the manifest the Document names, and `--document`,
-`--config`, `--adapter-config` and `--capability-reference` name files outside the vault, so they
+`--config` and `--capability-reference` name files outside the vault, so they
 are left out.
 
 An obs that runs from no Git checkout cannot name its commit: `--embed-source` then
@@ -312,9 +316,9 @@ folder: they are inputs of the documents that declare them.
 
 ### Declared style
 
-[[plugins]] replaces the style named by its address: a manifest names its style plugin by name
+[[components]] replaces the style named by its address: a manifest names its style component by name
 alone, `obs.style: <name>`, and the build records the installed version
-([[plugins#Recording what built a page]]). Until its implementation lands, this section describes
+([[components#Recording what built a page]]). Until its implementation lands, this section describes
 the build as it is.
 
 A vault declares its style as a dependency in its manifest, in the core's namespace:
