@@ -143,6 +143,7 @@ CALLOUT_TYPES: dict[str, tuple[str, tuple[str, ...]]] = {
     "example": ("accent", ()),
     "quote": ("neutral", ("cite",)),
     "important": ("accent", ()),
+    "bluf": ("accent", ()),
 }
 _CALLOUT_NAMES = {
     alias: kind for kind, (_, aliases) in CALLOUT_TYPES.items() for alias in (kind, *aliases)
@@ -306,7 +307,10 @@ def parse_callout(line: str) -> dict[str, str] | None:
 
 
 def _default_callout_title(kind: str, keyword: str) -> str:
-    """An untitled callout's title: its keyword capitalized, none for important; see input-model."""
+    """An untitled callout's title: its keyword capitalized, none for important and "Bottom line" for
+    bluf; see input-model#Callouts."""
+    if kind == "bluf":
+        return "Bottom line"
     return "" if kind == "important" else keyword[0].upper() + keyword[1:].lower()
 
 
