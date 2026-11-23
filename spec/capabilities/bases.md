@@ -51,6 +51,10 @@ this rule set differs, a good system comes before full compatibility, and the ru
   - `"İ"` equals an `i` followed by U+0307 COMBINING DOT ABOVE but not `"i"`, and
   - the dotless `"ı"` equals only itself, never `"I"`.
 
+  The table is generated and committed: `python -m obs.case_folding` writes it from Unicode's
+  file, committed at `data/data_input/CaseFolding.txt`, whose first line names its version, and
+  `generated.yaml` declares it.
+
   Obsidian compares text case-sensitively; this rule set does not, because a reader selects
   by meaning, not by spelling. A query condition asks for the exact case with its flag
   ([[capabilities/queries#Conditions]]); a Bases filter cannot, as Obsidian's syntax has no
