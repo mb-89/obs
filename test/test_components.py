@@ -259,8 +259,20 @@ def test_a_requirement_nothing_offers_fails_naming_the_chain(host, checkout, mac
     with pytest.raises(SystemExit) as refused:
         components.main(["install", "a"])
 
-    assert str(refused.value).startswith("obs-components: a -> s: a requires s ^2.0, and no repository offers ")
-    assert OWNER in str(refused.value)
+    assert str(refused.value).startswith("obs-components: a -> s: ")
+    assert f"{OWNER} (Requirements)" in str(refused.value)
+    assert installed_versions(machine) == {"a": "1.0.0"}
+
+
+def test_a_requirement_whose_pin_is_no_caret_pin_fails_naming_its_field(host, checkout, machine) -> None:
+    host.repository("alice", "a", {"v1.0.0": {**adapter_files("a"), **requires(s={"version": ">=1.0"})}})
+    host.repository("alice", "s", {"v1.0.0": {"style.css": "body {}"}})
+
+    with pytest.raises(SystemExit) as refused:
+        components.main(["install", "a"])
+
+    assert str(refused.value).startswith("obs-components: a: se.toml: components.s.version: ")
+    assert f"{OWNER} (Requirements)" in str(refused.value)
 
 
 @pytest.mark.parametrize(("pin", "admitted", "refused"), [
