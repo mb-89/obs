@@ -124,10 +124,19 @@ def fakes(request, monkeypatch) -> SimpleNamespace:
     real = {name for mark in request.node.iter_markers("door") for name in mark.args}
     unknown = real - set(doors.NAMES)
     assert not unknown, f"pytest.mark.door names no door of test/doors.py: {sorted(unknown)}; doors: {doors.NAMES}"
-    fake = SimpleNamespace(component_git=doors.ComponentGit())
+    from obs import commands, document, sources
+
+    fake = SimpleNamespace(component_git=doors.ComponentGit(), source_git=doors.SourceGit(),
+                           adapter=doors.AdapterProcess(), shell=doors.Shell(), part=doors.Part())
     if "component-git" not in real:
         monkeypatch.setattr(components, "GIT", fake.component_git)
         monkeypatch.setattr(components, "LISTINGS", {"example.test": fake.component_git.listing})
+    for name, module, attribute, door in (("source-git", sources, "run_git", fake.source_git),
+                                          ("adapter", document, "run_adapter", fake.adapter),
+                                          ("shell", commands, "run_shell", fake.shell),
+                                          ("part", suite, "start_part", fake.part)):
+        if name not in real:
+            monkeypatch.setattr(module, attribute, door)
     return fake
 
 

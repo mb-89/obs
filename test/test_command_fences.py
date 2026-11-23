@@ -4,6 +4,7 @@ Reader: whoever changes how the core runs command fences; capabilities/command-f
 contract.
 """
 import json
+import os
 import re
 import sys
 from pathlib import Path
@@ -149,3 +150,22 @@ def test_the_check_on_captured_output_names_what_it_found(tmp_path, monkeypatch)
     message = str(raised.value.code)
     assert re.match(rf"obs-document: {re.escape(str(vault.resolve() / 'chapter.md'))}: cmd fence 1: ", message)
     assert "command root" in message and "see capabilities/command-fences." in message
+
+
+@pytest.mark.door("shell")
+def test_the_real_shell_answers_as_its_fake(tmp_path, fakes) -> None:
+    """The contract of commands.run_shell, which test/doors.py's Shell follows in this process: its
+    output, both streams together, and its exit code, in the folder and with the environment given; the
+    shell may add its own variables."""
+    environment = {name: value for name, value in os.environ.items() if name.upper() in MINIMAL_ENVIRONMENT}
+    commands_run = ["echo example", _python("print(1 + 1)"), _python("import os; print(os.getcwd())"),
+                    _python("import sys; print(1, flush=True); print(2, file=sys.stderr); raise SystemExit(3)")]
+    for command in commands_run:
+        real = commands.run_shell(command, tmp_path, environment, 60)
+        fake = fakes.shell(command, tmp_path, environment, 60)
+        assert (real.returncode, real.stdout) == (fake.returncode, fake.stdout), command
+
+    listed = _python("import os; print(*sorted(os.environ))")
+    real = set(commands.run_shell(listed, tmp_path, environment, 60).stdout.split())
+    fake = set(fakes.shell(listed, tmp_path, environment, 60).stdout.split())
+    assert fake == set(environment) and fake <= real <= fake | {"PWD", "SHLVL", "_", "LC_CTYPE", "OLDPWD"}

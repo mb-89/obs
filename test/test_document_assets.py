@@ -30,6 +30,7 @@ def asset_vault(tmp_path: Path, chapter: str) -> Path:
     return vault
 
 
+@pytest.mark.door("adapter")  # A Node adapter runs only as a real process.
 def test_an_adapter_obtains_an_image_s_bytes_from_the_document_without_the_vault(tmp_path) -> None:
     vault = asset_vault(tmp_path, "![Pixel](media/pixel.png)\n")
     reference = capability_reference()
