@@ -238,10 +238,12 @@ def test_each_block_or_section_that_sets_a_key_is_a_block_record(tmp_path: Path)
         {"node": section["id"], "chapter": "design", "kind": "section", "path": "Design › Design",
          "fields": {"status": "draft"}},
         {"node": paragraph["id"], "chapter": "design", "kind": "paragraph", "path": "Design › Design › paragraph",
-         "fields": {"owner": "bo"}},
+         "fields": {"owner": "bo"}, "overrides": {"owner": {"value": "ana", "frontmatter": True}}},
         {"node": table["id"], "chapter": "design", "kind": "table", "path": "Design › Design › Valves › table",
-         "fields": {"owner": "mb"}},
+         "fields": {"owner": "mb"}, "overrides": {"owner": {"value": "ana", "frontmatter": True}}},
     ]
+    assert [record["block"].get("overrides") for record in blocks] == [
+        node.get("overrides") for node in (section, paragraph, table)]
     assert [record["note"] for record in blocks] == ["design"] * 3
     assert [record["fields"] for record in blocks] == [
         {"owner": "ana", "review.state": "open", "status": "draft"},
@@ -288,11 +290,16 @@ def test_the_schema_validates_a_block_record() -> None:
               "block": {"node": "table-1", "chapter": "design", "kind": "table", "path": "Design › table",
                         "fields": {"owner": "mb", "state": None}}}
     assert list(validator.iter_errors(record)) == []
+    overriding = {**record, "block": {**record["block"], "overrides": {"owner": {"value": "ana", "frontmatter": True},
+                                                                       "state": {"value": "x", "node": "section-1"}}}}
+    assert list(validator.iter_errors(overriding)) == []
     for broken in (
         {key: value for key, value in record.items() if key != "block"},
         {key: value for key, value in record.items() if key != "note"},
         {**record, "block": {**record["block"], "fields": {}}},
         {**record, "block": {**record["block"], "extra": 1}},
+        {**record, "block": {**record["block"], "overrides": {}}},
+        {**record, "block": {**record["block"], "overrides": {"owner": {"value": "ana"}}}},
     ):
         assert list(validator.iter_errors(broken)), broken
     assert list(validator.iter_errors({**record, "type": "note", "path": "design.md", "fieldNodes": []}))

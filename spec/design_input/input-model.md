@@ -2019,6 +2019,8 @@ the blocks.
   `chapter`, its chapter's id (`home` for the abstract); `kind`, its node type; `path`, the
   chapter's title, the titles of the sections around it outer-first and its kind, joined by
   ` › ` (a section's last part is its own title); and `fields`, the keys it sets itself.
+- Where its node overrides an outer value, its `block` also carries that node's `overrides`
+  ([[#Document fields]]).
 - A filter resolves a property on the block's effective values first, then `block.node`,
   `block.chapter`, `block.kind` and `block.path` on its `block`. A block of an ignored note is
   never selected.

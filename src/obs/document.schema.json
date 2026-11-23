@@ -775,11 +775,12 @@
         "ignored": {"const": true, "description": "Present on an ignored note: queries and Bases never select it or a row it owns (markdown-frontmatter, Ignored notes)."},
         "quantity": {"description": "Present on the record of every quantity note the Document includes: its quantity, as on its quantities node.", "$ref": "#/$defs/quantity"},
         "block": {
-          "description": "The block node a block record is (input-model#Block records): its id, its chapter's id (home for the abstract), its node type, its path of chapter title, section titles outer-first and kind joined by ' › ', and the block fields it sets itself.",
+          "description": "The block node a block record is (input-model#Block records): its id, its chapter's id (home for the abstract), its node type, its path of chapter title, section titles outer-first and kind joined by ' › ', the block fields it sets itself, and its node's overrides where it has them.",
           "type": "object", "additionalProperties": false, "required": ["node", "chapter", "kind", "path", "fields"],
           "properties": {
             "node": {"$ref": "#/$defs/nodeId"}, "chapter": {"$ref": "#/$defs/id"}, "kind": {"type": "string"},
-            "path": {"type": "string", "minLength": 1}, "fields": {"$ref": "#/$defs/blockFields"}
+            "path": {"type": "string", "minLength": 1}, "fields": {"$ref": "#/$defs/blockFields"},
+            "overrides": {"$ref": "#/$defs/blockFieldOverrides"}
           }
         }
       },
