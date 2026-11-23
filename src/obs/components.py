@@ -77,15 +77,23 @@ def parse_address(address: str) -> Address | None:
     return Address(address, host.lower(), parts[-2], repository) if repository else None
 
 
-def _token() -> str | None:
-    """The person's GitHub login token: GH_TOKEN, GITHUB_TOKEN, or what ``gh auth token`` prints."""
-    for variable in ("GH_TOKEN", "GITHUB_TOKEN"):
+def _login_variables(host: str) -> tuple[str, str]:
+    """The environment variables gh reads ``host``'s login from: on github.com GH_TOKEN or GITHUB_TOKEN, on
+    any other host GH_ENTERPRISE_TOKEN or GITHUB_ENTERPRISE_TOKEN."""
+    return ("GH_TOKEN", "GITHUB_TOKEN") if host == "github.com" else ("GH_ENTERPRISE_TOKEN", "GITHUB_ENTERPRISE_TOKEN")
+
+
+def _token(host: str = "github.com") -> str | None:
+    """The person's login token for ``host``, the way gh reads it: its login variables, else what
+    ``gh auth token --hostname <host>`` prints."""
+    for variable in _login_variables(host):
         if os.environ.get(variable):
             return os.environ[variable]
     if shutil.which("gh") is None:
         return None
     try:
-        completed = subprocess.run(["gh", "auth", "token"], capture_output=True, text=True, timeout=30, check=False)
+        completed = subprocess.run(["gh", "auth", "token", "--hostname", host], capture_output=True, text=True,
+                                   timeout=30, check=False)
     except (OSError, subprocess.SubprocessError):
         return None
     return (completed.stdout.strip() or None) if completed.returncode == 0 else None
@@ -109,13 +117,13 @@ def _get_json(url: str, token: str | None) -> object:
         raise ListingError(str(getattr(error, "reason", error))) from error
 
 
-def github_repositories(owner: str) -> list[str]:
-    """The names of ``owner``'s repositories on github.com that carry the topic, through GitHub's
-    repository search, with the person's login where there is one."""
-    token, names, page = _token(), [], 1
+def github_repositories(owner: str, host: str = "github.com") -> list[str]:
+    """The names of ``owner``'s repositories on ``host`` that carry the topic, through GitHub's repository
+    search at the host's API (``api.<host>``), with the person's login for that host where there is one."""
+    token, names, page = _token(host), [], 1
     query = urllib.parse.quote(f"topic:{TOPIC} user:{owner} fork:true")
     while True:
-        result = _get_json(f"https://api.github.com/search/repositories?q={query}&per_page=100&page={page}", token)
+        result = _get_json(f"https://api.{host}/search/repositories?q={query}&per_page=100&page={page}", token)
         items = result.get("items", []) if isinstance(result, dict) else []
         names += [item["name"] for item in items if isinstance(item, dict) and isinstance(item.get("name"), str)]
         if len(items) < 100 or page == 10:  # The search answers at most 1000 results.
@@ -123,8 +131,14 @@ def github_repositories(owner: str) -> list[str]:
         page += 1
 
 
-LISTINGS: dict[str, Callable[[str], list[str]]] = {"github.com": github_repositories}
-"""Each host obs can ask for an owner's component repositories, and how."""
+LISTINGS: dict[str, Callable[[str], list[str]]] = {}
+"""A host whose owners are listed some other way than GitHub's repository search; none but in tests."""
+
+
+def listing(host: str) -> Callable[[str], list[str]]:
+    """How obs asks ``host`` for an owner's component repositories: every remote's host the same way,
+    through GitHub's repository search at its API, unless LISTINGS names another way."""
+    return LISTINGS.get(host) or (lambda owner: github_repositories(owner, host))
 
 
 @dataclass(frozen=True)
@@ -260,18 +274,14 @@ def repositories(folder: Path, warn: Callable[[str], None]) -> list[str]:
             warn(f"remote {remote}: its address {address} names no host and owner to list; reading its own "
                  f"repository only")
             continue
-        listing = LISTINGS.get(parsed.host)
-        if listing is None:
-            found.append(address)
-            warn(f"remote {remote}: host {parsed.host} has no repository listing obs knows, so owner "
-                 f"{parsed.owner} is not searched; reading its own repository only")
-            continue
+        lister = listing(parsed.host)
         try:
-            listed = listing(parsed.owner)
+            listed = lister(parsed.owner)
         except ListingError as error:
             found.append(address)
             warn(f"remote {remote}: host {parsed.host} cannot list owner {parsed.owner}: {error}; reading its own "
-                 f"repository only (a private owner needs a login: GH_TOKEN, GITHUB_TOKEN or gh auth login)")
+                 f"repository only (a private owner needs a login for {parsed.host}: "
+                 f"{', '.join(_login_variables(parsed.host))} or gh auth login --hostname {parsed.host})")
             continue
         marked = {name.lower(): name for name in listed}
         if parsed.repository.lower() in marked:
