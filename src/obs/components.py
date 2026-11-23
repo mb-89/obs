@@ -8,6 +8,7 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import tomllib
 import urllib.error
 import urllib.parse
 import urllib.request
@@ -426,6 +427,75 @@ def install(folder: Path, release: Release) -> None:
         shutil.rmtree(staging, ignore_errors=True)
 
 
+REQUIREMENTS = "se.toml"
+"""The file at a component's root whose table ``[components]`` names the components it requires."""
+
+_PIN = re.compile(r"\^?(0|[1-9][0-9]*)(?:\.(0|[1-9][0-9]*))?(?:\.(0|[1-9][0-9]*))?")
+
+
+def requirements(tree: Path, name: str) -> dict[str, str | None]:
+    """The components the installed ``tree`` of ``name`` requires, by name, with their pins: each entry of
+    its se.toml's ``[components]`` but those marked ``optional = true``."""
+    path = tree / REQUIREMENTS
+    if not path.is_file():
+        return {}
+    try:
+        table = tomllib.loads(path.read_text(encoding="utf-8")).get("components", {})
+    except (OSError, ValueError) as error:
+        raise ComponentError(f"{name}: {REQUIREMENTS}: cannot be read ({error}). Install another version; see "
+                             f"{OWNER} (Requirements)") from error
+    found = {}
+    for required, entry in (table.items() if isinstance(table, dict) else ()):
+        entry = entry if isinstance(entry, dict) else {}
+        if entry.get("optional") is True:
+            continue
+        pin = entry.get("version")
+        if pin is not None and (not isinstance(pin, str) or _PIN.fullmatch(pin) is None):
+            raise ComponentError(f"{name}: {REQUIREMENTS}: components.{required}.version: {pin!r} is no pin "
+                                 f"(^<major>[.<minor>[.<patch>]]). Install another version; see {OWNER} (Requirements)")
+        found[required.lower()] = pin
+    return found
+
+
+def admits(pin: str | None, version: tuple[int, int, int]) -> bool:
+    """Whether the caret pin admits ``version``: from the pin up to the next change of its leftmost
+    nonzero part, the way Cargo and uv read ^; no pin admits every version."""
+    if pin is None:
+        return True
+    parts = [int(part) for part in _PIN.fullmatch(pin).groups() if part is not None]
+    lowest = tuple(parts + [0] * (3 - len(parts)))
+    if version < lowest:
+        return False
+    fixed = next((index for index, part in enumerate(parts) if part), len(parts) - 1) + 1
+    return version[:fixed] == lowest[:fixed]
+
+
+def install_with_requirements(folder: Path, release: Release,
+                              releases: dict[str, dict[tuple[int, int, int], Release]],
+                              say: Callable[[str], None], chain: tuple[str, ...] = ()) -> None:
+    """Install ``release``, then each component it requires that is not installed at a version its pin
+    admits, the newest offered release the pin admits, and theirs in turn. A required name the
+    listing offers only as no component of obs is another host's, and left to it."""
+    install(folder, release)
+    say(f"installed {release.name} {release.number} ({release.kind}) from {release.repository}"
+        + (f", required by {' -> '.join(chain)}" if chain else ""))
+    chain = (*chain, release.name)
+    for name, pin in requirements(local_folder() / "components" / release.name, release.name).items():
+        offers = releases.get(name, {})
+        if offers and offers[max(offers)].kind == NO_KIND:
+            continue
+        current = installed().get(name)
+        if current and _VERSION.fullmatch(current["version"]) and admits(pin, _version(current["version"])):
+            continue
+        admitted = [version for version in offers if admits(pin, version)]
+        if not admitted:
+            numbers = ", ".join(offers[key].number for key in sorted(offers)) or "none"
+            raise ComponentError(f"{' -> '.join((*chain, name))}: {release.name} requires {name}"
+                                 f"{' ' + pin if pin else ''}, and no repository offers a release it admits; offered: "
+                                 f"{numbers}. Add a remote that reaches it; see {OWNER} (Requirements)")
+        install_with_requirements(folder, offers[max(admitted)], releases, say, chain)
+
+
 def remove(name: str) -> None:
     entries = installed()
     if name not in entries:
@@ -479,7 +549,8 @@ def build_parser() -> argparse.ArgumentParser:
         prog="obs-components",
         description="List the components the checkout's remotes and their owners offer, with installed and newest "
                     "versions, and install, update or remove one in the machine folder (OBS_LOCAL_FOLDER, else obs "
-                    "in the user's configuration folder). Nothing installs unasked.")
+                    "in the user's configuration folder), with the components it requires. Nothing else installs "
+                    "unasked.")
     commands = parser.add_subparsers(dest="command")
     chosen = commands.add_parser("install", help="Install the newest offered release of NAME, or VERSION.")
     chosen.add_argument("name", metavar="NAME")
@@ -520,8 +591,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         if options.command == "update" and current["version"] == release.number:
             print(f"obs-components: {name} {release.number} is the newest offered release; nothing changed")
             return 0
-        install(folder, release)
-        print(f"obs-components: installed {name} {release.number} ({release.kind}) from {release.repository}")
+        install_with_requirements(folder, release, releases, lambda message: print(f"obs-components: {message}"))
     except ComponentError as error:
         raise SystemExit(f"obs-components: {error}") from error
     return 0
