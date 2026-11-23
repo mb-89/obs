@@ -90,6 +90,24 @@ def test_an_owner_the_host_cannot_list_is_one_warning_and_its_remotes_repository
     assert warning.startswith("obs-components: warning: remote carol: host example.test cannot list owner carol")
 
 
+def test_a_listing_that_fails_names_the_login_of_its_own_host(host, checkout, machine, capsys,
+                                                               monkeypatch) -> None:
+    def refused(owner):
+        raise components.ListingError("HTTP 422: The listed users cannot be searched")
+
+    monkeypatch.setattr(components, "LISTINGS", {"example.test": refused, "github.com": refused})
+    host.add_remote(checkout, "hub", "https://github.com/carol/notes.git")
+
+    _, warnings = listed(capsys)
+
+    [other] = [line for line in warnings.splitlines() if "remote origin:" in line]
+    [hub] = [line for line in warnings.splitlines() if "remote hub:" in line]
+    assert other.endswith("(a private owner needs a login for example.test: GH_ENTERPRISE_TOKEN, "
+                          "GITHUB_ENTERPRISE_TOKEN or gh auth login --hostname example.test)")
+    assert hub.endswith("(a private owner needs a login for github.com: GH_TOKEN, GITHUB_TOKEN or gh auth login "
+                        "--hostname github.com)")
+
+
 def test_a_host_that_does_not_answer_is_one_warning(host, checkout, machine, capsys, monkeypatch) -> None:
     def no_answer(url, token):
         raise components.ListingError("no answer")

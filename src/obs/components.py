@@ -76,13 +76,16 @@ def parse_address(address: str) -> Address | None:
     return Address(address, host.lower(), parts[-2], repository) if repository else None
 
 
+def _login_variables(host: str) -> tuple[str, str]:
+    """The environment variables gh reads ``host``'s login from: on github.com GH_TOKEN or GITHUB_TOKEN, on
+    any other host GH_ENTERPRISE_TOKEN or GITHUB_ENTERPRISE_TOKEN."""
+    return ("GH_TOKEN", "GITHUB_TOKEN") if host == "github.com" else ("GH_ENTERPRISE_TOKEN", "GITHUB_ENTERPRISE_TOKEN")
+
+
 def _token(host: str = "github.com") -> str | None:
-    """The person's login token for ``host``, the way gh reads it: on github.com GH_TOKEN or GITHUB_TOKEN,
-    on any other host GH_ENTERPRISE_TOKEN or GITHUB_ENTERPRISE_TOKEN, else what
+    """The person's login token for ``host``, the way gh reads it: its login variables, else what
     ``gh auth token --hostname <host>`` prints."""
-    variables = ("GH_TOKEN", "GITHUB_TOKEN") if host == "github.com" else ("GH_ENTERPRISE_TOKEN",
-                                                                         "GITHUB_ENTERPRISE_TOKEN")
-    for variable in variables:
+    for variable in _login_variables(host):
         if os.environ.get(variable):
             return os.environ[variable]
     if shutil.which("gh") is None:
@@ -276,7 +279,8 @@ def repositories(folder: Path, warn: Callable[[str], None]) -> list[str]:
         except ListingError as error:
             found.append(address)
             warn(f"remote {remote}: host {parsed.host} cannot list owner {parsed.owner}: {error}; reading its own "
-                 f"repository only (a private owner needs a login: GH_TOKEN, GITHUB_TOKEN or gh auth login)")
+                 f"repository only (a private owner needs a login for {parsed.host}: "
+                 f"{', '.join(_login_variables(parsed.host))} or gh auth login --hostname {parsed.host})")
             continue
         marked = {name.lower(): name for name in listed}
         if parsed.repository.lower() in marked:
