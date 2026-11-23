@@ -58,4 +58,5 @@ markers = [
     "browser: native Chrome via Playwright (needs OBS_HTML_TEST_NATIVE_BROWSER)",
     "build: builds a whole Document, artifact or package from inputs it does not make itself",
     "external: needs data outside both repositories; runs only when selected with -m external",
+    "door(name): the contract test of a door, which keeps the real door (spec/design_input/quality.md, Testing boundaries)",
 ]

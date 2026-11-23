@@ -32,24 +32,22 @@ class CommandError(ValueError):
     """Raised when derived command content cannot be produced."""
 
 
+def run_shell(command: str, cwd: Path, environment: dict[str, str] | None,
+              timeout_seconds: int) -> subprocess.CompletedProcess:
+    """The door to a command fence's shell: ``command`` run by the platform's shell in ``cwd`` with
+    ``environment`` (None: ours), its stdout and stderr together as text; subprocess.TimeoutExpired
+    past ``timeout_seconds`` (quality.md, Testing boundaries)."""
+    return subprocess.run(command, cwd=cwd, env=environment, shell=True, check=False, stdout=subprocess.PIPE,
+                          stderr=subprocess.STDOUT, text=True, encoding="utf-8", errors="replace",
+                          timeout=timeout_seconds)
+
+
 def run_command(command: str, cwd: Path, timeout_seconds: int) -> str:
     if not command.strip():
         raise CommandError("A command fence cannot be empty.")
     try:
-        completed = subprocess.run(
-            command,
-            cwd=cwd,
-            env={name: value for name, value in os.environ.items()
-                 if name.upper() in MINIMAL_ENVIRONMENT},
-            shell=True,
-            check=False,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.STDOUT,
-            text=True,
-            encoding="utf-8",
-            errors="replace",
-            timeout=timeout_seconds,
-        )
+        completed = run_shell(command, cwd, {name: value for name, value in os.environ.items()
+                                             if name.upper() in MINIMAL_ENVIRONMENT}, timeout_seconds)
     except subprocess.TimeoutExpired as error:
         raise CommandError(
             f"Command exceeded the {timeout_seconds}-second timeout: {command}"
