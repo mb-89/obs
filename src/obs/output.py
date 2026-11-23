@@ -10,30 +10,47 @@ import os
 import tempfile
 import time
 from pathlib import Path
+from typing import Callable, TypeVar
+
+T = TypeVar("T")
 
 
-def replace_file(source: Path, target: Path, attempts: int = 200) -> None:
-    """``os.replace``, retried while Windows refuses it because a reader has ``target`` open."""
-    for attempt in range(attempts):
+SHARING_REFUSED = os.name == "nt"
+"""Whether the system refuses to replace a file another handle holds open, and to open a file being
+replaced: Windows does, so there the core tries again (architecture, Safety boundaries)."""
+ATTEMPTS = 200
+"""How often a refused replacement or read is tried before its refusal fails the call."""
+PAUSE_SECONDS = 0.01
+"""The pause between two attempts; with ATTEMPTS, a holder gets about two seconds."""
+
+
+def pause() -> None:
+    """The wait between two attempts: this module's clock door, which the tests replace by one that
+    only yields the thread (quality.md, Testing boundaries)."""
+    time.sleep(PAUSE_SECONDS)
+
+
+def _retried(action: Callable[[], T]) -> T:
+    """``action``'s result, tried again after a pause while the system refuses it for a handle another
+    reader or writer holds (SHARING_REFUSED); elsewhere, and after the last attempt, the refusal fails."""
+    for attempt in range(ATTEMPTS):
         try:
-            os.replace(source, target)
-            return
+            return action()
         except PermissionError:
-            if os.name != "nt" or attempt == attempts - 1:
+            if not SHARING_REFUSED or attempt == ATTEMPTS - 1:
                 raise
-            time.sleep(0.01)
+            pause()
+    raise AssertionError("ATTEMPTS is at least 1")
 
 
-def read_file(path: Path, attempts: int = 200) -> bytes:
-    """``path``'s bytes, retried while Windows refuses the read because a writer is replacing it."""
-    for attempt in range(attempts):
-        try:
-            return path.read_bytes()
-        except PermissionError:
-            if os.name != "nt" or attempt == attempts - 1:
-                raise
-            time.sleep(0.01)
-    raise AssertionError("unreachable")
+def replace_file(source: Path, target: Path) -> None:
+    """``os.replace``, tried again while a reader holds ``target`` open (SHARING_REFUSED)."""
+    _retried(lambda: os.replace(source, target))
+
+
+def read_file(path: Path) -> bytes:
+    """``path``'s bytes, tried again while a writer is replacing it (SHARING_REFUSED)."""
+    return _retried(path.read_bytes)
 
 
 def write_output(path: Path, text: str) -> None:
