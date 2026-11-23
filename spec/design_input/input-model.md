@@ -1987,7 +1987,18 @@ with a value and where it comes from, `{value, node}` with the id of the node th
 `{value, frontmatter: true}` from the note's front matter.
 
 A node without `effective` takes its note's front matter as its effective values, so a Document
-without field lines is as before. `document.schema.json` states both.
+without field lines is as before.
+
+Decided by SE, 22 Nov 2026 (work issue `block-fields-name-overrides`): a block or section node
+that sets a key which a container, a section or the note's front matter around it also has a
+value for carries `overrides`: each such key with that outer value and where it comes from, in
+the form `effective` uses. An unset key that hides an outer value is an override too.
+
+An adapter so shows that a block's own value replaces one from farther out without resolving the
+inheritance itself. Not picked: leaving the resolution to each adapter, which repeats the core's
+rules in every adapter.
+
+`document.schema.json` states `fields`, `effective` and `overrides`.
 
 A block's effective values form the mapping front matter forms for a note, so a query condition
 matches a block's effective fields as `field: value` exactly as it matches front matter

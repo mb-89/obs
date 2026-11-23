@@ -120,6 +120,30 @@ def test_effective_values_inherit_override_and_unset(tmp_path: Path) -> None:
     assert _effective(unsets)["state"] == "x"
 
 
+def test_a_section_overriding_front_matter_carries_the_value_it_overrides(tmp_path: Path) -> None:
+    content = _content(tmp_path, "---\nstatus: draft\n---\n# Design\n\nstatus:: review\n\nText.\n")
+    assert _of(content, "section", "Design")["overrides"]["status"] == {"value": "draft", "frontmatter": True}
+
+
+def test_overrides_name_the_nearest_outer_value_and_its_source(tmp_path: Path) -> None:
+    content = _content(tmp_path, (
+        "---\nowner: fm\nreview:\n  state: draft\n---\n"
+        "# Design\n\nowner:: chapter\nphase:: 1\n\n- one\n- two\n\nowner:: list\n\n"
+        "Unsets.\nowner::\nreview.state::\nphase::\n\nNew.\nextra:: x\n\nUnset nothing.\nmissing::\n"
+    ))
+    design = _of(content, "section", "Design")
+    assert design["overrides"] == {"owner": {"value": "fm", "frontmatter": True}}
+    assert _of(content, "list")["overrides"] == {"owner": {"value": "chapter", "node": design["id"]}}
+    assert _of(content, "paragraph", "Unsets.")["overrides"] == {
+        "owner": {"value": "chapter", "node": design["id"]},
+        "review.state": {"value": "draft", "frontmatter": True},
+        "phase": {"value": 1, "node": design["id"]},
+    }
+    assert "overrides" not in _of(content, "paragraph", "New.")
+    assert "overrides" not in _of(content, "paragraph", "Unset nothing.")
+    assert not any("overrides" in node for node in _blocks(content) if "fields" not in node)
+
+
 def test_values_are_yaml_scalars_and_other_text_is_text(tmp_path: Path) -> None:
     content = _content(tmp_path, "Values.\ncount:: 3\ndone:: true\ndue:: 2026-11-22\nwho:: [[Ana]]\nnote:: a: b\n")
     assert _of(content, "paragraph", "Values.")["fields"] == {
@@ -170,19 +194,26 @@ def test_the_schema_validates_fields_and_effective_on_block_and_section_nodes() 
     node = {"type": "section", "attrs": {"level": 2}, "id": "section-1", "children": [],
             "fields": {"review.owner": "ana", "state": None},
             "effective": {"review.owner": {"value": "ana", "node": "section-1"},
-                          "tags": {"value": ["a"], "frontmatter": True}}}
+                          "tags": {"value": ["a"], "frontmatter": True}},
+            "overrides": {"review.owner": {"value": "bo", "node": "section-0"},
+                          "state": {"value": ["a"], "frontmatter": True}}}
     assert list(validator.iter_errors(node)) == []
     for broken in (
         {"fields": {"bad key": "x"}},
         {"fields": {"owner": ["a"]}},
         {"effective": {"owner": {"value": "ana"}}},
         {"effective": {"owner": {"value": "ana", "node": "section-1", "frontmatter": True}}},
+        {"overrides": {}},
+        {"overrides": {"owner": {"value": "ana"}}},
+        {"overrides": {"bad key": {"value": "ana", "frontmatter": True}}},
     ):
         assert list(validator.iter_errors({**copy.deepcopy(node), **broken})), broken
     without_id = {key: value for key, value in node.items() if key != "id"}
     assert list(validator.iter_errors(without_id))
     without_effective = {key: value for key, value in node.items() if key != "effective"}
     assert list(validator.iter_errors(without_effective))
+    without_fields = {key: value for key, value in node.items() if key != "fields"}
+    assert list(validator.iter_errors(without_fields))
 
 
 BLOCK_NOTE = ("---\nowner: ana\nreview:\n  state: open\n---\n# Design\n\nstatus:: draft\n\nThe pump runs.\n"
