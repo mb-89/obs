@@ -1,0 +1,9 @@
+# Every generator of obs whose output is committed: the source it reads, the tracked paths it writes
+# and how a fresh run is compared (`check`, `held_by` or `unchecked`). se's scripts/generated.py reads
+# it; se's guidance note generated-files-are-marked owns the rule.
+generators:
+  - generator: obs.case_folding
+    source: data/data_input/CaseFolding.txt
+    outputs:
+      - src/obs/case-folding.json
+    held_by: test/test_case_folding.py

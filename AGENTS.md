@@ -47,7 +47,10 @@ says, and checks its field report, a landing's in the work pull request it names
   [Figure input direction](spec/design_input/input-model.md#figure-input-direction).
   The copies of se's workflows and actions that obs calls under `.github/` are generated and
   committed too: se writes them at its pin, as its README's [Workflows](../se/README.md#workflows)
-  says.
+  says. The core's case-folding table is generated and committed, from a source committed in
+  `data/data_input`, as [Comparisons](spec/capabilities/bases.md#comparisons) says.
+  `generated.yaml` declares each committed generated file obs's own programs write, as se's guidance
+  note `generated-files-are-marked` says.
 - One owner owns each fact; other locations link to it.
 - Follow se's [authored-prose preservation rule](../se/.github/skills/work-model/SKILL.md#rules-for-all-roles).
 - Do not add compatibility aliases, shims, or fallbacks unless explicitly requested.
