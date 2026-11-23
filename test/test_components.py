@@ -280,6 +280,51 @@ def test_a_release_without_its_entry_file_leaves_the_installed_version(host, che
     assert sorted(path.name for path in (machine / "components").iterdir()) == ["a"]
 
 
+def requires(**entries: dict) -> dict[str, str]:
+    """A release's se.toml naming the components it requires."""
+    lines = []
+    for name, entry in entries.items():
+        lines += [f"[components.{name}]", *(f"{key} = {json.dumps(value)}" for key, value in entry.items()), ""]
+    return {"se.toml": "\n".join(lines)}
+
+
+def test_installing_a_component_installs_what_it_requires_at_the_newest_admitted_release(
+        host, checkout, machine, capsys) -> None:
+    host.repository("alice", "a", {"v1.0.0": {**adapter_files("a"), **requires(
+        s={"version": "^1.0"}, extra={"version": "^1.0", "optional": True}, core={"version": "^5.0"})}})
+    host.repository("alice", "s", {"v1.2.0": {"style.css": "p {}"}, "v2.0.0": {"style.css": "a {}"}})
+    host.repository("alice", "core", {"v5.0.0": {"README.md": "core"}})
+
+    assert components.main(["install", "a"]) == 0
+
+    assert installed_versions(machine) == {"a": "1.0.0", "s": "1.2.0"}
+    assert "installed s 1.2.0 (style) from" in capsys.readouterr().out
+    assert components.main(["install", "a"]) == 0
+    assert "installed s" not in capsys.readouterr().out
+
+
+def test_a_requirement_nothing_offers_fails_naming_the_chain(host, checkout, machine) -> None:
+    host.repository("alice", "a", {"v1.0.0": {**adapter_files("a"), **requires(s={"version": "^2.0"})}})
+    host.repository("alice", "s", {"v1.0.0": {"style.css": "body {}"}})
+
+    with pytest.raises(SystemExit) as refused:
+        components.main(["install", "a"])
+
+    assert str(refused.value).startswith("obs-components: a -> s: a requires s ^2.0, and no repository offers ")
+    assert OWNER in str(refused.value)
+
+
+@pytest.mark.parametrize(("pin", "admitted", "refused"), [
+    ("^1.2", [(1, 2, 0), (1, 9, 9)], [(1, 1, 9), (2, 0, 0)]),
+    ("^0.4", [(0, 4, 0), (0, 4, 7)], [(0, 3, 9), (0, 5, 0)]),
+    ("^0.0.3", [(0, 0, 3)], [(0, 0, 4)]),
+    (None, [(0, 0, 1), (9, 0, 0)], []),
+])
+def test_a_caret_pin_admits_up_to_its_leftmost_nonzero_part(pin, admitted, refused) -> None:
+    assert [components.admits(pin, version) for version in admitted + refused] == (
+        [True] * len(admitted) + [False] * len(refused))
+
+
 @pytest.mark.parametrize(("arguments", "field"), [
     (["install", "nothing"], "install: nothing: "),
     (["install", "a", "9.9.9"], "install: a 9.9.9: "),

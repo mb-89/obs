@@ -117,7 +117,8 @@ list its owner, was chosen over reading every remote's own repository: obs's own
 
 ### Choosing
 
-The person chooses what to install, update or remove; the command never does it unasked:
+The person chooses what to install, update or remove; the command never does it unasked, beyond
+the components a chosen one requires ([Requirements](#requirements)):
 
 - `obs-components install NAME` installs the component's newest offered release, or updates an installed
   one to it.
@@ -136,6 +137,23 @@ install leaves the installed version as it was.
 
 An adapter's entry file is `adapter.json`, which
 must name the component.
+
+### Requirements
+
+A component names the components it requires the way every host does, in the table `[components]`
+of the `se.toml` at its root (se's `docs/components.md`, The requirement list): one entry per name,
+its pin `version = "^<major>[.<minor>[.<patch>]]"`, and `optional = true` where it works without
+it. An entry without `optional` is required. An adapter requires its default style this way, so the
+default style is an ordinary style component that installs with its adapter, not a style built into
+the adapter.
+
+Installing a component installs what it requires, and what those require in turn: each required
+component that is not installed at a version its pin admits gets the newest offered release the pin
+admits. A pin admits versions from itself up to the next change of its leftmost nonzero part, as
+Cargo and uv read `^`. A required name the listing offers only as no component of obs (`obs` or
+`kern`, say) belongs to another host and is left to it. A required component no repository offers at
+an admitted version fails naming the chain from the installed component to it (`a -> s`) and the
+versions offered; the components installed before stay installed.
 
 ### Installed components
 
