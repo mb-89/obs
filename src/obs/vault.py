@@ -1677,7 +1677,8 @@ def add_block_records(document: dict[str, object]) -> None:
             records.append({
                 "id": _unique_identifier(f"block-{chapter}-{node['id']}", used), "type": "block", "note": note,
                 "block": {"node": node["id"], "chapter": chapter, "kind": node["type"], "path": path,
-                          "fields": node["fields"]},
+                          "fields": node["fields"],
+                          **({"overrides": node["overrides"]} if "overrides" in node else {})},
                 "fields": values(node["effective"]),
             })
     for attrs in _register_attrs_of(document):
