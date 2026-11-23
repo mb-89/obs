@@ -21,7 +21,7 @@ from obs.input import InputError, input_error, schema_error
 from obs import block_fields, bottom_lines
 from obs.embeds import assign_sections
 from obs.node_ids import assign_ids
-from obs.output import write_output
+from obs.output import read_file, write_output
 from obs.components import installed as installed_components, main as components_main
 from obs.sources import SourceError, source_archive, validate_source_archive
 from obs.vault import VaultError, add_block_records, build_document as _build_document, manifest_note
@@ -136,7 +136,7 @@ def _all_chapters(chapters: list[dict[str, object]]):
 
 def read_capability_reference(path: Path) -> dict[str, object]:
     try:
-        reference = json.loads(path.read_text(encoding="utf-8"))
+        reference = json.loads(read_file(path).decode("utf-8"))
     except (OSError, json.JSONDecodeError, ValueError) as error:
         raise DocumentError(f"Invalid capability reference {path}: {error}") from error
     capabilities = reference.get("capabilities") if isinstance(reference, dict) else None

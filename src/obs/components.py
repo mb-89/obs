@@ -5,6 +5,7 @@ import json
 import os
 import re
 import shutil
+import stat
 import subprocess
 import sys
 import tempfile
@@ -379,6 +380,20 @@ def _check_entry(release: Release, tree: Path) -> str:
     return kind
 
 
+def _remove_tree(path: Path) -> None:
+    """Remove ``path``; Windows refuses to delete git's read-only object files until they are made writable."""
+    def writable_and_retry(function, name, _error) -> None:
+        try:
+            os.chmod(name, stat.S_IWRITE)
+            function(name)
+        except OSError:
+            pass
+    if sys.version_info >= (3, 12):
+        shutil.rmtree(path, onexc=writable_and_retry)
+    else:
+        shutil.rmtree(path, onerror=writable_and_retry)
+
+
 def install(folder: Path, release: Release) -> None:
     """Install ``release`` in the machine folder, replacing the installed version only once the
     fetched tree holds its kind's entry file."""
@@ -399,7 +414,7 @@ def install(folder: Path, release: Release) -> None:
                                  "commit": release.commit}
         _write_list(entries)
     finally:
-        shutil.rmtree(staging, ignore_errors=True)
+        _remove_tree(staging)
 
 
 def remove(name: str) -> None:
@@ -407,7 +422,7 @@ def remove(name: str) -> None:
     if name not in entries:
         raise ComponentError(f"remove: {name}: is not installed. Name an installed component (obs-components lists them); "
                           f"see {OWNER} (Choosing)")
-    shutil.rmtree(local_folder() / "components" / name, ignore_errors=True)
+    _remove_tree(local_folder() / "components" / name)
     del entries[name]
     _write_list(entries)
 

@@ -5,6 +5,8 @@ import subprocess
 import sys
 from pathlib import Path
 
+import pytest
+
 import bounds
 import tiers
 
@@ -109,6 +111,7 @@ def test_a_test_far_slower_than_its_tiers_typical_time_is_named_and_the_rest_are
     assert bounds.outliers({"test.x::alone": ["dom", 9.0]}, factor=3) == [], "a lone test is its tier's typical time"
 
 
+@pytest.mark.skipif(sys.platform == "win32", reason="pytest-timeout has no signal on Windows; a timeout ends the whole run")
 def test_a_test_past_its_timeout_fails_naming_itself_and_its_timeout(tmp_path: Path) -> None:
     (tmp_path / "conftest.py").write_text("""
 import pytest

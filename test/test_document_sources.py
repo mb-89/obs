@@ -23,6 +23,15 @@ PNG = base64.b64decode(
 )
 
 
+def symlink_or_skip(link: Path, target: Path) -> None:
+    """``link`` pointing at ``target``, or the test skipped where the system refuses symlinks
+    (Windows without Developer Mode or the privilege)."""
+    try:
+        link.symlink_to(target, target_is_directory=target.is_dir())
+    except OSError as error:
+        pytest.skip(f"the system refuses symlinks: {error}")
+
+
 def source_vault(tmp_path: Path) -> Path:
     vault = tmp_path / "vault"
     for folder in ("media", "scripts", ".obsidian", "data_output", "__pycache__", "venv", "lib.egg-info"):
@@ -325,7 +334,8 @@ def test_a_vault_folder_without_its_manifest_note_names_the_folder_and_the_setti
 def test_a_destination_inside_the_vault_fails_before_the_build_naming_the_vault(tmp_path, inside) -> None:
     vault = two_vaults(tmp_path)[0].parent
     (vault / "chapter.md").unlink()  # A build would fail on the missing note; the refusal comes first.
-    (tmp_path / "linked").symlink_to(vault, target_is_directory=True)
+    if inside == "linked/a.html":
+        symlink_or_skip(tmp_path / "linked", vault)
     destination = vault / inside if inside != "linked/a.html" else tmp_path / inside
 
     recording_adapter()

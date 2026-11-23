@@ -183,6 +183,7 @@ def test_the_build_replaces_the_capability_reference_atomically_and_leaves_a_cur
     import threading
 
     from obs.document import DocumentError, read_capability_reference
+    from obs.output import replace_file
 
     monkeypatch.setattr(hook, "build_diagrams", lambda root: [])
     shutil.copytree(ROOT / "spec" / "capabilities", tmp_path / "spec" / "capabilities")
@@ -209,7 +210,7 @@ def test_the_build_replaces_the_capability_reference_atomically_and_leaves_a_cur
         for _ in range(50):
             staged = reference.with_name("stale")
             staged.write_bytes(stale)
-            staged.replace(reference)
+            replace_file(staged, reference)
             stale_file = reference.stat()
             build.initialize("standard", {"artifacts": []})
             assert reference.stat().st_ino != stale_file.st_ino, "the build rewrote the reference in place"
