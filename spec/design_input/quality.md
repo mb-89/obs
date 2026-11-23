@@ -74,6 +74,22 @@ definitions alike. Keeping the same fact in two places is an anti-pattern (user,
 - Treat filesystem access, subprocesses, clocks, browser printing/storage, and network assets as
   explicit adapters ("doors"). Exercise each adapter's real functionality once at its boundary;
   test callers against controlled fakes rather than repeating external work in every test.
+- A test starts no process. Each door of the core that starts one is a named function or object
+  its module owns, and `test/doors.py` holds its fake, which `test/conftest.py` puts in its place
+  for every test.
+
+  The doors are Git for the component command (`components.GIT`) and for the source archive
+  (`sources.run_git`), an adapter's process (`document.run_adapter`) and a command fence's shell
+  (`commands.run_shell`).
+
+  The real door runs only in its contract tests, marked `pytest.mark.door("<name>")`, which also
+  show that the fake answers as the real door does. A fake asked for what it does not know fails
+  the test naming that mark.
+
+  An entry point is called in-process through its `main(argv)`, with one test per entry point
+  that starts it as a real process. A test whose subject is a fresh interpreter or a process tree
+  (an import that must not load a module, a timeout that kills its test, a part of the complete
+  suite stopped at its cap) starts that one process itself.
 - Keep transformations and query evaluation pure where practical. Inject inputs/results at
   the boundary, not arbitrary internal implementation details.
 - Reuse small, intention-revealing fixtures. Keep one end-to-end smoke path alongside focused

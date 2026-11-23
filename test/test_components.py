@@ -1,6 +1,6 @@
-"""The component command, obs-components (spec/design_input/components.md): owners searched through a fake host
-listing, component repositories as local bare repositories reached through Git's url.insteadOf, and a
-machine folder below the test's own temporary folder. No test reaches the network."""
+"""The component command, obs-components (spec/design_input/components.md): its Git door answered by the fake
+of test/doors.py, a host of repositories in memory whose owners a fake listing searches, and a machine
+folder below the test's own temporary folder; one contract test runs real Git. No test reaches the network."""
 import json
 import re
 import subprocess
@@ -8,19 +8,13 @@ from pathlib import Path
 
 import pytest
 
+import doors
 from obs import components
 from obs.adapter import AdapterError, adapter_location, load_adapter
 from obs.document import build_parser, main as document_main
 
 OWNER = "spec/design_input/components.md"
-HOST = "https://example.test/"
-IDENTITY = ["-c", "user.name=obs test", "-c", "user.email=obs-test@example.invalid", "-c", "init.defaultBranch=main"]
-
-
-def git(folder: Path, *arguments: str) -> str:
-    completed = subprocess.run(["git", *IDENTITY, "-C", str(folder), *arguments], capture_output=True, text=True,
-                               check=True)
-    return completed.stdout
+HOST = doors.COMPONENT_HOST
 
 
 def adapter_files(name: str) -> dict[str, str]:
@@ -28,50 +22,9 @@ def adapter_files(name: str) -> dict[str, str]:
                                         "capabilities": ["manifest"]})}
 
 
-class Host:
-    """Bare repositories below ``root/<owner>/<repository>.git``, reached as HOST<owner>/<repository>.git,
-    and the topic listing a fake host answers for each owner."""
-
-    def __init__(self, root: Path) -> None:
-        self.root = root
-        self.topics: dict[str, list[str]] = {}
-
-    def repository(self, owner: str, name: str, releases: dict[str, dict[str, str]], topic: bool = True) -> str:
-        bare = self.root / owner / f"{name}.git"
-        work = self.root / "work" / owner / name
-        if not bare.exists():
-            bare.parent.mkdir(parents=True, exist_ok=True)
-            git(self.root, "init", "-q", "--bare", str(bare))
-            work.mkdir(parents=True)
-            git(work, "init", "-q")
-            git(work, "remote", "add", "origin", str(bare))
-            (work / "README.md").write_text(name, encoding="utf-8")
-            git(work, "add", "-A")
-            git(work, "commit", "-qm", "start")
-            git(work, "push", "-q", "origin", "HEAD:main")
-        for tag, files in releases.items():
-            for path, text in files.items():
-                (work / path).write_text(text, encoding="utf-8")
-            git(work, "add", "-A")
-            git(work, "commit", "-qm", tag, "--allow-empty")
-            git(work, "tag", "-a", tag, "-m", tag)
-            git(work, "push", "-q", "origin", "HEAD:main", tag)
-        if topic:
-            self.topics.setdefault(owner, []).append(name)
-        return f"{HOST}{owner}/{name}.git"
-
-    def listing(self, owner: str) -> list[str]:
-        if owner not in self.topics:
-            raise components.ListingError("HTTP 422: The listed users cannot be searched")
-        return self.topics[owner]
-
-
 @pytest.fixture
-def host(tmp_path, monkeypatch) -> Host:
-    fake = Host(tmp_path / "host")
-    fake.root.mkdir()
-    monkeypatch.setattr(components, "LISTINGS", {"example.test": fake.listing})
-    return fake
+def host(fakes) -> doors.ComponentGit:
+    return fakes.component_git
 
 
 @pytest.fixture
@@ -80,11 +33,9 @@ def checkout(tmp_path, monkeypatch, host) -> Path:
     lists alice's marked repositories, none at first."""
     folder = tmp_path / "checkout"
     folder.mkdir()
-    git(folder, "init", "-q")
-    git(folder, "config", f"url.{host.root.as_uri()}/.insteadOf", HOST)
     host.repository("alice", "obs", {}, topic=False)
     host.topics.setdefault("alice", [])
-    git(folder, "remote", "add", "origin", f"{HOST}alice/obs.git")
+    host.checkout(folder, origin=f"{HOST}alice/obs.git")
     monkeypatch.setattr(components, "CHECKOUT", folder)
     return folder
 
@@ -113,7 +64,7 @@ def test_a_remotes_owner_offers_its_topic_repositories_with_no_remote_added(host
     assert rows == {"a": ["adapter", "not", "installed", "1.2.0", first],
                     "b": ["style", "not", "installed", "0.1.0", second]}
     assert warnings == ""
-    assert git(checkout, "remote").split() == ["origin"]
+    assert [name for name, _ in host.remotes(checkout)] == ["origin"]
 
 
 def test_another_owners_component_is_found_once_one_of_its_repositories_is_a_remote(
@@ -122,7 +73,7 @@ def test_another_owners_component_is_found_once_one_of_its_repositories_is_a_rem
     host.repository("bob", "notes", {}, topic=False)
     assert "c" not in listed(capsys)[0]
 
-    git(checkout, "remote", "add", "bob", f"{HOST}bob/notes.git")
+    host.add_remote(checkout, "bob", f"{HOST}bob/notes.git")
 
     assert listed(capsys)[0]["c"] == ["adapter", "not", "installed", "2.0.0", offered]
 
@@ -130,7 +81,7 @@ def test_another_owners_component_is_found_once_one_of_its_repositories_is_a_rem
 def test_an_owner_the_host_cannot_list_is_one_warning_and_its_remotes_repository_is_still_read(
         host, checkout, machine, capsys) -> None:
     own = host.repository("carol", "own", {"v1.0.0": adapter_files("own")}, topic=False)
-    git(checkout, "remote", "add", "carol", own)
+    host.add_remote(checkout, "carol", own)
 
     rows, warnings = listed(capsys)
 
@@ -154,7 +105,7 @@ def test_the_newest_release_wins_and_a_tie_goes_to_the_first_remote(host, checko
     newer = host.repository("bob", "d", {"v1.1.0": adapter_files("d")})
     tie = host.repository("alice", "e", {"v1.0.0": adapter_files("e")})
     host.repository("bob", "e", {"v1.0.0": adapter_files("e")})
-    git(checkout, "remote", "add", "upstream", f"{HOST}bob/obs-d.git")  # git remote lists it after origin.
+    host.add_remote(checkout, "upstream", f"{HOST}bob/obs-d.git")  # git remote lists it after origin.
 
     rows, _ = listed(capsys)
 
@@ -233,8 +184,7 @@ def test_a_remotes_own_repository_is_read_only_where_its_host_lists_it_as_marked
 def test_install_update_and_remove_change_only_the_machine_folder_and_its_list(
         host, checkout, machine, capsys) -> None:
     host.repository("alice", "a", {"v1.0.0": adapter_files("a")})
-    state = (git(checkout, "status", "--porcelain", "--ignored"), git(checkout, "for-each-ref"),
-             sorted(path.relative_to(checkout).as_posix() for path in checkout.rglob("*")))
+    state = (host.remotes(checkout), sorted(path.relative_to(checkout).as_posix() for path in checkout.rglob("*")))
 
     assert components.main(["install", "a", "1.0.0"]) == 0
     entry = json.loads((machine / "components.json").read_text(encoding="utf-8"))
@@ -255,8 +205,7 @@ def test_install_update_and_remove_change_only_the_machine_folder_and_its_list(
     assert installed_versions(machine) == {}
     assert sorted(path.name for path in (machine / "components").iterdir()) == []
     assert sorted(path.name for path in machine.iterdir()) == ["components", "components.json"]
-    assert state == (git(checkout, "status", "--porcelain", "--ignored"), git(checkout, "for-each-ref"),
-                     sorted(path.relative_to(checkout).as_posix() for path in checkout.rglob("*")))
+    assert state == (host.remotes(checkout), sorted(path.relative_to(checkout).as_posix() for path in checkout.rglob("*")))
     assert "example.test" not in (machine / "components.json").read_text(encoding="utf-8")
 
 
@@ -387,3 +336,69 @@ def test_obs_document_hands_components_to_the_component_command(host, checkout, 
     host.repository("alice", "a", {"v1.0.0": adapter_files("a")})
     assert document_main(["components"]) == 0
     assert capsys.readouterr().out.splitlines()[1].split()[0] == "a"
+
+
+IDENTITY = ["-c", "user.name=obs test", "-c", "user.email=obs-test@example.invalid", "-c", "init.defaultBranch=main"]
+
+
+def real_git(folder: Path, *arguments: str) -> str:
+    return subprocess.run(["git", *IDENTITY, "-C", str(folder), *arguments], capture_output=True, text=True,
+                          check=True).stdout
+
+
+@pytest.mark.door("component-git")
+def test_the_real_git_door_answers_as_its_fake_and_installs_a_release(tmp_path, monkeypatch, machine, capsys) -> None:
+    """The contract of components.GIT: a bare repository with an annotated and a lightweight release,
+    reached through a checkout's url.insteadOf, read by real Git and by the fake from the same releases,
+    answers alike: the checkout, its remotes by name, the tags, a release's root names, its fetched
+    tree with no Git folder and a missing repository's message. Then the command lists and installs
+    through real Git."""
+    releases = {"v1.0.0": adapter_files("a"), "v1.1.0": {**adapter_files("a"), "docs/guide.md": "# Guide"}}
+    root = tmp_path / "host"
+    bare, work = root / "alice" / "a.git", tmp_path / "work"
+    bare.parent.mkdir(parents=True)
+    real_git(tmp_path, "init", "-q", "--bare", str(bare))
+    work.mkdir()
+    real_git(work, "init", "-q")
+    (work / "README.md").write_text("a", encoding="utf-8")
+    for tag, files in releases.items():
+        for path, text in files.items():
+            (work / path).parent.mkdir(parents=True, exist_ok=True)
+            (work / path).write_text(text, encoding="utf-8")
+        real_git(work, "add", "-A")
+        real_git(work, "commit", "-qm", tag)
+        real_git(work, *(["tag", "-a", tag, "-m", tag] if tag == "v1.0.0" else ["tag", tag]))
+    real_git(work, "push", "-q", str(bare), "HEAD:main", *releases)
+    folder = tmp_path / "checkout"
+    folder.mkdir()
+    real_git(folder, "init", "-q")
+    real_git(folder, "config", f"url.{root.as_uri()}/.insteadOf", HOST)
+    real_git(folder, "remote", "add", "zed", f"{HOST}alice/a.git")
+    real_git(folder, "remote", "add", "origin", f"{HOST}alice/obs.git")
+
+    fake = doors.ComponentGit()
+    fake.checkout(folder, zed=f"{HOST}alice/a.git", origin=f"{HOST}alice/obs.git")
+    fake.repository("alice", "a", {"v1.0.0": releases["v1.0.0"]})
+    fake.repository("alice", "a", {"v1.1.0": releases["v1.1.0"]}, annotated=False)
+
+    def answers(door, into: Path) -> tuple:
+        objects: dict[str, str] = {}
+        tags = door.tags(folder, f"{HOST}alice/a.git")
+        shape = [(reference, objects.setdefault(named, f"object {len(objects)}")) for reference, named in tags]
+        into.mkdir()
+        fetched = door.fetch(folder, f"{HOST}alice/a.git", "v1.1.0", into)
+        tree = sorted(path.relative_to(into).as_posix() for path in into.rglob("*") if path.is_file())
+        missing = door.tags(folder, f"{HOST}alice/none.git")
+        return (door.toplevel(folder).resolve() == folder.resolve(), door.toplevel(tmp_path / "elsewhere"),
+                door.remotes(folder), shape, door.root_names(folder, f"{HOST}alice/a.git", "v1.0.0"),
+                fetched, tree, isinstance(missing, str))
+
+    (tmp_path / "elsewhere").mkdir()
+    assert answers(components.GIT, tmp_path / "real") == answers(fake, tmp_path / "fake")
+
+    monkeypatch.setattr(components, "CHECKOUT", folder)
+    monkeypatch.setattr(components, "LISTINGS", {})
+    assert components.main(["install", "a"]) == 0
+    assert installed_versions(machine) == {"a": "1.1.0"}
+    assert not (machine / "components" / "a" / ".git").exists()
+    assert "obs-components: installed a 1.1.0 (adapter)" in capsys.readouterr().out

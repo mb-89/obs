@@ -4,10 +4,12 @@ import os
 import shutil
 import threading
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 
 import bounds
+import doors
 import network_guard
 import spec_build
 import suite
@@ -111,6 +113,22 @@ def pytest_sessionfinish(session, exitstatus):
 @pytest.hookimpl(optionalhook=True)
 def pytest_testnodedown(node, error):
     tiers.node_down(node.config, node)
+
+
+@pytest.fixture(autouse=True)
+def fakes(request, monkeypatch) -> SimpleNamespace:
+    """Each door that starts a process replaced by its fake of test/doors.py (quality.md, Testing
+    boundaries); a test marked ``pytest.mark.door("<name>")``, the door's contract test, keeps that real one."""
+    from obs import components
+
+    real = {name for mark in request.node.iter_markers("door") for name in mark.args}
+    unknown = real - set(doors.NAMES)
+    assert not unknown, f"pytest.mark.door names no door of test/doors.py: {sorted(unknown)}; doors: {doors.NAMES}"
+    fake = SimpleNamespace(component_git=doors.ComponentGit())
+    if "component-git" not in real:
+        monkeypatch.setattr(components, "GIT", fake.component_git)
+        monkeypatch.setattr(components, "LISTINGS", {"example.test": fake.component_git.listing})
+    return fake
 
 
 class UnreachableNetwork(OSError):

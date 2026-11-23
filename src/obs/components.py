@@ -158,32 +158,99 @@ def repository_name(address: str) -> str:
     return name.lower()
 
 
-def _git(checkout: Path, *arguments: str) -> subprocess.CompletedProcess:
-    environment = {**os.environ, "GIT_TERMINAL_PROMPT": "0"}
-    return subprocess.run(["git", "-C", str(checkout), *arguments], capture_output=True, text=True,
-                          encoding="utf-8", env=environment, check=False)
+def _run(*arguments: str) -> subprocess.CompletedProcess:
+    return subprocess.run(["git", *arguments], capture_output=True, text=True, encoding="utf-8",
+                          env={**os.environ, "GIT_TERMINAL_PROMPT": "0"}, check=False)
+
+
+def _failure(completed: subprocess.CompletedProcess, default: str) -> str:
+    return (completed.stderr.strip().splitlines() or [default])[-1]
+
+
+class Git:
+    """The component command's one door to Git (components.md, The component command): every Git call
+    it makes. Each read of a repository takes the checkout's folder, whose Git configuration rewrites
+    the address (url.<base>.insteadOf); a failure is Git's last message line."""
+
+    def toplevel(self, folder: Path) -> Path | None:
+        """The top folder of the Git checkout holding ``folder``, or None where it is no checkout;
+        OSError where Git cannot run."""
+        completed = _run("-C", str(folder), "rev-parse", "--show-toplevel")
+        return None if completed.returncode else Path(completed.stdout.strip())
+
+    def remotes(self, folder: Path) -> list[tuple[str, str]]:
+        """The checkout's remotes in the order Git lists them, each with its configured address ("" for
+        none)."""
+        names = _run("-C", str(folder), "remote").stdout.split()
+        return [(name, _run("-C", str(folder), "config", "--get", f"remote.{name}.url").stdout.strip())
+                for name in names]
+
+    def tags(self, folder: Path, address: str) -> list[tuple[str, str]] | str:
+        """Each tag reference of ``address`` with the object it names, as ``git ls-remote --tags`` lists
+        them (an annotated tag also as ``<tag>^{}`` with its commit), or Git's message."""
+        completed = _run("-C", str(folder), "ls-remote", "--tags", address)
+        if completed.returncode:
+            return _failure(completed, "git ls-remote failed")
+        lines = [line.partition("\t") for line in completed.stdout.splitlines()]
+        return [(reference, commit) for commit, _, reference in lines]
+
+    def root_names(self, folder: Path, address: str, tag: str) -> set[str] | str:
+        """The names at the root of the tree ``tag`` of ``address`` points to, fetched shallow and, where
+        the host allows it, without the files' contents; or Git's message."""
+        with tempfile.TemporaryDirectory(prefix="obs-components-") as temporary:
+            git = str(Path(temporary) / "git")
+            for step in (["init", "-q", "--bare", git],
+                         ["--git-dir", git, "fetch", "-q", "--depth", "1", "--filter=blob:none",
+                          self.url(folder, address), f"refs/tags/{tag}"]):
+                completed = _run(*step)
+                if completed.returncode:
+                    return _failure(completed, "git fetch failed")
+            completed = _run("--git-dir", git, "ls-tree", "--name-only", "FETCH_HEAD")
+            if completed.returncode:
+                return _failure(completed, "git ls-tree failed")
+            return set(completed.stdout.splitlines())
+
+    def fetch(self, folder: Path, address: str, tag: str, into: Path) -> str | None:
+        """The tree of ``tag`` of ``address`` written into the empty folder ``into``, with no Git folder;
+        None, or Git's message where it cannot be fetched. Git's objects go beside ``into``."""
+        git = str(into.parent / "git")
+        for step in (["init", "-q", "--bare", git],
+                     ["--git-dir", git, "fetch", "-q", "--depth", "1", self.url(folder, address),
+                      f"refs/tags/{tag}"],
+                     ["--git-dir", git, "--work-tree", str(into), "checkout", "-q", "-f", "FETCH_HEAD", "--", "."]):
+            completed = _run(*step)
+            if completed.returncode:
+                return _failure(completed, "git failed")
+        return None
+
+    @staticmethod
+    def url(folder: Path, address: str) -> str:
+        """``address`` as the checkout's Git configuration rewrites it (url.<base>.insteadOf)."""
+        return _run("-C", str(folder), "ls-remote", "--get-url", address).stdout.strip() or address
+
+
+GIT = Git()
+"""The door every Git call goes through; the tests put their fake host in its place."""
 
 
 def checkout() -> Path:
     """The Git checkout of obs the core runs from."""
     try:
-        completed = _git(CHECKOUT, "rev-parse", "--show-toplevel")
+        top = GIT.toplevel(CHECKOUT)
     except OSError as error:
         raise ComponentError(f"cannot run git: {error}. Install Git; see {OWNER} (The component command)") from error
-    if completed.returncode:
+    if top is None:
         raise ComponentError(f"obs runs from {CHECKOUT}, which is no Git checkout. Run obs-components from a clone of "
                           f"obs's repository; see {OWNER} (The component command)")
-    return Path(completed.stdout.strip())
+    return top
 
 
 def repositories(folder: Path, warn: Callable[[str], None]) -> list[str]:
     """The addresses to read, in order: for each remote, its own repository where its host lists it with
     the topic, then the owner's other repositories with the topic, by name; a remote's own repository
     also where its host cannot list its owner. Each address once, at its first place."""
-    names = _git(folder, "remote").stdout.split()
     found: list[str] = []
-    for remote in names:
-        address = _git(folder, "config", "--get", f"remote.{remote}.url").stdout.strip()
+    for remote, address in GIT.remotes(folder):
         if not address:
             continue
         parsed = parse_address(address)
@@ -212,45 +279,13 @@ def repositories(folder: Path, warn: Callable[[str], None]) -> list[str]:
     return list(dict.fromkeys(found))
 
 
-def _url(folder: Path, address: str) -> str:
-    """``address`` as the checkout's Git configuration rewrites it (url.<base>.insteadOf)."""
-    return _git(folder, "ls-remote", "--get-url", address).stdout.strip() or address
-
-
-def _bare_git(*arguments: str) -> subprocess.CompletedProcess:
-    return subprocess.run(["git", *arguments], capture_output=True, text=True, encoding="utf-8",
-                          env={**os.environ, "GIT_TERMINAL_PROMPT": "0"}, check=False)
-
-
-def _failure(completed: subprocess.CompletedProcess, default: str) -> str:
-    return (completed.stderr.strip().splitlines() or [default])[-1]
-
-
-def _root_names(folder: Path, address: str, tag: str) -> set[str] | str:
-    """The names at the root of the tree ``tag`` of ``address`` points to, fetched shallow and, where the
-    host allows it, without the files' contents; or Git's message where it cannot be fetched."""
-    with tempfile.TemporaryDirectory(prefix="obs-components-") as temporary:
-        git = str(Path(temporary) / "git")
-        for step in (["init", "-q", "--bare", git],
-                     ["--git-dir", git, "fetch", "-q", "--depth", "1", "--filter=blob:none", _url(folder, address),
-                      f"refs/tags/{tag}"]):
-            completed = _bare_git(*step)
-            if completed.returncode:
-                return _failure(completed, "git fetch failed")
-        completed = _bare_git("--git-dir", git, "ls-tree", "--name-only", "FETCH_HEAD")
-        if completed.returncode:
-            return _failure(completed, "git ls-tree failed")
-        return set(completed.stdout.splitlines())
-
-
 def _releases_of(folder: Path, address: str, warn: Callable[[str], None]) -> list[Release]:
-    completed = _git(folder, "ls-remote", "--tags", address)
-    if completed.returncode:
-        warn(f"repository {address}: cannot be read: {_failure(completed, 'git ls-remote failed')}")
+    listed = GIT.tags(folder, address)
+    if isinstance(listed, str):
+        warn(f"repository {address}: cannot be read: {listed}")
         return []
     commits: dict[str, str] = {}
-    for line in completed.stdout.splitlines():
-        commit, _, reference = line.partition("\t")
+    for reference, commit in listed:
         tag = reference.removeprefix("refs/tags/")
         if _TAG.fullmatch(tag.removesuffix("^{}")) is None:
             continue
@@ -267,7 +302,7 @@ def _releases_of(folder: Path, address: str, warn: Callable[[str], None]) -> lis
              f"starting with a letter or digit); skipped")
         return []
     newest = max(found)
-    names = _root_names(folder, address, newest[1])
+    names = GIT.root_names(folder, address, newest[1])
     if isinstance(names, str):
         warn(f"repository {address}: release {newest[1]} cannot be read: {names}")
         return []
@@ -344,21 +379,6 @@ def _version(text: str) -> tuple[int, int, int]:
     return tuple(int(part) for part in text.split("."))
 
 
-def _fetch(folder: Path, release: Release, into: Path) -> None:
-    """The release's tree, fetched from its repository into the empty folder ``into``."""
-    git = str(into.parent / "git")
-    steps = [["init", "-q", "--bare", git],
-             ["--git-dir", git, "fetch", "-q", "--depth", "1", _url(folder, release.repository),
-              f"refs/tags/{release.tag}"],
-             ["--git-dir", git, "--work-tree", str(into), "checkout", "-q", "-f", "FETCH_HEAD", "--", "."]]
-    for step in steps:
-        completed = _bare_git(*step)
-        if completed.returncode:
-            raise ComponentError(f"{release.name} {release.number}: cannot be fetched from {release.repository}: "
-                                 f"{_failure(completed, 'git failed')}. Check that the repository can be read, then "
-                                 f"install again; see {OWNER} (Choosing)")
-
-
 def _check_entry(release: Release, tree: Path) -> str:
     """The kind the fetched ``tree`` is; an adapter's ``adapter.json`` must name the component."""
     kind = kind_of({path.name for path in tree.iterdir()})
@@ -388,7 +408,11 @@ def install(folder: Path, release: Release) -> None:
     try:
         tree = staging / "tree"
         tree.mkdir()
-        _fetch(folder, release, tree)
+        failure = GIT.fetch(folder, release.repository, release.tag, tree)
+        if failure is not None:
+            raise ComponentError(f"{release.name} {release.number}: cannot be fetched from {release.repository}: "
+                                 f"{failure}. Check that the repository can be read, then install again; see {OWNER} "
+                                 f"(Choosing)")
         kind = _check_entry(release, tree)
         target = components / release.name
         if target.exists():
