@@ -5,3 +5,5 @@ RUNME.ps1:13  # PowerShell's standard path-type enumeration value.
 test/test_document_sources.py email-address sha256:b74e2acfbe376266  # A made-up ssh remote (user git, reserved .invalid host) the origin-url test converts; no address.
 commit:a7407ba4e03d86448a018dfb8afacbd411ce9ee5 author  # A published squash merge made with the hosting service's merge button; its history is not rewritten.
 commit:a7407ba4e03d86448a018dfb8afacbd411ce9ee5 committer  # A published squash merge made with the hosting service's merge button; its history is not rewritten.
+commit:198074c77a1b564424c767573a1c473afbd75303 author  # A landing merged on the hosting service by mistake instead of fast-forwarded; published history is kept, not rewritten.
+commit:198074c77a1b564424c767573a1c473afbd75303 committer  # A landing merged on the hosting service by mistake instead of fast-forwarded; published history is kept, not rewritten.
