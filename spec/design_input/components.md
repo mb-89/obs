@@ -90,10 +90,14 @@ ARGS`, since RUNME, se's, starts one command.
 
 The host lists an owner's repositories through its own interface: on `github.com`, its repository
 search for the topic `component` and the owner, with the person's login where there is one (`GH_TOKEN`,
-`GITHUB_TOKEN`, or the token `gh auth token` prints), which a private owner needs.
+`GITHUB_TOKEN`, or the token `gh auth token --hostname github.com` prints), which a private owner
+needs. Every remote's host is searched the same way, whichever host it is: no host is special and
+none is left out. The search goes to the host's interface at `api.<host>`, with the login for that
+host (on a host other than `github.com`, `GH_ENTERPRISE_TOKEN`, `GITHUB_ENTERPRISE_TOKEN`, or the
+token `gh auth token --hostname <host>` prints). Two remotes are two searches, one per owner.
 
 A host or owner
-that cannot be listed (no login for a private owner, a host obs knows no listing for, an owner the
+that cannot be listed (no login for a private owner, a host that does not answer, an owner the
 host does not know) is one warning line naming the remote, the host, the owner and why; that
 remote's own repository is still read.
 

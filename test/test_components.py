@@ -139,8 +139,13 @@ def test_an_owner_the_host_cannot_list_is_one_warning_and_its_remotes_repository
     assert warning.startswith("obs-components: warning: remote carol: host example.test cannot list owner carol")
 
 
-def test_a_host_without_a_listing_is_one_warning(host, checkout, machine, capsys, monkeypatch) -> None:
+def test_a_host_that_does_not_answer_is_one_warning(host, checkout, machine, capsys, monkeypatch) -> None:
+    def no_answer(url, token):
+        raise components.ListingError("no answer")
+
     monkeypatch.setattr(components, "LISTINGS", {})
+    monkeypatch.setattr(components, "_get_json", no_answer)
+    monkeypatch.setattr(components, "_token", lambda host: None)
     host.repository("alice", "obs", {"v1.0.0": adapter_files("obs")}, topic=False)
 
     rows, warnings = listed(capsys)
@@ -332,11 +337,31 @@ def test_github_lists_an_owners_topic_repositories_through_its_search(monkeypatc
         return {"items": [{"name": "obs-a"}, {"name": "obs-b"}]}
 
     monkeypatch.setattr(components, "_get_json", answer)
-    monkeypatch.setattr(components, "_token", lambda: None)
+    monkeypatch.setattr(components, "_token", lambda host: None)
 
     assert components.github_repositories("alice") == ["obs-a", "obs-b"]
     assert asked == ["https://api.github.com/search/repositories?q=topic%3Acomponent%20user%3Aalice%20fork%3Atrue"
                      "&per_page=100&page=1"]
+
+
+def test_every_remotes_host_is_searched_through_its_own_api_with_its_own_login(monkeypatch) -> None:
+    asked = []
+
+    def answer(url, token):
+        asked.append((url, token))
+        return {"items": [{"name": "obs-a"}]}
+
+    monkeypatch.setattr(components, "_get_json", answer)
+    monkeypatch.setenv("GH_TOKEN", "first")
+    monkeypatch.setenv("GH_ENTERPRISE_TOKEN", "second")
+
+    assert components.listing("github.com")("alice") == ["obs-a"]
+    assert components.listing("git.example.test")("bob") == ["obs-a"]
+    assert asked == [
+        ("https://api.github.com/search/repositories?q=topic%3Acomponent%20user%3Aalice%20fork%3Atrue"
+         "&per_page=100&page=1", "first"),
+        ("https://api.git.example.test/search/repositories?q=topic%3Acomponent%20user%3Abob%20fork%3Atrue"
+         "&per_page=100&page=1", "second")]
 
 
 def test_the_machine_folder_is_obs_in_the_configuration_folder_unless_named(monkeypatch, tmp_path) -> None:
