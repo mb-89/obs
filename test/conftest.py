@@ -140,6 +140,25 @@ def fakes(request, monkeypatch) -> SimpleNamespace:
     return fake
 
 
+@pytest.fixture(autouse=True)
+def pauses(monkeypatch) -> list[float]:
+    """The output writer's pause between two attempts (obs.output.pause) replaced by one that only
+    yields the thread and counts itself, so no test waits for time to pass (quality.md, Testing
+    boundaries); a test reads how often it paused."""
+    import time
+
+    from obs import output
+
+    taken: list[float] = []
+
+    def yield_thread() -> None:
+        taken.append(output.PAUSE_SECONDS)
+        time.sleep(0)  # A yield to the holder's thread, not a timed wait.
+
+    monkeypatch.setattr(output, "pause", yield_thread)
+    return taken
+
+
 class UnreachableNetwork(OSError):
     """The default fake's refusal: no test reaches the network."""
 

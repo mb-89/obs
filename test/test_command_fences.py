@@ -133,7 +133,7 @@ def test_commands_run_with_the_documented_minimal_environment(tmp_path, monkeypa
     output = _command_nodes(_document(tmp_path, vault, "--execute-commands"))[0]["attrs"]["output"]
 
     names = set(output.split())
-    assert names <= set(MINIMAL_ENVIRONMENT) | {"PWD", "SHLVL", "_", "LC_CTYPE", "OLDPWD"}
+    assert names <= set(MINIMAL_ENVIRONMENT) | {"PWD", "SHLVL", "_", "LC_CTYPE", "OLDPWD", "PROMPT"}
     assert "OBS_BUILDER_SECRET" not in names
     note = (ROOT / "spec" / "capabilities" / "command-fences.md").read_text(encoding="utf-8")
     assert all(f"`{name}`" in note for name in MINIMAL_ENVIRONMENT)

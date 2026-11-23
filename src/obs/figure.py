@@ -152,7 +152,9 @@ def _diagram(kind: str) -> Callable[[object, "str | None"], dict[str, object]]:
     def read(content: object, _media_type: str | None) -> dict[str, object]:
         field = "source" if isinstance(content, bytes) else "content"
         try:
-            text = content.decode("utf-8") if isinstance(content, bytes) else content
+            # A file saved on Windows draws the same diagram as its LF copy.
+            text = (content.decode("utf-8").replace("\r\n", "\n") if isinstance(content, bytes)
+                    else content)
         except UnicodeDecodeError as error:
             raise FigureContentError(field, "is not UTF-8 text", "Save the diagram file as UTF-8",
                                      reference=f"capabilities/{kind}") from error
