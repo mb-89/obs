@@ -232,6 +232,38 @@ def test_install_update_and_remove_change_only_the_machine_folder_and_its_list(
     assert "example.test" not in (machine / "components.json").read_text(encoding="utf-8")
 
 
+def test_update_and_remove_delete_read_only_files_as_windows_refuses_them(
+        host, checkout, machine, monkeypatch) -> None:
+    """Git writes its object files read-only, and Windows refuses to delete a read-only file; the
+    system here refuses alike, so the installed tree goes on every platform (components.md,
+    Installed components)."""
+    import os
+    import stat
+
+    host.repository("alice", "a", {"v1.0.0": adapter_files("a")})
+    assert components.main(["install", "a", "1.0.0"]) == 0
+    real_unlink = os.unlink
+
+    def windows_unlink(path, *, dir_fd=None):
+        if not os.stat(path, dir_fd=dir_fd, follow_symlinks=False).st_mode & stat.S_IWRITE:
+            raise PermissionError(13, "Access is denied", str(path))
+        real_unlink(path, dir_fd=dir_fd)
+
+    monkeypatch.setattr(os, "unlink", windows_unlink)
+    read_only = machine / "components" / "a" / "pack.idx"
+    read_only.write_bytes(b"git object")
+    read_only.chmod(stat.S_IREAD)
+
+    host.repository("alice", "a", {"v1.1.0": adapter_files("a")}, topic=False)
+    assert components.main(["update", "a"]) == 0
+    assert sorted(path.name for path in (machine / "components").iterdir()) == ["a"], "the previous version is gone"
+    (machine / "components" / "a" / "pack.idx").write_bytes(b"git object")
+    (machine / "components" / "a" / "pack.idx").chmod(stat.S_IREAD)
+    assert components.main(["remove", "a"]) == 0
+
+    assert sorted(path.name for path in (machine / "components").iterdir()) == []
+
+
 def installed_versions(machine: Path) -> dict[str, str]:
     entries = json.loads((machine / "components.json").read_text(encoding="utf-8"))["components"]
     return {entry["name"]: entry["version"] for entry in entries}

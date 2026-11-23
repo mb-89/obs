@@ -98,6 +98,10 @@ definitions alike. Keeping the same fact in two places is an anti-pattern (user,
   No test waits for time to pass: a fake reaches a cap or a timeout at once, and a real
   process is waited on for what it says or for its end. The one exception is the test whose
   subject is a test's timeout (`test/test_bounds.py`), which waits a tenth of a second for it.
+
+  The output writer's pause between two attempts where Windows refuses a file another handle
+  holds ([[architecture#Safety boundaries]]) is `obs.output.pause`, a clock door:
+  `test/conftest.py` replaces it for every test by one that only yields the thread.
 - Keep transformations and query evaluation pure where practical. Inject inputs/results at
   the boundary, not arbitrary internal implementation details.
 - Reuse small, intention-revealing fixtures. Keep one end-to-end smoke path alongside focused

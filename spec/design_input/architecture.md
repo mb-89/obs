@@ -487,6 +487,10 @@ The concrete contracts and execution boundaries are owned by [[input-model]].
 - Source files are read-only.
 - The generated file remains at the configured output path.
 - Temporary output is replaced atomically only after a successful build.
+- Where the system refuses to replace a file another process holds open, or to read a file
+  while it is replaced (Windows), the core's output writer and its reader of the capability
+  reference try again after a short pause, a bounded number of times, before the refusal fails
+  (`src/obs/output.py` owns both); elsewhere the first refusal fails.
 - Every output writer leaves an existing file untouched when its content is unchanged;
   rewriting identical bytes would trigger another on-access antivirus scan.
 - Invalid configuration fails before generation begins.

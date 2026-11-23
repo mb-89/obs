@@ -72,6 +72,19 @@ def test_each_referenced_vault_file_is_one_asset_with_its_path_and_bytes(tmp_pat
     assert embed["attrs"] == {"target": "PIXEL.png", "chapter": None, "asset": "pixel"}
 
 
+def test_an_asset_s_media_type_comes_from_python_s_table_not_the_machine_s(tmp_path, monkeypatch) -> None:
+    """The module-level guess also reads the Windows registry, where installed programs change a
+    type (.csv as application/vnd.ms-excel); the same vault gives the same Document everywhere."""
+    import mimetypes
+
+    monkeypatch.setattr(mimetypes, "guess_type", lambda *arguments, **options: ("application/vnd.ms-excel", None))
+    vault = asset_vault(tmp_path, "![Source](../data.csv) ![Pixel](media/pixel.png)\n")
+
+    document = build_document(vault / "manifest.md", capability_reference())
+
+    assert [asset["mediaType"] for asset in document["assets"]] == ["text/csv", "image/png"]
+
+
 @pytest.mark.parametrize(("chapter", "message"), [
     ("![Missing](media/missing.png)\n",
      r"Asset does not exist in part/chapter\.md: !\[Missing\]\(media/missing\.png\); "
