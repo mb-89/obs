@@ -21,7 +21,7 @@ from obs.input import InputError, input_error, schema_error
 from obs import block_fields, bottom_lines
 from obs.embeds import assign_sections
 from obs.node_ids import assign_ids
-from obs.output import write_output
+from obs.output import read_file, write_output
 from obs.components import installed as installed_components, main as components_main
 from obs.sources import SourceError, source_archive, validate_source_archive
 from obs.vault import VaultError, add_block_records, build_document as _build_document, manifest_note
@@ -136,7 +136,7 @@ def _all_chapters(chapters: list[dict[str, object]]):
 
 def read_capability_reference(path: Path) -> dict[str, object]:
     try:
-        reference = json.loads(path.read_text(encoding="utf-8"))
+        reference = json.loads(read_file(path).decode("utf-8"))
     except (OSError, json.JSONDecodeError, ValueError) as error:
         raise DocumentError(f"Invalid capability reference {path}: {error}") from error
     capabilities = reference.get("capabilities") if isinstance(reference, dict) else None
@@ -257,6 +257,12 @@ def _adapter(name: str, options: Sequence[str]) -> tuple[dict[str, object], list
     return adapter, option_arguments(adapter, adapter_location(name).manifest, list(options))
 
 
+def run_adapter(command: list[str], cwd: Path, capture: bool) -> subprocess.CompletedProcess:
+    """The door to an adapter's process: ``command`` run in ``cwd``, its output as text where ``capture``,
+    else on ours; OSError where it cannot start (quality.md, Testing boundaries)."""
+    return subprocess.run(command, cwd=cwd, check=False, capture_output=capture, text=capture or None)
+
+
 def _deliver(adapter: dict[str, object], arguments: list[str],
              document: dict[str, object], document_path: Path, destination: Path,
              reference: dict[str, object], label: str = "") -> None:
@@ -277,13 +283,9 @@ def _deliver(adapter: dict[str, object], arguments: list[str],
             f"{', '.join(unsupported)}."
         )
     try:
-        completed = subprocess.run(
+        completed = run_adapter(
             [*adapter["command"], str(document_path.resolve()), str(destination.resolve()), *arguments],
-            cwd=adapter_location(adapter_name).folder,
-            check=False,
-            capture_output=True,
-            text=True,
-        )
+            adapter_location(adapter_name).folder, capture=True)
     except OSError as error:
         raise AdapterError(f"Cannot start adapter {adapter_name!r}: {error}") from error
     if completed.returncode:
@@ -482,7 +484,7 @@ def _serve(adapter: dict[str, object], options: argparse.Namespace) -> int:
                *(["--timeout", options.timeout] if options.timeout is not None else [])]
     sys.stdout.flush()
     try:
-        return subprocess.run(command, cwd=adapter_location(adapter["name"]).folder, check=False).returncode
+        return run_adapter(command, adapter_location(adapter["name"]).folder, capture=False).returncode
     except OSError as error:
         raise AdapterError(f"--serve: cannot start adapter {adapter['name']!r}'s serve command {command[0]!r}: "
                            f"{error}. Install the adapter, or drop --serve; see {SERVE_OWNER}.") from error

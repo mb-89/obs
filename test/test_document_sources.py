@@ -12,6 +12,7 @@ from pathlib import Path
 
 import pytest
 
+import doors
 from obs import sources
 from obs.document import DocumentError, build_document, main, validate_document
 from test_document_contract import recording_adapter
@@ -21,6 +22,15 @@ from test_vault import capability_reference
 PNG = base64.b64decode(
     "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg=="
 )
+
+
+def symlink_or_skip(link: Path, target: Path) -> None:
+    """``link`` pointing at ``target``, or the test skipped where the system refuses symlinks
+    (Windows without Developer Mode or the privilege)."""
+    try:
+        link.symlink_to(target, target_is_directory=target.is_dir())
+    except OSError as error:
+        pytest.skip(f"the system refuses symlinks: {error}")
 
 
 def source_vault(tmp_path: Path) -> Path:
@@ -104,9 +114,12 @@ def test_the_one_call_build_hands_the_adapter_the_source_archive_only_with_the_o
 CHECKOUT = Path(__file__).resolve().parents[1]
 
 
-def test_the_archive_records_the_obs_commit_and_lockfiles_that_rebuild_it(tmp_path) -> None:
+@pytest.mark.door("source-git")
+def test_the_archive_records_the_obs_commit_and_lockfiles_that_rebuild_it(tmp_path, fakes) -> None:
     """The record names what rebuilds the artifact: the origin of obs's checkout, the commit of the
-    checkout obs runs from and the versions of every lockfile Git tracks there."""
+    checkout obs runs from and the versions of every lockfile Git tracks there. It is the contract of
+    sources.run_git too: the fake knows the checkout and its lockfiles as real Git does, and that a
+    folder outside it is no checkout."""
     build = build_document(source_vault(tmp_path) / "manifest.md", capability_reference(),
                            embed_source=True)["sourceArchive"]["build"]
 
@@ -123,6 +136,10 @@ def test_the_archive_records_the_obs_commit_and_lockfiles_that_rebuild_it(tmp_pa
     assert build["lockfiles"]["src/obs/diagrams/package-lock.json"]["mermaid"] == \
         diagrams["packages"]["node_modules/mermaid"]["version"]
     assert build["arguments"] == ["--embed-source"]
+    for door in (sources.run_git, fakes.source_git):
+        assert Path(door(CHECKOUT / "src", "rev-parse", "--show-toplevel").stdout.strip()) == CHECKOUT
+        assert door(tmp_path, "rev-parse", "--show-toplevel").returncode != 0
+    assert set(build["lockfiles"]) == set(doors.SOURCE_LOCKFILES)
 
 
 def test_the_one_call_build_records_its_arguments_without_a_path_of_the_build_machine(tmp_path) -> None:
@@ -325,7 +342,8 @@ def test_a_vault_folder_without_its_manifest_note_names_the_folder_and_the_setti
 def test_a_destination_inside_the_vault_fails_before_the_build_naming_the_vault(tmp_path, inside) -> None:
     vault = two_vaults(tmp_path)[0].parent
     (vault / "chapter.md").unlink()  # A build would fail on the missing note; the refusal comes first.
-    (tmp_path / "linked").symlink_to(vault, target_is_directory=True)
+    if inside == "linked/a.html":
+        symlink_or_skip(tmp_path / "linked", vault)
     destination = vault / inside if inside != "linked/a.html" else tmp_path / inside
 
     recording_adapter()

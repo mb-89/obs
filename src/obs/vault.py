@@ -77,6 +77,10 @@ _SEMANTIC = re.compile(
 )
 
 
+# Python's own table only: the module-level guess_type also reads the Windows registry, where a
+# machine's installed programs change a file's media type (.csv as application/vnd.ms-excel).
+_MEDIA_TYPES = mimetypes.MimeTypes()
+
 REMOTE_SCHEMES = frozenset({"http", "https"})
 """The URL schemes of a remote image the build fetches; see input-model "Document home and abstract"."""
 FETCH_TIMEOUT_SECONDS = 20
@@ -1222,7 +1226,7 @@ def _figure(fence: dict[str, object], context: _Context, place: str, opener: int
     try:
         if "source" in fence:
             path = _figure_file(fence["source"], context, fail)
-            body = kind.read(path.read_bytes(), mimetypes.guess_type(path.name)[0])
+            body = kind.read(path.read_bytes(), _MEDIA_TYPES.guess_type(path.name)[0])
         else:
             body = kind.read(fence["content"], None)
         if kind.resolve:
@@ -1742,7 +1746,7 @@ def _asset(context: _Context, label: str, href: str, path: Path | None) -> dict[
     asset = {
         "id": _unique_identifier(label or href, context.asset_ids),
         "href": href,
-        "mediaType": mimetypes.guess_type(relative or urlparse(href).path)[0] or "application/octet-stream",
+        "mediaType": _MEDIA_TYPES.guess_type(relative or urlparse(href).path)[0] or "application/octet-stream",
     }
     if path is not None:
         asset["path"] = relative

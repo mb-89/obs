@@ -72,14 +72,15 @@ def _vault(root: Path, chapter: str, files: dict[str, str] | None = None) -> Pat
     (root / "chapter.md").write_text(chapter, encoding="utf-8")
     for name, text in (files or {}).items():
         (root / name).parent.mkdir(parents=True, exist_ok=True)
-        (root / name).write_text(text, encoding="utf-8")
+        (root / name).write_bytes(text.encode("utf-8"))  # The bytes as given, on every platform.
     return root / "manifest.md"
 
 
 @pytest.fixture(scope="module")
 def figures(tmp_path_factory) -> list[dict]:
     manifest = _vault(tmp_path_factory.mktemp("diagrams"), CHAPTER,
-                      {"diagrams/flow.mmd": FLOW, "diagrams/sequence.puml": SEQUENCE})
+                      # The flow's file as Windows saves it: the same diagram as its LF text.
+                      {"diagrams/flow.mmd": FLOW.replace("\n", "\r\n"), "diagrams/sequence.puml": SEQUENCE})
     document = build_document(manifest, capability_reference())
     assert {"figures", "mermaid", "plantuml"} <= set(document["capabilities"])
     return [node for node in document["chapters"][0]["content"] if node["type"] == "figures"]

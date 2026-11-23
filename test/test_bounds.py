@@ -5,6 +5,8 @@ import subprocess
 import sys
 from pathlib import Path
 
+import pytest
+
 import bounds
 import tiers
 
@@ -109,6 +111,7 @@ def test_a_test_far_slower_than_its_tiers_typical_time_is_named_and_the_rest_are
     assert bounds.outliers({"test.x::alone": ["dom", 9.0]}, factor=3) == [], "a lone test is its tier's typical time"
 
 
+@pytest.mark.skipif(sys.platform == "win32", reason="pytest-timeout has no signal on Windows; a timeout ends the whole run")
 def test_a_test_past_its_timeout_fails_naming_itself_and_its_timeout(tmp_path: Path) -> None:
     (tmp_path / "conftest.py").write_text("""
 import pytest
@@ -127,7 +130,7 @@ def pytest_runtest_makereport(item, call):
 import threading
 import pytest
 
-@pytest.mark.timeout(1)
+@pytest.mark.timeout(0.1)
 def test_waits_forever():
     threading.Event().wait()
 
@@ -140,7 +143,7 @@ def test_next():
 
     assert result.returncode == 1, result.stdout
     assert "1 failed, 1 passed" in result.stdout
-    assert "test/bounds.py: test_hangs.py::test_waits_forever ran past its timeout of 1 s (tier unit" in result.stdout
+    assert "test/bounds.py: test_hangs.py::test_waits_forever ran past its timeout of 0.1 s (tier unit" in result.stdout
     assert bounds.EXPLAINED_SOURCES[bounds.SOURCES["unit"]] in result.stdout, "it names where its tier's bound came from"
 
 

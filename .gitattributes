@@ -1,2 +1,5 @@
 *.sh text eol=lf
 RUNME.conf text eol=lf
+# Generated files in formats without comments, marked here instead of in a first line (se's guidance
+# note generated-files-are-marked; generated.yaml declares each generator's outputs).
+/src/obs/case-folding.json text eol=lf linguist-generated generated-by=obs.case_folding

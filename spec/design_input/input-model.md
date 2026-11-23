@@ -193,6 +193,10 @@ A bare name that matches several fails the build naming the linking note and the
 candidates, as does an embedded `.base` name that matches none; the remedy is the vault path. A marked image
 (`![[figure.png]]`, `![label](figure.png)`) is document content as above, not an attachment.
 
+A file's media type comes from Python's own table of extensions, never the build machine's: the
+Windows registry maps a type by the programs installed there (`.csv` as
+`application/vnd.ms-excel`), so the same vault would give another Document.
+
 PDF uses its media type (and `artifact.embedPdfs: false` still links PDFs locally instead) and other
 binary/source
 files use octet-stream, never an executable HTML/script media type. This keeps supplied
@@ -873,6 +877,9 @@ The
 figure's body holds the diagram's text as authored, for review, and the SVG, which every
 adapter shows as the figure's picture, so none needs a diagram library and print shows the
 same drawing. The same text gives the same SVG, whether inline or from a file.
+
+A diagram file's CRLF line endings, as Windows saves them, are read as LF, so the file draws as
+its LF copy and its body holds the LF text.
 
 A diagram its
 library cannot read is an input error that names the note, the note's line the library names

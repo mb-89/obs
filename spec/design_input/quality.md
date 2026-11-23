@@ -74,6 +74,34 @@ definitions alike. Keeping the same fact in two places is an anti-pattern (user,
 - Treat filesystem access, subprocesses, clocks, browser printing/storage, and network assets as
   explicit adapters ("doors"). Exercise each adapter's real functionality once at its boundary;
   test callers against controlled fakes rather than repeating external work in every test.
+- A test starts no process. Each door that starts one is a named function or object its module
+  owns, and `test/doors.py` holds its fake, which `test/conftest.py` puts in its place for every
+  test.
+
+  The doors are Git for the component command (`components.GIT`) and for the source archive
+  (`sources.run_git`), an adapter's process (`document.run_adapter`), a command fence's shell
+  (`commands.run_shell`) and a part of the complete suite (`test/suite.py`'s `start_part`).
+
+  The real door runs only in its contract tests, marked `pytest.mark.door("<name>")`, which also
+  show that the fake answers as the real door does. A fake asked for what it does not know fails
+  the test naming that mark. An adapter in another language than the test's Python runs only
+  there.
+
+  An entry point is called in-process through its `main(argv)`, with one test per entry point
+  that starts it as a real process. A test whose subject is a fresh interpreter (an import that
+  must not load a module, a pytest run with its own options or a timeout that kills its test)
+  starts that one process itself, as does a test of the repository's tracked files through Git.
+
+  The run's shared doors, the spec built once per run (`test/spec_build.py`) and the diagram
+  door's browser session, start their processes once per run or worker, not per test.
+
+  No test waits for time to pass: a fake reaches a cap or a timeout at once, and a real
+  process is waited on for what it says or for its end. The one exception is the test whose
+  subject is a test's timeout (`test/test_bounds.py`), which waits a tenth of a second for it.
+
+  The output writer's pause between two attempts where Windows refuses a file another handle
+  holds ([[architecture#Safety boundaries]]) is `obs.output.pause`, a clock door:
+  `test/conftest.py` replaces it for every test by one that only yields the thread.
 - Keep transformations and query evaluation pure where practical. Inject inputs/results at
   the boundary, not arbitrary internal implementation details.
 - Reuse small, intention-revealing fixtures. Keep one end-to-end smoke path alongside focused

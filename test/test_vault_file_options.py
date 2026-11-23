@@ -4,7 +4,6 @@ Owner: spec/design_input/cli.md ("Adapter options"). Errors are matched by their
 owner reference (AGENTS.md), never by wording.
 """
 import json
-import os
 from pathlib import Path
 
 import pytest
@@ -12,7 +11,7 @@ import pytest
 from obs.adapter import ADAPTER_OPTIONS_OWNER
 from obs.document import main
 from test_document_contract import recording_adapter
-from test_document_sources import source_vault
+from test_document_sources import source_vault, symlink_or_skip
 
 DECLARED = {"bundle": {"type": "vault-file", "summary": "A file of the vault."}}
 
@@ -70,7 +69,8 @@ def test_a_vault_file_option_without_the_form_id_path_names_the_option_and_its_o
 def test_a_vault_file_option_naming_no_regular_file_inside_the_vault_names_it_and_the_owner(tmp_path, path) -> None:
     vault = source_vault(tmp_path)
     (tmp_path / "outside.js").write_text("1;\n", encoding="utf-8")
-    os.symlink(tmp_path / "outside.js", vault / "link.js")
+    if path == "link.js":
+        symlink_or_skip(vault / "link.js", tmp_path / "outside.js")
 
     message = _refused(tmp_path, vault, f"bundle=app-v1={path}")
 

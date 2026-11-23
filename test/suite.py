@@ -554,6 +554,48 @@ def set_up_focused_run(config, packages: list[Path] | None = None, run=None) -> 
     return installed
 
 
+class PartProcess:
+    """The door to a part's process (spec/design_input/quality.md, Testing boundaries): ``command``
+    started in the part's folder, in a session of its own, its stdout and stderr together as text;
+    the suite waits for it, interrupts it and stops it with every process it started."""
+
+    def __init__(self, command: list[str], part: Path) -> None:
+        self.process = subprocess.Popen(command, cwd=part, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+                                        text=True, encoding="utf-8", errors="replace",
+                                        start_new_session=os.name != "nt")
+
+    @property
+    def returncode(self) -> int | None:
+        return self.process.returncode
+
+    def communicate(self, timeout: float | None = None) -> tuple[str, None]:
+        """Its output once it has ended; subprocess.TimeoutExpired past ``timeout``, keeping what it read."""
+        return self.process.communicate(timeout=timeout)
+
+    def interrupt(self) -> None:
+        """Interrupt its pytest alone (its controller, not its process group), as Ctrl-C does; on Windows,
+        where no interrupt reaches one process alone, nothing."""
+        if os.name != "nt":
+            import signal
+
+            self.process.send_signal(signal.SIGINT)
+
+    def stop(self) -> None:
+        """Stop it and every process it started: its xdist workers, their browsers and drivers; a process
+        group that has already ended is passed over."""
+        if os.name == "nt":
+            subprocess.run(["taskkill", "/F", "/T", "/PID", str(self.process.pid)], capture_output=True)
+        else:
+            import signal
+
+            with contextlib.suppress(ProcessLookupError):
+                os.killpg(self.process.pid, signal.SIGKILL)
+
+
+start_part = PartProcess
+"""What starts a part's process; the tests put their fake in its place."""
+
+
 def run_part(part: Path, arguments: list[str], run_folder: Path) -> tuple[int, str]:
     """Run one part's pytest; its exit code and its output, headed by its command. A part still
     running at the cap (CAP_SECONDS) is interrupted, so its pytest ends its session and writes its
@@ -565,8 +607,7 @@ def run_part(part: Path, arguments: list[str], run_folder: Path) -> tuple[int, s
     command = part_command(part, arguments, os.environ, run_folder)
     report = part_report(part, os.environ, run_folder)
     started = time.time()
-    process = subprocess.Popen(command, cwd=part, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
-                               text=True, encoding="utf-8", errors="replace", start_new_session=os.name != "nt")
+    process = start_part(command, part)
     head = f"== {part_name(part)}: {' '.join(command[1:])} in {part}\n"
     try:
         output, _ = process.communicate(timeout=CAP_SECONDS)
@@ -594,33 +635,19 @@ def run_part(part: Path, arguments: list[str], run_folder: Path) -> tuple[int, s
     return (1 if capped else code), head + output + "".join(f"{message}\n" for message in capped)
 
 
-def interrupt_and_stop(process: subprocess.Popen) -> str:
-    """At the cap: interrupt the part's pytest alone (its controller, not its process group), as
-    Ctrl-C does, so it ends its session, writing its JUnit report and its failures; wait for it up to
-    INTERRUPT_GRACE_SECONDS, reading its output meanwhile, so an end of session past the pipe's
-    buffer is not lost; then stop what is left (stop). On Windows, where no interrupt reaches one
-    process alone, it stops it at once. Its output."""
+def interrupt_and_stop(process: PartProcess) -> str:
+    """At the cap: interrupt the part's pytest (PartProcess.interrupt), so it ends its session, writing
+    its JUnit report and its failures; wait for it up to INTERRUPT_GRACE_SECONDS, reading its output
+    meanwhile, so an end of session past the pipe's buffer is not lost; then stop what is left
+    (PartProcess.stop). On Windows, where no interrupt reaches one process alone, it stops it at once.
+    Its output."""
     if os.name != "nt":
-        import signal
-
-        process.send_signal(signal.SIGINT)
+        process.interrupt()
         with contextlib.suppress(subprocess.TimeoutExpired):  # communicate keeps what it read.
             process.communicate(timeout=INTERRUPT_GRACE_SECONDS)
-    stop(process)
+    process.stop()
     output, _ = process.communicate()
     return output
-
-
-def stop(process: subprocess.Popen) -> None:
-    """Stop the process and every process it started: its xdist workers, their browsers and drivers;
-    a process group that has already ended is passed over."""
-    if os.name == "nt":
-        subprocess.run(["taskkill", "/F", "/T", "/PID", str(process.pid)], capture_output=True)
-    else:
-        import signal
-
-        with contextlib.suppress(ProcessLookupError):
-            os.killpg(process.pid, signal.SIGKILL)
 
 
 def case_address(nodeid: str) -> tuple[str, str]:

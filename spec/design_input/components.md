@@ -61,6 +61,11 @@ from no checkout, it fails naming the folder and the remedy, to run it from a cl
 it is `RUNME.sh components` (or `RUNME.ps1 components`): `obs-document components ARGS` runs `obs-components
 ARGS`, since RUNME, se's, starts one command.
 
+Every Git call the command makes goes through its one Git door, `components.GIT`: the checkout's
+folder and remotes, a repository's tags, the names at the root of a release's tree and the fetch of
+that tree. Its tests answer them from a fake host of repositories in memory, and one contract test
+runs real Git ([Testing boundaries](quality.md#testing-boundaries)).
+
 ### Listing
 
 `obs-components` with no argument lists the components:
@@ -88,14 +93,19 @@ ARGS`, since RUNME, se's, starts one command.
    component whose newest version is above its installed one is marked as an update; an installed
    component no repository offers is listed with no newest version.
 
-The host lists an owner's repositories through its own interface: on `github.com`, its repository
-search for the topic `component` and the owner, with the person's login where there is one (`GH_TOKEN`,
-`GITHUB_TOKEN`, or the token `gh auth token` prints), which a private owner needs.
+The host lists an owner's repositories through its repository search for the topic `component`
+and the owner, at the host's interface `api.<host>`. Every remote's host is searched the same way,
+whichever host it is: no host is special and none is left out. Two remotes are two searches, one
+per owner.
+
+The search carries the person's login for that host where there is one, which a private owner
+needs. On `github.com` it is `GH_TOKEN` or `GITHUB_TOKEN`, on any other host `GH_ENTERPRISE_TOKEN`
+or `GITHUB_ENTERPRISE_TOKEN`, else the token `gh auth token --hostname <host>` prints.
 
 A host or owner
-that cannot be listed (no login for a private owner, a host obs knows no listing for, an owner the
-host does not know) is one warning line naming the remote, the host, the owner and why; that
-remote's own repository is still read.
+that cannot be listed (no login for a private owner, a host that does not answer, an owner the
+host does not know) is one warning line naming the remote, the host, the owner and why, and the
+login that host takes; that remote's own repository is still read.
 
 A repository that cannot be read is a warning naming its address and Git's message; the list still
 shows what the others offer. A repository that offers no release is not listed.
@@ -117,7 +127,8 @@ list its owner, was chosen over reading every remote's own repository: obs's own
 
 ### Choosing
 
-The person chooses what to install, update or remove; the command never does it unasked:
+The person chooses what to install, update or remove; the command never does it unasked, beyond
+the components a chosen one requires ([Requirements](#requirements)):
 
 - `obs-components install NAME` installs the component's newest offered release, or updates an installed
   one to it.
@@ -136,6 +147,26 @@ install leaves the installed version as it was.
 
 An adapter's entry file is `adapter.json`, which
 must name the component.
+
+### Requirements
+
+A component names the components it requires the way every host does, in the table `[components]`
+of the `se.toml` at its root (se's `docs/components.md`, The requirement list): one entry per name,
+its pin `version = "^<major>[.<minor>[.<patch>]]"`, and `optional = true` where it works without
+it. An entry without `optional` is required.
+
+An adapter requires its default style this way, so the default style is an ordinary style component
+that installs with its adapter, not a style built into the adapter.
+
+Installing a component installs what it requires, and what those require in turn: each required
+component that is not installed at a version its pin admits gets the newest offered release the pin
+admits. A pin admits versions from itself up to the next change of its leftmost nonzero part, as
+Cargo and uv read `^`.
+
+A required name the listing offers only as no component of obs (`obs` or `kern`, say) belongs to
+another host and is left to it. A required component no repository offers at an admitted version
+fails naming the chain from the installed component to it (`a -> s`) and the versions offered; the
+components installed before stay installed.
 
 ### Installed components
 

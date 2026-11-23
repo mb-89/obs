@@ -5,9 +5,11 @@ import json
 import os
 import re
 import shutil
+import stat
 import subprocess
 import sys
 import tempfile
+import tomllib
 import urllib.error
 import urllib.parse
 import urllib.request
@@ -76,15 +78,23 @@ def parse_address(address: str) -> Address | None:
     return Address(address, host.lower(), parts[-2], repository) if repository else None
 
 
-def _token() -> str | None:
-    """The person's GitHub login token: GH_TOKEN, GITHUB_TOKEN, or what ``gh auth token`` prints."""
-    for variable in ("GH_TOKEN", "GITHUB_TOKEN"):
+def _login_variables(host: str) -> tuple[str, str]:
+    """The environment variables gh reads ``host``'s login from: on github.com GH_TOKEN or GITHUB_TOKEN, on
+    any other host GH_ENTERPRISE_TOKEN or GITHUB_ENTERPRISE_TOKEN."""
+    return ("GH_TOKEN", "GITHUB_TOKEN") if host == "github.com" else ("GH_ENTERPRISE_TOKEN", "GITHUB_ENTERPRISE_TOKEN")
+
+
+def _token(host: str = "github.com") -> str | None:
+    """The person's login token for ``host``, the way gh reads it: its login variables, else what
+    ``gh auth token --hostname <host>`` prints."""
+    for variable in _login_variables(host):
         if os.environ.get(variable):
             return os.environ[variable]
     if shutil.which("gh") is None:
         return None
     try:
-        completed = subprocess.run(["gh", "auth", "token"], capture_output=True, text=True, timeout=30, check=False)
+        completed = subprocess.run(["gh", "auth", "token", "--hostname", host], capture_output=True, text=True,
+                                   timeout=30, check=False)
     except (OSError, subprocess.SubprocessError):
         return None
     return (completed.stdout.strip() or None) if completed.returncode == 0 else None
@@ -108,13 +118,13 @@ def _get_json(url: str, token: str | None) -> object:
         raise ListingError(str(getattr(error, "reason", error))) from error
 
 
-def github_repositories(owner: str) -> list[str]:
-    """The names of ``owner``'s repositories on github.com that carry the topic, through GitHub's
-    repository search, with the person's login where there is one."""
-    token, names, page = _token(), [], 1
+def github_repositories(owner: str, host: str = "github.com") -> list[str]:
+    """The names of ``owner``'s repositories on ``host`` that carry the topic, through GitHub's repository
+    search at the host's API (``api.<host>``), with the person's login for that host where there is one."""
+    token, names, page = _token(host), [], 1
     query = urllib.parse.quote(f"topic:{TOPIC} user:{owner} fork:true")
     while True:
-        result = _get_json(f"https://api.github.com/search/repositories?q={query}&per_page=100&page={page}", token)
+        result = _get_json(f"https://api.{host}/search/repositories?q={query}&per_page=100&page={page}", token)
         items = result.get("items", []) if isinstance(result, dict) else []
         names += [item["name"] for item in items if isinstance(item, dict) and isinstance(item.get("name"), str)]
         if len(items) < 100 or page == 10:  # The search answers at most 1000 results.
@@ -122,8 +132,14 @@ def github_repositories(owner: str) -> list[str]:
         page += 1
 
 
-LISTINGS: dict[str, Callable[[str], list[str]]] = {"github.com": github_repositories}
-"""Each host obs can ask for an owner's component repositories, and how."""
+LISTINGS: dict[str, Callable[[str], list[str]]] = {}
+"""A host whose owners are listed some other way than GitHub's repository search; none but in tests."""
+
+
+def listing(host: str) -> Callable[[str], list[str]]:
+    """How obs asks ``host`` for an owner's component repositories: every remote's host the same way,
+    through GitHub's repository search at its API, unless LISTINGS names another way."""
+    return LISTINGS.get(host) or (lambda owner: github_repositories(owner, host))
 
 
 @dataclass(frozen=True)
@@ -158,66 +174,7 @@ def repository_name(address: str) -> str:
     return name.lower()
 
 
-def _git(checkout: Path, *arguments: str) -> subprocess.CompletedProcess:
-    environment = {**os.environ, "GIT_TERMINAL_PROMPT": "0"}
-    return subprocess.run(["git", "-C", str(checkout), *arguments], capture_output=True, text=True,
-                          encoding="utf-8", env=environment, check=False)
-
-
-def checkout() -> Path:
-    """The Git checkout of obs the core runs from."""
-    try:
-        completed = _git(CHECKOUT, "rev-parse", "--show-toplevel")
-    except OSError as error:
-        raise ComponentError(f"cannot run git: {error}. Install Git; see {OWNER} (The component command)") from error
-    if completed.returncode:
-        raise ComponentError(f"obs runs from {CHECKOUT}, which is no Git checkout. Run obs-components from a clone of "
-                          f"obs's repository; see {OWNER} (The component command)")
-    return Path(completed.stdout.strip())
-
-
-def repositories(folder: Path, warn: Callable[[str], None]) -> list[str]:
-    """The addresses to read, in order: for each remote, its own repository where its host lists it with
-    the topic, then the owner's other repositories with the topic, by name; a remote's own repository
-    also where its host cannot list its owner. Each address once, at its first place."""
-    names = _git(folder, "remote").stdout.split()
-    found: list[str] = []
-    for remote in names:
-        address = _git(folder, "config", "--get", f"remote.{remote}.url").stdout.strip()
-        if not address:
-            continue
-        parsed = parse_address(address)
-        if parsed is None:
-            found.append(address)
-            warn(f"remote {remote}: its address {address} names no host and owner to list; reading its own "
-                 f"repository only")
-            continue
-        listing = LISTINGS.get(parsed.host)
-        if listing is None:
-            found.append(address)
-            warn(f"remote {remote}: host {parsed.host} has no repository listing obs knows, so owner "
-                 f"{parsed.owner} is not searched; reading its own repository only")
-            continue
-        try:
-            listed = listing(parsed.owner)
-        except ListingError as error:
-            found.append(address)
-            warn(f"remote {remote}: host {parsed.host} cannot list owner {parsed.owner}: {error}; reading its own "
-                 f"repository only (a private owner needs a login: GH_TOKEN, GITHUB_TOKEN or gh auth login)")
-            continue
-        marked = {name.lower(): name for name in listed}
-        if parsed.repository.lower() in marked:
-            found.append(address)
-        found += [parsed.sibling(marked[name]) for name in sorted(marked) if name != parsed.repository.lower()]
-    return list(dict.fromkeys(found))
-
-
-def _url(folder: Path, address: str) -> str:
-    """``address`` as the checkout's Git configuration rewrites it (url.<base>.insteadOf)."""
-    return _git(folder, "ls-remote", "--get-url", address).stdout.strip() or address
-
-
-def _bare_git(*arguments: str) -> subprocess.CompletedProcess:
+def _run(*arguments: str) -> subprocess.CompletedProcess:
     return subprocess.run(["git", *arguments], capture_output=True, text=True, encoding="utf-8",
                           env={**os.environ, "GIT_TERMINAL_PROMPT": "0"}, check=False)
 
@@ -226,31 +183,121 @@ def _failure(completed: subprocess.CompletedProcess, default: str) -> str:
     return (completed.stderr.strip().splitlines() or [default])[-1]
 
 
-def _root_names(folder: Path, address: str, tag: str) -> set[str] | str:
-    """The names at the root of the tree ``tag`` of ``address`` points to, fetched shallow and, where the
-    host allows it, without the files' contents; or Git's message where it cannot be fetched."""
-    with tempfile.TemporaryDirectory(prefix="obs-components-") as temporary:
-        git = str(Path(temporary) / "git")
-        for step in (["init", "-q", "--bare", git],
-                     ["--git-dir", git, "fetch", "-q", "--depth", "1", "--filter=blob:none", _url(folder, address),
-                      f"refs/tags/{tag}"]):
-            completed = _bare_git(*step)
-            if completed.returncode:
-                return _failure(completed, "git fetch failed")
-        completed = _bare_git("--git-dir", git, "ls-tree", "--name-only", "FETCH_HEAD")
+class Git:
+    """The component command's one door to Git (components.md, The component command): every Git call
+    it makes. Each read of a repository takes the checkout's folder, whose Git configuration rewrites
+    the address (url.<base>.insteadOf); a failure is Git's last message line."""
+
+    def toplevel(self, folder: Path) -> Path | None:
+        """The top folder of the Git checkout holding ``folder``, or None where it is no checkout;
+        OSError where Git cannot run."""
+        completed = _run("-C", str(folder), "rev-parse", "--show-toplevel")
+        return None if completed.returncode else Path(completed.stdout.strip())
+
+    def remotes(self, folder: Path) -> list[tuple[str, str]]:
+        """The checkout's remotes in the order Git lists them, each with its configured address ("" for
+        none)."""
+        names = _run("-C", str(folder), "remote").stdout.split()
+        return [(name, _run("-C", str(folder), "config", "--get", f"remote.{name}.url").stdout.strip())
+                for name in names]
+
+    def tags(self, folder: Path, address: str) -> list[tuple[str, str]] | str:
+        """Each tag reference of ``address`` with the object it names, as ``git ls-remote --tags`` lists
+        them (an annotated tag also as ``<tag>^{}`` with its commit), or Git's message."""
+        completed = _run("-C", str(folder), "ls-remote", "--tags", address)
         if completed.returncode:
-            return _failure(completed, "git ls-tree failed")
-        return set(completed.stdout.splitlines())
+            return _failure(completed, "git ls-remote failed")
+        lines = [line.partition("\t") for line in completed.stdout.splitlines()]
+        return [(reference, commit) for commit, _, reference in lines]
+
+    def root_names(self, folder: Path, address: str, tag: str) -> set[str] | str:
+        """The names at the root of the tree ``tag`` of ``address`` points to, fetched shallow and, where
+        the host allows it, without the files' contents; or Git's message."""
+        with tempfile.TemporaryDirectory(prefix="obs-components-") as temporary:
+            git = str(Path(temporary) / "git")
+            for step in (["init", "-q", "--bare", git],
+                         ["--git-dir", git, "fetch", "-q", "--depth", "1", "--filter=blob:none",
+                          self.url(folder, address), f"refs/tags/{tag}"]):
+                completed = _run(*step)
+                if completed.returncode:
+                    return _failure(completed, "git fetch failed")
+            completed = _run("--git-dir", git, "ls-tree", "--name-only", "FETCH_HEAD")
+            if completed.returncode:
+                return _failure(completed, "git ls-tree failed")
+            return set(completed.stdout.splitlines())
+
+    def fetch(self, folder: Path, address: str, tag: str, into: Path) -> str | None:
+        """The tree of ``tag`` of ``address`` written into the empty folder ``into``, with no Git folder;
+        None, or Git's message where it cannot be fetched. Git's objects go beside ``into``."""
+        git = str(into.parent / "git")
+        for step in (["init", "-q", "--bare", git],
+                     ["--git-dir", git, "fetch", "-q", "--depth", "1", self.url(folder, address),
+                      f"refs/tags/{tag}"],
+                     ["--git-dir", git, "--work-tree", str(into), "checkout", "-q", "-f", "FETCH_HEAD", "--", "."]):
+            completed = _run(*step)
+            if completed.returncode:
+                return _failure(completed, "git failed")
+        return None
+
+    @staticmethod
+    def url(folder: Path, address: str) -> str:
+        """``address`` as the checkout's Git configuration rewrites it (url.<base>.insteadOf)."""
+        return _run("-C", str(folder), "ls-remote", "--get-url", address).stdout.strip() or address
+
+
+GIT = Git()
+"""The door every Git call goes through; the tests put their fake host in its place."""
+
+
+def checkout() -> Path:
+    """The Git checkout of obs the core runs from."""
+    try:
+        top = GIT.toplevel(CHECKOUT)
+    except OSError as error:
+        raise ComponentError(f"cannot run git: {error}. Install Git; see {OWNER} (The component command)") from error
+    if top is None:
+        raise ComponentError(f"obs runs from {CHECKOUT}, which is no Git checkout. Run obs-components from a clone of "
+                          f"obs's repository; see {OWNER} (The component command)")
+    return top
+
+
+def repositories(folder: Path, warn: Callable[[str], None]) -> list[str]:
+    """The addresses to read, in order: for each remote, its own repository where its host lists it with
+    the topic, then the owner's other repositories with the topic, by name; a remote's own repository
+    also where its host cannot list its owner. Each address once, at its first place."""
+    found: list[str] = []
+    for remote, address in GIT.remotes(folder):
+        if not address:
+            continue
+        parsed = parse_address(address)
+        if parsed is None:
+            found.append(address)
+            warn(f"remote {remote}: its address {address} names no host and owner to list; reading its own "
+                 f"repository only")
+            continue
+        lister = listing(parsed.host)
+        try:
+            listed = lister(parsed.owner)
+        except ListingError as error:
+            found.append(address)
+            warn(f"remote {remote}: host {parsed.host} cannot list owner {parsed.owner}: {error}; reading its own "
+                 f"repository only (a private owner needs a login for {parsed.host}: "
+                 f"{', '.join(_login_variables(parsed.host))} or gh auth login --hostname {parsed.host})")
+            continue
+        marked = {name.lower(): name for name in listed}
+        if parsed.repository.lower() in marked:
+            found.append(address)
+        found += [parsed.sibling(marked[name]) for name in sorted(marked) if name != parsed.repository.lower()]
+    return list(dict.fromkeys(found))
 
 
 def _releases_of(folder: Path, address: str, warn: Callable[[str], None]) -> list[Release]:
-    completed = _git(folder, "ls-remote", "--tags", address)
-    if completed.returncode:
-        warn(f"repository {address}: cannot be read: {_failure(completed, 'git ls-remote failed')}")
+    listed = GIT.tags(folder, address)
+    if isinstance(listed, str):
+        warn(f"repository {address}: cannot be read: {listed}")
         return []
     commits: dict[str, str] = {}
-    for line in completed.stdout.splitlines():
-        commit, _, reference = line.partition("\t")
+    for reference, commit in listed:
         tag = reference.removeprefix("refs/tags/")
         if _TAG.fullmatch(tag.removesuffix("^{}")) is None:
             continue
@@ -267,7 +314,7 @@ def _releases_of(folder: Path, address: str, warn: Callable[[str], None]) -> lis
              f"starting with a letter or digit); skipped")
         return []
     newest = max(found)
-    names = _root_names(folder, address, newest[1])
+    names = GIT.root_names(folder, address, newest[1])
     if isinstance(names, str):
         warn(f"repository {address}: release {newest[1]} cannot be read: {names}")
         return []
@@ -344,21 +391,6 @@ def _version(text: str) -> tuple[int, int, int]:
     return tuple(int(part) for part in text.split("."))
 
 
-def _fetch(folder: Path, release: Release, into: Path) -> None:
-    """The release's tree, fetched from its repository into the empty folder ``into``."""
-    git = str(into.parent / "git")
-    steps = [["init", "-q", "--bare", git],
-             ["--git-dir", git, "fetch", "-q", "--depth", "1", _url(folder, release.repository),
-              f"refs/tags/{release.tag}"],
-             ["--git-dir", git, "--work-tree", str(into), "checkout", "-q", "-f", "FETCH_HEAD", "--", "."]]
-    for step in steps:
-        completed = _bare_git(*step)
-        if completed.returncode:
-            raise ComponentError(f"{release.name} {release.number}: cannot be fetched from {release.repository}: "
-                                 f"{_failure(completed, 'git failed')}. Check that the repository can be read, then "
-                                 f"install again; see {OWNER} (Choosing)")
-
-
 def _check_entry(release: Release, tree: Path) -> str:
     """The kind the fetched ``tree`` is; an adapter's ``adapter.json`` must name the component."""
     kind = kind_of({path.name for path in tree.iterdir()})
@@ -379,6 +411,20 @@ def _check_entry(release: Release, tree: Path) -> str:
     return kind
 
 
+def _remove_tree(path: Path) -> None:
+    """Remove ``path``; Windows refuses to delete git's read-only object files until they are made writable."""
+    def writable_and_retry(function, name, _error) -> None:
+        try:
+            os.chmod(name, stat.S_IWRITE)
+            function(name)
+        except OSError:
+            pass
+    if sys.version_info >= (3, 12):
+        shutil.rmtree(path, onexc=writable_and_retry)
+    else:
+        shutil.rmtree(path, onerror=writable_and_retry)
+
+
 def install(folder: Path, release: Release) -> None:
     """Install ``release`` in the machine folder, replacing the installed version only once the
     fetched tree holds its kind's entry file."""
@@ -388,7 +434,11 @@ def install(folder: Path, release: Release) -> None:
     try:
         tree = staging / "tree"
         tree.mkdir()
-        _fetch(folder, release, tree)
+        failure = GIT.fetch(folder, release.repository, release.tag, tree)
+        if failure is not None:
+            raise ComponentError(f"{release.name} {release.number}: cannot be fetched from {release.repository}: "
+                                 f"{failure}. Check that the repository can be read, then install again; see {OWNER} "
+                                 f"(Choosing)")
         kind = _check_entry(release, tree)
         target = components / release.name
         if target.exists():
@@ -399,7 +449,76 @@ def install(folder: Path, release: Release) -> None:
                                  "commit": release.commit}
         _write_list(entries)
     finally:
-        shutil.rmtree(staging, ignore_errors=True)
+        _remove_tree(staging)
+
+
+REQUIREMENTS = "se.toml"
+"""The file at a component's root whose table ``[components]`` names the components it requires."""
+
+_PIN = re.compile(r"\^?(0|[1-9][0-9]*)(?:\.(0|[1-9][0-9]*))?(?:\.(0|[1-9][0-9]*))?")
+
+
+def requirements(tree: Path, name: str) -> dict[str, str | None]:
+    """The components the installed ``tree`` of ``name`` requires, by name, with their pins: each entry of
+    its se.toml's ``[components]`` but those marked ``optional = true``."""
+    path = tree / REQUIREMENTS
+    if not path.is_file():
+        return {}
+    try:
+        table = tomllib.loads(path.read_text(encoding="utf-8")).get("components", {})
+    except (OSError, ValueError) as error:
+        raise ComponentError(f"{name}: {REQUIREMENTS}: cannot be read ({error}). Install another version; see "
+                             f"{OWNER} (Requirements)") from error
+    found = {}
+    for required, entry in (table.items() if isinstance(table, dict) else ()):
+        entry = entry if isinstance(entry, dict) else {}
+        if entry.get("optional") is True:
+            continue
+        pin = entry.get("version")
+        if pin is not None and (not isinstance(pin, str) or _PIN.fullmatch(pin) is None):
+            raise ComponentError(f"{name}: {REQUIREMENTS}: components.{required}.version: {pin!r} is no pin "
+                                 f"(^<major>[.<minor>[.<patch>]]). Install another version; see {OWNER} (Requirements)")
+        found[required.lower()] = pin
+    return found
+
+
+def admits(pin: str | None, version: tuple[int, int, int]) -> bool:
+    """Whether the caret pin admits ``version``: from the pin up to the next change of its leftmost
+    nonzero part, the way Cargo and uv read ^; no pin admits every version."""
+    if pin is None:
+        return True
+    parts = [int(part) for part in _PIN.fullmatch(pin).groups() if part is not None]
+    lowest = tuple(parts + [0] * (3 - len(parts)))
+    if version < lowest:
+        return False
+    fixed = next((index for index, part in enumerate(parts) if part), len(parts) - 1) + 1
+    return version[:fixed] == lowest[:fixed]
+
+
+def install_with_requirements(folder: Path, release: Release,
+                              releases: dict[str, dict[tuple[int, int, int], Release]],
+                              say: Callable[[str], None], chain: tuple[str, ...] = ()) -> None:
+    """Install ``release``, then each component it requires that is not installed at a version its pin
+    admits, the newest offered release the pin admits, and theirs in turn. A required name the
+    listing offers only as no component of obs is another host's, and left to it."""
+    install(folder, release)
+    say(f"installed {release.name} {release.number} ({release.kind}) from {release.repository}"
+        + (f", required by {' -> '.join(chain)}" if chain else ""))
+    chain = (*chain, release.name)
+    for name, pin in requirements(local_folder() / "components" / release.name, release.name).items():
+        offers = releases.get(name, {})
+        if offers and offers[max(offers)].kind == NO_KIND:
+            continue
+        current = installed().get(name)
+        if current and _VERSION.fullmatch(current["version"]) and admits(pin, _version(current["version"])):
+            continue
+        admitted = [version for version in offers if admits(pin, version)]
+        if not admitted:
+            numbers = ", ".join(offers[key].number for key in sorted(offers)) or "none"
+            raise ComponentError(f"{' -> '.join((*chain, name))}: {release.name} requires {name}"
+                                 f"{' ' + pin if pin else ''}, and no repository offers a release it admits; offered: "
+                                 f"{numbers}. Add a remote that reaches it; see {OWNER} (Requirements)")
+        install_with_requirements(folder, offers[max(admitted)], releases, say, chain)
 
 
 def remove(name: str) -> None:
@@ -407,7 +526,7 @@ def remove(name: str) -> None:
     if name not in entries:
         raise ComponentError(f"remove: {name}: is not installed. Name an installed component (obs-components lists them); "
                           f"see {OWNER} (Choosing)")
-    shutil.rmtree(local_folder() / "components" / name, ignore_errors=True)
+    _remove_tree(local_folder() / "components" / name)
     del entries[name]
     _write_list(entries)
 
@@ -455,7 +574,8 @@ def build_parser() -> argparse.ArgumentParser:
         prog="obs-components",
         description="List the components the checkout's remotes and their owners offer, with installed and newest "
                     "versions, and install, update or remove one in the machine folder (OBS_LOCAL_FOLDER, else obs "
-                    "in the user's configuration folder). Nothing installs unasked.")
+                    "in the user's configuration folder), with the components it requires. Nothing else installs "
+                    "unasked.")
     commands = parser.add_subparsers(dest="command")
     chosen = commands.add_parser("install", help="Install the newest offered release of NAME, or VERSION.")
     chosen.add_argument("name", metavar="NAME")
@@ -496,8 +616,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         if options.command == "update" and current["version"] == release.number:
             print(f"obs-components: {name} {release.number} is the newest offered release; nothing changed")
             return 0
-        install(folder, release)
-        print(f"obs-components: installed {name} {release.number} ({release.kind}) from {release.repository}")
+        install_with_requirements(folder, release, releases, lambda message: print(f"obs-components: {message}"))
     except ComponentError as error:
         raise SystemExit(f"obs-components: {error}") from error
     return 0
