@@ -440,7 +440,7 @@ def test_the_real_git_door_answers_as_its_fake_and_installs_a_release(tmp_path, 
     assert answers(components.GIT, tmp_path / "real") == answers(fake, tmp_path / "fake")
 
     monkeypatch.setattr(components, "CHECKOUT", folder)
-    monkeypatch.setattr(components, "LISTINGS", {})
+    monkeypatch.setattr(components, "LISTINGS", {"example.test": lambda owner: ["a"]})  # The listing is no Git call.
     assert components.main(["install", "a"]) == 0
     assert installed_versions(machine) == {"a": "1.1.0"}
     assert not (machine / "components" / "a" / ".git").exists()
