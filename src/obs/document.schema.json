@@ -122,17 +122,11 @@
         "effective": {
           "description": "Present on a block node that sets a block field or sits in one that does: each dotted key in reach with its value, nearest first, and where it comes from, the node that sets it or the note's front matter (input-model#Block fields). A node without it takes its note's front matter.",
           "type": "object",
-          "additionalProperties": {
-            "type": "object",
-            "required": ["value"],
-            "oneOf": [
-              {"required": ["node"], "properties": {"value": {"type": ["string", "number", "boolean"]}, "node": {"$ref": "#/$defs/nodeId"}}, "additionalProperties": false},
-              {"required": ["frontmatter"], "properties": {"value": true, "frontmatter": {"const": true}}, "additionalProperties": false}
-            ]
-          }
-        }
+          "additionalProperties": {"$ref": "#/$defs/blockFieldSource"}
+        },
+        "overrides": {"$ref": "#/$defs/blockFieldOverrides"}
       },
-      "dependentRequired": {"authoredId": ["id"], "fields": ["id", "effective"], "effective": ["id"]},
+      "dependentRequired": {"authoredId": ["id"], "fields": ["id", "effective"], "effective": ["id"], "overrides": ["fields"]},
       "allOf": [
         {
           "description": "Containers that carry no attributes: a quotation's blocks, a table's rows, a row's cells, and a mark's inline nodes.",
@@ -781,11 +775,12 @@
         "ignored": {"const": true, "description": "Present on an ignored note: queries and Bases never select it or a row it owns (markdown-frontmatter, Ignored notes)."},
         "quantity": {"description": "Present on the record of every quantity note the Document includes: its quantity, as on its quantities node.", "$ref": "#/$defs/quantity"},
         "block": {
-          "description": "The block node a block record is (input-model#Block records): its id, its chapter's id (home for the abstract), its node type, its path of chapter title, section titles outer-first and kind joined by ' › ', and the block fields it sets itself.",
+          "description": "The block node a block record is (input-model#Block records): its id, its chapter's id (home for the abstract), its node type, its path of chapter title, section titles outer-first and kind joined by ' › ', the block fields it sets itself, and its node's overrides where it has them.",
           "type": "object", "additionalProperties": false, "required": ["node", "chapter", "kind", "path", "fields"],
           "properties": {
             "node": {"$ref": "#/$defs/nodeId"}, "chapter": {"$ref": "#/$defs/id"}, "kind": {"type": "string"},
-            "path": {"type": "string", "minLength": 1}, "fields": {"$ref": "#/$defs/blockFields"}
+            "path": {"type": "string", "minLength": 1}, "fields": {"$ref": "#/$defs/blockFields"},
+            "overrides": {"$ref": "#/$defs/blockFieldOverrides"}
           }
         }
       },
@@ -847,6 +842,22 @@
           "then": {"not": {"required": ["note"]}, "properties": {"fields": {"required": ["date"]}}}
         }
       ]
+    },
+    "blockFieldSource": {
+      "description": "A block field's value and where it comes from: the id of the node that sets it, or the note's front matter (input-model#Block fields).",
+      "type": "object",
+      "required": ["value"],
+      "oneOf": [
+        {"required": ["node"], "properties": {"value": {"type": ["string", "number", "boolean"]}, "node": {"$ref": "#/$defs/nodeId"}}, "additionalProperties": false},
+        {"required": ["frontmatter"], "properties": {"value": true, "frontmatter": {"const": true}}, "additionalProperties": false}
+      ]
+    },
+    "blockFieldOverrides": {
+      "description": "Present on a node that sets or unsets a block field which a container, a section or the note's front matter around it also has a value for: each such dotted key with that nearest outer value and where it comes from, so an adapter shows the override without resolving the inheritance (input-model#Document fields).",
+      "type": "object",
+      "minProperties": 1,
+      "propertyNames": {"pattern": "^[A-Za-z_][A-Za-z0-9_-]*(\\.[A-Za-z0-9_-]+)*$"},
+      "additionalProperties": {"$ref": "#/$defs/blockFieldSource"}
     },
     "blockFields": {
       "description": "Block fields by dotted key, from key:: value lines; null unsets an inherited value (input-model#Block fields).",

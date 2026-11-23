@@ -4,6 +4,7 @@ from __future__ import annotations
 import subprocess
 from pathlib import Path
 
+from obs import commands
 from obs.input import InputError, validate_command
 from obs.note import parser, read_note
 
@@ -38,18 +39,7 @@ def run_producers(vault_root: Path, authorized: bool, timeout_seconds: int) -> i
 def _run(command: str, cwd: Path, timeout_seconds: int, source: Path, line: int) -> None:
     try:
         validate_command(command)
-        completed = subprocess.run(
-            command,
-            cwd=cwd,
-            shell=True,
-            check=False,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.STDOUT,
-            text=True,
-            encoding="utf-8",
-            errors="replace",
-            timeout=timeout_seconds,
-        )
+        completed = commands.run_shell(command, cwd, None, timeout_seconds)
     except InputError as error:
         raise ProducerError(f"{source}:{line}: {error}") from error
     except subprocess.TimeoutExpired as error:

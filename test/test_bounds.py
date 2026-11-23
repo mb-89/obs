@@ -127,7 +127,7 @@ def pytest_runtest_makereport(item, call):
 import threading
 import pytest
 
-@pytest.mark.timeout(1)
+@pytest.mark.timeout(0.1)
 def test_waits_forever():
     threading.Event().wait()
 
@@ -140,7 +140,7 @@ def test_next():
 
     assert result.returncode == 1, result.stdout
     assert "1 failed, 1 passed" in result.stdout
-    assert "test/bounds.py: test_hangs.py::test_waits_forever ran past its timeout of 1 s (tier unit" in result.stdout
+    assert "test/bounds.py: test_hangs.py::test_waits_forever ran past its timeout of 0.1 s (tier unit" in result.stdout
     assert bounds.EXPLAINED_SOURCES[bounds.SOURCES["unit"]] in result.stdout, "it names where its tier's bound came from"
 
 

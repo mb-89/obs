@@ -1,6 +1,7 @@
 """The complete suite runs in parallel workers without losing its tier summary or module sharing."""
 import os
 from collections import Counter
+from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
@@ -153,15 +154,12 @@ def test_the_suite_records_each_passed_tests_tier_and_time_per_run(tmp_path, mon
 
 def test_a_part_whose_test_ran_over_its_tiers_cap_fails_naming_it(tmp_path, monkeypatch) -> None:
     """A record-derived bound may not grow past its cap (test/bounds.py, CAP_FACTOR): the part fails."""
-    import sys
-
     import bounds
 
     monkeypatch.setattr(suite, "WEIGHTS", tmp_path / "weights")
     report = tmp_path / "core.xml"
     cap = round(bounds.CAP_FACTOR * bounds.COMMITTED["unit"], 3)
     _tiered_junit(report, [("slow", "unit", round(cap + 1, 3), None), ("fine", "unit", round(cap - 1, 3), None)])
-    monkeypatch.setattr(suite, "part_command", lambda *_: [sys.executable, "-c", "pass"])
     monkeypatch.setattr(suite, "part_report", lambda *_: report)
 
     code, output = suite.run_part(suite.ROOT, [], tmp_path)
@@ -182,11 +180,9 @@ _COLLECTION_ERROR = ('<testcase classname="" name="test.test_broken" time="0.0">
     (5, "", "it ran no tests"),
     (0, None, "it wrote no JUnit report"),
 ], ids=["collection-error", "interrupted", "internal-error", "no-tests", "no-report"])
-def test_a_part_whose_run_did_not_complete_records_no_run_and_says_so(tmp_path, monkeypatch, exit_code, cases,
+def test_a_part_whose_run_did_not_complete_records_no_run_and_says_so(tmp_path, monkeypatch, fakes, exit_code, cases,
                                                                         reason) -> None:
     """A crashed, interrupted or empty run is no measurement: recorded, it would shift the derived bounds."""
-    import sys
-
     monkeypatch.setattr(suite, "WEIGHTS", tmp_path / "weights")
     report = tmp_path / "core.xml"
     _tiered_junit(report, [("one@g", "unit", 1.5, None)])
@@ -195,7 +191,7 @@ def test_a_part_whose_run_did_not_complete_records_no_run_and_says_so(tmp_path, 
     report.unlink()
     if cases is not None:
         report.write_text(f"<testsuites><testsuite>{cases}</testsuite></testsuites>", encoding="utf-8")
-    monkeypatch.setattr(suite, "part_command", lambda *_: [sys.executable, "-c", f"raise SystemExit({exit_code})"])
+    fakes.part.returncode = exit_code
     monkeypatch.setattr(suite, "part_report", lambda *_: report)
 
     _, output = suite.run_part(suite.ROOT, [], tmp_path)
@@ -260,17 +256,26 @@ def test_the_parts_run_side_by_side_and_any_failed_part_fails_the_suite(monkeypa
     assert "failed parts: core." in output.err
 
 
-def test_a_part_past_the_suite_cap_is_stopped_naming_the_test_it_was_running(monkeypatch, capsys) -> None:
-    import sys
+def running_record(test: str = "test/test_hangs.py::test_waits"):
+    """What a part's pytest does as it starts a test, as test/bounds.py's ``running`` does: name ``test``
+    in the run's folder (OBS_SPEC_BUILD), one file per process, for the fake Part's ``started``."""
+    import itertools
 
+    numbers = itertools.count()
+
+    def started(command, cwd) -> None:
+        record = Path(os.environ["OBS_SPEC_BUILD"], "running", f"part-{next(numbers)}.txt")
+        record.parent.mkdir(exist_ok=True)
+        record.write_text(f"{cwd}\n{test}", encoding="utf-8")
+
+    return started
+
+
+def test_a_part_past_the_suite_cap_is_stopped_naming_the_test_it_was_running(monkeypatch, capsys, fakes) -> None:
     import suite
 
-    # Each part's command names a test in the run's folder, as test/bounds.py does, and waits forever.
-    hang = ("import os, pathlib, threading; record = pathlib.Path(os.environ['OBS_SPEC_BUILD'], 'running', "
-            "str(os.getpid()) + '.txt'); record.parent.mkdir(exist_ok=True); "
-            "record.write_text(os.getcwd() + '\\ntest/test_hangs.py::test_waits'); print('started', flush=True); "
-            "threading.Event().wait()")
-    monkeypatch.setattr(suite, "part_command", lambda part, *_: [sys.executable, "-c", hang])
+    # Each part names a test in the run's folder, as test/bounds.py does, and runs past the cap.
+    fakes.part.hangs, fakes.part.started = True, running_record()
     monkeypatch.setattr(suite, "is_installed", lambda package: True)
     monkeypatch.setattr(suite, "CAP_SECONDS", 1)
 
@@ -280,6 +285,7 @@ def test_a_part_past_the_suite_cap_is_stopped_naming_the_test_it_was_running(mon
         assert (f"test/suite.py: {suite.part_name(part)} reached the suite's cap of 1 s (CAP_SECONDS) "
                 "and was stopped while running test/test_hangs.py::test_waits") in output.out
     assert f"failed parts: {', '.join(map(suite.part_name, suite.PARTS))}." in output.err
+    assert all(process.stopped for process in fakes.part.processes)
 
 
 # A part's pytest, interrupted, as its junitxml plugin writes its report: what it finished, and a
@@ -296,29 +302,23 @@ INTERRUPTED_REPORT = ('<?xml version="1.0" encoding="utf-8"?><testsuites name="p
     pytest.param(True, marks=pytest.mark.skipif(os.name == "nt", reason="no interrupt reaches one process on Windows")),
     False])
 def test_a_part_stopped_at_the_cap_reports_the_tests_it_finished_and_those_it_was_running(
-        monkeypatch, capsys, tmp_path, answers) -> None:
-    import sys
+        monkeypatch, capsys, tmp_path, fakes, answers) -> None:
     import time
     import xml.etree.ElementTree as ElementTree
 
-    # Each part's command names a test in the run's folder, as test/bounds.py does, and waits; on the
+    # Each part names a test in the run's folder, as test/bounds.py does, and runs past the cap; on the
     # interrupt it writes its report as pytest does, or it ignores it.
-    hang = ("import os, pathlib, signal, sys, threading; record = pathlib.Path(os.environ['OBS_SPEC_BUILD'], "
-            "'running', str(os.getpid()) + '.txt'); "
-            "report = pathlib.Path(sys.argv[1].split('=', 1)[1]); "
-            "answer = lambda *_: (report.parent.mkdir(parents=True, exist_ok=True), "
-            f"report.write_text({INTERRUPTED_REPORT!r}, encoding='utf-8'), os._exit(2)); "
-            f"signal.signal(signal.SIGINT, answer if {answers} else signal.SIG_IGN); "
-            "record.parent.mkdir(exist_ok=True); "
-            "record.write_text(os.getcwd() + '\\ntest/test_hangs.py::test_waits'); print('started', flush=True); "
-            "threading.Event().wait()")
-    monkeypatch.setattr(suite, "part_command", lambda part, arguments, environment, run_folder: [
-        sys.executable, "-c", hang, f"--junitxml={suite.part_report(part, environment, run_folder)}"])
+    def answer(command, cwd) -> None:
+        [report] = [Path(argument.split("=", 1)[1]) for argument in command if argument.startswith("--junitxml=")]
+        report.parent.mkdir(parents=True, exist_ok=True)
+        report.write_text(INTERRUPTED_REPORT, encoding="utf-8")
+
+    fakes.part.hangs, fakes.part.started = True, running_record()
+    fakes.part.answer = answer if answers else None
     monkeypatch.setattr(suite, "is_installed", lambda package: True)
     monkeypatch.setattr(suite, "CAP_SECONDS", 1)
     monkeypatch.setenv(suite.REPORTS_VARIABLE, str(tmp_path))
     if not answers:
-        monkeypatch.setattr(suite, "INTERRUPT_GRACE_SECONDS", 1)
         earlier = time.time() - 3600
         for part in suite.PARTS:
             path = suite.part_report(part, os.environ, tmp_path)
@@ -668,10 +668,8 @@ def test_a_shard_outside_its_count_is_refused(monkeypatch, capsys, shard) -> Non
     assert f"test/suite.py: --shard {shard}" in capsys.readouterr().err
 
 
-def test_a_shards_run_is_checked_against_the_cap_but_not_recorded(tmp_path, monkeypatch) -> None:
+def test_a_shards_run_is_checked_against_the_cap_but_not_recorded(tmp_path, monkeypatch, fakes) -> None:
     """A shard's run holds part of the part's tests: recorded, it would lower its tiers' bounds."""
-    import sys
-
     import bounds
 
     monkeypatch.setattr(suite, "WEIGHTS", tmp_path / "weights")
@@ -679,7 +677,7 @@ def test_a_shards_run_is_checked_against_the_cap_but_not_recorded(tmp_path, monk
     report = tmp_path / "core.xml"
     cap = bounds.CAP_FACTOR * bounds.COMMITTED["unit"]
     _tiered_junit(report, [("slow@g", "unit", cap + 1, None)])
-    monkeypatch.setattr(suite, "part_command", lambda *_: [sys.executable, "-c", "raise SystemExit(5)"])
+    fakes.part.returncode = 5
     monkeypatch.setattr(suite, "part_report", lambda *_: report)
 
     code, output = suite.run_part(suite.ROOT, [], tmp_path)
@@ -782,3 +780,33 @@ def test_ci_times_its_shards_with_the_copies_of_se_actions_at_the_commit_se_lock
         copy = (suite.ROOT / action / "action.yml").read_text(encoding="utf-8")
         assert copy.startswith(f"# se-workflows: {action[2:]}/action.yml at {pinned} from ")
         assert re.findall(r"(?m)^ +ref: (\S+)$", copy) == [pinned]
+
+
+# A part that starts a child holding its output, says so and waits; with "answers" it ends on an
+# interrupt, its child first, with code 2.
+WAITING_PART = ("import os, signal, subprocess, sys, threading; "
+                "child = subprocess.Popen([sys.executable, '-c', 'import threading; threading.Event().wait()']); "
+                "answer = lambda *_: (child.kill(), child.wait(), print('interrupted', flush=True), os._exit(2)); "
+                "sys.argv[1:] == ['answers'] and signal.signal(signal.SIGINT, answer); "
+                "print('started', flush=True); threading.Event().wait()")
+
+
+@pytest.mark.door("part")
+@pytest.mark.parametrize("answers", [
+    pytest.param(True, marks=pytest.mark.skipif(os.name == "nt", reason="no interrupt reaches one process on Windows")),
+    False])
+def test_a_real_part_ends_on_an_interrupt_it_answers_and_a_stop_ends_every_process_it_started(answers) -> None:
+    """The contract of test/suite.py's PartProcess, which the fake Part follows: an answered interrupt
+    ends the part with its own code; a stop ends it and its child, whose end closes the output that
+    communicate reads to its end (no wait is timed)."""
+    import sys
+
+    process = suite.PartProcess([sys.executable, "-c", WAITING_PART, *(["answers"] if answers else [])], suite.ROOT)
+    assert process.process.stdout.readline() == "started\n"
+
+    if answers:
+        process.interrupt()
+        assert process.communicate() == ("interrupted\n", None) and process.returncode == 2
+    else:
+        process.stop()
+        assert process.communicate() == ("", None) and process.returncode != 0

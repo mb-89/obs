@@ -386,6 +386,32 @@ def test_adapter_is_discovered_by_name_among_the_installed_components(tmp_path) 
     }
 
 
+# An adapter that prints a line on each stream, writes its arguments after DESTINATION into it and
+# exits with the first of them, or fails with an uncaught exception.
+CONTRACT_ADAPTER = ("import sys; from pathlib import Path; print('out'); print('warn', file=sys.stderr); "
+                    "Path(sys.argv[2]).write_text(' '.join(sys.argv[3:])); "
+                    "raise SystemExit(int(sys.argv[3])) if sys.argv[3].isdigit() else ValueError('no code')")
+
+
+@pytest.mark.door("adapter")
+@pytest.mark.parametrize("ending", ["0", "4", "raises"])
+def test_the_real_adapter_door_answers_as_its_fake(tmp_path, fakes, ending) -> None:
+    """The contract of document.run_adapter, which test/doors.py's AdapterProcess follows in this
+    process: exit code, both streams captured and what it wrote, alike."""
+    from obs import document
+
+    answers = []
+    for door in (document.run_adapter, fakes.adapter):
+        written = tmp_path / f"{len(answers)}.txt"
+        completed = door([sys.executable, "-c", CONTRACT_ADAPTER, "document.json", str(written), ending], tmp_path,
+                         capture=True)
+        answers.append((completed.returncode, completed.stdout, completed.stderr.splitlines()[-1],
+                        written.read_text(encoding="utf-8")))
+
+    assert answers[0] == answers[1]
+    assert answers[0][0] == (int(ending) if ending.isdigit() else 1)
+
+
 def test_core_writes_document_and_calls_adapter(tmp_path) -> None:
     document = tmp_path / "document.json"
     reference = write_reference(tmp_path / "capabilities.json")
@@ -433,6 +459,7 @@ def test_core_rejects_mismatched_adapter_contracts(
         call_adapter("fixture", document, tmp_path / "output.txt", reference)
 
 
+@pytest.mark.door("adapter")
 def test_node_adapter_receives_the_document_and_writes_output(tmp_path) -> None:
     document = tmp_path / "document.json"
     reference = write_reference(tmp_path / "capabilities.json")

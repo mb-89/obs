@@ -4,7 +4,8 @@ note's front matter (input-model#Block fields).
 
 ``vault.py`` takes the lines out of the tokens and attaches them as the nodes are built, with
 ``take_lines`` and ``attach``; ``document.py`` resolves ``effective`` with ``resolve`` once the
-node ids are assigned. ``document.schema.json`` states ``fields`` and ``effective``.
+node ids are assigned, and gives each node that sets a key with a value farther out its
+``overrides``. ``document.schema.json`` states ``fields``, ``effective`` and ``overrides``.
 """
 from __future__ import annotations
 
@@ -149,8 +150,9 @@ def _blocks(nodes: list[Node]) -> Iterator[Node]:
 
 
 def resolve(document: dict[str, Any]) -> None:
-    """Give each block node in reach of a field line its ``effective`` values: the abstract's from
-    the manifest's front matter, a chapter's from its note's."""
+    """Give each block node in reach of a field line its ``effective`` values, and each node that
+    sets a key with a value farther out the ``overrides`` it replaces or unsets: the abstract's
+    from the manifest's front matter, a chapter's from its note's."""
     manifest = document["manifest"]
     if "abstract" in manifest:
         _resolve(manifest["abstract"], frontmatter(manifest.get("metadata") or {}))
@@ -227,6 +229,9 @@ def _resolve(nodes: list[Node], base: dict[str, Node | None], reached: bool = Fa
         scope = _own(node, outer)
         if node["type"] in IDENTIFIED and scope[1]:
             node["effective"] = {key: entry for key, entry in scope[0].items() if entry is not None}
+        overrides = {key: outer[0][key] for key in node.get("fields") or {} if outer[0].get(key) is not None}
+        if overrides:
+            node["overrides"] = overrides
         if node["type"] == "section":
             sections.append((node["attrs"].get("level", 1), scope))
         elif node["type"] in CONTAINERS:

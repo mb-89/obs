@@ -1987,7 +1987,18 @@ with a value and where it comes from, `{value, node}` with the id of the node th
 `{value, frontmatter: true}` from the note's front matter.
 
 A node without `effective` takes its note's front matter as its effective values, so a Document
-without field lines is as before. `document.schema.json` states both.
+without field lines is as before.
+
+Decided by SE, 22 Nov 2026 (work issue `block-fields-name-overrides`): a block or section node
+that sets a key which a container, a section or the note's front matter around it also has a
+value for carries `overrides`: each such key with that outer value and where it comes from, in
+the form `effective` uses. An unset key that hides an outer value is an override too.
+
+An adapter so shows that a block's own value replaces one from farther out without resolving the
+inheritance itself. Not picked: leaving the resolution to each adapter, which repeats the core's
+rules in every adapter.
+
+`document.schema.json` states `fields`, `effective` and `overrides`.
 
 A block's effective values form the mapping front matter forms for a note, so a query condition
 matches a block's effective fields as `field: value` exactly as it matches front matter
@@ -2008,6 +2019,8 @@ the blocks.
   `chapter`, its chapter's id (`home` for the abstract); `kind`, its node type; `path`, the
   chapter's title, the titles of the sections around it outer-first and its kind, joined by
   ` › ` (a section's last part is its own title); and `fields`, the keys it sets itself.
+- Where its node overrides an outer value, its `block` also carries that node's `overrides`
+  ([[#Document fields]]).
 - A filter resolves a property on the block's effective values first, then `block.node`,
   `block.chapter`, `block.kind` and `block.path` on its `block`. A block of an ignored note is
   never selected.
