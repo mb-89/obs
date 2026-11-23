@@ -61,6 +61,11 @@ from no checkout, it fails naming the folder and the remedy, to run it from a cl
 it is `RUNME.sh components` (or `RUNME.ps1 components`): `obs-document components ARGS` runs `obs-components
 ARGS`, since RUNME, se's, starts one command.
 
+Every Git call the command makes goes through its one Git door, `components.GIT`: the checkout's
+folder and remotes, a repository's tags, the names at the root of a release's tree and the fetch of
+that tree. Its tests answer them from a fake host of repositories in memory, and one contract test
+runs real Git ([Testing boundaries](quality.md#testing-boundaries)).
+
 ### Listing
 
 `obs-components` with no argument lists the components:

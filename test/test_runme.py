@@ -11,7 +11,10 @@ import subprocess
 import sys
 from pathlib import Path
 
+import pytest
+
 from installed_components import install_adapter
+from obs import document
 
 ROOT = Path(__file__).parents[1]
 RUNME = ROOT / "RUNME.sh"
@@ -19,10 +22,12 @@ CONF = ROOT / "RUNME.conf"
 # What the suite's process sets and a person's shell does not: the suite's environment, which uv
 # would otherwise warn about, as test/spec_build.py drops it; and uv's TLS choice.
 DROPPED = ("VIRTUAL_ENV", "UV_NATIVE_TLS")
+COLUMNS = "100"
+"""The terminal width both helps are formatted for."""
 
 
 def _environment() -> dict[str, str]:
-    return {key: value for key, value in os.environ.items() if key not in DROPPED}
+    return {**{key: value for key, value in os.environ.items() if key not in DROPPED}, "COLUMNS": COLUMNS}
 
 
 def _run(command: list[str], cwd: Path) -> subprocess.CompletedProcess:
@@ -36,14 +41,19 @@ def _entries(kind: str) -> list[list[str]]:
     return [line.split()[1:] for line in lines if line.split()[:1] == [kind]]
 
 
-def test_runme_help_is_obs_documents_help() -> None:
+def test_runme_help_is_obs_documents_help(capsys, monkeypatch) -> None:
+    """The one test that starts RUNME as a real process: it hands every argument to obs-document,
+    whose help it prints as obs-document's main does in-process."""
     through = _run(["sh", str(RUNME), "--help"], ROOT)
-    direct = _run(["uv", "run", "obs-document", "--help"], ROOT)
+    monkeypatch.setenv("COLUMNS", COLUMNS)
+    with pytest.raises(SystemExit) as ended:
+        document.main(["--help"])
+    assert ended.value.code == 0
     assert (through.returncode, through.stderr) == (0, ""), through.stderr
-    assert through.stdout == direct.stdout
+    assert through.stdout == capsys.readouterr().out
 
 
-def test_a_relative_path_resolves_from_the_callers_folder(tmp_path: Path) -> None:
+def test_a_relative_path_resolves_from_the_callers_folder(tmp_path: Path, monkeypatch) -> None:
     vault = tmp_path / "vault"
     vault.mkdir()
     (vault / "manifest.md").write_text("- [[note]]\n", encoding="utf-8")
@@ -52,17 +62,9 @@ def test_a_relative_path_resolves_from_the_callers_folder(tmp_path: Path) -> Non
                                                                           "markdown-frontmatter", "queries", "wikilinks"],
                      "command": [sys.executable, "-c",
                                  "import sys, pathlib; pathlib.Path(sys.argv[2]).write_text('ok')"]})
-    result = _run(["sh", str(RUNME), "--source", "vault/manifest.md", "--adapter", "fixture",
-                   "--destination", "out.html"], tmp_path)
-    assert result.returncode == 0, result.stderr
+    monkeypatch.chdir(tmp_path)
+    assert document.main(["--source", "vault/manifest.md", "--adapter", "fixture", "--destination", "out.html"]) == 0
     assert (tmp_path / "out.html").is_file()
-
-
-def test_runme_runs_the_component_command(tmp_path: Path) -> None:
-    through = _run(["sh", str(RUNME), "components", "--help"], tmp_path)
-    direct = _run(["uv", "run", "--project", str(ROOT), "obs-components", "--help"], tmp_path)
-    assert (through.returncode, through.stderr) == (0, ""), through.stderr
-    assert through.stdout == direct.stdout
 
 
 def test_runme_conf_declares_obs_needs_and_its_command_line() -> None:

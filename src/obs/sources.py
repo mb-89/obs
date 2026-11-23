@@ -101,10 +101,15 @@ def origin_url(remote: str) -> str:
     return remote
 
 
+def run_git(folder: Path, *arguments: str) -> subprocess.CompletedProcess:
+    """The source archive's door to Git: ``git -C folder arguments``, its output captured; OSError where
+    Git cannot run (quality.md, Testing boundaries)."""
+    return subprocess.run(["git", "-C", str(folder), *arguments], capture_output=True, text=True, encoding="utf-8")
+
+
 def _git(folder: Path, *arguments: str) -> str:
     try:
-        result = subprocess.run(["git", "-C", str(folder), *arguments], capture_output=True, text=True,
-                                encoding="utf-8")
+        result = run_git(folder, *arguments)
     except FileNotFoundError as error:
         raise SourceError(f"obs-document --embed-source: git is not installed, so obs in {folder} cannot name "
                           f"the commit that rebuilds the artifact. Install git; see {OWNER}.") from error
