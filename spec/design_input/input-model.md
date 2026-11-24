@@ -53,6 +53,8 @@ Every key the core reads lives in the core's namespace
 ([[capabilities/cards-metrics#Fields]]), a note's `obs.document`
 ([[capabilities/profiles]]) and a chapter's `obs.bless` ([[#Bless requests]]).
 
+A manifest's `obs.template` and a chapter's `obs.guidance` are the core's too ([[#Templates]]).
+
 An adapter's options live in its own namespace, `obs` followed
 by its name in camelCase ([[#Adapter extensions]]); the core
 neither reads nor validates it, and keeps it out of document metadata rows. A key the core
@@ -1837,6 +1839,49 @@ and the chapter asks still and shows the comment.
 
 A verdict for a chapter that does not ask, a second verdict for one chapter, or a file the schema
 refuses is an input error naming the answers file and the field path (`verdicts[0].chapter`).
+
+## Templates
+
+Decided by the person, 24 Nov 2026 (work issue `template-manifest-and-nodes`): a template is a
+document skeleton filled many times, and obs knows it by two note types and one field, so an agent
+tells a template from a document, guidance stays apart from the filled text, and a document names
+the template it was filled from. [[capabilities/templates]] owns the Document nodes and the worked
+example.
+
+- A **template manifest** is a manifest whose front matter carries `obs.template`: `name` and
+  `version`, each nonempty text, and optionally `source`, nonempty text naming where the template
+  was imported from.
+
+  Its table of contents lists the template's nodes in reading order, as any
+  manifest lists its chapters ([[#Manifest contract]]). Only the manifest marks a template:
+  `obs.template` on another note is an input error naming the note and `obs.template`.
+- A **template node** is a chapter of a template manifest whose front matter carries
+  `obs.guidance`, the guidance for its one section, whose heading is the chapter's title.
+
+  `contents` (what goes here) and `gate` are required, and `motivation` (why), `form` (its shape)
+  and `sources` (where the facts come from) optional. Each is nonempty text, parsed as inline
+  Markdown, except `gate`, which is `mandatory` or `judgment`.
+- A template node's body holds its fill slot, a paragraph of `{{slot}}` alone, exactly once. A
+  node with none, with more than one, or with `{{slot}}` inside other text is an input error naming
+  the note and `obs.guidance`. A chapter of a template manifest without `obs.guidance` is an
+  ordinary chapter, such as a note on how to use the template.
+- A **filled document** is a document written from a template. Its manifest carries
+  `derived_from`: `template`, the template's `name`, and `version`, the version it was filled from,
+  each nonempty text. `derived_from` is a recognised field on any note; a note that carries it, or
+  any note of a document whose manifest carries it, is filled.
+
+  When a template's version moves, the
+  documents whose `derived_from` names an older version are the ones to review.
+
+  `derived_from` stands outside the core's namespace, as the person asked: it is the document's own
+  statement about itself, for any tool that reads the vault, as `title` is.
+- Guidance never renders into a filled document: `obs.guidance` on a note of a document whose
+  manifest is no template manifest is an input error naming the note, `obs.guidance` and the remedy,
+  to keep the guidance in the template.
+- A filled note whose text still holds `{{slot}}` is an input error naming the note and the
+  section, the heading above the slot or, without one, the chapter's title (on the manifest, the
+  document's): `<note>: section <heading>: still holds the fill slot {{slot}}`. A `{{slot}}` in
+  code is literal and no slot.
 
 ## Command-derived content
 

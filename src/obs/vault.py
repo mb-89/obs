@@ -44,7 +44,7 @@ from obs.input import (
     validate_project_config,
     validate_quantity,
 )
-from obs import bottom_lines, embeds
+from obs import bottom_lines, embeds, templates
 from obs.block_fields import FieldLineError, adopt, attach, setting, take_lines, unattached, values
 from obs.node_ids import block_names, named_blocks
 from obs.note import (
@@ -284,6 +284,7 @@ def build_document(
     asset_ids: set[str] = set()
     capabilities: set[str] = set()
     included: set[Path] = {manifest_path}
+    template = templates.is_template(metadata)
 
     def context_of(path: Path, frontmatter: dict[str, object]) -> _Context:
         """What parsing one note's Markdown reads and adds to."""
@@ -302,6 +303,12 @@ def build_document(
         chapter["metadata"] = _json_value(chapter_metadata)
         context = context_of(path, chapter_metadata)
         content = _frontmatter_nodes(chapter_metadata, context)
+        if template and (values := templates.guidance(chapter_metadata)) is not None \
+                and "templates" in (capability_ids or set()):
+            fields = [node for key in templates.GUIDANCE_TEXTS if key in values
+                      for node in _field_nodes(values[key], key, context)]
+            content.append(templates.guidance_node(values, fields))
+            capabilities.add("templates")
         if "chapter-inclusion" in (capability_ids or set()):
             content.append({
                 "type": "chapter-inclusion", "attrs": {"id": chapter["id"]}, "children": [],
@@ -309,6 +316,7 @@ def build_document(
             capabilities.add("chapter-inclusion")
         parsed = _nodes(chapter_body, context)
         _check_bottom_line(parsed, context)
+        parsed = _template_parts(parsed, chapter_metadata, chapter["title"], template, metadata, context)
         if parsed and "markdown" in (capability_ids or set()):
             content.append({"type": "markdown", "attrs": {}, "children": []})
             capabilities.add("markdown")
@@ -325,6 +333,8 @@ def build_document(
     manifest_context = replace(context_of(manifest_path, metadata), first_line=body[:abstract].count("\n"))
     abstract_nodes = _nodes(body[abstract:], manifest_context)
     _check_bottom_line(abstract_nodes, manifest_context)
+    abstract_nodes = _template_parts(abstract_nodes, metadata, title or _shown_title(manifest_path, vault),
+                                     template, metadata, manifest_context)
     manifest_nodes = _frontmatter_nodes(metadata, manifest_context)
     unlisted: list[dict[str, object]] = []
     while vault.reached:
@@ -389,6 +399,28 @@ def build_document(
         **({"style": style} if style is not None else {}),
         **settings.handed_over(vault_root),
     }
+
+
+def _template_parts(
+    nodes: list[dict[str, object]], note_metadata: dict[str, object], title: str, template: bool,
+    manifest_metadata: dict[str, object], context: _Context,
+) -> list[dict[str, object]]:
+    """A note's parsed body with its template parts (input-model#Templates): in a ``template``
+    manifest, a template node's slot paragraph as its slot node; elsewhere, no guidance, and in a
+    filled note no slot left, which fails naming the note and the section above it, or ``title``."""
+    source = context.vault.relative(context.source_path)
+    try:
+        if template:
+            if templates.guidance(note_metadata) is None or note_metadata is manifest_metadata:
+                return nodes
+            placed = templates.place_slot(nodes, source)
+            return placed if "templates" in context.capability_ids else nodes
+        templates.refuse_guidance(note_metadata, source)
+        if templates.is_filled(manifest_metadata) or templates.is_filled(note_metadata):
+            templates.refuse_slots(nodes, source, title)
+    except InputError as error:
+        raise VaultError(str(error)) from error
+    return nodes
 
 
 def _read_vault(manifest_path: Path, metadata: dict[str, object], body: str) -> _Vault:
@@ -644,6 +676,7 @@ def _validate_note(path: Path, vault: _Vault) -> None:
     vault.validated.add(path)
     metadata = vault.notes[path][0] if path in vault.notes else read_note(path).metadata
     try:
+        templates.validate(metadata, vault.relative(path), path == vault.manifest)
         validate_note_profile(metadata, path, manifest=path == vault.manifest)
         if metadata.get("kind") == "quantity":
             validate_quantity(metadata, path)
@@ -759,6 +792,8 @@ def _frontmatter_nodes(metadata: dict[str, object], context: _Context) -> list[d
         add("markdown-frontmatter", {"metadata": _json_value(metadata)}, _field_nodes(metadata, "", context))
     if "obs" in metadata:
         add("profiles", {"profile": _json_value(metadata["obs"])})
+    for attrs in templates.frontmatter_attrs(metadata):
+        add("templates", _json_value(attrs))
     if metadata.get("kind") == "quantity":
         add("quantities", {"metadata": _json_value(metadata), "quantity": document_quantity(metadata)})
     if "query" in metadata:

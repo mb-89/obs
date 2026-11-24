@@ -72,7 +72,7 @@ def additional_capability_vault(tmp_path) -> Path:
     vault = tmp_path / "additional"
     vault.mkdir()
     (vault / "manifest.md").write_text(
-        "---\ntitle: Fixture\n---\n- [[chapter]]\n",
+        "---\ntitle: Fixture\nderived_from: {template: fixture, version: \"1\"}\n---\n- [[chapter]]\n",
         encoding="utf-8",
     )
     (vault / "register.base").write_text(

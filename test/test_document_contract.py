@@ -101,6 +101,7 @@ def capability_node_attrs(identifier: str) -> dict[str, object]:
     attrs = {
         "attachments": {"asset": "asset", "label": "Attachment"},
         "callouts": {"kind": "note", "title": []},
+        "templates": {"part": "slot"},
         "cards-metrics": {"source": "", "spec": {}},
         "columns": {"weights": [1, 2]},
         "command-fences": {"source": "echo derived\n", "output": "derived\n"},

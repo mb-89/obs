@@ -7,6 +7,8 @@
   "properties": {
     "document": {"type": "boolean", "$comment": "input-model#Chapter content: false keeps a record-only note."},
     "bless": {"const": "pending", "$comment": "input-model#Bless requests: the chapter asks its reader for a verdict."},
+    "template": {"type": "object", "$comment": "input-model#Templates: the manifest is a template; obs.templates checks it first against input.schema.json $defs/templateMark."},
+    "guidance": {"type": "object", "$comment": "input-model#Templates: the chapter is a template node; obs.templates checks it first against input.schema.json $defs/templateGuidance."},
     "style": {
       "$comment": "The manifest's style: the name of an installed style component (architecture.md, Declared style); obs.input.declared_style checks it first.",
       "type": "string", "pattern": "^[a-z0-9][a-z0-9-]{0,31}$"

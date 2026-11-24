@@ -2,6 +2,35 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "title": "obs input contracts",
   "$defs": {
+    "templateText": {
+      "$comment": "A template's or a guidance's text: nonempty (input-model#Templates).",
+      "type": "string", "pattern": "\\S"
+    },
+    "templateMark": {
+      "$comment": "A template manifest's obs.template: its name, its version and where it was imported from (input-model#Templates).",
+      "type": "object", "additionalProperties": false, "required": ["name", "version"],
+      "properties": {
+        "name": {"$ref": "#/$defs/templateText"},
+        "version": {"$ref": "#/$defs/templateText"},
+        "source": {"$ref": "#/$defs/templateText"}
+      }
+    },
+    "templateGuidance": {
+      "$comment": "A template node's obs.guidance: what goes in its section, why, in which form, from which sources, and its gate (input-model#Templates).",
+      "type": "object", "additionalProperties": false, "required": ["contents", "gate"],
+      "properties": {
+        "contents": {"$ref": "#/$defs/templateText"},
+        "motivation": {"$ref": "#/$defs/templateText"},
+        "form": {"$ref": "#/$defs/templateText"},
+        "sources": {"$ref": "#/$defs/templateText"},
+        "gate": {"enum": ["mandatory", "judgment"]}
+      }
+    },
+    "derivedFrom": {
+      "$comment": "A filled note's derived_from: the template's name and the version it was filled from (input-model#Templates).",
+      "type": "object", "additionalProperties": false, "required": ["template", "version"],
+      "properties": {"template": {"$ref": "#/$defs/templateText"}, "version": {"$ref": "#/$defs/templateText"}}
+    },
     "queryReference": {
       "type": "string",
       "minLength": 1,
