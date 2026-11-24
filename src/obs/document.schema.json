@@ -65,6 +65,7 @@
   },
   "$defs": {
     "id": {"type": "string", "pattern": "^[a-z][a-z0-9-]*$"},
+    "templateText": {"description": "A template's or a guidance's nonempty text (input-model#Templates).", "type": "string", "pattern": "\\S"},
     "nodeId": {
       "description": "A block node's id, unique within its chapter or the abstract: an Obsidian block reference's name, else <type>-<hash> of its normalized text (input-model#Block node ids).",
       "type": "string", "pattern": "^[A-Za-z0-9-]+$"
@@ -96,7 +97,7 @@
       "anyOf": [
         {"properties": {"type": {"enum": [
           "section", "paragraph", "list", "list-item", "quote", "table", "table-row", "table-cell", "rule",
-          "registers", "figures", "cards-metrics", "callouts", "columns"
+          "registers", "figures", "cards-metrics", "callouts", "columns", "templates"
         ]}}},
         {"properties": {"type": {"const": "embeds"}, "attrs": {"not": {"required": ["asset"]}}}}
       ]
@@ -217,6 +218,33 @@
             "type": "object", "additionalProperties": false, "required": ["id"],
             "properties": {"id": {"$ref": "#/$defs/id"}}
           }}}
+        },
+        {
+          "description": "A part of a template (capabilities/templates), by attrs.part: a template manifest's template mark, a filled note's derived-from, a template node's guidance, whose children are one field node per guidance text in the order contents, motivation, form, sources, or its slot, where an author fills the section in.",
+          "if": {"properties": {"type": {"const": "templates"}}},
+          "then": {"oneOf": [
+            {"properties": {"attrs": {
+              "type": "object", "additionalProperties": false, "required": ["part", "name", "version"],
+              "properties": {"part": {"const": "template"}, "name": {"$ref": "#/$defs/templateText"},
+                             "version": {"$ref": "#/$defs/templateText"}, "source": {"$ref": "#/$defs/templateText"}}
+            }, "children": {"maxItems": 0}}},
+            {"properties": {"attrs": {
+              "type": "object", "additionalProperties": false, "required": ["part", "template", "version"],
+              "properties": {"part": {"const": "derived-from"}, "template": {"$ref": "#/$defs/templateText"},
+                             "version": {"$ref": "#/$defs/templateText"}}
+            }, "children": {"maxItems": 0}}},
+            {"properties": {"attrs": {
+              "type": "object", "additionalProperties": false, "required": ["part", "gate"],
+              "properties": {"part": {"const": "guidance"}, "gate": {"enum": ["mandatory", "judgment"]}}
+            }, "children": {"minItems": 1, "maxItems": 4, "items": {"properties": {
+              "type": {"const": "field"},
+              "attrs": {"properties": {"name": {"enum": ["contents", "motivation", "form", "sources"]}}}
+            }}}}},
+            {"properties": {"attrs": {
+              "type": "object", "additionalProperties": false, "required": ["part"],
+              "properties": {"part": {"const": "slot"}}
+            }, "children": {"maxItems": 0}}}
+          ]}
         },
         {
           "description": "A callout: its canonical type (bluf, a note's bottom line, among them) and its title as inline nodes (the authored one parsed as inline Markdown, or the default input-model.md#Callouts names; none for an untitled important); its children are the parsed body, the same block and inline nodes as chapter content, including nested callouts.",
